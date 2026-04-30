@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-blue-50: #E5F0FF;
+  --color-blue-100: #CCE0FF;
+  --color-blue-200: #99C2FF;
+  --color-blue-300: #66A3FF;
+  --color-blue-400: #3385FF;
+  --color-blue-500: #0066FF;
+  --color-blue-600: #0052CC;
+  --color-blue-700: #003D99;
+  --color-blue-800: #002966;
+  --color-blue-900: #001433;
+  --color-blue-950: #000E24;
+
+  --color-primary: var(--color-blue-500);
+  --color-primary-dark: var(--color-blue-600);
+  --color-sidebar-bg: var(--color-blue-900);
+  --color-page-bg: var(--color-blue-50);
+  --color-card-bg: #FFFFFF;
+  --color-card-border: var(--color-blue-100);
+  --color-text-primary: var(--color-blue-950);
+  --color-text-muted: var(--color-blue-300);
+
+  --radius-card: 16px;
+  --radius-btn: 10px;
+  
+  --shadow-card: 0 4px 24px rgba(0, 102, 255, 0.08);
+}
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-page-bg);
+  color: var(--color-text-primary);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-blue-50);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-blue-200);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-blue-300);
+}
