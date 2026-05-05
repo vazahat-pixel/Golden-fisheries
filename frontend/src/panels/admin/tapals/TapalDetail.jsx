@@ -1,216 +1,401 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
+import { Modal } from '../../../design-system/components/Modal';
 import { 
   ArrowLeft, 
   Printer, 
-  Share2, 
   Trash2, 
   Clock, 
   User, 
   Truck, 
   CheckCircle2,
   FileText,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle,
+  Pencil,
+  Check,
+  UserPlus,
+  Navigation,
+  IndianRupee,
+  PackageCheck,
+  AlertCircle
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAdminStore } from '../../../store/adminStore';
+import { useDriverStore } from '../../../store/driverStore';
+
+function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const TapalDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { 
+    tapals, 
+    deleteTapal, 
+    updateTapalStatus, 
+    editTapal, 
+    drivers, 
+    assignDriver, 
+    trips, 
+    markStockReceived,
+    addTripExpense 
+  } = useAdminStore();
 
-  // Mock data for a purchase tapal
-  const tapal = {
-    id: id || 'TRP-2026-001',
-    type: 'Purchase',
-    status: 'pending',
-    date: '30 Apr, 2026',
-    time: '10:45 AM',
-    party: {
-      name: 'Ramu Fisheries',
-      phone: '+91 98765 43210',
-      address: 'Hassan, Karnataka',
-      role: 'Farmer'
-    },
-    products: [
-      { name: 'Rohu Fish', qty: '500 KG', rate: '₹80', total: '₹40,000' },
-    ],
-    logistics: {
-      driver: 'Unassigned',
-      vehicle: 'N/A',
-      tripStatus: 'pending'
-    },
-    timeline: [
-      { status: 'Drafted', time: '10:30 AM', user: 'Mahesh (Admin)' },
-      { status: 'Harvest Slip Sent', time: '10:35 AM', user: 'System' },
-      { status: 'Farmer Confirmed', time: '10:42 AM', user: 'Farmer' },
-    ]
+  const { drivers: verifiedDrivers } = useDriverStore();
+  const availableDrivers = verifiedDrivers.filter(d => d.status === 'active' || d.status === 'approved');
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
+  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  
+  const [editFormData, setEditFormData] = useState({ party: '', qty: '', amount: '', type: 'Purchase', driver: '', date: '' });
+  const [receiveQty, setReceiveQty] = useState('');
+  const [expenseData, setExpenseData] = useState({ type: 'FUEL', amount: '', method: 'CASH' });
+
+  const tapal = tapals.find(t => t.id === id);
+  const trip = trips.find(t => t.tapalId === id);
+
+  if (!tapal) return <div className="p-12 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">Tapal record not found.</div>;
+
+  const displayProducts = tapal.products || [
+    { name: 'GENERAL FISH STOCK', qty: tapal.qty || '0 KG', rate: '—', total: tapal.amount || '—' }
+  ];
+
+  const openEditModal = () => {
+    setEditFormData({ 
+      party: tapal.party,
+      qty: tapal.qty.replace(' KG', ''), 
+      amount: tapal.amount.replace('₹', '').replace(/,/g, ''),
+      type: tapal.type,
+      driver: tapal.driver || 'Unassigned',
+      date: tapal.date
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    editTapal(tapal.id, {
+      party: editFormData.party.toUpperCase(),
+      qty: `${editFormData.qty} KG`,
+      amount: `₹${Number(editFormData.amount).toLocaleString()}`,
+      type: editFormData.type,
+      driver: editFormData.driver,
+      date: editFormData.date
+    });
+    setIsEditModalOpen(false);
+    toast.success('Tapal information updated');
+  };
+
+  const handleAssignDriver = (driverId) => {
+    assignDriver(tapal.id, driverId);
+    setIsDriverModalOpen(false);
+    toast.success('Driver assigned successfully');
+  };
+
+  const handleConfirmReceipt = () => {
+    if (!receiveQty) return toast.error('Please enter received quantity');
+    markStockReceived(tapal.id, receiveQty);
+    setIsReceiveModalOpen(false);
+    toast.success('Stock updated and record finalized!');
+  };
+
+  const handleAddExpense = () => {
+    if (!expenseData.amount) return toast.error('Amount is required');
+    addTripExpense(trip.id, expenseData);
+    setIsExpenseModalOpen(false);
+    setExpenseData({ type: 'FUEL', amount: '', method: 'CASH' });
+    toast.success('Expense recorded');
+  };
+
+  const getStepStatus = (step) => {
+    const statusOrder = ['Confirmed', 'Driver Assigned', 'In Transit', 'Received', 'Delivered'];
+    const currentIndex = statusOrder.indexOf(tapal.status);
+    const stepIndex = statusOrder.indexOf(step);
+    
+    if (currentIndex >= stepIndex) return 'completed';
+    if (currentIndex === stepIndex - 1) return 'current';
+    return 'upcoming';
   };
 
   return (
-    <div className="max-w-[1000px] mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/admin/tapals')}
-            className="p-2 bg-white border border-blue-100 rounded-xl text-gray-500 hover:text-primary transition-all shadow-sm"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-black text-gray-900">{tapal.id}</h1>
-              <Badge variant="warning">{tapal.status}</Badge>
-            </div>
-            <p className="text-sm text-gray-500 font-medium">{tapal.type} Tapal • {tapal.date} at {tapal.time}</p>
-          </div>
+    <div className="max-w-5xl mx-auto space-y-3">
+      {/* Header */}
+      <button onClick={() => navigate('/admin/tapals')} className="flex items-center gap-1.5 text-text-muted hover:text-black text-[9px] font-bold uppercase tracking-widest group">
+        <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" /> BACK TO RECORDS
+      </button>
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-xl font-serif italic font-bold text-black tracking-tight">{tapal.id}</h1>
+          <p className="text-[9px] text-text-muted font-bold uppercase tracking-widest mt-1">
+            {tapal.type} TAPAL · {tapal.date}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Share2 size={16} /> Share
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2 text-red-500 hover:bg-red-50 hover:border-red-100">
-            <Trash2 size={16} /> Delete
-          </Button>
-          <Button className="gap-2">
-            <Printer size={16} /> Print Slip
-          </Button>
+           <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={openEditModal}><Pencil size={12} className="mr-1" /> EDIT</Button>
+           <Badge variant={tapal.status === 'Delivered' ? 'success' : 'warning'} className="uppercase text-[9px] font-bold border border-card-border px-4 py-1 shadow-none">
+             {tapal.status}
+           </Badge>
+           <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={() => window.print()}><Printer size={12} className="mr-1" /> PRINT</Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          {/* Party Info */}
-          <Card padding="none" className="overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-blue-50/30 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center">
-                  <User size={20} />
+      {/* Progress Stepper */}
+      <Card className="border border-card-border bg-white p-6 shadow-subtle overflow-x-auto no-scrollbar">
+        <div className="flex justify-between items-center min-w-[600px] relative">
+          <div className="absolute left-0 right-0 h-0.5 bg-olive-100 -z-0"></div>
+          {['Confirmed', 'Driver Assigned', 'In Transit', 'Delivered'].map((step, i) => {
+            const status = getStepStatus(step);
+            return (
+              <div key={i} className="flex flex-col items-center gap-2 relative z-10 bg-white px-4">
+                <div className={clsx(
+                  "w-8 h-8 flex items-center justify-center border-2 font-bold text-[10px]",
+                  status === 'completed' ? "bg-black border-black text-white" : 
+                  status === 'current' ? "border-black text-black animate-pulse" : "border-olive-100 text-olive-200"
+                )}>
+                  {status === 'completed' ? <CheckCircle2 size={16} /> : i + 1}
                 </div>
-                <h3 className="font-bold text-gray-900">Party Details</h3>
+                <span className={clsx(
+                  "text-[8px] font-bold uppercase tracking-widest whitespace-nowrap",
+                  status === 'completed' || status === 'current' ? "text-black" : "text-text-muted"
+                )}>{step}</span>
               </div>
-              <Button variant="ghost" size="sm" className="text-xs">Edit Details</Button>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-8">
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Name</p>
-                <p className="text-base font-bold text-gray-900">{tapal.party.name}</p>
-                <Badge variant="info" className="mt-1">{tapal.party.role}</Badge>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Phone</p>
-                <p className="text-base font-bold text-gray-900">{tapal.party.phone}</p>
-                <button className="text-xs text-primary font-bold flex items-center gap-1 mt-1 hover:underline">
-                  <MessageCircle size={12} /> Send WhatsApp
-                </button>
-              </div>
-              <div className="col-span-2">
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Address</p>
-                <p className="text-sm font-medium text-gray-700">{tapal.party.address}</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Products Info */}
-          <Card padding="none" className="overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-blue-50/30 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
-                <FileText size={20} />
-              </div>
-              <h3 className="font-bold text-gray-900">Product Summary</h3>
-            </div>
-            <div className="p-6">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left">
-                    <th className="pb-4 text-xs font-bold text-gray-400 uppercase">Product</th>
-                    <th className="pb-4 text-xs font-bold text-gray-400 uppercase text-right">Qty</th>
-                    <th className="pb-4 text-xs font-bold text-gray-400 uppercase text-right">Rate</th>
-                    <th className="pb-4 text-xs font-bold text-gray-400 uppercase text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {tapal.products.map((p, i) => (
-                    <tr key={i}>
-                      <td className="py-4 text-sm font-bold text-gray-900">{p.name}</td>
-                      <td className="py-4 text-sm font-medium text-gray-700 text-right">{p.qty}</td>
-                      <td className="py-4 text-sm font-medium text-gray-700 text-right">{p.rate}</td>
-                      <td className="py-4 text-sm font-black text-primary text-right">{p.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-primary/10">
-                    <td colSpan={3} className="pt-6 text-base font-bold text-gray-900">Grand Total</td>
-                    <td className="pt-6 text-xl font-black text-primary text-right">{tapal.products[0].total}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </Card>
+            );
+          })}
         </div>
+      </Card>
 
-        <div className="space-y-8">
-          {/* Logistics Tracking */}
-          <Card padding="none" className="overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-blue-50/30 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center">
-                <Truck size={20} />
-              </div>
-              <h3 className="font-bold text-gray-900">Logistics</h3>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="flex flex-col items-center justify-center py-4 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-300 mb-4 border-2 border-dashed border-gray-200">
-                  <Truck size={32} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Left Column */}
+        <div className="lg:col-span-2 space-y-3">
+          {/* Party Card */}
+          <Card className="border border-card-border shadow-subtle bg-white p-4">
+            <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-3 text-center md:text-left">PARTY DETAILS</h3>
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-black text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0"><User size={16} /></div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-black uppercase tracking-tight">{tapal.party}</p>
+                <div className="flex gap-4 mt-1">
+                   <p className="text-[9px] text-text-muted font-bold flex items-center gap-1.5"><MessageCircle size={10} className="text-accent-olive" /> {tapal.phone || 'NO CONTACT'}</p>
+                   <Badge variant="secondary" className="bg-olive-50/50 text-[7px] border-none px-1.5">{tapal.type === 'Purchase' ? 'SUPPLIER' : 'CLIENT'}</Badge>
                 </div>
-                <p className="text-sm font-bold text-gray-900 mb-1">No driver assigned</p>
-                <p className="text-xs text-gray-500 mb-4 px-8 leading-relaxed">Assign a driver to start tracking the trip and fuel expenses.</p>
-                <Button variant="primary" size="sm" className="w-full">Assign Driver Now</Button>
               </div>
             </div>
           </Card>
 
-          {/* Timeline */}
-          <Card padding="none" className="overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-blue-50/30 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-green-500 text-white flex items-center justify-center">
-                <Clock size={20} />
-              </div>
-              <h3 className="font-bold text-gray-900">Timeline</h3>
+          {/* Product List */}
+          <Card padding="none" className="border border-card-border shadow-subtle bg-white overflow-hidden">
+            <div className="px-4 py-2 border-b border-card-border bg-olive-50/20 flex items-center gap-2">
+              <FileText size={12} className="text-accent-olive" />
+              <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted">LINE ITEMS</h3>
             </div>
-            <div className="p-6">
-              <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-blue-50">
-                {tapal.timeline.map((event, i) => (
-                  <div key={i} className="flex gap-4 relative">
-                    <div className="w-6 h-6 rounded-full bg-white border-2 border-primary flex items-center justify-center z-10 shrink-0">
-                      <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 leading-none mb-1">{event.status}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase">{event.time} • {event.user}</p>
-                    </div>
-                  </div>
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-olive-100/10">
+                  <th className="px-4 py-2 text-[8px] font-bold text-text-muted uppercase tracking-widest">Description</th>
+                  <th className="px-4 py-2 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Qty</th>
+                  <th className="px-4 py-2 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Rate</th>
+                  <th className="px-4 py-2 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-olive-100/30">
+                {displayProducts.map((p, i) => (
+                  <tr key={i} className="hover:bg-olive-50/30 transition-colors">
+                    <td className="px-4 py-3 text-[10px] font-bold text-black uppercase">{p.name}</td>
+                    <td className="px-4 py-3 text-[10px] font-bold text-black text-right">{p.qty}</td>
+                    <td className="px-4 py-3 text-[10px] font-bold text-text-muted text-right">{p.rate}</td>
+                    <td className="px-4 py-3 text-[11px] font-serif italic font-bold text-black text-right">{p.total}</td>
+                  </tr>
                 ))}
+              </tbody>
+              <tfoot className="bg-black text-white">
+                <tr>
+                  <td colSpan={3} className="px-4 py-2 text-[9px] font-bold uppercase tracking-widest">GRAND TOTAL</td>
+                  <td className="px-4 py-2 text-[11px] font-serif italic font-bold text-right">{tapal.amount}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Card>
+
+          {/* Trip Details & Expenses (If assigned) */}
+          {trip && (
+            <Card className="border border-card-border shadow-subtle bg-white overflow-hidden" padding="none">
+              <div className="px-4 py-2 border-b border-card-border bg-olive-50/20 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Navigation size={12} className="text-accent-olive" />
+                  <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted">TRIP LOGISTICS: {trip.id}</h3>
+                </div>
+                <Badge variant={trip.status === 'completed' ? 'success' : 'warning'} className="text-[7px] font-bold">{trip.status}</Badge>
               </div>
+              <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">PICKUP SITE</p><p className="text-[10px] font-bold text-black">{trip.pickupLocation}</p></div>
+                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">ACCEPTED AT</p><p className="text-[10px] font-bold text-black">{trip.acceptedAt || '—'}</p></div>
+                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">COMPLETED AT</p><p className="text-[10px] font-bold text-black">{trip.completedAt || '—'}</p></div>
+                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">TOTAL EXPENSES</p><p className="text-[10px] font-bold text-accent-olive">₹{trip.expenses?.reduce((a,e) => a+Number(e.amount), 0).toLocaleString() || '0'}</p></div>
+              </div>
+              
+              {/* Trip Expenses List */}
+              {trip.expenses?.length > 0 && (
+                <div className="border-t border-card-border px-4 py-2 bg-olive-50/10">
+                   <div className="flex flex-wrap gap-2 mt-2">
+                      {trip.expenses.map((exp, idx) => (
+                        <div key={idx} className="bg-white border border-card-border px-3 py-1 flex items-center gap-2 shadow-sm">
+                           <IndianRupee size={10} className="text-accent-olive" />
+                           <span className="text-[9px] font-bold text-black uppercase">{exp.type}</span>
+                           <span className="text-[9px] font-bold text-text-muted">₹{exp.amount}</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          {/* Action Control Panel */}
+          <Card className="border border-black bg-black p-4 text-white shadow-lg">
+             <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] mb-4 text-white/60 text-center md:text-left">WORKFLOW ACTION</h3>
+             
+             {tapal.status === 'Confirmed' && (
+               <Button className="w-full bg-white text-black hover:bg-olive-50 text-[10px] font-bold uppercase gap-2 h-11" onClick={() => setIsDriverModalOpen(true)}>
+                 <UserPlus size={16} /> ASSIGN DRIVER
+               </Button>
+             )}
+
+             {tapal.status === 'In Transit' && (
+               <Button className="w-full bg-white text-black hover:bg-olive-50 text-[10px] font-bold uppercase gap-2 h-11" onClick={() => setIsReceiveModalOpen(true)}>
+                 <PackageCheck size={16} /> MARK AS RECEIVED
+               </Button>
+             )}
+
+             {trip && tapal.status !== 'Delivered' && (
+               <Button variant="outline" className="w-full mt-2 border-white/30 text-white hover:bg-white hover:text-black text-[9px] font-bold h-10 gap-2" onClick={() => setIsExpenseModalOpen(true)}>
+                 <IndianRupee size={14} /> LOG EXPENSE
+               </Button>
+             )}
+
+             {tapal.status === 'Delivered' && (
+               <div className="text-center py-2">
+                 <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-glow"><CheckCircle2 size={24} /></div>
+                 <p className="text-[10px] font-bold uppercase tracking-widest text-green-400">RECORD FINALIZED</p>
+                 <p className="text-[8px] font-bold text-white/50 uppercase mt-1">STOCK & FINANCE UPDATED</p>
+               </div>
+             )}
+          </Card>
+
+          {/* Logistics Card (Static Info) */}
+          <Card className="border border-card-border shadow-subtle bg-white p-4">
+            <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-4">LOGISTICS INFO</h3>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-olive-50 border border-card-border flex items-center justify-center text-accent-olive shadow-sm"><Truck size={18} /></div>
+              <div>
+                <p className="text-[10px] font-bold text-black uppercase tracking-tight">{tapal.driver || 'UNASSIGNED'}</p>
+                <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">ASSIGNED AGENT</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Activity Timeline */}
+          <Card className="border border-card-border shadow-subtle bg-white p-4">
+            <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-4">TIMELINE</h3>
+            <div className="space-y-4 relative before:absolute before:left-3 before:top-4 before:bottom-4 before:w-px before:bg-olive-100">
+               {[ {s: 'DRAFTED', t: tapal.date}, {s: tapal.status.toUpperCase(), t: 'LATEST UPDATE'} ].map((ev, i) => (
+                 <div key={i} className="flex gap-4 relative z-10">
+                   <div className="w-6 h-6 bg-white border border-card-border flex items-center justify-center shadow-sm">
+                      <div className="w-1.5 h-1.5 bg-black"></div>
+                   </div>
+                   <div>
+                      <p className="text-[9px] font-bold text-black uppercase tracking-tight">{ev.s}</p>
+                      <p className="text-[8px] text-text-muted font-bold">{ev.t}</p>
+                   </div>
+                 </div>
+               ))}
             </div>
           </Card>
         </div>
       </div>
 
-      <div className="mt-8 flex justify-between p-6 bg-white border border-blue-100 rounded-[20px] shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center">
-            <CheckCircle2 size={24} />
+      {/* Edit Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={`Edit Tapal: ${tapal.id}`}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">TYPE</label>
+              <select value={editFormData.type} onChange={(e) => setEditFormData({...editFormData, type: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none bg-white">
+                <option value="Purchase">PURCHASE</option>
+                <option value="Sale">SALE</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">DATE</label>
+              <input type="text" value={editFormData.date} onChange={(e) => setEditFormData({...editFormData, date: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase" />
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-gray-900">Ready for Stocking?</p>
-            <p className="text-xs text-gray-500">Confirming will automatically add items to inventory.</p>
+          <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">PARTY NAME</label><input type="text" value={editFormData.party} onChange={(e) => setEditFormData({...editFormData, party: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase" /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">QTY (KG)</label><input type="number" value={editFormData.qty} onChange={(e) => setEditFormData({...editFormData, qty: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
+            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AMOUNT (₹)</label><input type="number" value={editFormData.amount} onChange={(e) => setEditFormData({...editFormData, amount: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
           </div>
+          <div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-9" onClick={() => setIsEditModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-9 gap-2" onClick={handleSaveEdit}><Check size={14} /> UPDATE</Button></div>
         </div>
-        <Button className="bg-green-600 hover:bg-green-700">Approve & Add to Stock</Button>
-      </div>
+      </Modal>
+
+      {/* Driver Assignment Modal */}
+      <Modal isOpen={isDriverModalOpen} onClose={() => setIsDriverModalOpen(false)} title="Select Driver from Verified Fleet">
+        <div className="space-y-2">
+          {availableDrivers.length === 0 ? (
+            <div className="py-8 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">No verified drivers currently available.</div>
+          ) : (
+            availableDrivers.map(driver => (
+              <div key={driver.id} className="p-3 border border-card-border hover:bg-olive-50 cursor-pointer flex justify-between items-center transition-all group" onClick={() => handleAssignDriver(driver.id)}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-black text-[#C5A021] flex items-center justify-center font-bold text-[10px] border border-black shadow-sm">
+                    <img src={`https://ui-avatars.com/api/?name=${driver.fullName}&background=0A0B09&color=C5A021&size=64&bold=true`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-black uppercase tracking-tight">{driver.fullName}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">{driver.vehicleNumber || 'No Vehicle Assigned'}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                   <Badge variant="success" className="text-[7px] uppercase px-2 py-0.5 border border-card-border shadow-none">VERIFIED</Badge>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
+
+      {/* Receive Stock Modal */}
+      <Modal isOpen={isReceiveModalOpen} onClose={() => setIsReceiveModalOpen(false)} title="Final Stock Confirmation">
+        <div className="space-y-4 text-center">
+           <AlertCircle size={40} className="text-accent-olive mx-auto mb-2" />
+           <div><p className="text-[11px] font-bold text-black uppercase tracking-tight">Enter Actual Quantity Received</p><p className="text-[9px] text-text-muted font-bold uppercase mt-1">Expected: {tapal.qty}</p></div>
+           <input type="number" placeholder="Actual Weight (KG)" value={receiveQty} onChange={(e) => setReceiveQty(e.target.value)} className="w-full border border-card-border px-4 py-3 text-lg font-serif italic text-center outline-none focus:ring-1 focus:ring-accent-olive" />
+           <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsReceiveModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleConfirmReceipt}>CONFIRM & ADD STOCK</Button></div>
+        </div>
+      </Modal>
+
+      {/* Expense Modal */}
+      <Modal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} title="Log Trip Expense">
+        <div className="space-y-4">
+           <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">EXPENSE TYPE</label>
+                <select value={expenseData.type} onChange={(e) => setExpenseData({...expenseData, type: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold bg-white">
+                  <option value="FUEL">FUEL</option><option value="TOLL">TOLL</option><option value="FOOD">FOOD</option><option value="REPAIR">REPAIR</option><option value="OTHER">OTHER</option>
+                </select>
+              </div>
+              <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AMOUNT (₹)</label><input type="number" value={expenseData.amount} onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold" /></div>
+           </div>
+           <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsExpenseModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleAddExpense}>LOG EXPENSE</Button></div>
+        </div>
+      </Modal>
     </div>
   );
 };

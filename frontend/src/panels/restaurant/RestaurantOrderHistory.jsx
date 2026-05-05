@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Filter
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const mockOrders = [
   { id: 'ORD-5501', table: 'Table 4', items: 'Fish Thali (2), King Fish Fry (1)', amount: '₹780', time: '10 mins ago', status: 'completed' },
@@ -22,69 +23,79 @@ const mockOrders = [
 
 const RestaurantOrderHistory = () => {
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-0">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight">Order History</h1>
-          <p className="text-gray-500 font-bold text-sm md:text-base">View and manage past restaurant orders and invoices.</p>
+          <h1 className="text-xl font-serif italic font-black text-black tracking-tight">Order <span className="text-accent-olive">History.</span></h1>
+          <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] mt-3">PAST RESTAURANT ORDERS • SALES LOGS • INVOICES</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <Button variant="outline" className="flex-1 md:flex-none gap-2 py-3 rounded-xl border-blue-100">
-            <Calendar size={18} /> Today
+        <div className="flex gap-4">
+          <Button 
+            variant="outline" 
+            className="gap-3 text-[10px] font-black border-card-border uppercase tracking-widest px-6 shadow-subtle active:scale-95 transition-all"
+          >
+            <Calendar size={14} /> TODAY
           </Button>
-          <Button className="flex-1 md:flex-none gap-2 py-3 rounded-xl shadow-xl shadow-primary/20">
-            <Printer size={18} /> <span className="hidden xs:inline">Daily Report</span>
+          <Button 
+            className="gap-3 text-[10px] font-black uppercase tracking-widest px-6 shadow-md active:scale-95 transition-all"
+            onClick={() => toast.success('Printing Daily Report...')}
+          >
+            <Printer size={14} /> DAILY REPORT
           </Button>
         </div>
       </div>
 
-      <Card padding="none" className="overflow-hidden mb-6">
-        <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col sm:flex-row gap-4 bg-gray-50/50">
+      <Card padding="none" className="border border-card-border shadow-subtle bg-white overflow-hidden">
+        <div className="p-4 border-b border-card-border flex flex-col md:flex-row gap-4 bg-olive-100/30">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
             <input 
               type="text" 
-              placeholder="Search by Order ID or Table..." 
-              className="w-full bg-white border border-blue-100 rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary outline-none shadow-sm"
+              placeholder="SEARCH BY ORDER ID OR TABLE..." 
+              className="w-full bg-white border border-card-border rounded-none py-2.5 pl-12 pr-6 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle transition-all"
             />
           </div>
-          <Button variant="outline" className="gap-2 py-3 rounded-xl border-blue-100">
-            <Filter size={16} /> Filters
+          <Button 
+            variant="outline" 
+            className="gap-3 text-[10px] font-black border-card-border uppercase tracking-widest px-6 shadow-subtle bg-white"
+            onClick={() => toast('Filters coming soon')}
+          >
+            <Filter size={14} /> FILTERS
           </Button>
         </div>
         
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-olive-100">
           {mockOrders.map((order) => (
-            <div key={order.id} className="p-4 md:p-6 hover:bg-blue-50/20 transition-all group flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4 md:gap-5">
-                <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center font-black shadow-sm shrink-0 ${
-                  order.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+            <div key={order.id} className="p-4 hover:bg-olive-50 transition-colors group flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 border flex items-center justify-center font-black shadow-md shrink-0 transition-transform group-hover:scale-105 ${
+                  order.status === 'completed' ? 'bg-black text-white border-black' : 'bg-red-600 text-white border-red-600'
                 }`}>
                   {order.table === 'Takeaway' ? '🥡' : order.table.split(' ')[1]}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="font-black text-gray-900 text-sm md:text-base">{order.id}</h3>
-                    <span className="text-gray-300 hidden xs:inline">•</span>
-                    <p className="text-[10px] md:text-xs text-primary font-black uppercase tracking-wider">{order.table}</p>
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <h3 className="font-serif italic font-black text-black text-xl tracking-tight uppercase">{order.id}</h3>
+                    <span className="text-text-muted/30 hidden xs:inline">•</span>
+                    <p className="text-[10px] text-accent-olive font-black uppercase tracking-[0.3em]">{order.table}</p>
                   </div>
-                  <p className="text-xs md:text-sm text-gray-600 font-bold line-clamp-1">{order.items}</p>
-                  <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-400 font-black uppercase tracking-widest">
-                    <span className="flex items-center gap-1"><Clock size={12} /> {order.time}</span>
-                    <span className="flex items-center gap-1 hidden xs:flex"><Utensils size={12} /> Dine-in</span>
+                  <p className="text-sm text-text-muted font-black tracking-widest uppercase line-clamp-1 mb-2">{order.items}</p>
+                  <div className="flex items-center gap-4 text-[9px] text-text-muted font-black uppercase tracking-widest">
+                    <span className="flex items-center gap-2"><Clock size={12} className="text-accent-olive" /> {order.time}</span>
+                    <span className="flex items-center gap-2 hidden xs:flex"><Utensils size={12} className="text-accent-olive" /> DINE-IN</span>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center justify-between sm:justify-end gap-4 md:gap-8 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-50">
+              <div className="flex items-center justify-between sm:justify-end gap-4 md:gap-10 border-t sm:border-t-0 pt-4 sm:pt-0 border-card-border">
                 <div className="text-left sm:text-right">
-                  <p className="text-lg md:text-xl font-black text-gray-900 leading-none mb-1">{order.amount}</p>
-                  <Badge variant={order.status === 'completed' ? 'success' : 'danger'} className="uppercase text-[9px] md:text-[10px]">
+                  <p className="text-xl font-serif italic font-black text-black tracking-tight mb-2">{order.amount}</p>
+                  <Badge variant={order.status === 'completed' ? 'success' : 'danger'} className="uppercase text-[9px] font-black border border-card-border shadow-sm px-4 py-1.5">
                     {order.status}
                   </Badge>
                 </div>
-                <button className="p-2 bg-gray-50 text-gray-400 group-hover:text-primary group-hover:bg-blue-50 rounded-xl transition-all">
-                  <ChevronRight size={20} />
+                <button className="p-3 bg-white border border-card-border shadow-subtle text-text-muted hover:bg-black hover:text-white hover:border-black rounded-none transition-all active:scale-95">
+                  <ChevronRight size={18} />
                 </button>
               </div>
             </div>
@@ -92,8 +103,10 @@ const RestaurantOrderHistory = () => {
         </div>
       </Card>
       
-      <div className="text-center">
-        <button className="text-sm font-bold text-primary hover:underline">Load more history</button>
+      <div className="text-center pt-4">
+        <button className="text-[11px] font-black text-accent-olive hover:text-black tracking-[0.3em] uppercase transition-colors">
+          LOAD MORE HISTORY
+        </button>
       </div>
     </div>
   );

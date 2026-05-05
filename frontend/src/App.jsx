@@ -11,9 +11,14 @@ function App() {
         position="top-right"
         toastOptions={{
           style: {
-            borderRadius: '12px',
-            background: '#001433',
+            borderRadius: '0px',
+            background: '#000000',
             color: '#fff',
+            border: '2px solid #000000',
+            fontSize: '11px',
+            fontWeight: '900',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em'
           },
         }}
       />

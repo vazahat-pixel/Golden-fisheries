@@ -64,8 +64,8 @@ const FishMallBilling = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 md:gap-8 max-w-[1400px] mx-auto pb-20 lg:pb-10">
-      <div className="flex-1 space-y-6">
+    <div className="flex flex-col lg:flex-row gap-4 md:gap-4 max-w-[1400px] mx-auto pb-20 lg:pb-10">
+      <div className="flex-1 space-y-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-end px-4 md:px-0">
           <div className="flex-1 w-full max-w-md">
             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Quick Search</label>
@@ -76,25 +76,25 @@ const FishMallBilling = () => {
                 placeholder="Search fish variety..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-primary shadow-sm font-medium text-sm md:text-base"
+                className="w-full pl-12 pr-4 py-3 bg-white border border-olive-100 rounded-none outline-none focus:ring-2 focus:ring-primary shadow-sm font-medium text-sm md:text-base"
               />
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-             <Button variant="outline" className="flex-1 sm:flex-none py-3 rounded-xl border-gray-200" onClick={() => setCart([])}>Clear</Button>
-             <Button variant="secondary" className="flex-1 sm:flex-none sm:hidden py-3 rounded-xl" onClick={() => setShowCart(true)}>Cart ({cart.length})</Button>
+             <Button variant="outline" className="flex-1 sm:flex-none py-3 rounded-none border-olive-200" onClick={() => setCart([])}>Clear</Button>
+             <Button variant="secondary" className="flex-1 sm:flex-none sm:hidden py-3 rounded-none" onClick={() => setShowCart(true)}>Cart ({cart.length})</Button>
           </div>
         </div>
 
-        <Card className="bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-950 text-white p-8 md:p-12 overflow-hidden relative shadow-2xl border-none mx-4 md:mx-0 rounded-[32px]">
+        <Card className="bg-gradient-to-br from-gray-900 via-olive-900 to-indigo-950 text-white p-4 md:p-12 overflow-hidden relative shadow-2xl border-none mx-4 md:mx-0 rounded-[32px]">
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-300">Live Scale Connected</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-olive-300">Live Scale Connected</p>
             </div>
             <div className="flex items-baseline gap-4">
               <h2 className="text-7xl md:text-9xl font-black tracking-tighter text-white drop-shadow-2xl">{currentWeight || '0.00'}</h2>
-              <span className="text-2xl md:text-4xl font-black text-blue-400/80 uppercase">KG</span>
+              <span className="text-xl md:text-xl font-black text-olive-400/80 uppercase">KG</span>
             </div>
             <div className="mt-8 md:mt-12 flex flex-col sm:flex-row gap-4 items-stretch">
               <div className="relative flex-1 group">
@@ -102,13 +102,13 @@ const FishMallBilling = () => {
                   type="number" 
                   step="0.01"
                   value={currentWeight === '0.00' ? '' : currentWeight}
-                  className="bg-white/10 border-2 border-white/10 rounded-2xl px-6 py-4 text-white w-full outline-none focus:ring-4 focus:ring-primary/30 focus:border-white/30 text-xl font-black transition-all placeholder:text-white/20"
+                  className="bg-white/10 border-2 border-white/10 rounded-none px-6 py-2.5 text-white w-full outline-none focus:ring-4 focus:ring-primary/30 focus:border-white/30 text-xl font-black transition-all placeholder:text-white/20"
                   placeholder="Enter Weight Manually..."
                   onChange={(e) => setCurrentWeight(e.target.value)}
                 />
                 <Scale className="absolute right-4 top-1/2 -translate-y-1/2 text-white/10 group-focus-within:text-white/30 transition-colors" size={24} />
               </div>
-              <Button onClick={() => setCurrentWeight('0.00')} className="bg-white text-gray-900 hover:bg-blue-50 shadow-2xl shadow-white/10 border-none font-black py-4 px-10 rounded-2xl transition-all active:scale-95 text-sm uppercase tracking-widest">
+              <Button onClick={() => setCurrentWeight('0.00')} className="bg-white text-gray-900 hover:bg-olive-50 shadow-2xl shadow-white/10 border-none font-black py-2.5 px-10 rounded-none transition-all active:scale-95 text-sm uppercase tracking-widest">
                 Reset Scale
               </Button>
             </div>
@@ -122,11 +122,11 @@ const FishMallBilling = () => {
               <button
                 key={fish.id}
                 onClick={() => addToCart(fish)}
-                className="bg-white p-5 md:p-8 rounded-[28px] border-2 border-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/10 transition-all group text-center active:scale-95 shadow-sm relative overflow-hidden"
+                className="bg-white p-5 md:p-4 rounded-[28px] border-2 border-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/10 transition-all group text-center active:scale-95 shadow-sm relative overflow-hidden"
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-olive-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="relative z-10">
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-[24px] bg-gray-50 flex items-center justify-center text-4xl md:text-5xl mb-4 mx-auto group-hover:scale-110 group-hover:bg-blue-50 transition-all duration-500 shadow-inner">
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-none bg-olive-50 flex items-center justify-center text-xl md:text-xl mb-4 mx-auto group-hover:scale-110 group-hover:bg-olive-50 transition-all duration-500 shadow-inner">
                     {fish.image}
                   </div>
                   <h3 className="font-black text-gray-900 text-xs md:text-sm mb-1 line-clamp-1 uppercase tracking-tight">{fish.name}</h3>
@@ -136,8 +136,8 @@ const FishMallBilling = () => {
             ))
           ) : (
             <div className="col-span-full py-20 text-center">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search size={32} className="text-gray-200" />
+              <div className="w-20 h-20 bg-olive-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search size={32} className="text-olive-200" />
               </div>
               <p className="font-black text-gray-400 uppercase tracking-widest text-sm">No variety found</p>
             </div>
@@ -157,8 +157,8 @@ const FishMallBilling = () => {
         "fixed inset-y-0 right-0 z-50 lg:relative lg:z-auto w-full sm:w-[450px] bg-white lg:bg-transparent flex flex-col shadow-2xl lg:shadow-none transition-transform duration-300 transform",
         showCart ? "translate-x-0" : "translate-x-full lg:translate-x-0"
       )}>
-        <Card padding="none" className="flex flex-col h-full lg:h-[650px] lg:shadow-2xl lg:sticky lg:top-6 border-none lg:border">
-          <div className="p-4 md:p-6 border-b border-gray-100 bg-blue-50/30 flex justify-between items-center shrink-0">
+        <Card padding="none" className="flex flex-col h-full lg:h-[650px] lg:shadow-2xl lg:sticky lg:top-4 border-none lg:border">
+          <div className="p-4 md:p-4 border-b border-olive-100 bg-olive-50/30 flex justify-between items-center shrink-0">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
               <Calculator size={18} className="text-primary" /> Billing Cart
             </h3>
@@ -170,17 +170,17 @@ const FishMallBilling = () => {
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-5 bg-white">
+          <div className="flex-1 overflow-y-auto p-4 md:p-4 space-y-5 bg-white">
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-40">
-                <div className="w-24 h-24 bg-gray-50 rounded-[32px] flex items-center justify-center mb-6 shadow-inner">
+                <div className="w-24 h-24 bg-olive-50 rounded-[32px] flex items-center justify-center mb-3 shadow-inner">
                   <Scale size={48} />
                 </div>
                 <p className="font-black text-center text-xs uppercase tracking-[0.2em] leading-relaxed">Select variety & weight<br/>to generate invoice</p>
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.id} className="flex justify-between items-center p-4 md:p-5 rounded-[24px] bg-gray-50 border border-gray-100 group transition-all hover:bg-white hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-1">
+                <div key={item.id} className="flex justify-between items-center p-4 md:p-5 rounded-none bg-olive-50 border border-olive-100 group transition-all hover:bg-white hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm md:text-base font-black text-gray-900 truncate leading-tight">{item.name}</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -198,7 +198,7 @@ const FishMallBilling = () => {
                         setCart(cart.filter(i => i.id !== item.id));
                         toast.error(`${item.name} removed`);
                       }} 
-                      className="w-10 h-10 flex items-center justify-center bg-white border border-gray-100 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-100 transition-all shadow-sm"
+                      className="w-10 h-10 flex items-center justify-center bg-white border border-olive-100 rounded-none text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-100 transition-all shadow-sm"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -208,20 +208,20 @@ const FishMallBilling = () => {
             )}
           </div>
 
-          <div className="p-6 md:p-8 bg-blue-50/30 border-t border-gray-100 space-y-6 shrink-0">
-            <div className="flex justify-between items-center bg-white p-6 rounded-[28px] border border-blue-100 shadow-sm">
+          <div className="p-4 md:p-4 bg-olive-50/30 border-t border-olive-100 space-y-4 shrink-0">
+            <div className="flex justify-between items-center bg-white p-4 rounded-[28px] border border-olive-100 shadow-sm">
               <div>
                 <span className="text-gray-400 font-black uppercase text-[10px] tracking-[0.3em] block mb-1">Final Amount</span>
-                <span className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter">₹{calculateTotal().toLocaleString()}</span>
+                <span className="text-xl md:text-xl font-black text-gray-900 tracking-tighter">₹{calculateTotal().toLocaleString()}</span>
               </div>
-              <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+              <div className="w-10 h-10 bg-primary/10 rounded-none flex items-center justify-center text-primary">
                 <Calculator size={32} />
               </div>
             </div>
             <Button 
               onClick={handlePrint}
               disabled={cart.length === 0}
-              className="w-full py-5 md:py-6 rounded-[24px] text-lg font-black gap-3 shadow-2xl shadow-primary/40 active:scale-[0.98] transition-all bg-primary hover:bg-blue-700 border-none group relative overflow-hidden"
+              className="w-full py-5 md:py-6 rounded-none text-lg font-black gap-3 shadow-2xl shadow-primary/40 active:scale-[0.98] transition-all bg-primary hover:bg-primary-dark border-none group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <Printer size={24} className="group-hover:scale-110 transition-transform" />
@@ -235,7 +235,7 @@ const FishMallBilling = () => {
       {!showCart && cart.length > 0 && (
         <button
           onClick={() => setShowCart(true)}
-          className="lg:hidden fixed bottom-6 right-6 bg-primary text-white p-4 rounded-2xl shadow-2xl z-40 flex items-center gap-3"
+          className="lg:hidden fixed bottom-6 right-6 bg-primary text-white p-4 rounded-none shadow-2xl z-40 flex items-center gap-3"
         >
           <div className="relative">
             <Calculator size={24} />
@@ -251,3 +251,4 @@ const FishMallBilling = () => {
 };
 
 export default FishMallBilling;
+

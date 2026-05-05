@@ -10,15 +10,17 @@ import {
   AlertTriangle, 
   ArrowDown, 
   RefreshCcw,
-  UtensilsCrossed
+  UtensilsCrossed,
+  ArrowRight
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const mockInventory = [
-  { id: 1, name: 'King Fish (Fresh)', qty: '12.5 KG', min: '5 KG', status: 'In Stock' },
-  { id: 2, name: 'Prawns (Medium)', qty: '8.0 KG', min: '10 KG', status: 'Low Stock' },
-  { id: 3, name: 'Coconut Oil', qty: '4 Liters', min: '2 Liters', status: 'In Stock' },
-  { id: 4, name: 'Rice (Sona Masoori)', qty: '45 KG', min: '20 KG', status: 'In Stock' },
-  { id: 5, name: 'Basmati Rice', qty: '2.0 KG', min: '5 KG', status: 'Low Stock' },
+  { id: 1, name: 'KING FISH (FRESH)', qty: '12.5 KG', min: '5 KG', status: 'In Stock' },
+  { id: 2, name: 'PRAWNS (MEDIUM)', qty: '8.0 KG', min: '10 KG', status: 'Low Stock' },
+  { id: 3, name: 'COCONUT OIL', qty: '4 LITERS', min: '2 LITERS', status: 'In Stock' },
+  { id: 4, name: 'RICE (SONA MASOORI)', qty: '45 KG', min: '20 KG', status: 'In Stock' },
+  { id: 5, name: 'BASMATI RICE', qty: '2.0 KG', min: '5 KG', status: 'Low Stock' },
 ];
 
 const RestaurantInventory = () => {
@@ -32,6 +34,9 @@ const RestaurantInventory = () => {
         const [minVal, minUnit] = item.min.split(' ');
         const newVal = Math.max(0, parseFloat(val) + amount);
         const newStatus = newVal <= parseFloat(minVal) ? 'Low Stock' : 'In Stock';
+        
+        toast.success(`${item.name} stock updated to ${newVal} ${unit}`);
+        
         return { ...item, qty: `${newVal} ${unit}`, status: newStatus };
       }
       return item;
@@ -45,72 +50,78 @@ const RestaurantInventory = () => {
   const lowStockItems = inventory.filter(i => i.status === 'Low Stock');
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-0">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight">Kitchen Inventory</h1>
-          <p className="text-gray-500 font-bold text-sm md:text-base">Track ingredients and stock levels for your restaurant.</p>
+          <h1 className="text-xl font-serif italic font-black text-black tracking-tight">Kitchen <span className="text-accent-olive">Inventory.</span></h1>
+          <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] mt-3">TRACK INGREDIENTS • STOCK LEVELS • KITCHEN OPERATIONS</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <Button variant="outline" className="flex-1 md:flex-none gap-2 py-3 rounded-xl border-blue-100">
-            <RefreshCcw size={18} /> <span className="hidden xs:inline">Request Stock</span>
+        <div className="flex gap-4">
+          <Button 
+            variant="outline" 
+            className="gap-3 text-[10px] font-black border-card-border uppercase tracking-widest px-6 shadow-subtle"
+            onClick={() => toast.success('Stock request initiated...')}
+          >
+            <RefreshCcw size={14} /> REQUEST STOCK
           </Button>
-          <Button className="flex-1 md:flex-none gap-2 py-3 rounded-xl shadow-xl shadow-primary/20">
-            <Plus size={18} /> <span className="hidden xs:inline">Add Item</span>
+          <Button 
+            className="gap-3 text-[10px] font-black uppercase tracking-widest px-6 shadow-md"
+            onClick={() => toast.success('Open add item modal')}
+          >
+            <Plus size={14} /> ADD ITEM
           </Button>
         </div>
       </div>
 
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search ingredients..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary outline-none shadow-sm"
-          />
-        </div>
+      <div className="relative max-w-lg">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+        <input 
+          type="text" 
+          placeholder="SEARCH INGREDIENTS..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-white border border-card-border rounded-none py-2.5 pl-12 pr-6 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle transition-all"
+        />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredInventory.map((item) => (
-          <Card key={item.id} className="hover:border-primary/40 transition-all group overflow-hidden border-none shadow-xl flex flex-col">
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm">
-                <UtensilsCrossed size={28} />
+          <Card key={item.id} className="p-4 border border-card-border shadow-subtle flex flex-col bg-white group hover:shadow-wapixo transition-all duration-300">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-10 h-10 bg-olive-100/50 border border-card-border flex items-center justify-center text-accent-olive shadow-sm group-hover:scale-105 transition-transform duration-300">
+                <UtensilsCrossed size={24} />
               </div>
-              <Badge variant={item.status === 'In Stock' ? 'success' : 'warning'} className="font-black uppercase tracking-widest text-[9px] px-3 py-1">
+              <Badge variant={item.status === 'In Stock' ? 'success' : 'warning'} className="font-black uppercase tracking-widest text-[9px] px-3 py-1 shadow-sm border border-card-border">
                 {item.status}
               </Badge>
             </div>
             
-            <h3 className="text-xl font-black text-gray-900 mb-2 leading-tight">{item.name}</h3>
-            <div className="flex items-baseline gap-2 mb-6">
-              <span className="text-4xl font-black text-primary tracking-tighter">{item.qty.split(' ')[0]}</span>
-              <span className="text-gray-400 font-black text-xs uppercase tracking-widest">{item.qty.split(' ')[1]}</span>
+            <h3 className="text-xl font-serif italic font-black text-black mb-4 uppercase tracking-tight">{item.name}</h3>
+            <div className="flex items-baseline gap-3 mb-4">
+              <span className="text-xl font-black text-black tracking-tighter">{item.qty.split(' ')[0]}</span>
+              <span className="text-text-muted font-black text-xs uppercase tracking-[0.2em]">{item.qty.split(' ')[1]}</span>
             </div>
             
             <div className="mt-auto space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
-                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Min. Limit</span>
-                <span className="text-sm font-black text-gray-900">{item.min}</span>
+              <div className="flex items-center justify-between p-4 bg-olive-50/50 border border-card-border">
+                <span className="text-[10px] text-text-muted font-black uppercase tracking-widest">MIN. LIMIT</span>
+                <span className="text-sm font-black text-black uppercase">{item.min}</span>
               </div>
   
-              <div className="grid grid-cols-2 gap-3">
-                <button 
+              <div className="grid grid-cols-2 gap-4">
+                <Button 
                   onClick={() => adjustStock(item.id, -1)}
-                  className="flex items-center justify-center gap-2 py-4 bg-white border-2 border-gray-100 rounded-2xl hover:border-red-400 hover:text-red-500 transition-all font-black text-[10px] uppercase tracking-widest active:scale-95 shadow-sm"
+                  variant="outline"
+                  className="py-2.5 border-card-border hover:bg-red-50 hover:text-red-600 hover:border-red-200"
                 >
-                  <Minus size={16} /> Deduct
-                </button>
-                <button 
+                  <Minus size={14} className="mr-2" /> DEDUCT
+                </Button>
+                <Button 
                   onClick={() => adjustStock(item.id, 1)}
-                  className="flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-2xl hover:bg-primary-dark transition-all font-black text-[10px] uppercase tracking-widest active:scale-95 shadow-lg shadow-primary/20"
+                  className="py-2.5"
                 >
-                  <Plus size={16} /> Add
-                </button>
+                  <Plus size={14} className="mr-2" /> ADD STOCK
+                </Button>
               </div>
             </div>
           </Card>
@@ -118,15 +129,15 @@ const RestaurantInventory = () => {
       </div>
 
       {lowStockItems.length > 0 && (
-        <Card className="border-l-4 border-l-amber-500 bg-amber-50/30 p-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center animate-pulse">
-              <AlertTriangle size={20} />
+        <Card className="border border-red-200 bg-red-50/50 shadow-subtle p-4 overflow-hidden relative">
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-10 h-10 bg-red-600 text-white flex items-center justify-center shadow-md animate-pulse">
+              <AlertTriangle size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-amber-900">Critical Stock Warning</h4>
-              <p className="text-sm text-amber-700">
-                {lowStockItems.map(i => i.name).join(', ')} {lowStockItems.length > 1 ? 'are' : 'is'} below the minimum threshold. Please reorder immediately.
+              <h4 className="font-black text-red-600 uppercase tracking-[0.3em] text-sm">Critical Stock Warning</h4>
+              <p className="text-[11px] font-black text-red-600/70 uppercase tracking-widest mt-2 leading-relaxed">
+                {lowStockItems.map(i => i.name).join(', ')} ARE BELOW THE MINIMUM THRESHOLD. PLEASE REORDER IMMEDIATELY.
               </p>
             </div>
           </div>
@@ -137,5 +148,3 @@ const RestaurantInventory = () => {
 };
 
 export default RestaurantInventory;
-
-const itemAlerts = [1, 2]; // Mock alert IDs

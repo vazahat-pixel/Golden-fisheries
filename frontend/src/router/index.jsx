@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AdminLayout } from '../design-system/layouts/AdminLayout';
 import { PanelLayout } from '../design-system/layouts/PanelLayout';
 import { 
@@ -11,6 +11,14 @@ import {
   ClipboardList,
   Settings
 } from 'lucide-react';
+
+// Auth Imports
+import AdminAuth from '../panels/auth/AdminAuth';
+import RestaurantAuth from '../panels/auth/RestaurantAuth';
+import FishMallAuth from '../panels/auth/FishMallAuth';
+import DriverAuth from '../panels/auth/DriverAuth';
+import ProtectedRoute from '../panels/auth/ProtectedRoute';
+import { useAuthStore } from '../store/authStore';
 
 // Admin Imports
 import AdminDashboard from '../panels/admin/Dashboard';
@@ -24,6 +32,8 @@ import TripsAndExpenses from '../panels/admin/logistics/TripsAndExpenses';
 import VehicleDocuments from '../panels/admin/logistics/VehicleDocuments';
 import FinanceOverview from '../panels/admin/finance/FinanceOverview';
 import HarvestSlips from '../panels/admin/procurement/HarvestSlips';
+import CreateHarvestSlip from '../panels/admin/procurement/CreateHarvestSlip';
+import HarvestSlipDetail from '../panels/admin/procurement/HarvestSlipDetail';
 import UsersAndRoles from '../panels/admin/settings/UsersAndRoles';
 import AdminBilling from '../panels/admin/billing/AdminBilling';
 
@@ -51,8 +61,6 @@ import DriverProfile from '../panels/driver/DriverProfile';
 import BuyerBilling from '../panels/public/BuyerBilling';
 import Launchpad from '../pages/Launchpad';
 
-const ProtectedRoute = ({ children }) => children;
-
 const restaurantNav = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/restaurant/dashboard' },
   { icon: Utensils, label: 'POS Billing', path: '/restaurant/pos' },
@@ -76,77 +84,90 @@ const AppRouter = () => {
       
       {/* Admin Panel */}
       <Route path="/admin/*" element={
-        <ProtectedRoute>
-          <AdminLayout>
-            <Routes>
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="tapals" element={<TapalList />} />
-              <Route path="tapals/purchase/new" element={<CreatePurchaseTapal />} />
-              <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
-              <Route path="tapals/:id" element={<TapalDetail />} />
-              <Route path="procurement/harvest" element={<HarvestSlips />} />
-              <Route path="inventory" element={<InventoryOverview />} />
-              <Route path="logistics" element={<TripsAndExpenses />} />
-              <Route path="logistics/drivers" element={<DriverManagement />} />
-              <Route path="logistics/vehicles" element={<VehicleDocuments />} />
-              <Route path="finance" element={<FinanceOverview />} />
-              <Route path="billing" element={<AdminBilling />} />
-              <Route path="settings" element={<UsersAndRoles />} />
-            </Routes>
-          </AdminLayout>
-        </ProtectedRoute>
+        <Routes>
+          <Route path="auth" element={<AdminAuth />} />
+          <Route element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <AdminLayout><Outlet /></AdminLayout>
+            </ProtectedRoute>
+          }>
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="tapals" element={<TapalList />} />
+            <Route path="tapals/purchase/new" element={<CreatePurchaseTapal />} />
+            <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
+            <Route path="tapals/:id" element={<TapalDetail />} />
+            <Route path="procurement/harvest" element={<HarvestSlips />} />
+            <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
+            <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
+            <Route path="inventory" element={<InventoryOverview />} />
+            <Route path="logistics" element={<TripsAndExpenses />} />
+            <Route path="logistics/drivers" element={<DriverManagement />} />
+            <Route path="logistics/vehicles" element={<VehicleDocuments />} />
+            <Route path="finance" element={<FinanceOverview />} />
+            <Route path="billing" element={<AdminBilling />} />
+            <Route path="settings" element={<UsersAndRoles />} />
+          </Route>
+        </Routes>
       } />
 
       {/* Restaurant Panel */}
       <Route path="/restaurant/*" element={
-        <ProtectedRoute>
-          <Routes>
+        <Routes>
+          <Route path="auth" element={<RestaurantAuth />} />
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING']}><Outlet /></ProtectedRoute>}>
             <Route path="pos" element={<RestaurantPOS />} />
-            <Route path="*" element={
-              <PanelLayout navItems={restaurantNav} panelName="MKE Restaurant" userName="Suresh">
-                <Routes>
-                  <Route path="dashboard" element={<RestaurantDashboard />} />
-                  <Route path="orders" element={<RestaurantOrderHistory />} />
-                  <Route path="inventory" element={<RestaurantInventory />} />
-                  <Route path="settings" element={<RestaurantSettings />} />
-                </Routes>
-              </PanelLayout>
-            } />
-          </Routes>
-        </ProtectedRoute>
+            <Route element={<PanelLayout navItems={restaurantNav} panelName="GF Restaurant" userName="Suresh"><Outlet /></PanelLayout>}>
+              <Route path="dashboard" element={<RestaurantDashboard />} />
+              <Route path="orders" element={<RestaurantOrderHistory />} />
+              <Route path="inventory" element={<RestaurantInventory />} />
+              <Route path="settings" element={<RestaurantSettings />} />
+            </Route>
+          </Route>
+        </Routes>
       } />
 
       {/* Fish Mall Panel */}
       <Route path="/fishmall/*" element={
-        <ProtectedRoute>
-          <PanelLayout navItems={fishMallNav} panelName="MKE Fish Mall" userName="Ramesh">
-            <Routes>
-              <Route path="dashboard" element={<FishMallDashboard />} />
-              <Route path="billing" element={<FishMallBilling />} />
-              <Route path="rates" element={<FishMallRates />} />
-              <Route path="stock" element={<FishMallStock />} />
-            </Routes>
-          </PanelLayout>
-        </ProtectedRoute>
+        <Routes>
+          <Route path="auth" element={<FishMallAuth />} />
+          <Route element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING']}>
+              <PanelLayout navItems={fishMallNav} panelName="GF Fish Mall" userName="Ramesh">
+                <Outlet />
+              </PanelLayout>
+            </ProtectedRoute>
+          }>
+            <Route path="dashboard" element={<FishMallDashboard />} />
+            <Route path="billing" element={<FishMallBilling />} />
+            <Route path="rates" element={<FishMallRates />} />
+            <Route path="stock" element={<FishMallStock />} />
+          </Route>
+        </Routes>
       } />
 
       {/* Driver App Panel */}
       <Route path="/driver/*" element={
-        <ProtectedRoute>
-          <Routes>
+        <Routes>
+          <Route path="auth" element={<DriverAuth />} />
+          <Route element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'DRIVER']}>
+              <Outlet />
+            </ProtectedRoute>
+          }>
             <Route element={<MobileLayout />}>
               <Route path="dashboard" element={<DriverDashboard />} />
               <Route path="tasks" element={<DriverTasks />} />
               <Route path="active-trip" element={<ActiveTrip />} />
               <Route path="profile" element={<DriverProfile />} />
             </Route>
-          </Routes>
-        </ProtectedRoute>
+          </Route>
+        </Routes>
       } />
 
       {/* Public Routes */}
       <Route path="/pay/:invoiceId" element={<BuyerBilling />} />
 
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

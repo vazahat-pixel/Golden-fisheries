@@ -1,35 +1,42 @@
 @import "tailwindcss";
 
 @theme {
-  --color-blue-50: #E5F0FF;
-  --color-blue-100: #CCE0FF;
-  --color-blue-200: #99C2FF;
-  --color-blue-300: #66A3FF;
-  --color-blue-400: #3385FF;
-  --color-blue-500: #0066FF;
-  --color-blue-600: #0052CC;
-  --color-blue-700: #003D99;
-  --color-blue-800: #002966;
-  --color-blue-900: #001433;
-  --color-blue-950: #000E24;
-
-  --color-primary: var(--color-blue-500);
-  --color-primary-dark: var(--color-blue-600);
-  --color-sidebar-bg: var(--color-blue-900);
-  --color-page-bg: var(--color-blue-50);
-  --color-card-bg: #FFFFFF;
-  --color-card-border: var(--color-blue-100);
-  --color-text-primary: var(--color-blue-950);
-  --color-text-muted: var(--color-blue-300);
-
-  --radius-card: 16px;
-  --radius-btn: 10px;
+  --color-olive-50: #FFFFFF;
+  --color-olive-100: #F9FAFB;
+  --color-olive-200: #E5E7EB;
+  --color-accent-olive: #5F6846;
   
-  --shadow-card: 0 4px 24px rgba(0, 102, 255, 0.08);
+  /* Semantic Colors - Exact from Screenshot */
+  --color-page-bg: #FFFFFF;
+  --color-sidebar-bg: #FFFFFF;
+  --color-card-bg: #FFFFFF;
+  --color-primary: #000000;
+  
+  /* Text Colors */
+  --color-text-primary: #000000;
+  --color-text-secondary: #404040;
+  --color-text-muted: #8E8E8E;
+  
+  /* Borders - Subtle and Olive-toned */
+  --color-card-border: #E8E1C8;   
+
+  
+  --border-weight-thin: 1px;
+  
+  /* Typography */
+  --font-serif: "Poppins", sans-serif;
+  --font-sans: "Inter", "Roboto", sans-serif;
+
+  --radius-card: 0px;
+  --radius-btn: 0px;
+
+  /* Shadows - Very subtle */
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-wapixo: 4px 4px 0px 0px #E8E1C8;
 }
 
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--color-page-bg);
   color: var(--color-text-primary);
 }
@@ -39,6 +46,33 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   width: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.025em;
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
 }
 
 /* Custom Scrollbar */
@@ -46,12 +80,24 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-blue-50);
+  background: var(--color-accent-cream);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-blue-200);
-  border-radius: 10px;
+  background: #000000;
+  border-radius: 0px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-blue-300);
+  background: var(--color-accent-olive);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .print-only {
+    display: block !important;
+  }
 }

@@ -1,130 +1,140 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
 import { StatCard } from '../../../design-system/components/StatCard';
+import { useAdminStore } from '../../../store/adminStore';
 import { 
   FileText, 
   IndianRupee, 
-  ArrowUpRight, 
   Clock, 
   Search,
   Download,
   Filter,
   MoreVertical,
-  CheckCircle2
+  Plus
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
-const mockInvoices = [
-  { id: 'INV-1001', client: 'Golden Restaurant', type: 'Sales', amount: '₹12,450', date: '30 Apr 2026', status: 'paid' },
-  { id: 'INV-1002', client: 'Fish Mall Retail', type: 'Sales', amount: '₹8,900', date: '30 Apr 2026', status: 'pending' },
-  { id: 'INV-1003', client: 'Deep Sea Farms', type: 'Procurement', amount: '₹45,000', date: '29 Apr 2026', status: 'paid' },
-  { id: 'INV-1004', client: 'Blue Water Hotel', type: 'Sales', amount: '₹18,200', date: '29 Apr 2026', status: 'overdue' },
-  { id: 'INV-1005', client: 'Coastal Cuisines', type: 'Sales', amount: '₹6,750', date: '28 Apr 2026', status: 'paid' },
-];
+function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const AdminBilling = () => {
+  const { invoices } = useAdminStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('ALL');
+
+  const filteredInvoices = invoices.filter(inv => {
+    const matchesSearch = 
+      inv.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.client.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (activeTab === 'ALL') return matchesSearch;
+    if (activeTab === 'OVERDUE') return matchesSearch && inv.status === 'overdue';
+    return matchesSearch;
+  });
+
+  const totalReceivables = invoices
+    .filter(inv => inv.type === 'SALES' && inv.status !== 'paid')
+    .reduce((acc, inv) => acc + (inv.numericAmount || 0), 0);
+
   return (
-    <div className="max-w-[1400px] mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Billing Management</h1>
-          <p className="text-gray-500 font-medium">Oversee all sales, procurement invoices, and payment statuses.</p>
+          <h1 className="text-xl font-serif italic font-bold text-black tracking-tight">Billing <span className="text-accent-olive">Management.</span></h1>
+          <p className="text-text-muted text-[9px] font-bold uppercase tracking-[0.2em] mt-1">FISCAL RECAP • GST INVOICING</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
-            <Download size={18} /> Export GST Report
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" size="sm"
+            className="gap-2 text-[9px] font-bold border-card-border uppercase tracking-widest px-4 h-9 shadow-subtle"
+            onClick={() => window.print()}
+          >
+            <Download size={12} /> EXPORT GST
           </Button>
-          <Button className="gap-2">
-            <FileText size={18} /> Create Custom Invoice
+          <Button size="sm"
+            className="gap-2 text-[9px] font-bold uppercase tracking-widest px-4 h-9 shadow-md"
+            onClick={() => toast.success('New Invoice drafting...')}
+          >
+            <Plus size={12} /> NEW INVOICE
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatCard title="Total Receivables" value="₹2.45L" icon={IndianRupee} trend="+12% from last month" />
-        <StatCard title="Total Payables" value="₹1.10L" icon={IndianRupee} variant="warning" />
-        <StatCard title="Invoices Today" value="14" icon={FileText} />
-        <StatCard title="Overdue" value="3" icon={Clock} variant="danger" />
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard title="RECEIVABLES" value={`₹${(totalReceivables / 1000).toFixed(1)}K`} icon={IndianRupee} trend="+12%" trendType="up" />
+        <StatCard title="PAYABLES" value="₹1.10L" icon={IndianRupee} trend="STABLE" trendType="up" />
+        <StatCard title="INVOICES" value={invoices.length.toString()} icon={FileText} trend="ACTIVE" trendType="up" />
+        <StatCard title="OVERDUE" value={invoices.filter(i => i.status === 'overdue').length.toString()} icon={Clock} trend="URGENT" trendType="down" />
       </div>
 
-      <Card padding="none" className="overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between gap-4 bg-blue-50/20">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search by invoice ID or client..." 
-              className="w-full bg-white border border-blue-100 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary shadow-sm outline-none transition-all"
-            />
+      {/* Table Container */}
+      <Card padding="none" className="bg-white border border-card-border shadow-subtle overflow-hidden">
+        {/* Toolbar */}
+        <div className="px-4 py-2 border-b border-card-border flex flex-col md:flex-row justify-between gap-4 bg-white">
+          <div className="flex bg-olive-100/30 p-0.5 rounded-none w-fit border border-card-border/50">
+            {['ALL', 'PENDING', 'OVERDUE'].map(t => (
+              <button key={t} onClick={() => setActiveTab(t)} className={clsx('px-4 py-1.5 text-[8px] font-bold uppercase tracking-widest transition-all', activeTab === t ? 'bg-black text-white shadow-sm' : 'text-text-muted hover:text-black')}>
+                {t}
+              </button>
+            ))}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter size={16} /> Filters
-            </Button>
-            <Button variant="outline" size="sm">Today</Button>
-            <Button variant="outline" size="sm">This Month</Button>
+          
+          <div className="flex gap-2 flex-1 md:max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
+              <input type="text" placeholder="SEARCH INVOICES..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white border border-card-border py-2 pl-9 pr-4 text-[9px] font-bold uppercase tracking-widest outline-none focus:ring-1 focus:ring-accent-olive shadow-subtle" />
+            </div>
+            <Button variant="outline" size="sm" className="h-8 px-3 border-card-border"><Filter size={14} /></Button>
           </div>
         </div>
 
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-white border-b border-gray-100">
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Invoice / Date</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Client / Entity</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4"></th>
+              <tr className="bg-olive-100/20">
+                <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Invoice</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Client</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Type</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Amount</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Status</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {mockInvoices.map((inv) => (
-                <tr key={inv.id} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-primary transition-all">
-                        <FileText size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{inv.id}</p>
-                        <p className="text-[10px] text-gray-500 font-bold uppercase">{inv.date}</p>
-                      </div>
-                    </div>
+            <tbody className="divide-y divide-olive-100/50">
+              {filteredInvoices.map((inv) => (
+                <tr key={inv.id} className="hover:bg-olive-50/50 transition-colors group">
+                  <td className="px-4 py-2.5">
+                    <p className="text-[11px] font-bold text-black uppercase">{inv.id}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase">{inv.date}</p>
                   </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-gray-900">{inv.client}</p>
-                    <p className="text-xs text-gray-500 font-medium tracking-tight">Tax ID: MKE-{inv.id.split('-')[1]}</p>
+                  <td className="px-4 py-2.5">
+                    <p className="text-[10px] font-bold text-black uppercase">{inv.client}</p>
+                    <p className="text-[7px] text-text-muted font-bold tracking-widest uppercase">ID: {inv.id.split('-')[1]}</p>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={clsx(
-                      'text-[10px] font-black uppercase px-2 py-1 rounded-md border',
-                      inv.type === 'Sales' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-purple-50 text-purple-600 border-purple-100'
-                    )}>
+                  <td className="px-4 py-2.5">
+                    <Badge variant={inv.type === 'SALES' ? 'secondary' : 'primary'} className="uppercase text-[7px] font-bold border-none px-1.5 h-4">
                       {inv.type}
-                    </span>
+                    </Badge>
                   </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-black text-gray-900">{inv.amount}</p>
-                    <p className="text-[10px] text-gray-400 font-bold">Incl. 5% GST</p>
+                  <td className="px-4 py-2.5">
+                    <p className="text-[11px] font-bold text-black">{inv.amount}</p>
+                    <p className="text-[7px] text-text-muted font-bold uppercase mt-0.5">Incl. GST</p>
                   </td>
-                  <td className="px-6 py-4">
-                    <Badge variant={
-                      inv.status === 'paid' ? 'success' : 
-                      inv.status === 'pending' ? 'warning' : 'danger'
-                    }>
+                  <td className="px-4 py-2.5">
+                    <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'pending' ? 'warning' : 'danger'} 
+                      className="uppercase text-[7px] font-bold border border-card-border px-2 py-0.5 shadow-none">
                       {inv.status}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 text-primary hover:bg-blue-50 rounded-lg">
-                        <Download size={16} />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
-                        <MoreVertical size={16} />
-                      </button>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex justify-end gap-1 transition-all">
+                      <button onClick={() => window.print()} className="p-1.5 text-black hover:bg-black hover:text-white border border-card-border/30 bg-white shadow-subtle active:scale-95"><Download size={13} /></button>
+                      <button className="p-1.5 text-black hover:bg-black hover:text-white border border-card-border/30 bg-white shadow-subtle active:scale-95"><MoreVertical size={13} /></button>
                     </div>
                   </td>
                 </tr>
@@ -132,21 +142,9 @@ const AdminBilling = () => {
             </tbody>
           </table>
         </div>
-        
-        <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-          <p className="text-sm text-gray-500 font-medium">Showing 5 of 142 invoices</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled>Previous</Button>
-            <Button variant="outline" size="sm">Next</Button>
-          </div>
-        </div>
       </Card>
     </div>
   );
 };
 
 export default AdminBilling;
-
-function clsx(...classes) {
-  return classes.filter(Boolean).join(' ');
-}

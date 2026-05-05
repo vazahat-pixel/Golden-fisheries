@@ -2,81 +2,139 @@ import React, { useState } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
-import { Link } from 'react-router-dom';
+import { Modal } from '../../../design-system/components/Modal';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAdminStore } from '../../../store/adminStore';
 import { 
   Search, 
   Filter, 
   Plus, 
-  MoreVertical, 
   Eye, 
   Truck, 
-  CheckCircle2,
-  XCircle,
   FileText,
-  Download
+  Download,
+  MoreVertical,
+  Pencil,
+  Check
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
-const mockTapals = [
-  { id: 'TRP-2026-001', type: 'Purchase', party: 'Ramu Fisheries', qty: '500 KG', amount: '₹40,000', status: 'pending', date: '30/04/2026', driver: 'Unassigned' },
-  { id: 'TRP-2026-002', type: 'Sale', party: 'Golden Restaurant', qty: '120 KG', amount: '₹12,500', status: 'confirmed', date: '30/04/2026', driver: 'Suresh M.' },
-  { id: 'TRP-2026-003', type: 'Purchase', party: 'Deep Sea Farms', qty: '800 KG', amount: '₹65,000', status: 'delivered', date: '29/04/2026', driver: 'Vicky P.' },
-  { id: 'TRP-2026-004', type: 'Sale', party: 'Channappa Buyer', qty: '250 KG', amount: '₹22,000', status: 'in-transit', date: '30/04/2026', driver: 'Ramu K.' },
-  { id: 'TRP-2026-005', type: 'Purchase', party: 'Coastal Harvest', qty: '450 KG', amount: '₹35,000', status: 'pending', date: '30/04/2026', driver: 'Unassigned' },
-];
+function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const TapalList = () => {
+  const navigate = useNavigate();
+  const { tapals: storeTapals, editTapal, drivers } = useAdminStore();
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTapal, setEditingTapal] = useState(null);
+  const [editFormData, setEditFormData] = useState({ 
+    party: '', 
+    qty: '', 
+    amount: '', 
+    type: 'Purchase', 
+    driver: '',
+    date: '' 
+  });
 
   const getStatusVariant = (status) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'pending': return 'warning';
       case 'confirmed': return 'info';
-      case 'in-transit': return 'primary';
+      case 'in-transit': return 'secondary';
       case 'delivered': return 'success';
       case 'rejected': return 'danger';
-      default: return 'gray';
+      default: return 'secondary';
     }
   };
 
-  const filteredTapals = mockTapals.filter(tapal => {
+  const filteredTapals = storeTapals.filter(tapal => {
     const matchesFilter = filter === 'all' || tapal.type.toLowerCase() === filter.toLowerCase();
     const matchesSearch = 
       tapal.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tapal.party.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tapal.driver.toLowerCase().includes(searchQuery.toLowerCase());
+      (tapal.driver && tapal.driver.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
+  const openEditModal = (tapal) => {
+    setEditingTapal(tapal);
+    setEditFormData({ 
+      party: tapal.party,
+      qty: tapal.qty.replace(' KG', ''), 
+      amount: tapal.amount.replace('₹', '').replace(/,/g, ''),
+      type: tapal.type,
+      driver: tapal.driver || 'Unassigned',
+      date: tapal.date
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editFormData.party || !editFormData.qty || !editFormData.amount) {
+      toast.error('Required fields are missing');
+      return;
+    }
+    
+    editTapal(editingTapal.id, {
+      party: editFormData.party.toUpperCase(),
+      qty: `${editFormData.qty} KG`,
+      amount: `₹${Number(editFormData.amount).toLocaleString()}`,
+      type: editFormData.type,
+      driver: editFormData.driver,
+      date: editFormData.date
+    });
+    
+    setIsEditModalOpen(false);
+    toast.success('Tapal information updated');
+  };
+
   return (
-    <div className="max-w-[1400px] mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tapal System</h1>
-          <p className="text-gray-500 font-medium">Manage all your purchase and sales slips in one place.</p>
+          <h1 className="text-xl font-serif italic font-bold text-black tracking-tight">Tapal <span className="text-accent-olive">System.</span></h1>
+          <p className="text-text-muted text-[9px] font-bold uppercase tracking-[0.2em] mt-1">PURCHASE & SALES • LOGISTICS</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
-            <Download size={18} /> Export
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="gap-2 text-[9px] font-bold border-card-border uppercase tracking-widest px-4 h-9 shadow-subtle"
+            onClick={() => toast.success('Exporting tapal data...')}
+          >
+            <Download size={12} /> EXPORT
           </Button>
-          <Link to="/admin/tapals/purchase/new">
-            <Button className="gap-2">
-              <Plus size={18} /> Create Tapal
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link to="/admin/tapals/purchase/new">
+              <Button size="sm" className="gap-2 text-[9px] font-bold uppercase tracking-widest px-4 h-9 shadow-md bg-amber-600 border-amber-600">
+                <Plus size={12} /> PURCHASE
+              </Button>
+            </Link>
+            <Link to="/admin/tapals/sales/new">
+              <Button size="sm" className="gap-2 text-[9px] font-bold uppercase tracking-widest px-4 h-9 shadow-md">
+                <Plus size={12} /> SALES
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
-      <Card className="mb-6" padding="none">
-        <div className="p-4 flex flex-col md:flex-row justify-between gap-4">
-          <div className="flex bg-blue-50 p-1 rounded-xl w-fit">
+      {/* Main Container */}
+      <Card padding="none" className="bg-white border border-card-border shadow-subtle overflow-hidden">
+        {/* Toolbar */}
+        <div className="px-4 py-2 flex flex-col md:flex-row justify-between gap-4 border-b border-card-border bg-white">
+          <div className="flex bg-olive-100/30 p-0.5 rounded-none w-fit border border-card-border/50">
             {['all', 'purchase', 'sale'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setFilter(tab)}
                 className={clsx(
-                  'px-6 py-2 rounded-lg text-sm font-bold capitalize transition-all',
-                  filter === tab ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-primary'
+                  'px-3 py-1.5 rounded-none text-[8px] font-bold uppercase tracking-widest transition-all',
+                  filter === tab ? 'bg-black text-white shadow-sm' : 'text-text-muted hover:text-black hover:bg-white/50'
                 )}
               >
                 {tab}
@@ -84,124 +142,158 @@ const TapalList = () => {
             ))}
           </div>
           
-          <div className="flex gap-3 flex-1 md:max-w-md">
+          <div className="flex gap-2 flex-1 md:max-w-md">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
               <input 
                 type="text" 
-                placeholder="Search by ID, Party or Driver..." 
+                placeholder="SEARCH TAPAL ID, PARTY..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-blue-50 border-none rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary outline-none"
+                className="w-full bg-white border border-card-border rounded-none py-2 pl-9 pr-4 text-[9px] font-bold uppercase tracking-widest focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle"
               />
             </div>
-            <Button variant="secondary" size="md" className="gap-2">
-              <Filter size={18} /> Filters
-            </Button>
+            <Button variant="outline" size="sm" className="h-8 px-3 border-card-border"><Filter size={14} /></Button>
           </div>
         </div>
-      </Card>
 
-      <Card padding="none">
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-blue-50/50">
-                <th className="px-6 py-4 text-xs font-bold text-blue-900 uppercase tracking-wider">Tapal Info</th>
-                <th className="px-6 py-4 text-xs font-bold text-blue-900 uppercase tracking-wider">Party / Client</th>
-                <th className="px-6 py-4 text-xs font-bold text-blue-900 uppercase tracking-wider">Qty / Amount</th>
-                <th className="px-6 py-4 text-xs font-bold text-blue-900 uppercase tracking-wider">Driver</th>
-                <th className="px-6 py-4 text-xs font-bold text-blue-900 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-blue-900 uppercase tracking-wider">Actions</th>
+              <tr className="bg-olive-100/20">
+                <th className="px-4 py-2.5 text-[9px] font-bold text-text-muted uppercase tracking-widest">ID / Date</th>
+                <th className="px-4 py-2.5 text-[9px] font-bold text-text-muted uppercase tracking-widest">Party / Type</th>
+                <th className="px-4 py-2.5 text-[9px] font-bold text-text-muted uppercase tracking-widest">Qty / Amount</th>
+                <th className="px-4 py-2.5 text-[9px] font-bold text-text-muted uppercase tracking-widest">Logistics</th>
+                <th className="px-4 py-2.5 text-[9px] font-bold text-text-muted uppercase tracking-widest">Status</th>
+                <th className="px-4 py-2.5 text-[9px] font-bold text-text-muted uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredTapals.length > 0 ? (
-                filteredTapals.map((tapal) => (
-                  <tr key={tapal.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={clsx(
-                          'w-10 h-10 rounded-xl flex items-center justify-center text-lg',
-                          tapal.type === 'Purchase' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
-                        )}>
-                          {tapal.type === 'Purchase' ? '📥' : '📤'}
-                        </div>
-                        <div>
-                          <Link to={`/admin/tapals/${tapal.id}`}>
-                            <p className="text-sm font-bold text-primary hover:underline cursor-pointer">{tapal.id}</p>
-                          </Link>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase">{tapal.date}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-gray-900">{tapal.party}</p>
-                      <p className="text-xs text-gray-500 font-medium">{tapal.type} Tapal</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-gray-900">{tapal.qty}</p>
-                      <p className="text-xs text-primary font-bold">{tapal.amount}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Truck size={14} className={tapal.driver === 'Unassigned' ? 'text-gray-300' : 'text-primary'} />
-                        <span className={clsx(
-                          'text-xs font-medium',
-                          tapal.driver === 'Unassigned' ? 'text-gray-400 italic' : 'text-gray-700'
-                        )}>
-                          {tapal.driver}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant={getStatusVariant(tapal.status)}>
-                        {tapal.status}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-all" title="View Details">
-                          <Eye size={18} />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Download Bill">
-                          <FileText size={18} />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
-                          <MoreVertical size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="px-6 py-20 text-center text-gray-400 font-medium">
-                    No tapals found matching your criteria.
+            <tbody className="divide-y divide-olive-100/50">
+              {filteredTapals.map((tapal) => (
+                <tr key={tapal.id} className="hover:bg-olive-50/50 transition-colors group">
+                  <td className="px-4 py-2.5">
+                    <p className="text-[11px] font-bold text-black uppercase">{tapal.id}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase">{tapal.date}</p>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <p className="text-[10px] font-bold text-black uppercase">{tapal.party}</p>
+                    <Badge variant={tapal.type.toLowerCase() === 'purchase' ? 'info' : 'secondary'} className="bg-opacity-10 text-[7px] border-none px-1 h-3.5 mt-0.5">{tapal.type}</Badge>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <p className="text-[10px] font-bold text-black">{tapal.qty}</p>
+                    <p className="text-[9px] font-serif italic font-bold text-accent-olive">{tapal.amount}</p>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <Truck size={10} className={!tapal.driver || tapal.driver === 'Unassigned' ? 'text-text-muted/30' : 'text-accent-olive'} />
+                      <span className="text-[9px] font-bold uppercase text-black">{tapal.driver || '—'}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Badge variant={getStatusVariant(tapal.status)} className="px-2 py-0.5 text-[8px] font-bold border border-card-border shadow-none">
+                      {tapal.status}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex justify-end gap-1 transition-all">
+                      <button onClick={() => openEditModal(tapal)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="Quick Edit"><Pencil size={13} /></button>
+                      <button onClick={() => navigate(`/admin/tapals/${tapal.id}`)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="View"><Eye size={13} /></button>
+                      <button onClick={() => window.print()} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="Print"><FileText size={13} /></button>
+                      <button className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white"><MoreVertical size={13} /></button>
+                    </div>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-        
-        <div className="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-[var(--radius-card)]">
-          <p className="text-sm text-gray-500 font-medium">
-            Showing {filteredTapals.length} of {mockTapals.length} tapals
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled>Previous</Button>
-            <Button variant="outline" size="sm">Next</Button>
+      </Card>
+
+      {/* Edit Modal - All Info Editable */}
+      <Modal 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+        title={`Edit Tapal: ${editingTapal?.id}`}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">TRANSACTION TYPE</label>
+              <select 
+                value={editFormData.type} 
+                onChange={(e) => setEditFormData({...editFormData, type: e.target.value})}
+                className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none bg-white appearance-none"
+              >
+                <option value="Purchase">PURCHASE</option>
+                <option value="Sale">SALE</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">DATE</label>
+              <input 
+                type="text" 
+                value={editFormData.date} 
+                onChange={(e) => setEditFormData({...editFormData, date: e.target.value})}
+                className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">PARTY NAME</label>
+            <input 
+              type="text" 
+              value={editFormData.party} 
+              onChange={(e) => setEditFormData({...editFormData, party: e.target.value})}
+              className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">QUANTITY (KG)</label>
+              <input 
+                type="number" 
+                value={editFormData.qty} 
+                onChange={(e) => setEditFormData({...editFormData, qty: e.target.value})}
+                className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AMOUNT (₹)</label>
+              <input 
+                type="number" 
+                value={editFormData.amount} 
+                onChange={(e) => setEditFormData({...editFormData, amount: e.target.value})}
+                className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">ASSIGNED DRIVER</label>
+            <select 
+              value={editFormData.driver} 
+              onChange={(e) => setEditFormData({...editFormData, driver: e.target.value})}
+              className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none bg-white appearance-none"
+            >
+              <option value="Unassigned">UNASSIGNED</option>
+              {drivers.map(d => (
+                <option key={d.id} value={d.name}>{d.name.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1 text-[9px] font-bold h-9" onClick={() => setIsEditModalOpen(false)}>CANCEL</Button>
+            <Button className="flex-1 text-[9px] font-bold h-9 gap-2" onClick={handleSaveEdit}><Check size={14} /> UPDATE RECORD</Button>
           </div>
         </div>
-      </Card>
+      </Modal>
     </div>
   );
 };
 
 export default TapalList;
-
-// Helper to use clsx in the same file since it was used in the component
-function clsx(...classes) {
-  return classes.filter(Boolean).join(' ');
-}

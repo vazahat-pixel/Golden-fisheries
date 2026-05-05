@@ -10,88 +10,115 @@ import {
   Plus,
   ArrowRight,
   ShieldCheck,
-  Search
+  Search,
+  Truck,
+  History
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const mockVehicles = [
   { 
     id: 1, 
     plate: 'KA-01-AX-1234', 
-    model: 'Tata Ace (Chota Hathi)', 
+    model: 'TATA ACE (CHOTA HATHI)', 
     docs: [
-      { type: 'RC', status: 'valid', expiry: '12/10/2030' },
-      { type: 'Insurance', status: 'expiring', expiry: '15/05/2026' },
-      { type: 'Permit', status: 'valid', expiry: '20/12/2027' },
+      { type: 'RC', status: 'VALID', expiry: '12/10/2030' },
+      { type: 'INSURANCE', status: 'EXPIRING', expiry: '15/05/2026' },
+      { type: 'PERMIT', status: 'VALID', expiry: '20/12/2027' },
     ]
   },
   { 
     id: 2, 
     plate: 'KA-01-AX-5678', 
-    model: 'Mahindra Bolero Pickup', 
+    model: 'MAHINDRA BOLERO PICKUP', 
     docs: [
-      { type: 'RC', status: 'valid', expiry: '05/08/2032' },
-      { type: 'Insurance', status: 'valid', expiry: '30/11/2026' },
-      { type: 'Permit', status: 'expired', expiry: '25/04/2026' },
+      { type: 'RC', status: 'VALID', expiry: '05/08/2032' },
+      { type: 'INSURANCE', status: 'VALID', expiry: '30/11/2026' },
+      { type: 'PERMIT', status: 'EXPIRED', expiry: '25/04/2026' },
     ]
   },
 ];
 
 const VehicleDocuments = () => {
   return (
-    <div className="max-w-[1400px] mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Vehicle Documents</h1>
-          <p className="text-gray-500 font-medium">Track RC, Insurance, and Permits for your fleet.</p>
+          <h1 className="text-2xl font-serif italic font-black text-black tracking-tight">Vehicle <span className="text-accent-olive">Documents.</span></h1>
+          <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] mt-3">FLEET COMPLIANCE • RC & INSURANCE TRACKING • PERMIT LOGS</p>
         </div>
-        <Button className="gap-2">
-          <Plus size={18} /> Add Vehicle
-        </Button>
+        <div className="flex gap-4">
+          <Button 
+            variant="outline" 
+            className="gap-4 text-[10px] font-black border-card-border uppercase tracking-widest px-6 shadow-subtle transition-all active:scale-95"
+            onClick={() => toast.success('Viewing renewal history...')}
+          >
+            <History size={14} /> HISTORY
+          </Button>
+          <Button 
+            className="gap-4 text-[10px] font-black uppercase tracking-widest px-6 shadow-md transition-all active:scale-95"
+            onClick={() => toast.success('Add Vehicle Modal')}
+          >
+            <Plus size={14} /> ADD VEHICLE
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         {mockVehicles.map((vehicle) => (
-          <Card key={vehicle.id} padding="none" className="overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-blue-50/30 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white border border-blue-100 flex items-center justify-center text-primary shadow-sm font-bold">
-                  🚛
+          <Card key={vehicle.id} padding="none" className="border border-card-border shadow-subtle overflow-hidden bg-white hover:shadow-wapixo transition-all duration-300">
+            <div className="p-4 border-b border-card-border bg-olive-100/30 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white border border-card-border flex items-center justify-center shadow-md">
+                  <Truck size={24} className="text-accent-olive" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 leading-none mb-1">{vehicle.plate}</h3>
-                  <p className="text-xs text-gray-500 font-medium">{vehicle.model}</p>
+                  <h3 className="font-serif italic font-black text-black tracking-tight text-2xl">{vehicle.plate}</h3>
+                  <p className="text-[10px] text-text-muted font-black uppercase tracking-widest mt-1">{vehicle.model}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm"><ArrowRight size={16} /></Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="w-12 h-12 bg-white border-card-border shadow-subtle hover:bg-black hover:text-white"
+                onClick={() => toast.success(`Viewing details for ${vehicle.plate}`)}
+              >
+                <ArrowRight size={24} />
+              </Button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-4 space-y-4">
               {vehicle.docs.map((doc, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-white border border-gray-100 hover:border-blue-100 transition-all">
-                  <div className="flex items-center gap-3">
+                <div key={idx} className="flex items-center justify-between p-4 bg-white border border-card-border hover:bg-olive-50/50 transition-all shadow-subtle group">
+                  <div className="flex items-center gap-4">
                     <div className={clsx(
-                      'w-10 h-10 rounded-xl flex items-center justify-center',
-                      doc.status === 'valid' ? 'bg-green-50 text-green-600' : 
-                      doc.status === 'expiring' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
+                      'w-12 h-12 flex items-center justify-center shadow-sm border transition-all group-hover:scale-105',
+                      doc.status === 'VALID' ? 'bg-black text-white border-black' : 
+                      doc.status === 'EXPIRING' ? 'bg-olive-100 text-black border-card-border' : 'bg-red-600 text-white border-red-600'
                     )}>
-                      {doc.status === 'valid' ? <ShieldCheck size={20} /> : <AlertTriangle size={20} />}
+                      {doc.status === 'VALID' ? <ShieldCheck size={20} /> : <AlertTriangle size={20} />}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">{doc.type}</p>
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <Calendar size={10} /> Exp: {doc.expiry}
+                      <p className="text-[12px] font-black text-black uppercase tracking-widest">{doc.type}</p>
+                      <p className="text-[10px] text-text-muted font-black uppercase tracking-widest flex items-center gap-4 mt-1">
+                        <Calendar size={12} className="text-accent-olive" /> EXP: {doc.expiry}
                       </p>
                     </div>
                   </div>
-                  <Badge variant={doc.status === 'valid' ? 'success' : doc.status === 'expiring' ? 'warning' : 'danger'}>
+                  <Badge variant={doc.status === 'VALID' ? 'success' : doc.status === 'EXPIRING' ? 'warning' : 'danger'} className="uppercase text-[9px] font-black border border-card-border shadow-sm px-4 py-3">
                     {doc.status}
                   </Badge>
                 </div>
               ))}
             </div>
             
-            <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
-              <button className="text-xs text-primary font-bold hover:underline">Update all documents</button>
+            <div className="p-4 bg-black border-t border-black text-center">
+              <button 
+                className="text-[11px] text-white/70 hover:text-white font-black uppercase tracking-[0.3em] transition-colors"
+                onClick={() => toast.success(`Updating documents for ${vehicle.plate}...`)}
+              >
+                UPDATE ALL DOCUMENTS
+              </button>
             </div>
           </Card>
         ))}

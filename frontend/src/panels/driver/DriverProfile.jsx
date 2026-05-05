@@ -1,142 +1,161 @@
 import React from 'react';
 import { Card } from '../../design-system/components/Card';
-import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';
+import { Button } from '../../design-system/components/Button';
+import { useAuthStore } from '../../store/authStore';
+import { useDriverStore } from '../../store/driverStore';
 import { 
   User, 
-  Settings, 
-  Shield, 
-  Truck, 
-  LogOut, 
-  ChevronRight, 
   Phone, 
-  Mail,
-  Award,
-  Calendar,
-  History,
-  HelpCircle
+  MapPin, 
+  CreditCard, 
+  FileText, 
+  Truck, 
+  ShieldCheck, 
+  CheckCircle2, 
+  Clock,
+  AlertCircle,
+  LogOut,
+  Camera
 } from 'lucide-react';
 
 const DriverProfile = () => {
-  const driverInfo = {
-    name: 'Ramu K.S.',
-    role: 'Senior Fleet Driver',
-    id: 'MKE-DRV-102',
-    phone: '+91 98765 43210',
-    email: 'ramu.mke@fisheries.com',
-    licenseNo: 'KA-01-2023-000456',
-    joinedDate: 'Jan 2024',
-    rating: '4.8',
-    totalTrips: '142',
-    totalKM: '4,250 KM'
+  const { user, logout } = useAuthStore();
+  const { getDriverByMobile } = useDriverStore();
+  const driver = getDriverByMobile(user?.phone);
+
+  if (!driver) return null;
+
+  const getStatusBanner = () => {
+    switch (driver.status) {
+      case 'active':
+        return (
+          <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-2xl flex items-center gap-3">
+            <CheckCircle2 className="text-green-500" size={20} />
+            <div>
+              <p className="text-[10px] font-black text-green-500 uppercase tracking-widest">Profile Verified</p>
+              <p className="text-[8px] text-green-500/60 font-bold uppercase">Account is active and ready for trips</p>
+            </div>
+          </div>
+        );
+      case 'pending_verification':
+        return (
+          <div className="bg-[#C5A021]/10 border border-[#C5A021]/20 p-4 rounded-2xl flex items-center gap-3">
+            <Clock className="text-[#C5A021] animate-pulse" size={20} />
+            <div>
+              <p className="text-[10px] font-black text-[#C5A021] uppercase tracking-widest">Verification Pending</p>
+              <p className="text-[8px] text-[#C5A021]/60 font-bold uppercase">Admin is reviewing your documents</p>
+            </div>
+          </div>
+        );
+      case 'rejected':
+        return (
+          <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-center gap-3">
+            <AlertCircle className="text-red-500" size={20} />
+            <div>
+              <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">Profile Rejected</p>
+              <p className="text-[8px] text-red-500/60 font-bold uppercase">Reason: {driver.rejectionReason}</p>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
-  const menuItems = [
-    { icon: History, label: 'Trip History', desc: 'View all completed journeys', path: '/driver/history' },
-    { icon: Shield, label: 'Insurance & Documents', desc: 'Vehicle and personal papers', path: '/driver/docs' },
-    { icon: Settings, label: 'App Settings', desc: 'Notifications and preferences', path: '/driver/settings' },
-    { icon: HelpCircle, label: 'Help & Support', desc: 'Contact fleet manager', path: '/driver/support' },
-  ];
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 pb-20">
       {/* Profile Header */}
-      <div className="bg-white border-b border-gray-100 p-8 flex flex-col items-center text-center">
-        <div className="relative mb-4">
-          <div className="w-24 h-24 rounded-3xl bg-blue-50 flex items-center justify-center text-primary border-4 border-white shadow-xl">
-            <User size={48} />
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-xl border-4 border-white flex items-center justify-center text-white">
-            <Shield size={14} fill="currentColor" />
+      <div className="bg-black/20 backdrop-blur-md p-6 rounded-3xl border border-white/10 flex flex-col items-center text-center">
+        <div className="w-24 h-24 bg-black border-2 border-[#C5A021] rounded-full mb-4 overflow-hidden shadow-2xl relative group">
+          <img src={`https://ui-avatars.com/api/?name=${driver.fullName}&background=0A0B09&color=C5A021&size=256&bold=true`} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+             <Camera size={20} className="text-white" />
           </div>
         </div>
-        <h2 className="text-2xl font-black text-gray-900 leading-tight">{driverInfo.name}</h2>
-        <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2">{driverInfo.role}</p>
-        <Badge variant="primary" className="text-[10px] py-1 px-3">
-          ID: {driverInfo.id}
-        </Badge>
+        <h2 className="text-xl font-black text-white uppercase tracking-tight">{driver.fullName}</h2>
+        <p className="text-[10px] text-[#E6E3C8]/60 font-bold tracking-[0.3em] uppercase mt-1">{driver.id}</p>
       </div>
 
-      <div className="px-6 pb-24 space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 text-center shadow-sm">
-            <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Rating</p>
-            <p className="text-lg font-black text-gray-900 flex items-center justify-center gap-1">
-              <Award size={14} className="text-amber-500" /> {driverInfo.rating}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 text-center shadow-sm">
-            <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Trips</p>
-            <p className="text-lg font-black text-gray-900">{driverInfo.totalTrips}</p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 text-center shadow-sm">
-            <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Distance</p>
-            <p className="text-lg font-black text-gray-900">{driverInfo.totalKM.split(' ')[0]}</p>
-          </div>
-        </div>
+      {getStatusBanner()}
 
-        {/* Contact Info Card */}
-        <Card className="p-6 space-y-4">
+      {/* Info Sections */}
+      <div className="space-y-3">
+        <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] ml-2">Personal Details</h3>
+        <Card className="bg-black/10 border-white/5 space-y-4">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
-              <Phone size={18} />
-            </div>
+            <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-[#C5A021]"><Phone size={16} /></div>
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase">Phone Number</p>
-              <p className="text-sm font-bold text-gray-900">{driverInfo.phone}</p>
+              <p className="text-[8px] font-black text-white/40 uppercase">Mobile Number</p>
+              <p className="text-[11px] font-bold text-white tracking-widest">{driver.mobile}</p>
             </div>
           </div>
-          <div className="h-[1px] bg-gray-100 mx-[-24px]"></div>
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
-              <Mail size={18} />
-            </div>
+            <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-[#C5A021]"><MapPin size={16} /></div>
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase">Email Address</p>
-              <p className="text-sm font-bold text-gray-900">{driverInfo.email}</p>
-            </div>
-          </div>
-          <div className="h-[1px] bg-gray-100 mx-[-24px]"></div>
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
-              <Shield size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase">License Details</p>
-              <p className="text-sm font-bold text-gray-900">{driverInfo.licenseNo}</p>
+              <p className="text-[8px] font-black text-white/40 uppercase">Current Address</p>
+              <p className="text-[10px] font-bold text-white uppercase leading-relaxed">{driver.currentAddress}</p>
             </div>
           </div>
         </Card>
 
-        {/* Menu Items */}
-        <div className="space-y-3">
-          {menuItems.map((item, i) => (
-            <button 
-              key={i} 
-              className="w-full bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4 active:scale-95 transition-all shadow-sm"
-            >
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
-                <item.icon size={20} />
+        <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] ml-2 pt-2">Identification</h3>
+        <Card className="bg-black/10 border-white/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-[#C5A021]"><CreditCard size={16} /></div>
+              <div>
+                <p className="text-[8px] font-black text-white/40 uppercase">Aadhaar Card</p>
+                <p className="text-[11px] font-bold text-white tracking-widest">{driver.aadhaarNumber}</p>
               </div>
-              <div className="text-left flex-1">
-                <p className="text-sm font-black text-gray-900">{item.label}</p>
-                <p className="text-[10px] text-gray-500 font-medium">{item.desc}</p>
+            </div>
+            <Badge variant="success" className="text-[7px] border-none bg-green-500/20 text-green-500 uppercase">Uploaded</Badge>
+          </div>
+          <div className="flex items-center justify-between border-t border-white/5 pt-4">
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-[#C5A021]"><FileText size={16} /></div>
+              <div>
+                <p className="text-[8px] font-black text-white/40 uppercase">Driving License</p>
+                <p className="text-[11px] font-bold text-white tracking-widest">{driver.licenseNumber}</p>
               </div>
-              <ChevronRight size={18} className="text-gray-300" />
-            </button>
-          ))}
-        </div>
+            </div>
+            <div className="text-right">
+              <Badge variant="success" className="text-[7px] border-none bg-green-500/20 text-green-500 uppercase block mb-1">Uploaded</Badge>
+              <p className="text-[7px] font-bold text-red-500 uppercase">Exp: {driver.licenseExpiry}</p>
+            </div>
+          </div>
+        </Card>
 
-        {/* Logout Button */}
-        <Button variant="secondary" className="w-full py-4 rounded-2xl text-red-500 bg-red-50 hover:bg-red-100 border-red-100 gap-2 font-black mt-4">
-          <LogOut size={20} /> Logout Driver
-        </Button>
+        {driver.hasOwnVehicle && (
+          <>
+            <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] ml-2 pt-2">Vehicle Details</h3>
+            <Card className="bg-black/10 border-white/5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-[#C5A021]"><Truck size={16} /></div>
+                  <div>
+                    <p className="text-[8px] font-black text-white/40 uppercase">{driver.vehicleType}</p>
+                    <p className="text-[11px] font-bold text-white tracking-widest">{driver.vehicleNumber}</p>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                   {['RC', 'INS', 'PER', 'PUC'].map(d => (
+                     <div key={d} className="w-5 h-5 bg-green-500/20 rounded flex items-center justify-center text-[7px] font-black text-green-500" title={d}>{d[0]}</div>
+                   ))}
+                </div>
+              </div>
+            </Card>
+          </>
+        )}
 
-        <div className="text-center pt-4">
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-            MKE Fisheries v1.2.0
-          </p>
+        <div className="pt-6">
+           <Button 
+            variant="outline" 
+            className="w-full border-red-500/30 text-red-500 bg-red-500/5 h-12 text-[10px] font-black uppercase tracking-widest gap-2"
+            onClick={logout}
+          >
+             <LogOut size={16} /> Secure Logout
+           </Button>
         </div>
       </div>
     </div>

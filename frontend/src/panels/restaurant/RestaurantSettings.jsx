@@ -12,121 +12,153 @@ import {
   CreditCard,
   ChefHat
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const RestaurantSettings = () => {
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-0">
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight">Restaurant Settings</h1>
-        <p className="text-gray-500 font-bold text-sm md:text-base">Manage your restaurant profile, staff, and preferences.</p>
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-xl font-serif italic font-black text-black tracking-tight">Restaurant <span className="text-accent-olive">Settings.</span></h1>
+          <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] mt-3">SYSTEM PREFERENCES • OUTLET CONFIGURATION • STAFF MANAGEMENT</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
         {/* Sidebar Nav - Scrollable on mobile */}
-        <div className="lg:col-span-1 flex lg:flex-col gap-2 overflow-x-auto pb-4 lg:pb-0 scrollbar-hide snap-x shrink-0">
+        <div className="lg:col-span-1 flex lg:flex-col gap-4 overflow-x-auto pb-4 lg:pb-0 scrollbar-hide snap-x shrink-0">
           {[
-            { label: 'General', icon: Store, active: true },
-            { label: 'Staff Management', icon: ChefHat },
-            { label: 'Notifications', icon: Bell },
-            { label: 'Security', icon: Lock },
-            { label: 'Payments', icon: CreditCard },
+            { label: 'GENERAL', icon: Store, active: true },
+            { label: 'STAFF MANAGEMENT', icon: ChefHat },
+            { label: 'NOTIFICATIONS', icon: Bell },
+            { label: 'SECURITY', icon: Lock },
+            { label: 'PAYMENTS', icon: CreditCard },
           ].map((item, idx) => (
             <button 
               key={idx}
               className={clsx(
-                'flex-none lg:w-full flex items-center gap-3 px-6 lg:px-4 py-3 rounded-xl font-black text-sm transition-all snap-start',
+                'flex-none lg:w-full flex items-center gap-4 px-6 lg:px-6 py-2.5 border transition-all snap-start shadow-subtle group',
                 item.active 
-                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                  : 'bg-white lg:bg-transparent text-gray-500 hover:text-primary border border-gray-100 lg:border-none'
+                  ? 'bg-black text-white border-black shadow-lg' 
+                  : 'bg-white text-text-muted hover:border-black hover:text-black border-card-border'
               )}
             >
-              <item.icon size={18} />
-              <span className="whitespace-nowrap">{item.label}</span>
+              <item.icon size={18} className={item.active ? "text-accent-olive" : "group-hover:text-black"} />
+              <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-widest">{item.label}</span>
             </button>
           ))}
         </div>
 
         {/* Settings Content */}
-        <div className="lg:col-span-3 space-y-6">
-          <Card className="p-6 md:p-8">
-            <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
-              <Store className="text-primary" size={22} /> Store Profile
-            </h3>
+        <div className="lg:col-span-3 space-y-4">
+          <Card padding="none" className="border border-card-border shadow-subtle bg-white overflow-hidden">
+            <div className="p-4 border-b border-card-border bg-olive-100/30 flex items-center gap-4">
+              <div className="w-10 h-10 bg-black text-white flex items-center justify-center shadow-md">
+                <Store size={22} className="text-accent-olive" />
+              </div>
+              <h3 className="text-xl font-serif italic font-black text-black uppercase tracking-tight">
+                Store Profile
+              </h3>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Restaurant Name</label>
-                <input 
-                  type="text" 
-                  defaultValue="MKE Golden Seafood"
-                  className="w-full bg-blue-50/50 border border-blue-50 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary outline-none"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Store ID</label>
-                <input 
-                  type="text" 
-                  defaultValue="STR-5501" 
-                  disabled
-                  className="w-full bg-gray-100 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-400 cursor-not-allowed"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Store Hours</label>
-                <div className="flex items-center gap-2">
+            <div className="p-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-black uppercase tracking-[0.2em]">RESTAURANT NAME</label>
                   <input 
-                    type="time" 
-                    defaultValue="10:00"
-                    className="flex-1 bg-blue-50/50 border border-blue-50 rounded-xl px-3 md:px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary outline-none"
+                    type="text" 
+                    defaultValue="MKE GOLDEN SEAFOOD"
+                    className="w-full bg-white border border-card-border rounded-none px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-black focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle"
                   />
-                  <span className="text-gray-400 font-bold text-xs">to</span>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">STORE ID</label>
                   <input 
-                    type="time" 
-                    defaultValue="23:00"
-                    className="flex-1 bg-blue-50/50 border border-blue-50 rounded-xl px-3 md:px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary outline-none"
+                    type="text" 
+                    defaultValue="STR-5501" 
+                    disabled
+                    className="w-full bg-olive-50 border border-card-border rounded-none px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-text-muted cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-black uppercase tracking-[0.2em]">STORE HOURS</label>
+                  <div className="flex items-center gap-4">
+                    <input 
+                      type="time" 
+                      defaultValue="10:00"
+                      className="flex-1 bg-white border border-card-border rounded-none px-6 py-2.5 text-[11px] font-black uppercase text-black focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle"
+                    />
+                    <span className="text-text-muted font-black text-[10px] uppercase tracking-widest">TO</span>
+                    <input 
+                      type="time" 
+                      defaultValue="23:00"
+                      className="flex-1 bg-white border border-card-border rounded-none px-6 py-2.5 text-[11px] font-black uppercase text-black focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-black uppercase tracking-[0.2em]">CONTACT NUMBER</label>
+                  <input 
+                    type="text" 
+                    defaultValue="+91 98765 43210"
+                    className="w-full bg-white border border-card-border rounded-none px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-black focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact Number</label>
-                <input 
-                  type="text" 
-                  defaultValue="+91 98765 43210"
-                  className="w-full bg-blue-50/50 border border-blue-50 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary outline-none"
-                />
-              </div>
-            </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-100">
-              <Button variant="outline" className="py-3 rounded-xl">Discard</Button>
-              <Button className="py-3 rounded-xl shadow-xl shadow-primary/20">Save Changes</Button>
+              <div className="flex flex-col sm:flex-row justify-end gap-4 pt-8 border-t border-card-border">
+                <Button 
+                  variant="outline" 
+                  className="py-5 px-10 rounded-none text-[10px] font-black uppercase tracking-widest border-card-border shadow-subtle"
+                  onClick={() => toast('Changes discarded')}
+                >
+                  DISCARD
+                </Button>
+                <Button 
+                  className="py-5 px-10 rounded-none text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
+                  onClick={() => toast.success('Settings saved successfully')}
+                >
+                  SAVE CHANGES
+                </Button>
+              </div>
             </div>
           </Card>
 
-          <Card className="p-6 md:p-8 border-l-4 border-l-amber-500">
-            <h3 className="text-lg font-black text-gray-900 mb-2 flex items-center gap-2">
-              <Shield className="text-amber-500" size={22} /> Advanced Controls
-            </h3>
-            <p className="text-sm text-gray-500 font-bold mb-6">These settings affect the global behavior of the restaurant panel.</p>
+          <Card padding="none" className="border border-amber-500 shadow-subtle bg-amber-50/10 overflow-hidden">
+            <div className="p-4 border-b border-amber-100 flex items-center gap-4 bg-amber-50/50">
+              <div className="w-10 h-10 bg-amber-500 text-white flex items-center justify-center shadow-md">
+                <Shield size={22} />
+              </div>
+              <div>
+                <h3 className="text-xl font-serif italic font-black text-amber-900 uppercase tracking-tight">Advanced Controls</h3>
+                <p className="text-[9px] text-amber-700/70 font-black uppercase tracking-widest mt-1">GLOBAL RESTAURANT PANEL BEHAVIOR</p>
+              </div>
+            </div>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 md:p-5 bg-gray-50 rounded-2xl border border-gray-100 group hover:bg-white hover:shadow-lg transition-all">
-                <div className="pr-4">
-                  <p className="text-sm font-black text-gray-900">Auto-print KOT</p>
-                  <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-wide">Print kitchen order tickets automatically.</p>
+            <div className="p-10 space-y-4">
+              <div 
+                className="flex items-center justify-between p-4 bg-white border border-card-border shadow-subtle group hover:bg-olive-50 transition-all cursor-pointer"
+                onClick={() => toast.success('KOT settings updated')}
+              >
+                <div className="pr-6">
+                  <p className="text-[11px] font-black text-black uppercase tracking-widest mb-1">AUTO-PRINT KOT</p>
+                  <p className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em]">PRINT KITCHEN ORDER TICKETS AUTOMATICALLY FOR NEW ORDERS.</p>
                 </div>
-                <div className="w-12 h-6 bg-primary rounded-full p-1 cursor-pointer shrink-0">
-                  <div className="w-4 h-4 bg-white rounded-full ml-auto"></div>
+                <div className="w-14 h-7 bg-black rounded-none p-1 shrink-0 flex items-center shadow-inner border border-black">
+                  <div className="w-5 h-5 bg-white rounded-none ml-auto border border-black shadow-sm"></div>
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-4 md:p-5 bg-gray-50 rounded-2xl border border-gray-100 group hover:bg-white hover:shadow-lg transition-all">
-                <div className="pr-4">
-                  <p className="text-sm font-black text-gray-900">Enable Takeaway Mode</p>
-                  <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-wide">Show takeaway option in POS.</p>
+              <div 
+                className="flex items-center justify-between p-4 bg-white border border-card-border shadow-subtle group hover:bg-olive-50 transition-all cursor-pointer"
+                onClick={() => toast.success('Takeaway mode updated')}
+              >
+                <div className="pr-6">
+                  <p className="text-[11px] font-black text-black uppercase tracking-widest mb-1">ENABLE TAKEAWAY MODE</p>
+                  <p className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em]">SHOW TAKEAWAY OPTION IN POS TERMINAL.</p>
                 </div>
-                <div className="w-12 h-6 bg-gray-200 rounded-full p-1 cursor-pointer shrink-0">
-                  <div className="w-4 h-4 bg-white rounded-full"></div>
+                <div className="w-14 h-7 bg-olive-100 rounded-none p-1 shrink-0 flex items-center shadow-inner border border-card-border">
+                  <div className="w-5 h-5 bg-white rounded-none border border-card-border shadow-sm"></div>
                 </div>
               </div>
             </div>

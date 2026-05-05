@@ -1,34 +1,29 @@
 import React from 'react';
 import { Card } from './Card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { twMerge } from 'tailwind-merge';
 
-export const StatCard = ({ title, value, trend, icon: Icon, trendType = 'up', variant = 'info' }) => {
-  const variants = {
-    info: 'bg-blue-50 text-blue-600',
-    primary: 'bg-blue-500/10 text-blue-600',
-    warning: 'bg-amber-50 text-amber-600',
-    danger: 'bg-red-50 text-red-600',
-    success: 'bg-green-50 text-green-600',
-  };
-
+export const StatCard = ({ title, value, icon: Icon, trend, trendType = 'up', variant = 'info' }) => {
   return (
-    <Card className="flex flex-col gap-2 p-4 md:p-6">
-      <div className="flex justify-between items-start">
-        <div className={`p-2 rounded-lg ${variants[variant] || variants.info}`}>
-          {Icon && <Icon size={20} />}
+    <Card className="p-4 md:p-5 bg-white border border-card-border shadow-subtle">
+      <div className="flex justify-between items-start mb-4">
+        <div className="w-8 h-8 border border-card-border bg-olive-100/50 flex items-center justify-center text-accent-olive">
+          {Icon && <Icon size={16} />}
         </div>
         {trend && (
-          <div className={`flex items-center gap-1 text-[10px] md:text-xs font-bold ${
-            trendType === 'up' ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {trendType === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          <div className={twMerge(
+            "text-[9px] font-bold uppercase tracking-widest px-2 py-1",
+            trendType === 'up' ? "text-green-600" : "text-red-600"
+          )}>
             {trend}
           </div>
         )}
       </div>
-      <div>
-        <p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider">{title}</p>
-        <h3 className="text-xl md:text-2xl font-black text-gray-900 mt-0.5 md:mt-1 leading-tight">{value}</h3>
+      <div className="space-y-1">
+        <p className="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">{title}</p>
+        <p className="text-2xl font-serif italic font-bold text-primary tracking-tight">
+          {value}
+        </p>
       </div>
     </Card>
   );

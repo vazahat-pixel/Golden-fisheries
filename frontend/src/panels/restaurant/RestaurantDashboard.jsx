@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { WelcomeBanner } from '../../design-system/components/WelcomeBanner';
 import { StatCard } from '../../design-system/components/StatCard';
 import { Card } from '../../design-system/components/Card';
@@ -9,50 +10,80 @@ import {
   Utensils, 
   ShoppingCart, 
   Flame, 
-  Clock 
+  Clock,
+  ArrowRight
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import mockData from '../../data/mockData.json';
+
+const { liveOrders, stockAlerts } = mockData.restaurant;
 
 const RestaurantDashboard = () => {
-  return (
-    <div className="pb-10 space-y-6 md:space-y-8">
-      <WelcomeBanner name="MKE Restaurant Manager" />
+  const navigate = useNavigate();
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-        <StatCard title="Today's Sales" value="₹18,500" icon={TrendingUp} trend="+5% from yesterday" />
-        <StatCard title="Active Tables" value="8 / 12" icon={Utensils} trend="Busy" variant="info" />
-        <StatCard title="Orders Today" value="42" icon={ShoppingCart} />
-        <StatCard title="Top Dish" value="Prawn Ghee Roast" icon={Flame} variant="primary" />
+  return (
+    <div className="space-y-4">
+      <WelcomeBanner name="Restaurant Manager" />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard 
+          title="TODAY'S SALES" 
+          value="₹18,500" 
+          icon={TrendingUp} 
+          trend="+5% FROM YESTERDAY" 
+          trendType="up" 
+        />
+        <StatCard 
+          title="ACTIVE TABLES" 
+          value="8 / 12" 
+          icon={Utensils} 
+          trend="BUSY" 
+          trendType="up" 
+        />
+        <StatCard 
+          title="ORDERS TODAY" 
+          value="42" 
+          icon={ShoppingCart} 
+        />
+        <StatCard 
+          title="TOP DISH" 
+          value="PRAWN GHEE ROAST" 
+          icon={Flame} 
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card padding="none" className="overflow-hidden border-none shadow-xl">
-            <div className="p-5 md:p-6 border-b border-gray-100 flex justify-between items-center bg-blue-50/20">
-              <h3 className="font-black text-gray-900 text-lg md:text-xl">Active Live Orders</h3>
-              <Button variant="ghost" size="sm" className="text-primary font-black hover:bg-blue-50 rounded-xl px-4">View KDS</Button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
+          <Card padding="none" className="overflow-hidden border border-card-border shadow-subtle bg-white">
+            <div className="p-4 border-b border-card-border flex justify-between items-center bg-white">
+              <h3 className="font-serif italic font-black text-black text-xl uppercase tracking-tight">Active Live Orders</h3>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-[10px] font-black px-6 border-card-border"
+                onClick={() => toast.success('Switching to KDS view...')}
+              >
+                VIEW KDS
+              </Button>
             </div>
-            <div className="p-4 md:p-6 space-y-4">
-              {[
-                { table: 'Table 4', items: 'Fish Thali (2), Fish Fry (1)', time: '12 mins ago', status: 'cooking' },
-                { table: 'Table 2', items: 'Prawn Roast (1), Steam Rice (2)', time: '5 mins ago', status: 'ready' },
-                { table: 'Table 9', items: 'Crab Masala (1)', time: '20 mins ago', status: 'cooking' },
-              ].map((order, i) => (
-                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-[24px] bg-gray-50 border border-gray-100 group hover:bg-white hover:shadow-xl hover:shadow-blue-500/5 transition-all gap-4">
+            <div className="p-4 space-y-4">
+              {liveOrders.map((order, i) => (
+                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white border border-card-border group hover:bg-olive-50 transition-all gap-4 shadow-sm">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white border-2 border-blue-100 flex items-center justify-center font-black text-primary shadow-sm group-hover:scale-110 transition-transform text-lg">
+                    <div className="w-16 h-16 bg-black text-white flex items-center justify-center font-black shadow-md group-hover:scale-105 transition-transform text-xl">
                       {order.table.split(' ')[1]}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-black text-gray-900 text-base md:text-lg leading-tight">{order.table}</p>
-                      <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-wide line-clamp-1 mt-0.5">{order.items}</p>
+                      <p className="font-black text-black text-xl leading-tight uppercase tracking-tight">{order.table}</p>
+                      <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mt-2">{order.items}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100/50">
+                  <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-card-border">
                     <div className="text-left sm:text-right">
-                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1 flex items-center justify-start sm:justify-end gap-1.5">
+                      <p className="text-[10px] text-text-muted font-black uppercase tracking-widest mb-3 flex items-center justify-start sm:justify-end gap-2">
                         <Clock size={12} /> {order.time}
                       </p>
-                      <Badge variant={order.status === 'ready' ? 'success' : 'warning'} className="uppercase text-[9px] md:text-[10px] px-3 py-1 font-black">
+                      <Badge variant={order.status === 'ready' ? 'success' : 'warning'} className="uppercase text-[10px] px-4 py-1.5 font-black tracking-widest shadow-sm">
                         {order.status}
                       </Badge>
                     </div>
@@ -63,33 +94,39 @@ const RestaurantDashboard = () => {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-6 md:p-8 relative overflow-hidden group">
+        <div className="space-y-4">
+          <Card className="bg-black text-white p-4 relative overflow-hidden group border border-card-border shadow-subtle">
             <div className="relative z-10">
-              <h3 className="text-xl font-bold mb-2">Ready for Billing?</h3>
-              <p className="text-blue-100 text-sm mb-6">Launch the POS interface for new orders and billing.</p>
+              <h3 className="text-xl font-serif italic font-black mb-4 uppercase tracking-tight">Ready for Billing?</h3>
+              <p className="text-white/60 text-[11px] font-black uppercase tracking-[0.2em] mb-10 leading-relaxed">Launch the POS interface for new orders and billing.</p>
               <Link to="/restaurant/pos">
-                <Button className="w-full bg-white text-primary hover:bg-blue-50 border-none shadow-xl font-black py-4 group-hover:scale-105 transition-transform">
-                  Open Restaurant POS
+                <Button className="w-full bg-white text-black border-none shadow-xl font-black py-2.5 group-hover:scale-105 transition-transform">
+                  OPEN RESTAURANT POS
                 </Button>
               </Link>
             </div>
-            <Utensils className="absolute -right-4 -bottom-4 text-white/10" size={140} />
           </Card>
 
-          <Card className="p-4 md:p-6">
-            <h3 className="font-bold text-gray-900 mb-4">Stock Alerts</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 rounded-xl bg-red-50 border border-red-100">
-                <span className="text-xs font-bold text-red-700">King Fish</span>
-                <span className="text-xs font-black text-red-700">LOW (2 KG)</span>
-              </div>
-              <div className="flex justify-between items-center p-3 rounded-xl bg-amber-50 border border-amber-100">
-                <span className="text-xs font-bold text-amber-700">Coconut Oil</span>
-                <span className="text-xs font-black text-amber-700">4 Liters</span>
-              </div>
+          <Card className="p-4 border border-card-border shadow-subtle bg-white">
+            <h3 className="font-serif italic font-black text-black mb-4 uppercase tracking-tight text-xl">Stock Alerts</h3>
+            <div className="space-y-4">
+              {stockAlerts.map((alert, i) => (
+                <div key={i} className={clsx(
+                  "flex justify-between items-center p-4 border shadow-sm font-black text-[10px] uppercase tracking-widest transition-all",
+                  alert.level === 'danger' ? "bg-red-600 text-white border-red-700" : "bg-white text-black border-card-border hover:bg-olive-50"
+                )}>
+                  <span>{alert.product}</span>
+                  <span>{alert.status} ({alert.value})</span>
+                </div>
+              ))}
             </div>
-            <Button variant="outline" className="w-full mt-4 text-xs font-bold border-gray-100">Manage Stock</Button>
+            <Button 
+              variant="outline" 
+              className="w-full mt-8 text-[10px] font-black uppercase tracking-widest py-2.5 border-card-border hover:bg-black hover:text-white transition-all shadow-md active:scale-95"
+              onClick={() => navigate('/restaurant/inventory')}
+            >
+              MANAGE STOCK
+            </Button>
           </Card>
         </div>
       </div>

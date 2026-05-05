@@ -37,61 +37,61 @@ const ActiveTrip = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-black text-gray-900">Current Trip</h2>
-        <Badge variant={tripStatus === 'Active' ? 'primary' : 'success'} className={tripStatus === 'Active' ? 'animate-pulse' : ''}>
+    <div className="p-4 space-y-4 bg-page-bg min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-serif italic font-black text-black tracking-tight">Current <span className="text-[#6B7550]">Trip</span></h2>
+        <Badge className={`bg-[#E6E2C8] text-black border border-card-border font-black uppercase tracking-widest text-[9px] px-3 py-1 ${tripStatus === 'Active' ? 'animate-pulse' : ''}`}>
           {tripStatus}
         </Badge>
       </div>
 
-      <Card className="p-6 border-l-4 border-l-primary">
+      <Card className="p-4 border border-[#E6E2C8] shadow-subtle rounded-none bg-white">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-primary">
-            <Truck size={24} />
+          <div className="w-10 h-10 bg-[#E6E2C8]/30 flex items-center justify-center text-[#6B7550] border border-[#E6E2C8]">
+            <Truck size={20} />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900">TRP-101</h3>
-            <p className="text-xs text-gray-500 font-medium">Hassan &rarr; Fish Mall (City)</p>
+            <h3 className="text-base font-black text-black uppercase tracking-tight">TRP-101</h3>
+            <p className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em]">Hassan &rarr; Fish Mall (City)</p>
           </div>
         </div>
 
-        <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-[2px] before:bg-blue-50">
+        <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[#E6E2C8]">
           <div className="flex gap-4 relative">
-            <div className="w-8 h-8 rounded-full bg-blue-600 border-4 border-white flex items-center justify-center z-10 shrink-0 shadow-lg">
-              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+            <div className="w-6 h-6 bg-[#6B7550] border-4 border-white flex items-center justify-center z-10 shrink-0 shadow-sm">
+              <div className="w-1.5 h-1.5 bg-white"></div>
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase">Current</p>
-              <p className="text-sm font-bold text-gray-900">Near Hassan Toll</p>
+              <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em] mb-1">Current</p>
+              <p className="text-sm font-black text-black uppercase tracking-tight">Near Hassan Toll</p>
             </div>
           </div>
           <div className="flex gap-4 relative">
-            <div className="w-8 h-8 rounded-full bg-gray-100 border-4 border-white flex items-center justify-center z-10 shrink-0">
-              <MapPin size={12} className="text-gray-400" />
+            <div className="w-6 h-6 bg-white border border-[#E6E2C8] flex items-center justify-center z-10 shrink-0">
+              <MapPin size={10} className="text-[#6B7550]" />
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase">Destination</p>
-              <p className="text-sm font-bold text-gray-900 text-gray-400">MKE Fish Mall, City</p>
+              <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em] mb-1">Destination</p>
+              <p className="text-sm font-black text-text-muted uppercase tracking-tight">MKE Fish Mall, City</p>
             </div>
           </div>
         </div>
 
         <div className="mt-8 flex gap-3">
-          <Button onClick={handleUpdate} className="flex-1 bg-primary font-black py-4 rounded-2xl shadow-xl shadow-primary/20 gap-2 active:scale-95 transition-all">
-            <Navigation size={18} /> Update
+          <Button onClick={handleUpdate} className="flex-1 bg-[#6B7550] text-white hover:bg-black font-black py-4 rounded-none shadow-md gap-2 active:scale-95 transition-all text-[10px] uppercase tracking-widest border-none">
+            <Navigation size={14} /> UPDATE
           </Button>
-          <Button onClick={handleComplete} variant="outline" className="flex-1 border-2 font-bold py-4 rounded-2xl active:scale-95 transition-all">
-            Complete
+          <Button onClick={handleComplete} variant="outline" className="flex-1 border-[#E6E2C8] text-black font-black py-4 rounded-none active:scale-95 transition-all text-[10px] uppercase tracking-widest hover:bg-black hover:text-white">
+            COMPLETE
           </Button>
         </div>
       </Card>
 
-      <h3 className="text-lg font-black text-gray-900 mt-8 mb-4 flex items-center gap-2">
-        <IndianRupee className="text-amber-600" size={20} /> Add Expense
+      <h3 className="text-lg font-serif italic font-black text-black mt-8 mb-4 flex items-center gap-2 tracking-tight">
+        <IndianRupee className="text-[#6B7550]" size={20} /> Add <span className="text-text-muted">Expense</span>
       </h3>
       
-      <Card className="p-6 space-y-6 bg-white shadow-xl">
+      <Card className="p-4 space-y-6 bg-white border border-[#E6E2C8] shadow-subtle rounded-none">
         <div className="grid grid-cols-3 gap-3">
           {[
             { id: 'fuel', icon: Fuel, label: 'Fuel' },
@@ -102,35 +102,35 @@ const ActiveTrip = () => {
               key={type.id}
               onClick={() => setExpenseType(type.id)}
               className={clsx(
-                'p-4 rounded-2xl flex flex-col items-center gap-2 transition-all border-2 active:scale-95',
-                expenseType === type.id ? 'border-primary bg-blue-50 text-primary' : 'border-gray-50 text-gray-400'
+                'p-4 rounded-none flex flex-col items-center gap-2 transition-all border active:scale-95',
+                expenseType === type.id ? 'border-black bg-black text-white shadow-wapixo' : 'border-[#E6E2C8] text-text-muted hover:border-black hover:text-black'
               )}
             >
-              <type.icon size={20} />
-              <span className="text-[10px] font-bold uppercase">{type.label}</span>
+              <type.icon size={18} />
+              <span className="text-[9px] font-black uppercase tracking-[0.2em]">{type.label}</span>
             </button>
           ))}
         </div>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase">Amount (₹)</label>
+            <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em]">Amount (₹)</label>
             <input 
               type="number" 
               placeholder="e.g. 1200"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-xl px-4 py-4 text-lg font-black text-gray-900 focus:ring-2 focus:ring-primary outline-none"
+              className="w-full bg-white border border-[#E6E2C8] rounded-none px-4 py-3 text-lg font-serif italic font-black text-black focus:ring-1 focus:ring-black outline-none shadow-inner"
             />
           </div>
           
-          <button className="w-full p-6 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-blue-50 transition-all text-gray-400 group">
-            <Camera size={32} className="group-hover:text-primary transition-colors" />
-            <span className="text-xs font-bold group-hover:text-primary transition-colors">Capture Bill Photo</span>
+          <button className="w-full p-6 border border-dashed border-[#E6E2C8] bg-white rounded-none flex flex-col items-center justify-center gap-3 hover:border-[#6B7550] hover:bg-[#E6E2C8]/10 transition-all text-text-muted group">
+            <Camera size={24} className="group-hover:text-[#6B7550] transition-colors" />
+            <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-[#6B7550] transition-colors">Capture Bill Photo</span>
           </button>
 
-          <Button onClick={handleSubmitExpense} variant="secondary" className="w-full py-4 rounded-2xl font-black text-blue-700 bg-blue-100 hover:bg-blue-200 border-none active:scale-95 transition-all">
-            Submit Expense
+          <Button onClick={handleSubmitExpense} className="w-full py-4 rounded-none font-black text-black bg-[#E6E2C8] hover:bg-[#6B7550] hover:text-white border-none active:scale-95 transition-all text-[10px] uppercase tracking-widest">
+            SUBMIT EXPENSE
           </Button>
         </div>
       </Card>
@@ -143,3 +143,5 @@ export default ActiveTrip;
 function clsx(...classes) {
   return classes.filter(Boolean).join(' ');
 }
+
+

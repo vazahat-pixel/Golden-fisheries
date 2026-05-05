@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Button } from '../../../design-system/components/Button';
 import { Badge } from '../../../design-system/components/Badge';
+import { useAdminStore } from '../../../store/adminStore';
 import { 
   ArrowLeft, 
   ChevronRight, 
@@ -9,14 +10,17 @@ import {
   Sprout, 
   Package, 
   Truck, 
-  MessageCircle,
   Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+
+function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const CreatePurchaseTapal = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
+  const { addTapal } = useAdminStore();
   
   const [formData, setFormData] = useState({
     farmer: '',
@@ -27,197 +31,132 @@ const CreatePurchaseTapal = () => {
     whatsappDispatch: true
   });
 
-  const nextStep = () => setStep(s => s + 1);
-  const prevStep = () => setStep(s => s - 1);
+  const nextStep = () => {
+    if (step === 1 && (!formData.farmer || !formData.product)) {
+      toast.error('Select farmer and product');
+      return;
+    }
+    if (step === 2 && (!formData.quantity || !formData.rate)) {
+      toast.error('Enter quantity and rate');
+      return;
+    }
+    setStep(s => s + 1);
+  };
+
+  const handleSubmit = () => {
+    const newTapal = {
+      id: `PUR-${Math.floor(1000 + Math.random() * 9000)}`,
+      type: 'Purchase',
+      party: formData.farmer.toUpperCase(),
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+      qty: `${formData.quantity} KG`,
+      amount: `₹${(formData.quantity * formData.rate).toLocaleString()}`,
+      driver: 'Unassigned',
+      status: 'Pending'
+    };
+    addTapal(newTapal);
+    toast.success('Purchase Tapal Created');
+    navigate('/admin/tapals');
+  };
 
   const steps = [
-    { id: 1, label: 'Farmer & Product', icon: Sprout },
-    { id: 2, label: 'Quantity & Rate', icon: Package },
-    { id: 3, label: 'Logistics & Review', icon: Truck },
+    { id: 1, label: 'ENTITY', icon: Sprout },
+    { id: 2, label: 'METRICS', icon: Package },
+    { id: 3, label: 'REVIEW', icon: Truck },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <button 
-        onClick={() => navigate('/admin/tapals')}
-        className="flex items-center gap-2 text-gray-500 hover:text-primary mb-6 transition-colors font-medium"
-      >
-        <ArrowLeft size={18} /> Back to Tapals
+    <div className="max-w-2xl mx-auto space-y-4">
+      <button onClick={() => navigate('/admin/tapals')} className="flex items-center gap-1.5 text-text-muted hover:text-black text-[9px] font-bold uppercase tracking-widest group">
+        <ArrowLeft size={14} /> BACK TO RECORDS
       </button>
 
-      <div className="flex justify-between items-center mb-10 px-4">
-        {steps.map((s, index) => (
-          <React.Fragment key={s.id}>
-            <div className="flex flex-col items-center gap-2 relative z-10">
-              <div className={clsx(
-                'w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 border-2',
-                step === s.id ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 
-                step > s.id ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-blue-100 text-blue-300'
-              )}>
-                {step > s.id ? <Check size={24} /> : <s.icon size={24} />}
-              </div>
-              <span className={clsx(
-                'text-xs font-bold uppercase tracking-wider',
-                step === s.id ? 'text-primary' : 'text-gray-400'
-              )}>
-                {s.label}
-              </span>
+      {/* Stepper */}
+      <div className="flex justify-between px-10 relative before:absolute before:top-4 before:left-20 before:right-20 before:h-px before:bg-olive-100 before:-z-10">
+        {steps.map(s => (
+          <div key={s.id} className="flex flex-col items-center gap-1.5">
+            <div className={clsx('w-8 h-8 flex items-center justify-center border text-xs transition-all', step >= s.id ? 'bg-black border-black text-white shadow-sm' : 'bg-white border-card-border text-text-muted')}>
+              {step > s.id ? <Check size={14} /> : s.id}
             </div>
-            {index < steps.length - 1 && (
-              <div className="flex-1 h-[2px] bg-blue-50 mx-4 -mt-6 relative">
-                <div className={clsx(
-                  'absolute inset-0 bg-primary transition-all duration-500',
-                  step > s.id ? 'w-full' : 'w-0'
-                )}></div>
-              </div>
-            )}
-          </React.Fragment>
+            <span className={clsx('text-[8px] font-bold uppercase tracking-widest', step === s.id ? 'text-black' : 'text-text-muted')}>{s.label}</span>
+          </div>
         ))}
       </div>
 
-      <Card padding="lg" className="shadow-2xl">
-        {step === 1 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Step 1: Select Farmer & Product</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">Select Farmer</label>
-                <select 
-                  className="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                  value={formData.farmer}
-                  onChange={(e) => setFormData({...formData, farmer: e.target.value})}
-                >
-                  <option value="">Choose a farmer...</option>
-                  <option value="ramu">Ramu Fisheries</option>
-                  <option value="deepsea">Deep Sea Farms</option>
-                  <option value="coastal">Coastal Harvest</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">Select Product</label>
-                <select 
-                  className="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                  value={formData.product}
-                  onChange={(e) => setFormData({...formData, product: e.target.value})}
-                >
-                  <option value="">Choose a product...</option>
-                  <option value="rohu">Rohu Fish</option>
-                  <option value="catla">Catla Fish</option>
-                  <option value="prawns">Tiger Prawns</option>
-                </select>
-              </div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-              <p className="text-xs text-blue-700 font-medium flex gap-2">
-                <Clock size={14} className="shrink-0" />
-                Note: Selecting a farmer will automatically load their preferred WhatsApp contact for the harvest slip.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Step 2: Enter Quantity & Rate</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">Quantity (KG)</label>
-                <input 
-                  type="number" 
-                  placeholder="e.g. 500"
-                  className="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">Rate per KG (₹)</label>
-                <input 
-                  type="number" 
-                  placeholder="e.g. 85"
-                  className="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
-                  value={formData.rate}
-                  onChange={(e) => setFormData({...formData, rate: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 flex justify-between items-center">
-              <div>
-                <p className="text-xs text-primary font-bold uppercase tracking-wider mb-1">Estimated Total</p>
-                <h3 className="text-3xl font-black text-primary">
-                  ₹{(formData.quantity * formData.rate).toLocaleString() || '0'}
-                </h3>
-              </div>
-              <Badge variant="primary" className="px-4 py-1.5">Auto-calculated</Badge>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Step 3: Review & Dispatch</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                <p className="text-xs text-gray-400 font-bold uppercase mb-2">Farmer Details</p>
-                <p className="text-sm font-bold text-gray-900 capitalize">{formData.farmer || 'Not selected'}</p>
-                <p className="text-xs text-gray-500">Contact verified via WhatsApp</p>
-              </div>
-              <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                <p className="text-xs text-gray-400 font-bold uppercase mb-2">Product Info</p>
-                <p className="text-sm font-bold text-gray-900 capitalize">{formData.product || 'Not selected'}</p>
-                <p className="text-xs text-gray-500">{formData.quantity || 0} KG @ ₹{formData.rate || 0}/KG</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-blue-50 border border-blue-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center">
-                    <MessageCircle size={20} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">WhatsApp Dispatch</p>
-                    <p className="text-xs text-gray-500">Send harvest slip automatically to farmer</p>
-                  </div>
+      <Card padding="none" className="border border-card-border shadow-subtle bg-white overflow-hidden p-6">
+          {step === 1 && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <h2 className="text-lg font-serif italic font-bold text-black uppercase">Entity <span className="text-accent-olive">Selection.</span></h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">SELECT FARMER</label>
+                  <select className="w-full bg-white border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-accent-olive shadow-none appearance-none"
+                    value={formData.farmer} onChange={(e) => setFormData({...formData, farmer: e.target.value})}>
+                    <option value="">CHOOSE FARMER...</option>
+                    <option value="RAMU FISHERIES">RAMU FISHERIES</option>
+                    <option value="DEEP SEA FARMS">DEEP SEA FARMS</option>
+                  </select>
                 </div>
-                <input 
-                  type="checkbox" 
-                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
-                  checked={formData.whatsappDispatch}
-                  onChange={(e) => setFormData({...formData, whatsappDispatch: e.target.checked})}
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">SELECT PRODUCT</label>
+                  <select className="w-full bg-white border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-accent-olive shadow-none appearance-none"
+                    value={formData.product} onChange={(e) => setFormData({...formData, product: e.target.value})}>
+                    <option value="">CHOOSE PRODUCT...</option>
+                    <option value="ROHU FISH">ROHU FISH</option>
+                    <option value="CATLA FISH">CATLA FISH</option>
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        <div className="flex justify-between mt-10 pt-6 border-t border-gray-100">
-          <Button 
-            variant="ghost" 
-            onClick={prevStep} 
-            disabled={step === 1}
-            className={step === 1 ? 'invisible' : ''}
-          >
-            Previous Step
-          </Button>
-          
-          {step < 3 ? (
-            <Button onClick={nextStep} className="gap-2">
-              Next Step <ChevronRight size={18} />
-            </Button>
-          ) : (
-            <Button 
-              onClick={() => {
-                // Submit logic here
-                navigate('/admin/tapals');
-              }} 
-              className="bg-green-600 hover:bg-green-700 text-white gap-2"
-            >
-              Confirm & Generate Tapal <Check size={18} />
-            </Button>
           )}
+
+          {step === 2 && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <h2 className="text-lg font-serif italic font-bold text-black uppercase">Metrics & <span className="text-accent-olive">Valuation.</span></h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">QUANTITY (KG)</label>
+                  <input type="number" value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" placeholder="500" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">RATE / KG (₹)</label>
+                  <input type="number" value={formData.rate} onChange={(e) => setFormData({...formData, rate: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" placeholder="85" />
+                </div>
+              </div>
+              <div className="p-4 bg-black text-white flex justify-between items-center shadow-md">
+                 <div><p className="text-[7px] text-white/40 font-bold uppercase tracking-widest">ESTIMATED TOTAL</p><h3 className="text-lg font-serif italic font-bold">₹{(formData.quantity * formData.rate).toLocaleString()}</h3></div>
+                 <Badge className="bg-white text-black text-[7px] font-bold px-2 py-0.5 border-none">SYSTEM CALC</Badge>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <h2 className="text-lg font-serif italic font-bold text-black uppercase">Final <span className="text-accent-olive">Review.</span></h2>
+              <div className="grid grid-cols-2 gap-3">
+                 <div className="p-3 bg-olive-50/50 border border-card-border space-y-1">
+                    <p className="text-[7px] font-bold text-text-muted uppercase">PARTY</p>
+                    <p className="text-[10px] font-bold text-black uppercase">{formData.farmer}</p>
+                 </div>
+                 <div className="p-3 bg-olive-50/50 border border-card-border space-y-1">
+                    <p className="text-[7px] font-bold text-text-muted uppercase">PRODUCT</p>
+                    <p className="text-[10px] font-bold text-black uppercase">{formData.product}</p>
+                 </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-white border border-card-border cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setFormData({...formData, whatsappDispatch: !formData.whatsappDispatch})}>
+                 <div className={clsx('w-5 h-5 border flex items-center justify-center', formData.whatsappDispatch ? 'bg-black border-black text-white' : 'border-card-border')}>{formData.whatsappDispatch && <Check size={12} />}</div>
+                 <p className="text-[9px] font-bold uppercase tracking-widest">DISPATCH WHATSAPP NOTIFICATION</p>
+              </div>
+            </div>
+          )}
+
+        <div className="mt-6 pt-4 border-t border-card-border flex justify-between">
+           <Button variant="outline" size="sm" onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/admin/tapals')} className="text-[9px] font-bold px-6 h-9">
+             {step === 1 ? 'CANCEL' : 'BACK'}
+           </Button>
+           <Button onClick={step < 3 ? nextStep : handleSubmit} size="sm" className="text-[9px] font-bold px-8 h-9 shadow-md">
+             {step === 3 ? 'CREATE TAPAL' : 'NEXT STEP'}
+           </Button>
         </div>
       </Card>
     </div>
@@ -225,8 +164,3 @@ const CreatePurchaseTapal = () => {
 };
 
 export default CreatePurchaseTapal;
-
-// Helper to use clsx
-function clsx(...classes) {
-  return classes.filter(Boolean).join(' ');
-}

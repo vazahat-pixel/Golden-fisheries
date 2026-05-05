@@ -19,62 +19,62 @@ const DriverTasks = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-xl font-black text-gray-900">Assigned Tasks</h2>
+    <div className="p-4 space-y-6 bg-page-bg min-h-screen">
+      <h2 className="text-xl font-serif italic font-black text-black tracking-tight">Assigned <span className="text-[#6B7550]">Tasks</span></h2>
       
       <div className="space-y-4">
         {tasks.map((task) => (
-          <Card key={task.id} padding="none" className="overflow-hidden border-2 border-transparent hover:border-primary/20 transition-all">
-            <div className="p-5">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    task.type === 'Pick-up' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+          <Card key={task.id} padding="none" className="overflow-hidden border border-[#E6E2C8] bg-white rounded-none shadow-subtle hover:shadow-wapixo transition-all">
+            <div className="p-4">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 flex items-center justify-center border border-[#E6E2C8] ${
+                    task.type === 'Pick-up' ? 'bg-[#E6E2C8]/50 text-black' : 'bg-[#E6E2C8]/30 text-[#6B7550]'
                   }`}>
                     {task.type === 'Pick-up' ? '📥' : '📤'}
                   </div>
                   <div>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{task.type}</p>
-                    <h3 className="font-bold text-gray-900">{task.id}</h3>
+                    <p className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em]">{task.type}</p>
+                    <h3 className="font-black text-black text-base uppercase tracking-tight">{task.id}</h3>
                   </div>
                 </div>
-                <Badge variant={task.status === 'new' ? 'primary' : 'info'}>{task.status}</Badge>
+                <Badge className={`font-black uppercase tracking-widest text-[9px] px-3 py-1 border border-[#E6E2C8] ${task.status === 'new' ? 'bg-[#6B7550] text-white' : 'bg-[#E6E2C8]/50 text-black'}`}>{task.status}</Badge>
               </div>
 
-              <div className="space-y-3 mb-6">
-                <div className="flex items-start gap-2">
-                  <MapPin size={16} className="text-primary shrink-0 mt-0.5" />
-                  <p className="text-sm font-medium text-gray-700">{task.location}</p>
+              <div className="space-y-4 mb-8">
+                <div className="flex items-start gap-3">
+                  <MapPin size={14} className="text-[#6B7550] shrink-0 mt-0.5" />
+                  <p className="text-xs font-black text-black uppercase tracking-tight">{task.location}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock size={16} className="text-gray-400 shrink-0" />
-                  <p className="text-xs text-gray-500 font-bold">{task.time}</p>
+                <div className="flex items-center gap-3">
+                  <Clock size={14} className="text-text-muted shrink-0" />
+                  <p className="text-[10px] text-text-muted font-black uppercase tracking-widest">{task.time}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Package size={16} className="text-gray-400 shrink-0" />
-                  <p className="text-xs text-gray-500 font-bold">{task.weight}</p>
+                <div className="flex items-center gap-3">
+                  <Package size={14} className="text-text-muted shrink-0" />
+                  <p className="text-[10px] text-text-muted font-black uppercase tracking-widest">{task.weight}</p>
                 </div>
               </div>
 
               {task.status === 'new' ? (
                 <div className="flex gap-3">
-                  <button className="flex-1 py-3 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
-                    <CheckCircle2 size={18} /> Accept
+                  <button className="flex-1 py-4 bg-[#6B7550] text-white rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all">
+                    <CheckCircle2 size={16} /> ACCEPT
                   </button>
-                  <button className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 border border-red-100">
-                    <XCircle size={18} /> Reject
+                  <button className="flex-1 py-4 bg-white text-black border border-[#E6E2C8] rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#E6E2C8]/30 transition-all">
+                    <XCircle size={16} /> REJECT
                   </button>
                 </div>
               ) : (
-                <Button className="w-full gap-2">
-                  Start Task <ArrowRight size={18} />
+                <Button className="w-full gap-3 py-4 bg-[#E6E2C8] text-black hover:bg-black hover:text-white border-none font-black text-[10px] uppercase tracking-widest transition-all">
+                  START TASK <ArrowRight size={16} />
                 </Button>
               )}
             </div>
             
-            <div className="p-3 bg-gray-50 border-t border-gray-100 flex justify-center">
-              <button className="text-xs text-primary font-bold flex items-center gap-2 hover:underline">
-                <Phone size={12} /> Contact Coordinator
+            <div className="p-3 bg-[#E6E2C8]/10 border-t border-[#E6E2C8] flex justify-center hover:bg-[#E6E2C8]/20 transition-all cursor-pointer">
+              <button className="text-[9px] text-[#6B7550] font-black uppercase tracking-widest flex items-center gap-2">
+                <Phone size={12} /> CONTACT COORDINATOR
               </button>
             </div>
           </Card>
@@ -85,3 +85,5 @@ const DriverTasks = () => {
 };
 
 export default DriverTasks;
+
+
