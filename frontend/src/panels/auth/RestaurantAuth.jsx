@@ -3,23 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { useAuthStore } from '../../store/authStore';
+import { useRbacStore, ROLE_TEMPLATES } from '../../store/rbacStore';
+import { useOutletStore } from '../../store/outletStore';
 import { 
-  ShieldCheck, 
-  Smartphone, 
-  Lock, 
-  ArrowRight, 
-  ArrowLeft,
-  KeyRound,
-  UserPlus,
-  Mail,
-  CheckCircle2,
-  Globe
+  ShieldCheck, Smartphone, Lock, ArrowRight, ArrowLeft,
+  KeyRound, UserPlus, Mail, CheckCircle2, Globe, Loader, RotateCcw as RotateIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const RestaurantAuth = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
+  const { getOutletByPhone } = useOutletStore();
+  const { getUserByPhone, sendOtp: rbacSendOtp, verifyOtp: rbacVerifyOtp, clearOtpSession } = useRbacStore();
+
+  const [rbacDevOtp, setRbacDevOtp] = useState(null);
+  const [pendingRbacUser, setPendingRbacUser] = useState(null);
   
   const [view, setView] = useState('login');
   const [loading, setLoading] = useState(false);
@@ -55,36 +54,69 @@ const RestaurantAuth = () => {
   };
 
   const handleAction = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
     
-    // MOCK LOGIC FOR RESTAURANT
     setTimeout(() => {
       if (view === 'login') {
-        if (formData.phone === '8877665544' && formData.password === 'rest123') {
-          login({ name: 'SURESH MANAGER', role: 'MANAGER', phone: formData.phone }, 'mock-jwt-token');
-          toast.success('Identity Verified. Welcome back.');
-          navigate('/restaurant/dashboard');
-        } else {
-          toast.error('Invalid credentials.');
+        // ── Check if it's an existing RBAC user ───────────────────────────
+        const rbac = getUserByPhone(formData.phone);
+        if (rbac) {
+          if (rbac.status === 'revoked') { toast.error('Access revoked. Contact admin.'); setLoading(false); return; }
+          if (rbac.status === 'paused') { toast.error('Account paused. Contact admin.'); setLoading(false); return; }
+          const gen = rbacSendOtp(formData.phone);
+          setRbacDevOtp(gen);
+          setPendingRbacUser(rbac);
+          setView('otp-rbac');
+          toast.success(`OTP sent! (Dev: ${gen})`);
+          setLoading(false);
+          return;
         }
+
+        // If not an RBAC user, create a temporary "Generic Manager" session
+        // This allows ANY number to login as requested
+        const genericUser = {
+          id: `GEN-${formData.phone}`,
+          name: `User ${formData.phone.slice(-4)}`,
+          role: 'MANAGER',
+          phone: formData.phone,
+          permissions: ROLE_TEMPLATES.MANAGER.permissions
+        };
+        setPendingRbacUser(genericUser);
+        const gen = rbacSendOtp(formData.phone);
+        setRbacDevOtp(gen);
+        setView('otp-rbac');
+        toast.success(`OTP sent to your number`);
+        setLoading(false);
+        return;
+
+      } else if (view === 'otp-rbac') {
+        const result = rbacVerifyOtp(formData.phone, otp.join(''));
+        if (!result.success) { toast.error(result.message); setLoading(false); return; }
+        clearOtpSession(formData.phone);
+        login({ id: pendingRbacUser.id, name: pendingRbacUser.name, role: pendingRbacUser.role, phone: formData.phone, permissions: pendingRbacUser.permissions }, 'rbac-session-token');
+        toast.success(`Welcome, ${pendingRbacUser.name}!`);
+        navigate('/restaurant/dashboard');
       } else if (view === 'signup') {
+        // In this mock, signup just sends you to OTP
         setView('otp');
         setTimer(60);
-        toast.success('Verification code sent.');
+        toast.success('Verification code sent to ' + formData.phone);
       } else if (view === 'otp') {
         if (otp.join('') === '123456') {
-          toast.success('Account verified!');
-          setView('login');
+          // In a real app, you'd register them. Here we just log them in.
+          login({ name: formData.name || 'New Staff', role: 'RESTAURANT_STAFF', phone: formData.phone, permissions: ROLE_TEMPLATES.RESTAURANT_STAFF.permissions }, 'new-user-token');
+          toast.success('Account created successfully!');
+          navigate('/restaurant/dashboard');
         } else {
           toast.error('Invalid code.');
         }
       } else if (view === 'forgot') {
-        toast.success('Reset link sent.');
+        toast.success('Reset link sent to ' + formData.phone);
         setView('login');
       }
       setLoading(false);
-    }, 1500);
+    }, 1000);
   };
 
   const renderView = () => {
@@ -93,58 +125,92 @@ const RestaurantAuth = () => {
         return (
           <form onSubmit={handleAction} className="w-full max-w-sm space-y-6 animate-in fade-in zoom-in-95 duration-500">
             <div className="space-y-4">
-              <input 
-                type="tel" 
-                placeholder="Mobile Number"
-                value={formData.phone}
-                onChange={e => setFormData({...formData, phone: e.target.value})}
-                className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] transition-all font-bold"
-                required
-              />
-              <input 
-                type="password" 
-                placeholder="Password"
-                value={formData.password}
-                onChange={e => setFormData({...formData, password: e.target.value})}
-                className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] transition-all font-bold"
-                required
-              />
+              <div className="relative">
+                <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6A7051]/60" size={18} />
+                <input 
+                  type="tel" 
+                  placeholder="Mobile Number"
+                  value={formData.phone}
+                  onChange={e => setFormData({...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})}
+                  className="w-full bg-[#E6E3C8] border-none rounded-2xl px-12 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] transition-all font-bold"
+                  required
+                />
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6A7051]/60" size={18} />
+                <input 
+                  type="password" 
+                  placeholder="Password (Optional for Demo)"
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  className="w-full bg-[#E6E3C8] border-none rounded-2xl px-12 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] transition-all font-bold"
+                />
+              </div>
             </div>
             
             <button disabled={loading} className="w-full bg-[#C5A021] hover:bg-[#D4AF37] text-[#0A0B09] font-black py-4 rounded-2xl transition-all shadow-xl shadow-black/40 active:scale-[0.98] uppercase tracking-[0.2em] text-sm">
               {loading ? "VERIFYING..." : "Sign in"}
             </button>
-            <p className="text-center text-xs text-[#E6E3C8]/40 pt-4 uppercase tracking-[0.2em] font-bold">
-              NEW HERE? <button type="button" onClick={() => setView('signup')} className="text-[#C5A021] font-black hover:underline">CREATE ACCOUNT</button>
-            </p>
+            <div className="flex flex-col gap-4 text-center pt-2">
+              <button type="button" onClick={() => setView('forgot')} className="text-[10px] text-[#E6E3C8]/60 font-black uppercase tracking-widest hover:text-[#C5A021]">Forgot Password?</button>
+              <p className="text-[10px] text-[#E6E3C8]/40 uppercase tracking-[0.2em] font-bold">
+                NEW HERE? <button type="button" onClick={() => setView('signup')} className="text-[#C5A021] font-black hover:underline">CREATE ACCOUNT</button>
+              </p>
+            </div>
           </form>
         );
       case 'signup':
         return (
           <form onSubmit={handleAction} className="w-full max-w-sm space-y-4 animate-in fade-in zoom-in-95 duration-500">
-            <input type="text" placeholder="Full Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
-            <input type="tel" placeholder="Mobile Number" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
+            <input type="text" placeholder="Full Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
+            <input type="tel" placeholder="Mobile Number" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
             <input type="email" placeholder="Email Address" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
             <input type="password" placeholder="Password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
             <button disabled={loading} className="w-full bg-[#C5A021] hover:bg-[#D4AF37] text-[#0A0B09] font-black py-4 rounded-2xl transition-all mt-4 shadow-xl uppercase tracking-[0.2em]">{loading ? "SENDING OTP..." : "Continue"}</button>
-            <button type="button" onClick={() => setView('login')} className="w-full text-center text-xs text-[#E6E3C8]/60 uppercase tracking-widest mt-2 font-bold hover:text-white">Back to Sign in</button>
+            <button type="button" onClick={() => setView('login')} className="text-center text-xs text-[#E6E3C8]/60 uppercase tracking-widest mt-2 font-bold hover:text-white">Back to Sign in</button>
           </form>
         );
       case 'otp':
+      case 'otp-rbac':
         return (
           <form onSubmit={handleAction} className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in-95 duration-500 text-center">
+            <div className="space-y-2">
+               <p className="text-xs text-[#E6E3C8] uppercase tracking-[0.2em] font-black">Verification</p>
+               <p className="text-[10px] text-[#E6E3C8]/60 uppercase tracking-widest">Enter code sent to +91 {formData.phone}</p>
+            </div>
+
+            {rbacDevOtp && (
+              <div className="bg-amber-500/10 border border-amber-500/20 p-2 rounded-xl">
+                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Dev Mode OTP: {rbacDevOtp}</p>
+              </div>
+            )}
+
             <div className="flex justify-center gap-3">
               {otp.map((digit, idx) => (
                 <input key={idx} id={`otp-${idx}`} type="text" maxLength={1} value={digit} onChange={e => handleOtpChange(idx, e.target.value)} className="w-12 h-14 bg-[#E6E3C8] border-none rounded-xl text-center text-xl font-black text-[#6A7051] focus:ring-2 focus:ring-[#C5A021] outline-none shadow-lg" />
               ))}
             </div>
             <button disabled={loading} className="w-full bg-[#C5A021] hover:bg-[#D4AF37] text-[#0A0B09] font-black py-4 rounded-2xl transition-all shadow-xl uppercase tracking-[0.2em]">{loading ? "VERIFYING..." : "Verify Identity"}</button>
+            
+            <div className="flex flex-col gap-3">
+               {timer > 0 ? (
+                  <p className="text-[10px] text-[#E6E3C8]/40 font-bold uppercase tracking-widest">Resend in {timer}s</p>
+               ) : (
+                  <button type="button" onClick={() => setTimer(60)} className="text-[10px] text-[#C5A021] font-black uppercase tracking-widest hover:underline flex items-center justify-center gap-2"><RotateIcon size={12} /> Resend OTP</button>
+               )}
+               <button type="button" onClick={() => setView('login')} className="text-[10px] text-[#E6E3C8]/40 font-black uppercase tracking-widest hover:text-white flex items-center justify-center gap-2 transition-all">
+                 <ArrowLeft size={11} /> Change Number
+               </button>
+            </div>
           </form>
         );
       case 'forgot':
         return (
           <form onSubmit={handleAction} className="w-full max-w-sm space-y-6 animate-in fade-in zoom-in-95 duration-500">
-            <input type="tel" placeholder="Registered Mobile" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-6 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
+            <div className="relative">
+              <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6A7051]/60" size={18} />
+              <input type="tel" placeholder="Registered Mobile" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} className="w-full bg-[#E6E3C8] border-none rounded-2xl px-12 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] font-bold" required />
+            </div>
             <button disabled={loading} className="w-full bg-[#C5A021] hover:bg-[#D4AF37] text-[#0A0B09] font-black py-4 rounded-2xl transition-all shadow-xl uppercase tracking-[0.2em]">Send Reset Link</button>
             <button type="button" onClick={() => setView('login')} className="w-full text-center text-xs text-[#E6E3C8]/60 uppercase tracking-widest mt-2 font-bold hover:text-white">Back to Sign in</button>
           </form>
@@ -165,17 +231,17 @@ const RestaurantAuth = () => {
       </div>
 
       <div className="relative z-10 w-full flex flex-col items-center px-6">
-        <div className="mb-12 flex flex-col items-center text-center">
-           <div className="w-32 h-32 mb-6 relative group active:scale-95 transition-transform duration-300">
+        <div className="mb-10 flex flex-col items-center text-center">
+           <div className="w-24 h-24 mb-4 relative group active:scale-95 transition-transform duration-300">
               <img src="/IMG_8643-removebg-preview.png" alt="Golden Fisheries" className="w-full h-full object-contain drop-shadow-2xl" />
            </div>
-           <h1 className="text-5xl font-black text-white tracking-tight mb-2 uppercase">Sign in</h1>
-           <p className="text-sm text-[#E6E3C8]/60 font-bold tracking-tight">Sign in and start managing your restaurant!</p>
+           <h1 className="text-5xl font-black text-white tracking-tight mb-2 uppercase">Restaurant</h1>
+           <p className="text-sm text-[#E6E3C8]/60 font-bold tracking-tight uppercase tracking-widest">Internal Operations Portal</p>
         </div>
 
         {renderView()}
 
-        <div className="mt-20 opacity-20">
+        <div className="mt-16 opacity-20">
            <div className="flex items-center gap-3">
               <div className="w-12 h-[1px] bg-[#E6E3C8]"></div>
               <span className="text-[9px] font-black text-[#E6E3C8] uppercase tracking-[0.5em]">GF INTERNAL CONTROL</span>

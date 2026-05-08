@@ -15,23 +15,33 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Store,
+  Shield
 } from 'lucide-react';
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-  { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals' },
-  { icon: Sprout, label: 'Harvest', path: '/admin/procurement/harvest' },
-  { icon: Package, label: 'Inventory', path: '/admin/inventory' },
-  { icon: Truck, label: 'Logistics', path: '/admin/logistics' },
-  { icon: UserPlus, label: 'Drivers', path: '/admin/logistics/drivers' },
-  { icon: IndianRupee, label: 'Finance', path: '/admin/finance' },
-  { icon: ReceiptText, label: 'Billing', path: '/admin/billing' },
-  { icon: Settings, label: 'Settings', path: '/admin/settings' },
+import { useAuthStore } from '../../store/authStore';
+
+const allNavItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard', roles: ['ADMIN', 'MANAGER'] },
+  { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals', roles: ['ADMIN'] },
+  { icon: ClipboardList, label: 'Sales Approval', path: '/admin/sales-approval', roles: ['MANAGER'] },
+  { icon: Sprout, label: 'Harvest', path: '/admin/procurement/harvest', roles: ['ADMIN'] },
+  { icon: Package, label: 'Inventory', path: '/admin/inventory', roles: ['ADMIN', 'MANAGER'] },
+  { icon: Truck, label: 'Logistics', path: '/admin/logistics', roles: ['ADMIN'] },
+  { icon: UserPlus, label: 'Drivers', path: '/admin/logistics/drivers', roles: ['ADMIN'] },
+  { icon: Store, label: 'Outlets', path: '/admin/outlets', roles: ['ADMIN'] },
+  { icon: IndianRupee, label: 'Finance', path: '/admin/finance', roles: ['ADMIN'] },
+  { icon: ReceiptText, label: 'Billing', path: '/admin/billing', roles: ['ADMIN'] },
+  { icon: Shield, label: 'Access Control', path: '/admin/access', roles: ['ADMIN'], highlight: true },
+  { icon: Settings, label: 'Settings', path: '/admin/settings', roles: ['ADMIN'] },
 ];
 
 export const Sidebar = ({ onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user, logout } = useAuthStore();
+
+  const filteredNavItems = allNavItems.filter(item => item.roles.includes(user?.role));
 
   return (
     <div className={twMerge(
@@ -54,7 +64,7 @@ export const Sidebar = ({ onClose }) => {
       </div>
 
       <nav className="flex-1 px-3 py-6 space-y-1 overflow-x-hidden">
-        {navItems.map((item) => (
+        {filteredNavItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -67,13 +77,15 @@ export const Sidebar = ({ onClose }) => {
               isCollapsed ? 'px-0 justify-center' : 'px-6',
               isActive 
                 ? 'bg-black text-white border-black font-black' 
-                : 'text-text-muted hover:bg-olive-50 hover:text-primary'
+                : item.highlight
+                  ? 'text-[#6B7550] hover:bg-[#6B7550]/5 hover:text-[#6B7550]'
+                  : 'text-text-muted hover:bg-olive-50 hover:text-primary'
             )}
           >
             {({ isActive }) => (
               <>
-                <item.icon size={16} className={twMerge("shrink-0", isActive ? "text-white" : "text-text-muted group-hover:text-primary")} />
-                {!isCollapsed && <span className="text-[10px] uppercase tracking-widest font-black whitespace-nowrap">{item.label}</span>}
+                <item.icon size={16} className={twMerge("shrink-0", isActive ? "text-white" : item.highlight ? "text-[#6B7550]" : "text-text-muted group-hover:text-primary")} />
+                {!isCollapsed && <span className={twMerge("text-[10px] uppercase tracking-widest font-black whitespace-nowrap", item.highlight && !isActive ? 'text-[#6B7550]' : '')}>{item.label}</span>}
               </>
             )}
           </NavLink>
@@ -100,17 +112,17 @@ export const Sidebar = ({ onClose }) => {
         <div className={twMerge(
           "flex items-center py-4 bg-white rounded-none border border-card-border shadow-subtle group hover:bg-olive-50 transition-all cursor-pointer overflow-hidden",
           isCollapsed ? "justify-center px-0" : "px-3 gap-3"
-        )} title={isCollapsed ? "Mahesh Admin" : undefined}>
+        )} title={isCollapsed ? `${user?.name} ${user?.role}` : undefined}>
           <div className="w-10 h-10 shrink-0 rounded-none bg-accent-olive flex items-center justify-center text-white font-black overflow-hidden shadow-sm border border-card-border">
-            <img src="https://ui-avatars.com/api/?name=Mahesh+Admin&background=5F6846&color=fff" alt="User" />
+            <img src={`https://ui-avatars.com/api/?name=${user?.name}&background=5F6846&color=fff`} alt="User" />
           </div>
           {!isCollapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-black truncate text-text-primary">Mahesh Admin</p>
-                <p className="text-[8px] text-text-muted truncate uppercase tracking-widest font-black">Admin</p>
+                <p className="text-[10px] font-black truncate text-text-primary uppercase tracking-tight">{user?.name}</p>
+                <p className="text-[8px] text-text-muted truncate uppercase tracking-widest font-black">{user?.role}</p>
               </div>
-              <button className="p-1.5 text-text-muted hover:text-red-500 transition-colors">
+              <button onClick={() => logout()} className="p-1.5 text-text-muted hover:text-red-500 transition-colors">
                 <LogOut size={16} />
               </button>
             </>

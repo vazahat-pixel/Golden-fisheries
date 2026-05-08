@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { Search, Bell, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useAuthStore } from '../../store/authStore';
 
 export const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user } = useAuthStore();
 
   return (
     <div className="flex min-h-screen bg-page-bg">
@@ -46,11 +48,11 @@ export const AdminLayout = ({ children }) => {
           
           <div className="flex items-center gap-4">
             <div className="flex flex-col text-right hidden md:block">
-              <p className="text-[11px] font-black text-text-primary leading-tight uppercase tracking-tight">Mahesh</p>
-              <p className="text-[9px] text-text-muted font-black uppercase tracking-widest">ADMIN</p>
+              <p className="text-[11px] font-black text-text-primary leading-tight uppercase tracking-tight">{user?.name || 'Mahesh'}</p>
+              <p className="text-[9px] text-text-muted font-black uppercase tracking-widest">{user?.role || 'ADMIN'}</p>
             </div>
             <div className="w-10 h-10 rounded-none bg-[#5F6846] flex items-center justify-center font-black text-white shadow-sm border border-card-border">
-              MA
+              {user?.name?.substring(0, 2).toUpperCase() || 'MA'}
             </div>
           </div>
         </header>

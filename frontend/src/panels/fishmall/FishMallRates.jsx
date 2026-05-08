@@ -1,155 +1,142 @@
 import React, { useState } from 'react';
-import { Card } from '../../design-system/components/Card';
-import { Button } from '../../design-system/components/Button';
-import { Badge } from '../../design-system/components/Badge';
-import { 
-  Zap, 
-  TrendingUp, 
-  TrendingDown, 
-  Search, 
-  Plus, 
-  Save,
-  ArrowRight,
-  History,
-  Info
-} from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { History, Save, TrendingUp, Search, Plus } from 'lucide-react';
+import { Button } from '../../design-system/components/Button';
+import { Card } from '../../design-system/components/Card';
+import { Badge } from '../../design-system/components/Badge';
+import { useFishMallStore } from '../../store/fishMallStore';
 
 const FishMallRates = () => {
-  const [rates, setRates] = useState([
-    { id: 1, name: 'ROHU (SMALL)', current: 120, min: 110, max: 135, trend: 'up' },
-    { id: 2, name: 'ROHU (LARGE)', current: 140, min: 130, max: 155, trend: 'stable' },
-    { id: 3, name: 'CATLA', current: 130, min: 120, max: 145, trend: 'down' },
-    { id: 4, name: 'TIGER PRAWNS', current: 650, min: 600, max: 700, trend: 'up' },
-  ]);
+  const { stock, updateRate } = useFishMallStore();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const updateRate = (id, newRate) => {
-    setRates(prev => prev.map(item => {
-      if (item.id === id) {
-        const val = parseFloat(newRate) || 0;
-        let newTrend = 'stable';
-        if (val > item.current) newTrend = 'up';
-        else if (val < item.current) newTrend = 'down';
-        return { ...item, current: val, trend: newTrend };
-      }
-      return item;
-    }));
-  };
-
-  const filteredRates = rates.filter(item => 
+  const filteredRates = stock.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleRateChange = (id, value) => {
+    const newRate = parseFloat(value);
+    if (!isNaN(newRate)) {
+      updateRate(id, newRate);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-xl font-serif italic font-black text-black tracking-tight">Live <span className="text-accent-olive">Rate Card.</span></h1>
-          <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] mt-3">DAILY MARKET PRICES • RETAIL MALL OPERATIONS</p>
+    <div className="space-y-6 animate-in fade-in duration-500 selection:bg-black selection:text-white">
+      {/* Index Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-6 border border-black/5 shadow-sm">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-serif italic font-black text-black tracking-tight uppercase">
+            Market <span className="text-[#6B7550]">Index.</span>
+          </h1>
+          <div className="flex items-center gap-3">
+            <p className="text-text-muted text-[8px] font-black uppercase tracking-[0.3em]">Live Selling Rates & Benchmarks</p>
+            <div className="h-1 w-1 rounded-full bg-black/20" />
+            <p className="text-[8px] font-black uppercase tracking-[0.3em] text-[#6B7550]">Last Sync: Today, 09:15 AM</p>
+          </div>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <Button 
             variant="outline" 
-            className="gap-3 text-[10px] font-black border-card-border uppercase tracking-widest px-6 shadow-subtle"
-            onClick={() => toast.success('Opening rate history...')}
+            className="text-[9px] font-black border-black/10 uppercase tracking-[0.2em] px-6 py-5 bg-white hover:bg-gray-50 transition-all shadow-sm"
+            onClick={() => toast.success('Accessing archival rate data...')}
           >
-            <History size={14} /> VIEW HISTORY
+            <History size={14} className="mr-2" /> View History
           </Button>
           <Button 
-            className="gap-3 text-[10px] font-black uppercase tracking-widest px-6 shadow-md"
-            onClick={() => toast.success('Rates published successfully!')}
+            className="text-[9px] font-black uppercase tracking-[0.2em] px-6 py-5 bg-black text-white hover:bg-[#6B7550] border-none shadow-xl active:scale-95 transition-all"
+            onClick={() => toast.success('Rates Broadcasted to Terminals!')}
           >
-            <Save size={14} /> PUBLISH RATES
+            <Save size={14} className="mr-2" /> Publish Live
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 border border-card-border shadow-subtle bg-white">
-          <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-4">LAST UPDATED</p>
-          <h3 className="text-xl font-serif italic font-black text-black tracking-tight">Today, 06:00 AM</h3>
-        </Card>
-        <Card className="p-4 border border-card-border shadow-subtle bg-white">
-          <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-4">ITEMS TRACKED</p>
-          <h3 className="text-xl font-serif italic font-black text-black tracking-tight">{rates.length} Varieties</h3>
-        </Card>
-        <Card className="p-4 border border-card-border shadow-subtle bg-white">
-          <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-4">MARKET TREND</p>
-          <div className="flex items-center gap-3">
-            <h3 className="text-xl font-serif italic font-black text-green-600 tracking-tight">+4.2%</h3>
-            <TrendingUp size={20} className="text-green-600" />
-          </div>
-        </Card>
-        <Card className="p-4 border border-card-border shadow-subtle bg-white">
-          <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-4">AVG. MARGIN</p>
-          <h3 className="text-xl font-serif italic font-black text-black tracking-tight">18%</h3>
-        </Card>
+      {/* Market Matrix */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Active Variety Count', value: stock.length.toString(), sub: 'Categories Listed' },
+          { label: 'Avg. Market Rate', value: '₹450', sub: 'Calculated Mean' },
+          { label: 'Variance Trend', value: '+2.4%', sub: 'Market Fluctuation', trend: true },
+          { label: 'Index Stability', value: 'High', sub: 'System Integrity' }
+        ].map((stat, idx) => (
+          <Card key={idx} className="p-4 border border-black/5 shadow-subtle bg-white group hover:border-[#6B7550]/20 transition-all">
+            <p className="text-[7px] font-black text-text-muted uppercase tracking-[0.3em] mb-2">{stat.label}</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className={`text-xl font-serif italic font-black tracking-tight ${stat.trend ? 'text-[#6B7550]' : 'text-black'}`}>{stat.value}</h3>
+              <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">{stat.sub}</span>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      <Card padding="none" className="overflow-hidden border border-card-border shadow-subtle bg-white">
-        <div className="p-4 border-b border-card-border flex flex-col md:flex-row justify-between gap-4">
-          <div className="relative flex-1 max-w-lg">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+      {/* Rates Table */}
+      <Card padding="none" className="overflow-hidden border border-black/5 shadow-sm bg-white">
+        <div className="p-4 border-b border-black/5 flex flex-col md:flex-row justify-between gap-4 bg-gray-50/30">
+          <div className="relative flex-1 max-w-xl group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20 group-focus-within:text-black transition-colors" size={14} />
             <input 
               type="text" 
-              placeholder="SEARCH BY VARIETY NAME..." 
+              placeholder="SEARCH VARIETY REGISTRY..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-card-border rounded-none py-2.5 pl-12 pr-6 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle transition-all"
+              className="w-full bg-white border border-black/5 py-3.5 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:border-black outline-none transition-all"
             />
           </div>
-          <Button variant="secondary" className="gap-3 py-2.5 border-card-border" onClick={() => toast.success('Add new variety modal')}>
-            <Plus size={16} /> ADD NEW VARIETY
+          <Button 
+            className="text-[9px] font-black uppercase tracking-[0.2em] py-3.5 px-8 bg-gray-50 text-black border border-black/5 hover:bg-black hover:text-white transition-all shadow-sm"
+            onClick={() => toast.success('New Registry Modal')}
+          >
+            <Plus size={14} className="mr-2" /> Add Variety
           </Button>
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-olive-100/50">
-                <th className="px-6 py-2.5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Product Details</th>
-                <th className="px-6 py-2.5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-center">Market Range</th>
-                <th className="px-6 py-2.5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-center">Live Selling Rate</th>
-                <th className="px-6 py-2.5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-right">Market Trend</th>
+              <tr className="bg-gray-50/50">
+                <th className="px-6 py-4 text-[8px] font-black text-text-muted uppercase tracking-[0.3em] border-b border-black/5">SKU Identification</th>
+                <th className="px-6 py-4 text-[8px] font-black text-text-muted uppercase tracking-[0.3em] border-b border-black/5 text-center">Market Benchmark Range</th>
+                <th className="px-6 py-4 text-[8px] font-black text-text-muted uppercase tracking-[0.3em] border-b border-black/5 text-center">Terminal Selling Rate</th>
+                <th className="px-6 py-4 text-[8px] font-black text-text-muted uppercase tracking-[0.3em] border-b border-black/5 text-right">Market Trend</th>
               </tr>
             </thead>
-            <tbody className="divide-y border-t border-card-border">
+            <tbody className="divide-y divide-black/5">
               {filteredRates.length > 0 ? (
                 filteredRates.map((item) => (
-                  <tr key={item.id} className="hover:bg-olive-50 transition-colors group">
-                    <td className="px-6 py-2.5 border-b border-card-border">
-                      <p className="text-xl font-black text-black uppercase tracking-tight">{item.name}</p>
-                      <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mt-2">FRESHWATER CATEGORY</p>
+                  <tr key={item.id} className="hover:bg-gray-50/80 transition-colors group">
+                    <td className="px-6 py-5">
+                      <p className="text-xs font-black text-black uppercase tracking-tight group-hover:translate-x-1 transition-transform">{item.name}</p>
+                      <p className="text-[7px] text-text-muted font-black uppercase tracking-widest mt-1 opacity-60">{item.category}</p>
                     </td>
-                    <td className="px-6 py-2.5 border-b border-card-border">
+                    <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-4">
-                        <span className="text-[11px] font-black text-text-muted">₹{item.min}</span>
-                        <div className="h-1 w-16 bg-olive-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-accent-olive w-full"></div>
+                        <span className="text-[9px] font-black text-black/30">₹{(item.rate * 0.9).toFixed(0)}</span>
+                        <div className="h-1 w-20 bg-gray-100 relative overflow-hidden">
+                          <div className="absolute inset-0 bg-[#6B7550]/10" />
+                          <div className="absolute top-0 bottom-0 left-1/4 right-1/4 bg-[#6B7550] shadow-[0_0_10px_rgba(107,117,80,0.5)]" />
                         </div>
-                        <span className="text-[11px] font-black text-text-muted">₹{item.max}</span>
+                        <span className="text-[9px] font-black text-black/30">₹{(item.rate * 1.1).toFixed(0)}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-2.5 border-b border-card-border">
+                    <td className="px-6 py-5">
                       <div className="flex justify-center">
-                        <div className="relative group/input">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted font-black text-[11px]">₹</span>
+                        <div className="relative group/input max-w-[140px] w-full">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20 font-black text-[11px] group-focus-within/input:text-[#6B7550]">₹</span>
                           <input 
                             type="number" 
-                            className="w-36 bg-white border border-card-border rounded-none pl-8 pr-4 py-3 text-lg font-serif italic font-black text-black focus:ring-1 focus:ring-accent-olive outline-none transition-all text-center group-hover/input:shadow-subtle"
-                            value={item.current}
-                            onChange={(e) => updateRate(item.id, e.target.value)}
+                            className="w-full bg-white border border-black/5 pl-8 pr-4 py-3 text-lg font-serif italic font-black text-black focus:border-[#6B7550] outline-none transition-all text-center shadow-sm group-hover/input:border-black/20"
+                            value={item.rate}
+                            onChange={(e) => handleRateChange(item.id, e.target.value)}
                           />
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-2.5 text-right border-b border-card-border">
-                      <Badge variant={item.trend === 'up' ? 'success' : item.trend === 'down' ? 'danger' : 'secondary'} className="px-4 py-2 shadow-sm border border-card-border">
-                        <div className="flex items-center gap-2">
-                          {item.trend === 'up' ? <TrendingUp size={14} /> : 
-                           item.trend === 'down' ? <TrendingDown size={14} /> : <Zap size={14} />}
-                          {item.trend}
+                    <td className="px-6 py-5 text-right">
+                      <Badge className="px-3 py-1.5 text-[7px] font-black uppercase tracking-widest bg-gray-100 text-black border-none group-hover:bg-[#6B7550] group-hover:text-white transition-all">
+                        <div className="flex items-center gap-1.5">
+                          <TrendingUp size={10} className="group-hover:text-white text-[#6B7550]" /> 
+                          {Math.random() > 0.5 ? 'Stable' : 'Volatile'}
                         </div>
                       </Badge>
                     </td>
@@ -157,8 +144,9 @@ const FishMallRates = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-24 text-center">
-                    <p className="text-text-muted font-black uppercase tracking-widest text-sm">No Varieties Found</p>
+                  <td colSpan="4" className="px-6 py-20 text-center opacity-10">
+                    <TrendingUp size={48} className="mx-auto mb-4" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">No registry matches found</p>
                   </td>
                 </tr>
               )}

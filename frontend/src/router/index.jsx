@@ -36,6 +36,10 @@ import CreateHarvestSlip from '../panels/admin/procurement/CreateHarvestSlip';
 import HarvestSlipDetail from '../panels/admin/procurement/HarvestSlipDetail';
 import UsersAndRoles from '../panels/admin/settings/UsersAndRoles';
 import AdminBilling from '../panels/admin/billing/AdminBilling';
+import SalesApprovalList from '../panels/admin/sales/SalesApprovalList';
+import SalesApprovalDetail from '../panels/admin/sales/SalesApprovalDetail';
+import OutletManagement from '../panels/admin/outlets/OutletManagement';
+import AccessControl from '../panels/admin/access/AccessControl';
 
 // Restaurant Imports
 import RestaurantDashboard from '../panels/restaurant/RestaurantDashboard';
@@ -55,11 +59,15 @@ import { MobileLayout } from '../design-system/layouts/MobileLayout';
 import DriverDashboard from '../panels/driver/DriverDashboard';
 import DriverTasks from '../panels/driver/DriverTasks';
 import ActiveTrip from '../panels/driver/ActiveTrip';
+import DriverHistory from '../panels/driver/DriverHistory';
 import DriverProfile from '../panels/driver/DriverProfile';
+import DriverExpenses from '../panels/driver/DriverExpenses';
+import DriverDocuments from '../panels/driver/DriverDocuments';
 
 // Public Imports
 import BuyerBilling from '../panels/public/BuyerBilling';
 import Launchpad from '../pages/Launchpad';
+import Unauthorized from '../pages/Unauthorized';
 
 const restaurantNav = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/restaurant/dashboard' },
@@ -87,7 +95,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<AdminAuth />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
               <AdminLayout><Outlet /></AdminLayout>
             </ProtectedRoute>
           }>
@@ -96,6 +104,8 @@ const AppRouter = () => {
             <Route path="tapals/purchase/new" element={<CreatePurchaseTapal />} />
             <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
             <Route path="tapals/:id" element={<TapalDetail />} />
+            <Route path="sales-approval" element={<SalesApprovalList />} />
+            <Route path="sales-approval/:id" element={<SalesApprovalDetail />} />
             <Route path="procurement/harvest" element={<HarvestSlips />} />
             <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
             <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
@@ -105,7 +115,9 @@ const AppRouter = () => {
             <Route path="logistics/vehicles" element={<VehicleDocuments />} />
             <Route path="finance" element={<FinanceOverview />} />
             <Route path="billing" element={<AdminBilling />} />
+            <Route path="outlets" element={<OutletManagement />} />
             <Route path="settings" element={<UsersAndRoles />} />
+            <Route path="access" element={<AccessControl />} />
           </Route>
         </Routes>
       } />
@@ -158,7 +170,10 @@ const AppRouter = () => {
               <Route path="dashboard" element={<DriverDashboard />} />
               <Route path="tasks" element={<DriverTasks />} />
               <Route path="active-trip" element={<ActiveTrip />} />
+              <Route path="history" element={<DriverHistory />} />
               <Route path="profile" element={<DriverProfile />} />
+              <Route path="expenses" element={<DriverExpenses />} />
+              <Route path="documents" element={<DriverDocuments />} />
             </Route>
           </Route>
         </Routes>
@@ -166,6 +181,7 @@ const AppRouter = () => {
 
       {/* Public Routes */}
       <Route path="/pay/:invoiceId" element={<BuyerBilling />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

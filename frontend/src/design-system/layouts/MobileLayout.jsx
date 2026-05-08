@@ -5,7 +5,8 @@ import {
   ClipboardList, 
   Truck, 
   User,
-  Bell
+  Bell,
+  History
 } from 'lucide-react';
 
 export const MobileLayout = () => {
@@ -35,6 +36,7 @@ export const MobileLayout = () => {
             { icon: Home, label: 'Home', path: '/driver/dashboard' },
             { icon: ClipboardList, label: 'Tasks', path: '/driver/tasks' },
             { icon: Truck, label: 'Trip', path: '/driver/active-trip' },
+            { icon: History, label: 'History', path: '/driver/history' },
             { icon: User, label: 'Profile', path: '/driver/profile' },
           ].map((item) => (
             <NavLink

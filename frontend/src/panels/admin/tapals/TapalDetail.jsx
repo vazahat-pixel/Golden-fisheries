@@ -111,8 +111,15 @@ const TapalDetail = () => {
     toast.success('Expense recorded');
   };
 
+  const isLocked = !['Confirmed', 'Assigned'].includes(tapal.status);
+
+  const handleCloseTrip = () => {
+    closeTrip(tapal.id);
+    toast.success('Trip Closed and Record Finalized');
+  };
+
   const getStepStatus = (step) => {
-    const statusOrder = ['Confirmed', 'Driver Assigned', 'In Transit', 'Received', 'Delivered'];
+    const statusOrder = ['Confirmed', 'Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered', 'Closed'];
     const currentIndex = statusOrder.indexOf(tapal.status);
     const stepIndex = statusOrder.indexOf(step);
     
@@ -136,8 +143,15 @@ const TapalDetail = () => {
           </p>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={openEditModal}><Pencil size={12} className="mr-1" /> EDIT</Button>
-           <Badge variant={tapal.status === 'Delivered' ? 'success' : 'warning'} className="uppercase text-[9px] font-bold border border-card-border px-4 py-1 shadow-none">
+           {!isLocked && (
+             <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={openEditModal}><Pencil size={12} className="mr-1" /> EDIT</Button>
+           )}
+           {isLocked && (
+             <Badge variant="secondary" className="bg-olive-50 text-[8px] font-bold border-card-border px-3 flex items-center gap-1.5 opacity-60 cursor-not-allowed">
+               <Check size={10} /> EDIT LOCKED
+             </Badge>
+           )}
+           <Badge variant={tapal.status === 'Delivered' || tapal.status === 'Closed' ? 'success' : 'warning'} className="uppercase text-[9px] font-bold border border-card-border px-4 py-1 shadow-none">
              {tapal.status}
            </Badge>
            <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={() => window.print()}><Printer size={12} className="mr-1" /> PRINT</Button>
@@ -146,16 +160,16 @@ const TapalDetail = () => {
 
       {/* Progress Stepper */}
       <Card className="border border-card-border bg-white p-6 shadow-subtle overflow-x-auto no-scrollbar">
-        <div className="flex justify-between items-center min-w-[600px] relative">
+        <div className="flex justify-between items-center min-w-[800px] relative">
           <div className="absolute left-0 right-0 h-0.5 bg-olive-100 -z-0"></div>
-          {['Confirmed', 'Driver Assigned', 'In Transit', 'Delivered'].map((step, i) => {
+          {['Confirmed', 'Assigned', 'In Transit', 'Picked', 'Delivered', 'Closed'].map((step, i) => {
             const status = getStepStatus(step);
             return (
               <div key={i} className="flex flex-col items-center gap-2 relative z-10 bg-white px-4">
                 <div className={clsx(
                   "w-8 h-8 flex items-center justify-center border-2 font-bold text-[10px]",
                   status === 'completed' ? "bg-black border-black text-white" : 
-                  status === 'current' ? "border-black text-black animate-pulse" : "border-olive-100 text-olive-200"
+                  status === 'current' ? "border-black text-black animate-pulse shadow-glow" : "border-olive-100 text-olive-200"
                 )}>
                   {status === 'completed' ? <CheckCircle2 size={16} /> : i + 1}
                 </div>
@@ -186,6 +200,29 @@ const TapalDetail = () => {
               </div>
             </div>
           </Card>
+
+          {/* Manager Suggestions / Feedback Section */}
+          {tapal.suggestedChanges && (
+            <Card className="border-2 border-accent-olive bg-olive-50/20 p-5 shadow-sm">
+               <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-accent-olive rounded-full flex items-center justify-center text-white shrink-0 shadow-lg">
+                     <MessageCircle size={20} />
+                  </div>
+                  <div className="space-y-1">
+                     <div className="flex items-center gap-2">
+                        <h4 className="text-[10px] font-black text-black uppercase tracking-widest">Feedback from Channappa</h4>
+                        <Badge variant="warning" className="text-[7px] bg-black text-white border-none px-2 py-0.5">ACTION REQUIRED</Badge>
+                     </div>
+                     <p className="text-xs font-bold text-black leading-relaxed italic">
+                        "{tapal.suggestedChanges}"
+                     </p>
+                     <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest mt-2">
+                        SENT AT: {new Date(tapal.suggestedAt).toLocaleTimeString()} · PLEASE UPDATE TAPAL AS PER SUGGESTIONS
+                     </p>
+                  </div>
+               </div>
+            </Card>
+          )}
 
           {/* Product List */}
           <Card padding="none" className="border border-card-border shadow-subtle bg-white overflow-hidden">
@@ -229,29 +266,14 @@ const TapalDetail = () => {
                   <Navigation size={12} className="text-accent-olive" />
                   <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted">TRIP LOGISTICS: {trip.id}</h3>
                 </div>
-                <Badge variant={trip.status === 'completed' ? 'success' : 'warning'} className="text-[7px] font-bold">{trip.status}</Badge>
+                <Badge className={clsx("text-[7px] font-bold uppercase", trip.status === 'Delivered' || trip.status === 'Closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>{trip.status}</Badge>
               </div>
               <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">PICKUP SITE</p><p className="text-[10px] font-bold text-black">{trip.pickupLocation}</p></div>
-                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">ACCEPTED AT</p><p className="text-[10px] font-bold text-black">{trip.acceptedAt || '—'}</p></div>
+                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">PICKUP SITE</p><p className="text-[10px] font-bold text-black uppercase">{trip.pickupLocation}</p></div>
+                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">ACTUAL QTY</p><p className="text-[10px] font-bold text-accent-olive uppercase">{trip.actualQty || 'AWAITING PICKUP'} {trip.actualQty ? 'KG' : ''}</p></div>
                  <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">COMPLETED AT</p><p className="text-[10px] font-bold text-black">{trip.completedAt || '—'}</p></div>
                  <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">TOTAL EXPENSES</p><p className="text-[10px] font-bold text-accent-olive">₹{trip.expenses?.reduce((a,e) => a+Number(e.amount), 0).toLocaleString() || '0'}</p></div>
               </div>
-              
-              {/* Trip Expenses List */}
-              {trip.expenses?.length > 0 && (
-                <div className="border-t border-card-border px-4 py-2 bg-olive-50/10">
-                   <div className="flex flex-wrap gap-2 mt-2">
-                      {trip.expenses.map((exp, idx) => (
-                        <div key={idx} className="bg-white border border-card-border px-3 py-1 flex items-center gap-2 shadow-sm">
-                           <IndianRupee size={10} className="text-accent-olive" />
-                           <span className="text-[9px] font-bold text-black uppercase">{exp.type}</span>
-                           <span className="text-[9px] font-bold text-text-muted">₹{exp.amount}</span>
-                        </div>
-                      ))}
-                   </div>
-                </div>
-              )}
             </Card>
           )}
         </div>
@@ -268,23 +290,30 @@ const TapalDetail = () => {
                </Button>
              )}
 
-             {tapal.status === 'In Transit' && (
-               <Button className="w-full bg-white text-black hover:bg-olive-50 text-[10px] font-bold uppercase gap-2 h-11" onClick={() => setIsReceiveModalOpen(true)}>
-                 <PackageCheck size={16} /> MARK AS RECEIVED
-               </Button>
+             {tapal.status === 'Expense Submitted' && (
+               <div className="space-y-2">
+                  <Button className="w-full bg-green-600 text-white hover:bg-green-700 text-[10px] font-bold uppercase gap-2 h-11" onClick={handleCloseTrip}>
+                    <CheckCircle2 size={16} /> APPROVE & CLOSE
+                  </Button>
+                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 text-[9px] font-bold h-10 uppercase">
+                    REJECT EXPENSES
+                  </Button>
+               </div>
              )}
 
-             {trip && tapal.status !== 'Delivered' && (
-               <Button variant="outline" className="w-full mt-2 border-white/30 text-white hover:bg-white hover:text-black text-[9px] font-bold h-10 gap-2" onClick={() => setIsExpenseModalOpen(true)}>
-                 <IndianRupee size={14} /> LOG EXPENSE
-               </Button>
-             )}
-
-             {tapal.status === 'Delivered' && (
+             {tapal.status === 'Closed' && (
                <div className="text-center py-2">
                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-glow"><CheckCircle2 size={24} /></div>
-                 <p className="text-[10px] font-bold uppercase tracking-widest text-green-400">RECORD FINALIZED</p>
-                 <p className="text-[8px] font-bold text-white/50 uppercase mt-1">STOCK & FINANCE UPDATED</p>
+                 <p className="text-[10px] font-bold uppercase tracking-widest text-green-400">TRIP CLOSED</p>
+                 <p className="text-[8px] font-bold text-white/50 uppercase mt-1">LOGISTICS COMPLETE</p>
+               </div>
+             )}
+
+             {['Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered'].includes(tapal.status) && (
+               <div className="text-center py-4 border border-white/10 bg-white/5">
+                  <div className="animate-spin h-6 w-6 border-2 border-white/20 border-t-white rounded-full mx-auto mb-3"></div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest">Waiting for Driver Action</p>
+                  <p className="text-[7px] text-white/50 uppercase mt-1">Status: {tapal.status}</p>
                </div>
              )}
           </Card>

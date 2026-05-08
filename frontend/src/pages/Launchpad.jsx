@@ -15,104 +15,83 @@ import { Link } from 'react-router-dom';
 const Launchpad = () => {
   const panels = [
     {
-      title: 'GF Admin',
-      desc: 'Central ERP Control, Logistics & Finance',
+      title: 'Strategic Admin',
+      desc: 'CENTRAL ERP CONTROL, LOGISTICS & FINANCE HUB',
       path: '/admin/auth',
       icon: ShieldCheck,
-      color: 'bg-[#C5A021]',
-      hoverBorder: 'hover:border-[#C5A021]'
+      color: 'bg-black',
+      tag: 'MASTER'
     },
     {
-      title: 'Restaurant Panel',
-      desc: 'POS Billing & Live Order Management',
+      title: 'Kitchen Ops',
+      desc: 'POS TERMINAL & LIVE MANIFEST MANAGEMENT',
       path: '/restaurant/auth',
       icon: Utensils,
-      color: 'bg-[#C5A021]',
-      hoverBorder: 'hover:border-[#C5A021]'
+      color: 'bg-black',
+      tag: 'STATION'
     },
     {
-      title: 'Fish Mall',
-      desc: 'Weight-based Billing & Rate Cards',
+      title: 'Retail Matrix',
+      desc: 'FISH MALL BILLING & WEIGHT-BASED REGISTRY',
       path: '/fishmall/auth',
       icon: Fish,
-      color: 'bg-[#C5A021]',
-      hoverBorder: 'hover:border-[#C5A021]'
+      color: 'bg-black',
+      tag: 'TERMINAL'
     },
     {
-      title: 'Driver App',
-      desc: 'Mobile PWA for Field Operations',
+      title: 'Fleet Pilot',
+      desc: 'MOBILE LOGISTICS CONSOLE & FIELD OPERATIONS',
       path: '/driver/auth',
       icon: Truck,
-      color: 'bg-[#C5A021]',
-      hoverBorder: 'hover:border-[#C5A021]'
+      color: 'bg-black',
+      tag: 'MOBILE'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#6A7051] flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans selection:bg-[#C5A021]/30">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-white/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-white/5 rounded-full blur-[120px]" />
-      </div>
-
-      <div className="absolute top-8 right-12 flex items-center gap-2 cursor-pointer opacity-50 hover:opacity-100 transition-opacity">
-        <Globe size={16} className="text-[#E6E3C8]" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#E6E3C8]">Identity Portal</span>
-      </div>
-
-      <div className="relative z-10 w-full max-w-6xl">
-        <div className="text-center mb-20">
-           <div className="w-40 h-40 mb-10 mx-auto relative group active:scale-95 transition-transform duration-300">
-              <img src="/IMG_8643-removebg-preview.png" alt="Golden Fisheries" className="w-full h-full object-contain drop-shadow-2xl" />
-           </div>
-           <h1 className="text-5xl md:text-7xl font-black text-white tracking-tight mb-4 uppercase">
-             Identity <span className="text-[#E6E3C8]">Portal</span>
-           </h1>
-           <p className="text-[#E6E3C8]/60 text-xs md:text-sm font-black uppercase tracking-[0.5em] max-w-lg mx-auto leading-loose">
-             Unified Control Systems &bull; Secure Gateway
-           </p>
+    <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-6 md:p-12 font-sans selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-500">
+      <div className="w-full max-w-6xl">
+        {/* Compact Branding */}
+        <div className="flex flex-col items-center text-center mb-16">
+          <img src="/IMG_8643-removebg-preview.png" alt="Golden Fisheries" className="w-24 h-24 object-contain mb-6 grayscale hover:grayscale-0 transition-all duration-500" />
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight uppercase">Control Center</h1>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em] mt-2">Unified Enterprise Management Portal</p>
+          <div className="h-0.5 w-12 bg-[#6B7550] mt-4" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Dense Module Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {panels.map((panel, idx) => (
             <Link key={idx} to={panel.path} className="group">
-              <Card className="h-full bg-white/5 backdrop-blur-xl border border-white/10 hover:border-[#C5A021] transition-all duration-500 group-hover:-translate-y-3 p-8 flex flex-col items-center text-center rounded-3xl shadow-2xl overflow-hidden relative">
-                {/* Decorative background glow on hover */}
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#C5A021]/10 rounded-full blur-3xl group-hover:bg-[#C5A021]/20 transition-all duration-700" />
-                
-                <div className="w-16 h-16 bg-[#E6E3C8] rounded-2xl flex items-center justify-center text-[#6A7051] mb-8 group-hover:bg-[#C5A021] group-hover:text-black transition-all duration-500 shadow-lg rotate-3 group-hover:rotate-0">
-                  <panel.icon size={28} />
+              <div className="bg-white border border-gray-200 p-8 flex flex-col h-full hover:border-[#6B7550] hover:shadow-lg transition-all duration-300">
+                <div className="w-12 h-12 bg-gray-50 flex items-center justify-center mb-6 group-hover:bg-[#6B7550] transition-colors">
+                  <panel.icon size={20} className="text-gray-400 group-hover:text-white transition-colors" />
                 </div>
-                
-                <h3 className="text-sm font-black text-white mb-3 tracking-[0.2em] uppercase">{panel.title}</h3>
-                <p className="text-[#E6E3C8]/40 text-[10px] font-bold uppercase tracking-widest mb-10 leading-relaxed group-hover:text-[#E6E3C8]/70 transition-colors">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight mb-2 group-hover:text-[#6B7550] transition-colors">{panel.title}</h3>
+                <p className="text-[10px] text-gray-400 font-medium leading-relaxed mb-8 uppercase tracking-wider">
                   {panel.desc}
                 </p>
-                
-                <div className="mt-auto flex items-center gap-3 bg-[#E6E3C8] text-[#6A7051] px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-[#C5A021] hover:text-black transition-all shadow-md group-hover:scale-105">
-                  Secure Access <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                <div className="mt-auto flex items-center justify-between pt-4 border-t border-gray-50">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 group-hover:text-gray-900 transition-colors">Authorize</span>
+                  <ArrowRight size={16} className="text-gray-300 group-hover:text-gray-900 group-hover:translate-x-1 transition-all" />
                 </div>
-              </Card>
+              </div>
             </Link>
           ))}
         </div>
 
-        <div className="mt-24 text-center">
-           <div className="inline-flex items-center gap-4 py-2 px-6 bg-white/5 border border-white/10 rounded-full">
-              <div className="w-2 h-2 bg-[#C5A021] rounded-full animate-pulse" />
-              <p className="text-[#E6E3C8]/40 text-[9px] font-black uppercase tracking-[0.4em]">
-                Internal Enterprise Access &bull; Golden Fisheries &bull; Est 2026
-              </p>
-           </div>
+        {/* Footer Audit Info */}
+        <div className="mt-20 pt-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 opacity-40">
+          <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">© 2026 Golden Fisheries Infra</p>
+          <div className="flex items-center gap-6">
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+              <ShieldCheck size={12} /> Secure Protocol V.2.06
+            </span>
+            <span className="text-[9px] font-bold text-[#6B7550] uppercase tracking-widest flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-[#6B7550] rounded-full animate-pulse" /> Nodes Nominal
+            </span>
+          </div>
         </div>
-      </div>
-
-      {/* Decorative Wave */}
-      <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none opacity-5">
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-32 fill-[#E6E3C8]">
-          <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5,73.84-4.36,147.54,16.88,218.2,35.26,69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113,14.29,1200,52.47V0Z"></path>
-        </svg>
       </div>
     </div>
   );

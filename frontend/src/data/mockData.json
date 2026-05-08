@@ -31,6 +31,8 @@
       { "id": "TRP-2026-002", "type": "Sale", "party": "Golden Restaurant", "qty": "120 KG", "amount": "₹12,500", "status": "confirmed", "date": "30/04/2026", "driver": "Suresh M." },
       { "id": "TRP-2026-003", "type": "Purchase", "party": "Deep Sea Farms", "qty": "800 KG", "amount": "₹65,000", "status": "delivered", "date": "29/04/2026", "driver": "Vicky P." },
       { "id": "TRP-2026-004", "type": "Sale", "party": "Channappa Buyer", "qty": "250 KG", "amount": "₹22,000", "status": "in-transit", "date": "30/04/2026", "driver": "Ramu K." },
+      { "id": "SAL-2026-001", "type": "Sale", "party": "MANGALORE FISH HOUSE", "qty": "300 KG", "amount": "₹28,500", "status": "Pending Approval", "date": "01/05/2026", "driver": "Unassigned", "deliveryAddress": "PUMPWELL CIRCLE, MANGALORE", "createdBy": "MAHESH KUMAR", "products": [{ "name": "ROHU", "qty": "300 KG", "rate": "₹95", "total": "₹28,500" }] },
+      { "id": "SAL-2026-002", "type": "Sale", "party": "UDUPI RESTAURANT", "qty": "150 KG", "amount": "₹13,500", "status": "Pending Approval", "date": "02/05/2026", "driver": "Unassigned", "deliveryAddress": "SERVICE BUS STAND, UDUPI", "createdBy": "MAHESH KUMAR", "products": [{ "name": "CATLA", "qty": "150 KG", "rate": "₹90", "total": "₹13,500" }] },
       { "id": "TRP-2026-005", "type": "Purchase", "party": "Coastal Harvest", "qty": "450 KG", "amount": "₹35,000", "status": "pending", "date": "30/04/2026", "driver": "Unassigned" }
     ]
   },
@@ -43,6 +45,86 @@
     ],
     "stockInflow": [
       { "id": 1, "product": "Rohu", "weight": "400 KG", "source": "Ramu Farms", "time": "10:30 AM" }
+    ]
+  },
+  "driver": {
+    "trips": [
+      {
+        "id": "TRP-9001",
+        "tapalId": "PUR-9001",
+        "driverId": "DRV-0002",
+        "driverName": "JAGRATI DOD",
+        "vehicle": "MH-12-AS-4567",
+        "status": "In Transit",
+        "pickupLocation": "Coastal Harvest Pond",
+        "deliveryLocation": "WAREHOUSE",
+        "product": "ROHU FISH",
+        "expectedQty": "300 KG",
+        "actualQty": null,
+        "createdAt": "09:30 AM",
+        "expenses": [],
+        "timeline": [
+          {"status": "Assigned", "time": "09:00 AM"},
+          {"status": "Accepted", "time": "09:15 AM"},
+          {"status": "In Transit", "time": "09:30 AM"}
+        ]
+      },
+      {
+        "id": "TRP-9002",
+        "tapalId": "SAL-2026-001",
+        "driverId": "DRV-0002",
+        "driverName": "JAGRATI DOD",
+        "vehicle": "MH-12-AS-4567",
+        "status": "Assigned",
+        "pickupLocation": "WAREHOUSE",
+        "deliveryLocation": "MANGALORE FISH HOUSE",
+        "product": "ROHU",
+        "expectedQty": "300 KG",
+        "actualQty": null,
+        "createdAt": "10:00 AM",
+        "expenses": [],
+        "timeline": [{"status": "Assigned", "time": "10:00 AM"}]
+      },
+      {
+        "id": "TRP-8998",
+        "tapalId": "PUR-8998",
+        "driverId": "DRV-0002",
+        "driverName": "JAGRATI DOD",
+        "vehicle": "MH-12-AS-4567",
+        "status": "Delivered",
+        "pickupLocation": "Deep Sea Farms",
+        "deliveryLocation": "WAREHOUSE",
+        "product": "CATLA FISH",
+        "expectedQty": "450 KG",
+        "actualQty": "448 KG",
+        "createdAt": "YESTERDAY",
+        "completedAt": "YESTERDAY 04:00 PM",
+        "expenses": [
+          {"type": "FUEL", "amount": 1500, "status": "Approved"},
+          {"type": "TOLL", "amount": 120, "status": "Approved"}
+        ],
+        "timeline": [
+          {"status": "Assigned", "time": "08:00 AM"},
+          {"status": "Delivered", "time": "04:00 PM"}
+        ]
+      },
+      {
+        "id": "TRP-8995",
+        "tapalId": "PUR-8995",
+        "driverId": "DRV-0002",
+        "driverName": "JAGRATI DOD",
+        "vehicle": "MH-12-AS-4567",
+        "status": "Closed",
+        "pickupLocation": "Ramu Fisheries",
+        "deliveryLocation": "WAREHOUSE",
+        "product": "PRAWNS",
+        "expectedQty": "100 KG",
+        "actualQty": "102 KG",
+        "createdAt": "28 APR 2026",
+        "completedAt": "28 APR 2026",
+        "expenses": [{"type": "FUEL", "amount": 1200, "status": "Approved"}],
+        "timeline": [{"status": "Closed", "time": "28 APR 2026"}]
+      }
     ]
   },
   "restaurant": {

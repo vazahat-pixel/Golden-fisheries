@@ -1,112 +1,127 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { Calendar, Printer, Search, Filter, Clock, ChevronRight, History } from 'lucide-react';
+import { Button } from '../../design-system/components/Button';
 import { Card } from '../../design-system/components/Card';
 import { Badge } from '../../design-system/components/Badge';
-import { Button } from '../../design-system/components/Button';
-import { 
-  History, 
-  Search, 
-  Calendar, 
-  Clock, 
-  Utensils, 
-  Printer,
-  ChevronRight,
-  Filter
-} from 'lucide-react';
-import { toast } from 'react-hot-toast';
-
-const mockOrders = [
-  { id: 'ORD-5501', table: 'Table 4', items: 'Fish Thali (2), King Fish Fry (1)', amount: '₹780', time: '10 mins ago', status: 'completed' },
-  { id: 'ORD-5502', table: 'Table 2', items: 'Prawn Ghee Roast (1), Rice (2)', amount: '₹470', time: '25 mins ago', status: 'completed' },
-  { id: 'ORD-5503', table: 'Takeaway', items: 'Fish Thali (1)', amount: '₹180', time: '40 mins ago', status: 'cancelled' },
-  { id: 'ORD-5504', table: 'Table 8', items: 'Chicken 65 (2), Lime Juice (2)', amount: '₹520', time: '1 hr ago', status: 'completed' },
-];
+import { useRestaurantStore } from '../../store/restaurantStore';
 
 const RestaurantOrderHistory = () => {
+  const { orders } = useRestaurantStore();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredOrders = orders.filter(order => 
+    order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.items.some(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-xl font-serif italic font-black text-black tracking-tight">Order <span className="text-accent-olive">History.</span></h1>
-          <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] mt-3">PAST RESTAURANT ORDERS • SALES LOGS • INVOICES</p>
-        </div>
-        <div className="flex gap-4">
-          <Button 
-            variant="outline" 
-            className="gap-3 text-[10px] font-black border-card-border uppercase tracking-widest px-6 shadow-subtle active:scale-95 transition-all"
-          >
-            <Calendar size={14} /> TODAY
-          </Button>
-          <Button 
-            className="gap-3 text-[10px] font-black uppercase tracking-widest px-6 shadow-md active:scale-95 transition-all"
-            onClick={() => toast.success('Printing Daily Report...')}
-          >
-            <Printer size={14} /> DAILY REPORT
-          </Button>
+    <div className="bg-[#F9FAFB] min-h-screen selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-300">
+      {/* Simple Header */}
+      <div className="bg-white border-b border-gray-200 p-6 md:p-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight uppercase">Order History</h1>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Transaction Ledger • {orders.length} Records Found</p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="text-[10px] font-bold border-gray-200 uppercase tracking-widest px-6 py-2 bg-white text-gray-900 hover:bg-gray-50 transition-all"
+            >
+              <Calendar size={14} className="mr-2" /> Select Date
+            </Button>
+            <Button 
+              className="text-[10px] font-bold uppercase tracking-widest px-6 py-2 bg-[#6B7550] text-white hover:bg-black border-none shadow-sm transition-all"
+              onClick={() => toast.success('Exporting ledger...')}
+            >
+              <Printer size={14} className="mr-2" /> Export
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Card padding="none" className="border border-card-border shadow-subtle bg-white overflow-hidden">
-        <div className="p-4 border-b border-card-border flex flex-col md:flex-row gap-4 bg-olive-100/30">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+      <div className="p-6 md:p-8 space-y-6">
+        {/* Search Matrix */}
+        <div className="flex flex-col md:flex-row gap-2">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#6B7550] transition-colors" size={14} />
             <input 
               type="text" 
-              placeholder="SEARCH BY ORDER ID OR TABLE..." 
-              className="w-full bg-white border border-card-border rounded-none py-2.5 pl-12 pr-6 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle transition-all"
+              placeholder="Search by ID or Item name..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-gray-200 py-3 pl-12 pr-6 text-[10px] font-bold uppercase tracking-widest focus:border-[#6B7550] outline-none transition-all shadow-sm"
             />
           </div>
           <Button 
             variant="outline" 
-            className="gap-3 text-[10px] font-black border-card-border uppercase tracking-widest px-6 shadow-subtle bg-white"
-            onClick={() => toast('Filters coming soon')}
+            className="text-[10px] font-bold border-gray-200 uppercase tracking-widest px-8 bg-white text-gray-600 hover:text-gray-900 shadow-sm"
           >
-            <Filter size={14} /> FILTERS
+            <Filter size={14} className="mr-2" /> Filter
           </Button>
         </div>
         
-        <div className="divide-y divide-olive-100">
-          {mockOrders.map((order) => (
-            <div key={order.id} className="p-4 hover:bg-olive-50 transition-colors group flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 border flex items-center justify-center font-black shadow-md shrink-0 transition-transform group-hover:scale-105 ${
-                  order.status === 'completed' ? 'bg-black text-white border-black' : 'bg-red-600 text-white border-red-600'
-                }`}>
-                  {order.table === 'Takeaway' ? '🥡' : order.table.split(' ')[1]}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <h3 className="font-serif italic font-black text-black text-xl tracking-tight uppercase">{order.id}</h3>
-                    <span className="text-text-muted/30 hidden xs:inline">•</span>
-                    <p className="text-[10px] text-accent-olive font-black uppercase tracking-[0.3em]">{order.table}</p>
+        {/* Record List */}
+        <div className="space-y-3">
+          {filteredOrders.length > 0 ? filteredOrders.map((order) => (
+            <div key={order.id} className="bg-white border border-gray-200 p-4 md:p-6 group hover:border-[#6B7550] transition-all shadow-sm relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="flex items-center gap-6 flex-1">
+                  <div className="w-12 h-12 bg-gray-50 text-gray-400 flex items-center justify-center shrink-0 border border-gray-100 group-hover:bg-[#6B7550]/10 group-hover:text-[#6B7550] transition-all">
+                     <Clock size={18} className={order.status === 'Active' ? 'animate-pulse' : ''} />
                   </div>
-                  <p className="text-sm text-text-muted font-black tracking-widest uppercase line-clamp-1 mb-2">{order.items}</p>
-                  <div className="flex items-center gap-4 text-[9px] text-text-muted font-black uppercase tracking-widest">
-                    <span className="flex items-center gap-2"><Clock size={12} className="text-accent-olive" /> {order.time}</span>
-                    <span className="flex items-center gap-2 hidden xs:flex"><Utensils size={12} className="text-accent-olive" /> DINE-IN</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-4 mb-2">
+                      <h3 className="font-bold text-gray-900 text-sm tracking-tight uppercase">
+                        {order.id.slice(0, 12)}
+                      </h3>
+                      <span className="bg-gray-100 text-gray-600 text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 border border-gray-200">
+                        {order.paymentMethod}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-bold tracking-tight uppercase line-clamp-1 mb-2">
+                      {order.items.map(i => `${i.name} (x${i.qty})`).join(' • ')}
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">
+                        {new Date(order.timestamp).toLocaleString().toUpperCase()}
+                      </p>
+                      <div className="w-1 h-1 rounded-full bg-gray-200" />
+                      <p className="text-[8px] text-[#6B7550] font-bold uppercase tracking-widest">{order.status}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center justify-between sm:justify-end gap-4 md:gap-10 border-t sm:border-t-0 pt-4 sm:pt-0 border-card-border">
-                <div className="text-left sm:text-right">
-                  <p className="text-xl font-serif italic font-black text-black tracking-tight mb-2">{order.amount}</p>
-                  <Badge variant={order.status === 'completed' ? 'success' : 'danger'} className="uppercase text-[9px] font-black border border-card-border shadow-sm px-4 py-1.5">
-                    {order.status}
-                  </Badge>
+                
+                <div className="flex items-center justify-between lg:justify-end gap-10 border-t lg:border-t-0 pt-4 lg:pt-0 border-gray-100">
+                  <div className="text-right">
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total</p>
+                    <p className="text-xl font-black text-gray-900 tracking-tight">₹{order.total.toLocaleString()}</p>
+                  </div>
+                  <button className="w-10 h-10 bg-gray-50 text-gray-300 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-gray-100">
+                    <ChevronRight size={18} />
+                  </button>
                 </div>
-                <button className="p-3 bg-white border border-card-border shadow-subtle text-text-muted hover:bg-black hover:text-white hover:border-black rounded-none transition-all active:scale-95">
-                  <ChevronRight size={18} />
-                </button>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="py-24 text-center opacity-20">
+               <History size={64} className="mx-auto mb-4 text-gray-200" />
+               <p className="text-[12px] font-bold uppercase tracking-widest text-gray-400">
+                 No transactions found
+               </p>
+            </div>
+          )}
         </div>
-      </Card>
-      
-      <div className="text-center pt-4">
-        <button className="text-[11px] font-black text-accent-olive hover:text-black tracking-[0.3em] uppercase transition-colors">
-          LOAD MORE HISTORY
-        </button>
+        
+        {/* Load More */}
+        {filteredOrders.length > 5 && (
+          <div className="flex justify-center pt-8">
+            <button className="text-[9px] font-bold uppercase tracking-widest text-gray-400 hover:text-black transition-all">
+              Load more transactions
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

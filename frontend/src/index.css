@@ -33,6 +33,7 @@
   /* Shadows - Very subtle */
   --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-wapixo: 4px 4px 0px 0px #E8E1C8;
+  --shadow-glow: 0 0 15px rgba(95, 104, 70, 0.3);
 }
 
 :root {

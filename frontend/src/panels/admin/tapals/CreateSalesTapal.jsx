@@ -2,17 +2,16 @@ import React, { useState } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Button } from '../../../design-system/components/Button';
 import { Badge } from '../../../design-system/components/Badge';
+import { Modal } from '../../../design-system/components/Modal';
 import { useAdminStore } from '../../../store/adminStore';
+import { useDriverStore } from '../../../store/driverStore';
 import { 
   ArrowLeft, 
-  ChevronRight, 
   Check, 
   User, 
-  ShoppingBag, 
   Truck, 
-  Plus,
   Minus,
-  Send
+  Navigation
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -23,18 +22,25 @@ const CreateSalesTapal = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const { addTapal } = useAdminStore();
+  const { drivers: verifiedDrivers } = useDriverStore();
   
+  const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
+
+  const availableDrivers = verifiedDrivers.filter(d => d.status === 'active' || d.status === 'approved');
+
   const [formData, setFormData] = useState({
     buyerType: 'external',
     buyerName: '',
+    deliveryAddress: '',
     products: [{ id: Date.now(), type: '', qty: '', rate: '' }],
     driverRequired: true,
     channappaVerification: true
   });
 
   const nextStep = () => {
-    if (step === 1 && !formData.buyerName) { toast.error('Enter buyer name'); return; }
-    if (step === 2 && formData.products.some(p => !p.type || !p.qty)) { toast.error('Check product data'); return; }
+    if (step === 1 && (!formData.buyerName || !formData.deliveryAddress)) { toast.error('Check required fields'); return; }
+    if (step === 2 && formData.products.some(p => !p.type || !p.qty || !p.rate)) { toast.error('Check product data and rates'); return; }
     setStep(s => s + 1);
   };
 
@@ -45,15 +51,31 @@ const CreateSalesTapal = () => {
       id: `SAL-${Math.floor(1000 + Math.random() * 9000)}`,
       type: 'Sale',
       party: formData.buyerName.toUpperCase(),
+      deliveryAddress: formData.deliveryAddress.toUpperCase(),
       date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
       qty: `${formData.products.reduce((acc, p) => acc + Number(p.qty), 0)} KG`,
       amount: `₹${calculateTotal().toLocaleString()}`,
-      driver: formData.driverRequired ? 'Unassigned' : 'N/A',
-      status: formData.channappaVerification ? 'Pending' : 'Confirmed'
+      driver: selectedDriver ? selectedDriver.fullName : (formData.driverRequired ? 'Unassigned' : 'N/A'),
+      status: 'Pending Approval',
+      createdBy: 'MAHESH KUMAR',
+      createdAt: new Date().toISOString(),
+      products: formData.products.map(p => ({
+        name: p.type,
+        qty: `${p.qty} KG`,
+        rate: `₹${p.rate}`,
+        total: `₹${(p.qty * p.rate).toLocaleString()}`
+      }))
     };
     addTapal(newTapal);
-    toast.success('Sales Request Created');
+    toast.success('Sales Request Created & Sent for Approval');
     navigate('/admin/tapals');
+  };
+
+  const handleSelectDriver = (driver) => {
+    setSelectedDriver(driver);
+    setFormData({...formData, driverRequired: true});
+    setIsDriverModalOpen(false);
+    toast.success(`Driver ${driver.fullName} Selected`);
   };
 
   return (
@@ -94,6 +116,10 @@ const CreateSalesTapal = () => {
                   </select>
                 )}
               </div>
+              <div className="space-y-1.5">
+                <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">DELIVERY ADDRESS</label>
+                <textarea value={formData.deliveryAddress} onChange={(e) => setFormData({...formData, deliveryAddress: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none min-h-[60px]" placeholder="e.g. SHOP NO 45, MARKET ROAD, HASSAN" />
+              </div>
             </div>
           )}
 
@@ -102,17 +128,22 @@ const CreateSalesTapal = () => {
               <h2 className="text-lg font-serif italic font-bold text-black uppercase">Line <span className="text-accent-olive">Items.</span></h2>
               <div className="space-y-2">
                 {formData.products.map((p, idx) => (
-                  <div key={p.id} className="p-3 border border-card-border bg-olive-50/20 grid grid-cols-2 md:grid-cols-4 gap-3 group relative">
+                  <div key={p.id} className="p-3 border border-card-border bg-olive-50/20 grid grid-cols-2 md:grid-cols-5 gap-3 group relative">
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[8px] font-bold uppercase text-text-muted">FISH TYPE</label>
                       <select value={p.type} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, type: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold uppercase outline-none bg-white">
                          <option value="">SELECT...</option>
                          <option value="ROHU">ROHU</option><option value="CATLA">CATLA</option>
+                         <option value="TIGER PRAWNS">TIGER PRAWNS</option><option value="SQUID">SQUID</option>
                       </select>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-bold uppercase text-text-muted">QTY (KG)</label>
                       <input type="number" value={p.qty} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, qty: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold outline-none" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-bold uppercase text-text-muted">RATE (₹)</label>
+                      <input type="number" value={p.rate} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, rate: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold outline-none" />
                     </div>
                     <div className="flex items-end">
                       <button onClick={() => setFormData({...formData, products: formData.products.filter(x => x.id !== p.id)})} className="p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Minus size={14} /></button>
@@ -132,18 +163,31 @@ const CreateSalesTapal = () => {
             <div className="space-y-4 animate-in fade-in duration-300">
               <h2 className="text-lg font-serif italic font-bold text-black uppercase">Final <span className="text-accent-olive">Verification.</span></h2>
               <div className="space-y-2">
-                 {[
-                   { label: 'CHANNAPPA VERIFICATION', key: 'channappaVerification', desc: 'REQUIRE APPROVAL BEFORE BILLING' },
-                   { label: 'DRIVER ASSIGNMENT', key: 'driverRequired', desc: 'ENABLE LOGISTICS TRACKING' }
-                 ].map(opt => (
-                   <div key={opt.key} className="flex items-center justify-between p-3 border border-card-border bg-white cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setFormData({...formData, [opt.key]: !formData[opt.key]})}>
-                      <div className="flex items-center gap-3">
-                         <div className={clsx('w-8 h-8 flex items-center justify-center border', formData[opt.key] ? 'bg-black text-white border-black' : 'border-card-border text-text-muted')}><Check size={14} /></div>
-                         <div><p className="text-[9px] font-bold text-black uppercase">{opt.label}</p><p className="text-[7px] text-text-muted font-bold uppercase">{opt.desc}</p></div>
-                      </div>
-                      <div className={clsx('w-3 h-3 rounded-full', formData[opt.key] ? 'bg-accent-olive' : 'bg-card-border')}></div>
-                   </div>
-                 ))}
+                 {/* Channappa Verification Card */}
+                 <div className="flex items-center justify-between p-3 border border-card-border bg-white cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setFormData({...formData, channappaVerification: !formData.channappaVerification})}>
+                    <div className="flex items-center gap-3">
+                       <div className={clsx('w-8 h-8 flex items-center justify-center border', formData.channappaVerification ? 'bg-black text-white border-black' : 'border-card-border text-text-muted')}><Check size={14} /></div>
+                       <div><p className="text-[9px] font-bold text-black uppercase">CHANNAPPA VERIFICATION</p><p className="text-[7px] text-text-muted font-bold uppercase">REQUIRE APPROVAL BEFORE BILLING</p></div>
+                    </div>
+                    <div className={clsx('w-3 h-3 rounded-full', formData.channappaVerification ? 'bg-accent-olive' : 'bg-card-border')}></div>
+                 </div>
+
+                 {/* Driver Assignment Card - Now Interactive */}
+                 <div className="flex items-center justify-between p-3 border border-card-border bg-white cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setIsDriverModalOpen(true)}>
+                    <div className="flex items-center gap-3">
+                       <div className={clsx('w-8 h-8 flex items-center justify-center border', selectedDriver || formData.driverRequired ? 'bg-black text-white border-black' : 'border-card-border text-text-muted')}>
+                          {selectedDriver ? <Navigation size={14} className="text-accent-olive" /> : <Truck size={14} />}
+                       </div>
+                       <div>
+                          <p className="text-[9px] font-bold text-black uppercase">{selectedDriver ? `DRIVER: ${selectedDriver.fullName}` : 'DRIVER ASSIGNMENT'}</p>
+                          <p className="text-[7px] text-text-muted font-bold uppercase">{selectedDriver ? `VEHICLE: ${selectedDriver.vehicleNumber}` : 'ENABLE LOGISTICS TRACKING'}</p>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       {selectedDriver && <Badge variant="success" className="text-[7px] px-1.5 py-0.5">SELECTED</Badge>}
+                       <div className={clsx('w-3 h-3 rounded-full', selectedDriver || formData.driverRequired ? 'bg-accent-olive' : 'bg-card-border')}></div>
+                    </div>
+                 </div>
               </div>
             </div>
           )}
@@ -157,6 +201,30 @@ const CreateSalesTapal = () => {
            </Button>
         </div>
       </Card>
+
+      {/* Driver Selection Modal */}
+      <Modal isOpen={isDriverModalOpen} onClose={() => setIsDriverModalOpen(false)} title="Assign Driver to Sale Tapal">
+        <div className="space-y-2">
+          {availableDrivers.length === 0 ? (
+            <div className="py-8 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">No verified drivers available.</div>
+          ) : (
+            availableDrivers.map(driver => (
+              <div key={driver.id} className={clsx("p-3 border border-card-border hover:bg-olive-50 cursor-pointer flex justify-between items-center transition-all group", selectedDriver?.id === driver.id && "bg-olive-50 border-accent-olive")} onClick={() => handleSelectDriver(driver)}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-black text-[#C5A021] flex items-center justify-center font-bold text-[10px] border border-black shadow-sm overflow-hidden">
+                    <img src={`https://ui-avatars.com/api/?name=${driver.fullName}&background=0A0B09&color=C5A021&size=64&bold=true`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-black uppercase tracking-tight">{driver.fullName}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">{driver.vehicleNumber || 'No Vehicle'}</p>
+                  </div>
+                </div>
+                {selectedDriver?.id === driver.id && <Check size={14} className="text-accent-olive" />}
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

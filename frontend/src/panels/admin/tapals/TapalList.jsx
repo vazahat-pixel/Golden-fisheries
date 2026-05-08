@@ -15,7 +15,8 @@ import {
   Download,
   MoreVertical,
   Pencil,
-  Check
+  Check,
+  MessageCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -192,9 +193,16 @@ const TapalList = () => {
                     </div>
                   </td>
                   <td className="px-4 py-2.5">
-                    <Badge variant={getStatusVariant(tapal.status)} className="px-2 py-0.5 text-[8px] font-bold border border-card-border shadow-none">
-                      {tapal.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                       <Badge variant={getStatusVariant(tapal.status)} className="px-2 py-0.5 text-[8px] font-bold border border-card-border shadow-none">
+                         {tapal.status}
+                       </Badge>
+                       {tapal.suggestedChanges && (
+                          <div className="w-5 h-5 bg-accent-olive/10 text-accent-olive rounded-full flex items-center justify-center animate-pulse" title="Manager Feedback Available">
+                             <MessageCircle size={10} />
+                          </div>
+                       )}
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <div className="flex justify-end gap-1 transition-all">

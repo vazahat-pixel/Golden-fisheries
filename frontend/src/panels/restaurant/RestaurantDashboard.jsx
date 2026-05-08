@@ -1,133 +1,145 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { WelcomeBanner } from '../../design-system/components/WelcomeBanner';
-import { StatCard } from '../../design-system/components/StatCard';
-import { Card } from '../../design-system/components/Card';
-import { Badge } from '../../design-system/components/Badge';
+import { useNavigate, Link } from 'react-router-dom';
+import { TrendingUp, ShoppingCart, Flame, Utensils } from 'lucide-react';
 import { Button } from '../../design-system/components/Button';
-import { 
-  TrendingUp, 
-  Utensils, 
-  ShoppingCart, 
-  Flame, 
-  Clock,
-  ArrowRight
-} from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import mockData from '../../data/mockData.json';
-
-const { liveOrders, stockAlerts } = mockData.restaurant;
+import { Card } from '../../design-system/components/Card';
+import { StatCard } from '../../design-system/components/StatCard';
+import { Badge } from '../../design-system/components/Badge';
+import { useRestaurantStore } from '../../store/restaurantStore';
 
 const RestaurantDashboard = () => {
   const navigate = useNavigate();
+  const { orders, menuItems } = useRestaurantStore();
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayOrders = orders.filter(o => o.timestamp.startsWith(today));
+  const totalSales = todayOrders.reduce((acc, o) => acc + o.total, 0);
+  const criticalStock = menuItems.filter(i => i.stock < 10).length;
+
+  const recentOrders = orders.slice(0, 4);
 
   return (
-    <div className="space-y-4">
-      <WelcomeBanner name="Restaurant Manager" />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="TODAY'S SALES" 
-          value="₹18,500" 
-          icon={TrendingUp} 
-          trend="+5% FROM YESTERDAY" 
-          trendType="up" 
-        />
-        <StatCard 
-          title="ACTIVE TABLES" 
-          value="8 / 12" 
-          icon={Utensils} 
-          trend="BUSY" 
-          trendType="up" 
-        />
-        <StatCard 
-          title="ORDERS TODAY" 
-          value="42" 
-          icon={ShoppingCart} 
-        />
-        <StatCard 
-          title="TOP DISH" 
-          value="PRAWN GHEE ROAST" 
-          icon={Flame} 
-        />
+    <div className="bg-[#F9FAFB] min-h-screen selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-300 px-4 py-6 md:px-8">
+      {/* Simple Compact Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 bg-white p-6 border border-gray-200 rounded-none shadow-sm">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight uppercase flex items-center gap-3">
+            Kitchen Dashboard
+            <span className="text-[10px] bg-[#6B7550]/10 text-[#6B7550] px-2 py-0.5 rounded-none font-black tracking-widest border border-[#6B7550]/20">LIVE</span>
+          </h1>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Operational Station: HQ-MKE-01</p>
+        </div>
+        <Link to="/restaurant/pos">
+          <Button className="text-[10px] font-black uppercase tracking-widest px-6 py-4 bg-black text-white hover:bg-[#6B7550] border-none shadow-sm active:scale-95 transition-all">
+            Launch POS Terminal
+          </Button>
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <Card padding="none" className="overflow-hidden border border-card-border shadow-subtle bg-white">
-            <div className="p-4 border-b border-card-border flex justify-between items-center bg-white">
-              <h3 className="font-serif italic font-black text-black text-xl uppercase tracking-tight">Active Live Orders</h3>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-[10px] font-black px-6 border-card-border"
-                onClick={() => toast.success('Switching to KDS view...')}
-              >
-                VIEW KDS
-              </Button>
+      <div className="space-y-6">
+        {/* Compact Metric Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Daily Revenue', value: `₹${totalSales.toLocaleString()}`, icon: TrendingUp, color: '#6B7550' },
+            { label: 'Order Volume', value: todayOrders.length.toString(), icon: Utensils, color: '#111827' },
+            { label: 'Low Stock SKU', value: criticalStock.toString(), icon: Flame, color: criticalStock > 0 ? '#EF4444' : '#111827' },
+            { label: 'Avg Order Value', value: `₹${todayOrders.length > 0 ? Math.round(totalSales / todayOrders.length).toLocaleString() : 0}`, icon: ShoppingCart, color: '#111827' }
+          ].map((metric, idx) => (
+            <div key={idx} className="bg-white p-5 border border-gray-200 shadow-sm flex items-center justify-between group hover:border-[#6B7550] transition-all">
+              <div>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">{metric.label}</p>
+                <h3 className="text-xl font-black text-gray-900 tracking-tighter" style={{ color: metric.color }}>{metric.value}</h3>
+              </div>
+              <div className="p-3 bg-gray-50 group-hover:bg-[#6B7550]/5 transition-all">
+                <metric.icon size={18} className="text-gray-400 group-hover:text-[#6B7550] transition-colors" />
+              </div>
             </div>
-            <div className="p-4 space-y-4">
-              {liveOrders.map((order, i) => (
-                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white border border-card-border group hover:bg-olive-50 transition-all gap-4 shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-black text-white flex items-center justify-center font-black shadow-md group-hover:scale-105 transition-transform text-xl">
-                      {order.table.split(' ')[1]}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-black text-black text-xl leading-tight uppercase tracking-tight">{order.table}</p>
-                      <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mt-2">{order.items}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-card-border">
-                    <div className="text-left sm:text-right">
-                      <p className="text-[10px] text-text-muted font-black uppercase tracking-widest mb-3 flex items-center justify-start sm:justify-end gap-2">
-                        <Clock size={12} /> {order.time}
-                      </p>
-                      <Badge variant={order.status === 'ready' ? 'success' : 'warning'} className="uppercase text-[10px] px-4 py-1.5 font-black tracking-widest shadow-sm">
-                        {order.status}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+          ))}
         </div>
 
-        <div className="space-y-4">
-          <Card className="bg-black text-white p-4 relative overflow-hidden group border border-card-border shadow-subtle">
-            <div className="relative z-10">
-              <h3 className="text-xl font-serif italic font-black mb-4 uppercase tracking-tight">Ready for Billing?</h3>
-              <p className="text-white/60 text-[11px] font-black uppercase tracking-[0.2em] mb-10 leading-relaxed">Launch the POS interface for new orders and billing.</p>
-              <Link to="/restaurant/pos">
-                <Button className="w-full bg-white text-black border-none shadow-xl font-black py-2.5 group-hover:scale-105 transition-transform">
-                  OPEN RESTAURANT POS
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recent Operations Table */}
+          <div className="lg:col-span-2">
+            <div className="bg-white border border-gray-200 shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                <h3 className="font-bold text-gray-900 text-[11px] uppercase tracking-widest">Recent Activity Log</h3>
+                <Link to="/restaurant/history" className="text-[10px] font-bold uppercase text-[#6B7550] hover:underline">View All</Link>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400">Order ID</th>
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400">Time</th>
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400">Items</th>
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {recentOrders.map((order) => (
+                      <tr key={order.id} className="hover:bg-gray-50/50 transition-all">
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">#{order.id.slice(-8)}</span>
+                        </td>
+                        <td className="px-6 py-4 text-[10px] text-gray-400 font-medium">
+                          {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-bold text-gray-600">{order.items.length} Items</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-[11px] font-black text-gray-900">₹{order.total.toLocaleString()}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {recentOrders.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[10px] uppercase font-bold tracking-[0.2em]">No Recent Records</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions & Low Stock */}
+          <div className="space-y-6">
+            <div className="bg-black p-6 shadow-sm flex flex-col justify-between h-[180px]">
+              <div>
+                <h3 className="text-white text-lg font-bold tracking-tight uppercase">Inventory Sync</h3>
+                <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Manage kitchen stock levels</p>
+              </div>
+              <Link to="/restaurant/inventory">
+                <Button className="w-full bg-white text-black text-[10px] font-black uppercase py-3 border-none hover:bg-[#6B7550] hover:text-white transition-all">
+                  Open Manifest
                 </Button>
               </Link>
             </div>
-          </Card>
 
-          <Card className="p-4 border border-card-border shadow-subtle bg-white">
-            <h3 className="font-serif italic font-black text-black mb-4 uppercase tracking-tight text-xl">Stock Alerts</h3>
-            <div className="space-y-4">
-              {stockAlerts.map((alert, i) => (
-                <div key={i} className={clsx(
-                  "flex justify-between items-center p-4 border shadow-sm font-black text-[10px] uppercase tracking-widest transition-all",
-                  alert.level === 'danger' ? "bg-red-600 text-white border-red-700" : "bg-white text-black border-card-border hover:bg-olive-50"
-                )}>
-                  <span>{alert.product}</span>
-                  <span>{alert.status} ({alert.value})</span>
-                </div>
-              ))}
+            <div className="bg-white border border-gray-200 p-6 shadow-sm">
+              <h3 className="font-bold text-gray-900 text-[11px] uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">Status Alerts</h3>
+              <div className="space-y-3">
+                {criticalStock > 0 ? (
+                  <div className="flex items-center gap-4 p-4 bg-red-50 border border-red-100">
+                    <Flame size={16} className="text-red-500" />
+                    <div>
+                      <p className="text-[10px] font-black text-red-600 uppercase tracking-tight">{criticalStock} Items Low</p>
+                      <p className="text-[8px] text-red-400 font-bold uppercase mt-0.5">Replenishment Required</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 p-4 bg-green-50 border border-green-100">
+                    <Utensils size={16} className="text-[#6B7550]" />
+                    <div>
+                      <p className="text-[10px] font-black text-[#6B7550] uppercase tracking-tight">System Optimal</p>
+                      <p className="text-[8px] text-[#6B7550]/60 font-bold uppercase mt-0.5">All stock levels normal</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <Button 
-              variant="outline" 
-              className="w-full mt-8 text-[10px] font-black uppercase tracking-widest py-2.5 border-card-border hover:bg-black hover:text-white transition-all shadow-md active:scale-95"
-              onClick={() => navigate('/restaurant/inventory')}
-            >
-              MANAGE STOCK
-            </Button>
-          </Card>
+          </div>
         </div>
       </div>
     </div>

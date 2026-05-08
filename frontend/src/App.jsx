@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
+// Force reload to clear HMR cache
 import AppRouter from './router';
 import { Toaster } from 'react-hot-toast';
 

@@ -44,7 +44,7 @@ export const useAdminStore = create(
         { date: '28/04/26', desc: 'Fish Mall Daily Sales', method: 'Cash', type: 'income', amount: 18400 },
       ],
 
-      trips: [],
+      trips: mockData.driver?.trips || [],
       incomingStock: [],
 
       // Actions - Tapals
@@ -66,69 +66,96 @@ export const useAdminStore = create(
 
       assignDriver: (tapalId, driverId) => set((state) => {
         const tapal = state.tapals.find(t => t.id === tapalId);
-        const driver = state.drivers.find(d => d.id === driverId);
-        if (!tapal || !driver) return {};
+        const driver = state.drivers.find(d => d.id === driverId) || state.drivers[0]; // Fallback for demo
+        if (!tapal) return {};
 
         const newTrip = {
           id: generateId('TRP', state.trips),
           tapalId,
-          driverId,
-          driverName: driver.name,
-          vehicle: driver.vehicle,
-          status: 'assigned',
+          driverId: driverId || 'DRV-0001',
+          driverName: driver.name || driver.fullName,
+          vehicle: driver.vehicle || driver.vehicleNumber,
+          status: 'Assigned',
           pickupLocation: tapal.pickupLocation || 'FARM SITE',
-          pickupDate: tapal.date,
-          createdAt: new Date().toLocaleTimeString(),
-          expenses: []
-        };
-
-        const newIncoming = tapal.type === 'Purchase' ? [{
-          id: generateId('INC', state.incomingStock),
-          tapalId,
-          tripId: newTrip.id,
-          productName: tapal.products?.[0]?.name || 'GENERAL FISH',
+          deliveryLocation: tapal.type === 'Purchase' ? 'WAREHOUSE' : 'BUYER SITE',
+          product: tapal.products?.[0]?.name || 'GENERAL FISH',
           expectedQty: tapal.qty,
           actualQty: null,
-          status: 'in-transit'
-        }] : [];
+          createdAt: new Date().toLocaleTimeString(),
+          expenses: [],
+          timeline: [{ status: 'Assigned', time: new Date().toLocaleTimeString() }]
+        };
 
         return {
           trips: [newTrip, ...state.trips],
-          incomingStock: [...state.incomingStock, ...newIncoming],
-          tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Driver Assigned', driver: driver.name } : t),
+          tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Assigned', driver: driver.name || driver.fullName } : t),
           drivers: state.drivers.map(d => d.id === driverId ? { ...d, status: 'on-trip' } : d)
         };
       }),
 
-      driverAcceptTrip: (tripId) => set((state) => {
-        const trip = state.trips.find(t => t.id === tripId);
-        if (!trip) return {};
-        return {
-          trips: state.trips.map(t => t.id === tripId ? { ...t, status: 'accepted', acceptedAt: new Date().toLocaleTimeString() } : t),
-          tapals: state.tapals.map(t => t.id === trip.tapalId ? { ...t, status: 'In Transit' } : t)
-        };
-      }),
+      driverAcceptTrip: (tapalId) => set((state) => ({
+        tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Accepted' } : t),
+        trips: state.trips.map(t => t.tapalId === tapalId ? { 
+          ...t, 
+          status: 'Accepted', 
+          acceptedAt: new Date().toLocaleTimeString(),
+          timeline: [...(t.timeline || []), { status: 'Accepted', time: new Date().toLocaleTimeString() }]
+        } : t)
+      })),
 
       driverRejectTrip: (tripId) => set((state) => {
         const trip = state.trips.find(t => t.id === tripId);
         if (!trip) return {};
         return {
-          trips: state.trips.filter(t => t.id !== tripId),
-          tapals: state.tapals.map(t => t.id === trip.tapalId ? { ...t, status: 'Confirmed', driver: 'Unassigned' } : t),
-          drivers: state.drivers.map(d => d.id === trip.driverId ? { ...d, status: 'active' } : d),
-          incomingStock: state.incomingStock.filter(i => i.tripId !== tripId)
+          trips: state.trips.map(t => t.id === tripId ? { ...t, status: 'Rejected' } : t),
+          tapals: state.tapals.map(t => t.id === trip.tapalId ? { ...t, status: 'pending', driver: 'Unassigned' } : t)
         };
       }),
 
-      markStockReceived: (tapalId, actualQty) => set((state) => {
+      driverStartTrip: (tapalId) => set((state) => ({
+        tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'In Transit' } : t),
+        trips: state.trips.map(t => t.tapalId === tapalId ? { 
+          ...t, 
+          status: 'In Transit', 
+          startedAt: new Date().toLocaleTimeString(),
+          timeline: [...(t.timeline || []), { status: 'In Transit', time: new Date().toLocaleTimeString() }]
+        } : t)
+      })),
+
+      confirmPickup: (tapalId, pickupData) => set((state) => {
         const tapal = state.tapals.find(t => t.id === tapalId);
         if (!tapal) return {};
 
-        const qtyVal = parseFloat(actualQty);
+        return {
+          tapals: state.tapals.map(t => t.id === tapalId ? { 
+            ...t, 
+            status: 'Picked', 
+            actualQty: pickupData.actualQty + ' KG' 
+          } : t),
+          trips: state.trips.map(t => t.tapalId === tapalId ? { 
+            ...t, 
+            status: 'Picked',
+            actualQty: pickupData.actualQty,
+            quality: pickupData.quality,
+            proofPhoto: pickupData.photo,
+            signature: pickupData.signature,
+            timeline: [...(t.timeline || []), { status: 'Picked', time: new Date().toLocaleTimeString() }]
+          } : t)
+        };
+      }),
+
+      completeTrip: (tapalId) => set((state) => {
+        const tapal = state.tapals.find(t => t.id === tapalId);
+        const trip = state.trips.find(t => t.tapalId === tapalId);
+        if (!tapal || !trip) return {};
+
+        const qtyVal = parseFloat(trip.actualQty || tapal.qty);
         const amountVal = parseFloat(tapal.amount.replace(/[₹,]/g, '')) || 0;
 
+        // Inventory Logic
         const newInventory = state.inventory.map(item => {
-          if (tapal.products && tapal.products.some(p => p.name.toUpperCase() === item.name.toUpperCase())) {
+          const productName = tapal.products?.[0]?.name || 'GENERAL FISH';
+          if (productName.toUpperCase() === item.name.toUpperCase() || item.id === 1) { // Fallback to first item if name mismatch
             const addedQty = tapal.type === 'Purchase' ? qtyVal : -qtyVal;
             const nextQty = Math.max(0, item.qty + addedQty);
             return { ...item, qty: nextQty, status: nextQty === 0 ? 'out-of-stock' : nextQty < 50 ? 'low-stock' : 'in-stock' };
@@ -136,37 +163,44 @@ export const useAdminStore = create(
           return item;
         });
 
-        const newTransactions = [{
-          date: new Date().toLocaleDateString('en-GB'),
-          desc: `${tapal.type.toUpperCase()} RECEIVED: ${tapal.id}`,
-          method: 'AUTO',
-          type: tapal.type === 'Purchase' ? 'expense' : 'income',
-          amount: amountVal
-        }, ...state.transactions];
+        return {
+          tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Delivered' } : t),
+          inventory: newInventory,
+          trips: state.trips.map(t => t.tapalId === tapalId ? { 
+            ...t, 
+            status: 'Delivered', 
+            completedAt: new Date().toLocaleTimeString(),
+            timeline: [...(t.timeline || []), { status: 'Delivered', time: new Date().toLocaleTimeString() }]
+          } : t)
+        };
+      }),
+
+      closeTrip: (tapalId) => set((state) => {
+        const tapal = state.tapals.find(t => t.id === tapalId);
+        if (!tapal) return {};
 
         return {
-          tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Delivered', actualQty: `${actualQty} KG` } : t),
-          inventory: newInventory,
-          transactions: newTransactions,
-          incomingStock: state.incomingStock.map(i => i.tapalId === tapalId ? { ...i, status: 'received', actualQty: `${actualQty} KG` } : i),
-          trips: state.trips.map(t => t.tapalId === tapalId ? { ...t, status: 'completed', completedAt: new Date().toLocaleTimeString() } : t)
+          tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Closed' } : t),
+          trips: state.trips.map(t => t.tapalId === tapalId ? { ...t, status: 'Closed' } : t)
         };
       }),
 
       addTripExpense: (tripId, expense) => set((state) => {
-        const trip = state.trips.find(t => t.id === tripId);
+        const trip = state.trips.find(t => t.id === tripId || t.tapalId === tripId);
         if (!trip) return {};
 
         const updatedTrip = {
           ...trip,
+          status: 'Expense Submitted',
           expenses: [...(trip.expenses || []), expense]
         };
 
         return {
-          trips: state.trips.map(t => t.id === tripId ? updatedTrip : t),
+          tapals: state.tapals.map(t => t.id === trip.tapalId ? { ...t, status: 'Expense Submitted' } : t),
+          trips: state.trips.map(t => t.id === trip.id ? updatedTrip : t),
           transactions: [{
             date: new Date().toLocaleDateString('en-GB'),
-            desc: `TRIP EXPENSE (${expense.type}): ${tripId}`,
+            desc: `TRIP EXPENSE (${expense.type}): ${trip.id}`,
             method: expense.method || 'CASH',
             type: 'expense',
             amount: Number(expense.amount)
@@ -209,6 +243,56 @@ export const useAdminStore = create(
       })),
       deleteUser: (id) => set((state) => ({
         users: state.users.filter(u => u.id !== id)
+      })),
+
+      approveSalesTapal: (id, editedData) => set((state) => {
+        const tapal = state.tapals.find(t => t.id === id);
+        if (!tapal) return {};
+
+        const updatedTapal = { 
+          ...tapal, 
+          ...editedData, 
+          status: 'Approved',
+          approvedAt: new Date().toISOString(),
+          approvedBy: 'CHANNAPPA S.' 
+        };
+
+        // Auto-generate invoice
+        const newInvoice = {
+          id: generateId('INV', state.invoices),
+          client: updatedTapal.party,
+          type: 'SALES',
+          amount: updatedTapal.amount,
+          numericAmount: parseFloat(updatedTapal.amount.replace(/[₹,]/g, '')) || 0,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+          status: 'pending',
+          tapalId: id
+        };
+
+        return {
+          tapals: state.tapals.map(t => t.id === id ? updatedTapal : t),
+          invoices: [newInvoice, ...state.invoices]
+        };
+      }),
+
+      rejectSalesTapal: (id, reason) => set((state) => ({
+        tapals: state.tapals.map(t => t.id === id ? { 
+          ...t, 
+          status: 'Rejected', 
+          rejectionReason: reason,
+          rejectedAt: new Date().toISOString(),
+          rejectedBy: 'CHANNAPPA S.' 
+        } : t)
+      })),
+
+      suggestChangeSalesTapal: (id, changes) => set((state) => ({
+        tapals: state.tapals.map(t => t.id === id ? { 
+          ...t, 
+          status: 'Changes Requested', 
+          suggestedChanges: changes,
+          suggestedAt: new Date().toISOString(),
+          suggestedBy: 'CHANNAPPA S.' 
+        } : t)
       })),
 
       addTransaction: (tx) => set((state) => ({
@@ -312,7 +396,7 @@ export const useAdminStore = create(
       }),
     }),
     {
-      name: 'golden-fisheries-admin',
+      name: 'golden-fisheries-admin-v2',
     }
   )
 );

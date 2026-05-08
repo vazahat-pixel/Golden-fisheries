@@ -3,23 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { useAuthStore } from '../../store/authStore';
+import { useRbacStore, ROLE_TEMPLATES } from '../../store/rbacStore';
+import { useOutletStore } from '../../store/outletStore';
 import { 
-  ShieldCheck, 
-  Smartphone, 
-  Lock, 
-  ArrowRight, 
-  ArrowLeft,
-  KeyRound,
-  UserPlus,
-  Mail,
-  CheckCircle2,
-  Globe
+  ShieldCheck, Smartphone, Lock, ArrowRight, ArrowLeft,
+  KeyRound, UserPlus, Mail, CheckCircle2, Globe, RotateCcw as RotateIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const FishMallAuth = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
+  const { registerFishMall, getOutletByPhone } = useOutletStore();
+  const { getUserByPhone, sendOtp: rbacSendOtp, verifyOtp: rbacVerifyOtp, clearOtpSession } = useRbacStore();
+
+  const [rbacDevOtp, setRbacDevOtp] = useState(null);
+  const [pendingRbacUser, setPendingRbacUser] = useState(null);
   
   const [view, setView] = useState('login');
   const [loading, setLoading] = useState(false);
@@ -58,23 +57,64 @@ const FishMallAuth = () => {
     e.preventDefault();
     setLoading(true);
     
-    // MOCK LOGIC FOR FISH MALL
     setTimeout(() => {
       if (view === 'login') {
-        if (formData.phone === '7766554433' && formData.password === 'mall123') {
-          login({ name: 'RAMESH MANAGER', role: 'MANAGER', phone: formData.phone }, 'mock-jwt-token');
-          toast.success('Identity Verified. Welcome back.');
-          navigate('/fishmall/dashboard');
-        } else {
-          toast.error('Invalid credentials.');
+        // ── Check if it's an existing RBAC user ───────────────────────────
+        const rbac = getUserByPhone(formData.phone);
+        if (rbac) {
+          if (rbac.status === 'revoked') { toast.error('Access revoked. Contact admin.'); setLoading(false); return; }
+          if (rbac.status === 'paused') { toast.error('Account paused. Contact admin.'); setLoading(false); return; }
+          const gen = rbacSendOtp(formData.phone);
+          setRbacDevOtp(gen);
+          setPendingRbacUser(rbac);
+          setView('otp-rbac');
+          toast.success(`OTP sent! (Dev: ${gen})`);
+          setLoading(false);
+          return;
         }
+
+        // If not an RBAC user, create a temporary "Generic Manager" session
+        // This allows ANY number to login as requested
+        const genericUser = {
+          id: `GEN-${formData.phone}`,
+          name: `User ${formData.phone.slice(-4)}`,
+          role: 'MANAGER',
+          phone: formData.phone,
+          permissions: {
+            panels: {
+              restaurant: true,
+              fishmall: true,
+              driver: true,
+              admin: true,
+            },
+            modules: {
+              billing: { read: true, write: true, delete: false },
+            }
+          }
+        };
+        setPendingRbacUser(genericUser);
+        const gen = rbacSendOtp(formData.phone);
+        setRbacDevOtp(gen);
+        setView('otp-rbac');
+        toast.success(`OTP sent to your number`);
+        setLoading(false);
+        return;
+
+      } else if (view === 'otp-rbac') {
+        const result = rbacVerifyOtp(formData.phone, otp.join(''));
+        if (!result.success) { toast.error(result.message); setLoading(false); return; }
+        clearOtpSession(formData.phone);
+        login({ id: pendingRbacUser.id, name: pendingRbacUser.name, role: pendingRbacUser.role, phone: formData.phone, permissions: pendingRbacUser.permissions }, 'rbac-session-token');
+        toast.success(`Welcome, ${pendingRbacUser.name}!`);
+        navigate('/fishmall/dashboard');
       } else if (view === 'signup') {
         setView('otp');
         setTimer(60);
         toast.success('Verification code sent.');
       } else if (view === 'otp') {
         if (otp.join('') === '123456') {
-          toast.success('Account verified!');
+          registerFishMall(formData);
+          toast.success('Account created successfully!');
           setView('login');
         } else {
           toast.error('Invalid code.');
@@ -84,7 +124,7 @@ const FishMallAuth = () => {
         setView('login');
       }
       setLoading(false);
-    }, 1500);
+    }, 1000);
   };
 
   const renderView = () => {
@@ -131,14 +171,37 @@ const FishMallAuth = () => {
           </form>
         );
       case 'otp':
+      case 'otp-rbac':
         return (
           <form onSubmit={handleAction} className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in-95 duration-500 text-center">
+            <div className="space-y-2">
+               <p className="text-xs text-[#E6E3C8] uppercase tracking-[0.2em] font-black">Verification</p>
+               <p className="text-[10px] text-[#E6E3C8]/60 uppercase tracking-widest">Enter code sent to +91 {formData.phone}</p>
+            </div>
+
+            {rbacDevOtp && (
+              <div className="bg-amber-500/10 border border-amber-500/20 p-2 rounded-xl">
+                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Dev Mode OTP: {rbacDevOtp}</p>
+              </div>
+            )}
+
             <div className="flex justify-center gap-3">
               {otp.map((digit, idx) => (
                 <input key={idx} id={`otp-${idx}`} type="text" maxLength={1} value={digit} onChange={e => handleOtpChange(idx, e.target.value)} className="w-12 h-14 bg-[#E6E3C8] border-none rounded-xl text-center text-xl font-black text-[#6A7051] focus:ring-2 focus:ring-[#C5A021] outline-none shadow-lg" />
               ))}
             </div>
             <button disabled={loading} className="w-full bg-[#C5A021] hover:bg-[#D4AF37] text-[#0A0B09] font-black py-4 rounded-2xl transition-all shadow-xl uppercase tracking-[0.2em]">{loading ? "VERIFYING..." : "Verify Identity"}</button>
+            
+            <div className="flex flex-col gap-3">
+               {timer > 0 ? (
+                  <p className="text-[10px] text-[#E6E3C8]/40 font-bold uppercase tracking-widest">Resend in {timer}s</p>
+               ) : (
+                  <button type="button" onClick={() => setTimer(60)} className="text-[10px] text-[#C5A021] font-black uppercase tracking-widest hover:underline flex items-center justify-center gap-2"><RotateIcon size={12} /> Resend OTP</button>
+               )}
+               <button type="button" onClick={() => setView('login')} className="text-[10px] text-[#E6E3C8]/40 font-black uppercase tracking-widest hover:text-white flex items-center justify-center gap-2 transition-all">
+                 <ArrowLeft size={11} /> Change Number
+               </button>
+            </div>
           </form>
         );
       case 'forgot':

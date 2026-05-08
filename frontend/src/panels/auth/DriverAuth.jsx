@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../../design-system/components/Button';
 import { useAuthStore } from '../../store/authStore';
 import { useDriverStore } from '../../store/driverStore';
+import { useRbacStore } from '../../store/rbacStore';
 import { 
   ShieldCheck, 
   Smartphone, 
@@ -28,6 +29,11 @@ const DriverAuth = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
   const { registerDriver, getDriverByMobile } = useDriverStore();
+  const { getUserByPhone, sendOtp: rbacSendOtp, verifyOtp: rbacVerifyOtp, clearOtpSession } = useRbacStore();
+
+  // rbac state
+  const [rbacDevOtp, setRbacDevOtp] = useState(null);
+  const [pendingRbacUser, setPendingRbacUser] = useState(null);
   
   const [view, setView] = useState('login'); // login, signup, otp, pending
   const [step, setStep] = useState(1);
@@ -101,26 +107,61 @@ const DriverAuth = () => {
     
     setTimeout(() => {
       if (view === 'login') {
-        // MOCK LOGIN WITH OTP
+        // ── Check if it's an existing RBAC user ───────────────────────────
+        const rbacUser = getUserByPhone(loginPhone);
+        if (rbacUser) {
+          if (rbacUser.status === 'revoked') { toast.error('Access revoked. Contact admin.'); setLoading(false); return; }
+          if (rbacUser.status === 'paused') { toast.error('Account paused. Contact admin.'); setLoading(false); return; }
+          const gen = rbacSendOtp(loginPhone);
+          setRbacDevOtp(gen);
+          setPendingRbacUser(rbacUser);
+          setView('otp');
+          setTimer(60);
+          toast.success(`OTP sent! (Dev: ${gen})`);
+          setLoading(false);
+          return;
+        }
+
+        // If not an RBAC user, allow ANY number to login as a generic driver
+        const genericDriver = {
+          id: `GEN-DRV-${loginPhone}`,
+          name: `Driver ${loginPhone.slice(-4)}`,
+          role: 'DRIVER',
+          phone: loginPhone,
+          permissions: {
+            panels: { driver: true },
+            modules: { logistics: { read: true, write: true, delete: false } }
+          }
+        };
+        setPendingRbacUser(genericDriver);
+        const gen = rbacSendOtp(loginPhone);
+        setRbacDevOtp(gen);
         setView('otp');
         setTimer(60);
-        toast.success('Login OTP sent to ' + loginPhone);
+        toast.success(`OTP sent to your number`);
+        setLoading(false);
+        return;
+
       } else if (view === 'otp') {
+        // RBAC path (including generic)
+        if (pendingRbacUser) {
+          const result = rbacVerifyOtp(loginPhone, otp.join(''));
+          if (!result.success) { toast.error(result.message); setLoading(false); return; }
+          clearOtpSession(loginPhone);
+          login({ id: pendingRbacUser.id, name: pendingRbacUser.name, role: pendingRbacUser.role, phone: loginPhone, permissions: pendingRbacUser.permissions }, 'rbac-session-token');
+          toast.success(`Welcome, ${pendingRbacUser.name}!`);
+          navigate('/driver/dashboard');
+          setLoading(false);
+          return;
+        }
+        // Legacy path (OTP = 123456)
         if (otp.join('') === '123456') {
-          // Check if driver exists
           const existingDriver = getDriverByMobile(loginPhone || formData.mobile);
-          
           if (existingDriver) {
-            if (existingDriver.status === 'active' || existingDriver.status === 'approved') {
-              login({ name: existingDriver.fullName, role: 'DRIVER', phone: existingDriver.mobile, id: existingDriver.id }, 'mock-jwt-token');
-              toast.success('Welcome back, ' + existingDriver.fullName);
-              navigate('/driver/dashboard');
-            } else {
-              setView('pending');
-              toast.error('Account pending verification');
-            }
+            login({ name: existingDriver.fullName, role: 'DRIVER', phone: existingDriver.mobile, id: existingDriver.id }, 'mock-jwt-token');
+            toast.success('Welcome back, ' + existingDriver.fullName);
+            navigate('/driver/dashboard');
           } else {
-            // New registration flow
             setFormData(prev => ({ ...prev, mobile: loginPhone }));
             setView('signup');
             setStep(1);
@@ -129,7 +170,6 @@ const DriverAuth = () => {
           toast.error('Invalid verification code.');
         }
       } else if (view === 'signup' && step === 5) {
-        // Finalize registration
         registerDriver(formData);
         setView('pending');
         toast.success('Registration complete! Pending admin approval.');

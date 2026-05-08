@@ -248,52 +248,31 @@ const AuthPortal = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDFCF9] relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-olive rounded-full blur-[150px] -mr-64 -mt-64" />
-         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-olive-200 rounded-full blur-[150px] -ml-64 -mb-64" />
-      </div>
-
-      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 bg-white shadow-[0_40px_100px_-15px_rgba(0,0,0,0.1)] relative z-10 border border-card-border/50">
-        
-        {/* Visual Panel */}
-        <div className="hidden lg:flex relative bg-black items-center justify-center p-12 overflow-hidden">
-           <div className="absolute inset-0 opacity-40 bg-[url('https://images.unsplash.com/photo-1511216335778-7cb8f49fa7a3?q=80&w=2000')] bg-cover bg-center grayscale" />
-           <div className="relative z-10 text-center space-y-6">
-              <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-2 border border-white/20 rounded-none shadow-2xl">
-                 <Fish className="text-white" size={24} />
-                 <span className="text-white font-serif italic text-xl font-bold tracking-tight">Golden Fisheries.</span>
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-white font-bold text-xs uppercase tracking-[0.5em] opacity-60">PRECISION ERP SYSTEM</h2>
-                <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest max-w-[200px] mx-auto leading-relaxed">Identity verification required for secure system access.</p>
-              </div>
-           </div>
-           
-           {/* Decorative lines */}
-           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-           <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+    <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] p-6 selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-500">
+      <div className="w-full max-w-[440px] bg-white border border-gray-200 shadow-xl p-10">
+        {/* Compact Branding */}
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 bg-gray-50 flex items-center justify-center mx-auto mb-6">
+            <Fish className="text-[#6B7550]" size={32} />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight uppercase">
+            {view === 'login' ? 'System Login' : view === 'signup' ? 'Create Account' : view === 'otp' ? 'Verification' : 'Recovery'}
+          </h1>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Enter credentials to proceed</p>
+          <div className="h-0.5 w-8 bg-[#6B7550] mx-auto mt-4" />
         </div>
 
-        {/* Auth Panel */}
-        <div className="p-8 md:p-12 flex flex-col justify-center">
-           <div className="mb-8 space-y-2">
-              <h1 className="text-2xl font-serif italic font-bold text-black tracking-tight uppercase">
-                {view === 'login' ? 'System Access' : view === 'signup' ? 'Create Account' : view === 'otp' ? 'Identity Verification' : 'Account Recovery'}
-              </h1>
-              <div className="h-0.5 w-12 bg-black"></div>
-           </div>
+        <div className="min-h-[280px]">
+          {renderView()}
+        </div>
 
-           {renderView()}
-
-           <div className="mt-12 pt-8 border-t border-olive-100 flex items-center justify-between">
-              <div className="flex items-center gap-2 opacity-30 group cursor-help transition-opacity hover:opacity-100">
-                 <ShieldCheck size={14} className="text-black" />
-                 <span className="text-[8px] font-bold uppercase tracking-widest text-black">ENCRYPTED SESSION</span>
-              </div>
-              <p className="text-[8px] font-bold text-text-muted uppercase tracking-widest">© 2026 GOLDEN FISHERIES</p>
+        {/* Audit Info */}
+        <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col items-center gap-4">
+           <div className="flex items-center gap-2 opacity-40">
+              <ShieldCheck size={14} className="text-[#6B7550]" />
+              <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-gray-500">Encrypted Enterprise Session</span>
            </div>
+           <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest">© 2026 Golden Fisheries</p>
         </div>
       </div>
     </div>
