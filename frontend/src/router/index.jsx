@@ -13,61 +13,61 @@ import {
 } from 'lucide-react';
 
 // Auth Imports
-import AdminAuth from '../panels/auth/AdminAuth';
-import RestaurantAuth from '../panels/auth/RestaurantAuth';
-import FishMallAuth from '../panels/auth/FishMallAuth';
-import DriverAuth from '../panels/auth/DriverAuth';
+const AdminAuth = React.lazy(() => import('../panels/auth/AdminAuth'));
+const RestaurantAuth = React.lazy(() => import('../panels/auth/RestaurantAuth'));
+const FishMallAuth = React.lazy(() => import('../panels/auth/FishMallAuth'));
+const DriverAuth = React.lazy(() => import('../panels/auth/DriverAuth'));
 import ProtectedRoute from '../panels/auth/ProtectedRoute';
 import { useAuthStore } from '../store/authStore';
 
 // Admin Imports
-import AdminDashboard from '../panels/admin/Dashboard';
-import TapalList from '../panels/admin/tapals/TapalList';
-import CreatePurchaseTapal from '../panels/admin/tapals/CreatePurchaseTapal';
-import CreateSalesTapal from '../panels/admin/tapals/CreateSalesTapal';
-import TapalDetail from '../panels/admin/tapals/TapalDetail';
-import InventoryOverview from '../panels/admin/inventory/InventoryOverview';
-import DriverManagement from '../panels/admin/logistics/DriverManagement';
-import TripsAndExpenses from '../panels/admin/logistics/TripsAndExpenses';
-import VehicleDocuments from '../panels/admin/logistics/VehicleDocuments';
-import FinanceOverview from '../panels/admin/finance/FinanceOverview';
-import HarvestSlips from '../panels/admin/procurement/HarvestSlips';
-import CreateHarvestSlip from '../panels/admin/procurement/CreateHarvestSlip';
-import HarvestSlipDetail from '../panels/admin/procurement/HarvestSlipDetail';
-import UsersAndRoles from '../panels/admin/settings/UsersAndRoles';
-import AdminBilling from '../panels/admin/billing/AdminBilling';
-import SalesApprovalList from '../panels/admin/sales/SalesApprovalList';
-import SalesApprovalDetail from '../panels/admin/sales/SalesApprovalDetail';
-import OutletManagement from '../panels/admin/outlets/OutletManagement';
-import AccessControl from '../panels/admin/access/AccessControl';
+const AdminDashboard = React.lazy(() => import('../panels/admin/Dashboard'));
+const TapalList = React.lazy(() => import('../panels/admin/tapals/TapalList'));
+const CreatePurchaseTapal = React.lazy(() => import('../panels/admin/tapals/CreatePurchaseTapal'));
+const CreateSalesTapal = React.lazy(() => import('../panels/admin/tapals/CreateSalesTapal'));
+const TapalDetail = React.lazy(() => import('../panels/admin/tapals/TapalDetail'));
+const InventoryOverview = React.lazy(() => import('../panels/admin/inventory/InventoryOverview'));
+const DriverManagement = React.lazy(() => import('../panels/admin/logistics/DriverManagement'));
+const TripsAndExpenses = React.lazy(() => import('../panels/admin/logistics/TripsAndExpenses'));
+const VehicleDocuments = React.lazy(() => import('../panels/admin/logistics/VehicleDocuments'));
+const FinanceOverview = React.lazy(() => import('../panels/admin/finance/FinanceOverview'));
+const HarvestSlips = React.lazy(() => import('../panels/admin/procurement/HarvestSlips'));
+const CreateHarvestSlip = React.lazy(() => import('../panels/admin/procurement/CreateHarvestSlip'));
+const HarvestSlipDetail = React.lazy(() => import('../panels/admin/procurement/HarvestSlipDetail'));
+const UsersAndRoles = React.lazy(() => import('../panels/admin/settings/UsersAndRoles'));
+const AdminBilling = React.lazy(() => import('../panels/admin/billing/AdminBilling'));
+const SalesApprovalList = React.lazy(() => import('../panels/admin/sales/SalesApprovalList'));
+const SalesApprovalDetail = React.lazy(() => import('../panels/admin/sales/SalesApprovalDetail'));
+const OutletManagement = React.lazy(() => import('../panels/admin/outlets/OutletManagement'));
+const AccessControl = React.lazy(() => import('../panels/admin/access/AccessControl'));
 
 // Restaurant Imports
-import RestaurantDashboard from '../panels/restaurant/RestaurantDashboard';
-import RestaurantPOS from '../panels/restaurant/RestaurantPOS';
-import RestaurantOrderHistory from '../panels/restaurant/RestaurantOrderHistory';
-import RestaurantInventory from '../panels/restaurant/RestaurantInventory';
-import RestaurantSettings from '../panels/restaurant/RestaurantSettings';
+const RestaurantDashboard = React.lazy(() => import('../panels/restaurant/RestaurantDashboard'));
+const RestaurantPOS = React.lazy(() => import('../panels/restaurant/RestaurantPOS'));
+const RestaurantOrderHistory = React.lazy(() => import('../panels/restaurant/RestaurantOrderHistory'));
+const RestaurantInventory = React.lazy(() => import('../panels/restaurant/RestaurantInventory'));
+const RestaurantSettings = React.lazy(() => import('../panels/restaurant/RestaurantSettings'));
 
 // Fish Mall Imports
-import FishMallDashboard from '../panels/fishmall/FishMallDashboard';
-import FishMallBilling from '../panels/fishmall/FishMallBilling';
-import FishMallRates from '../panels/fishmall/FishMallRates';
-import FishMallStock from '../panels/fishmall/FishMallStock';
+const FishMallDashboard = React.lazy(() => import('../panels/fishmall/FishMallDashboard'));
+const FishMallBilling = React.lazy(() => import('../panels/fishmall/FishMallBilling'));
+const FishMallRates = React.lazy(() => import('../panels/fishmall/FishMallRates'));
+const FishMallStock = React.lazy(() => import('../panels/fishmall/FishMallStock'));
 
 // Driver Imports
 import { MobileLayout } from '../design-system/layouts/MobileLayout';
-import DriverDashboard from '../panels/driver/DriverDashboard';
-import DriverTasks from '../panels/driver/DriverTasks';
-import ActiveTrip from '../panels/driver/ActiveTrip';
-import DriverHistory from '../panels/driver/DriverHistory';
-import DriverProfile from '../panels/driver/DriverProfile';
-import DriverExpenses from '../panels/driver/DriverExpenses';
-import DriverDocuments from '../panels/driver/DriverDocuments';
+const DriverDashboard = React.lazy(() => import('../panels/driver/DriverDashboard'));
+const DriverTasks = React.lazy(() => import('../panels/driver/DriverTasks'));
+const ActiveTrip = React.lazy(() => import('../panels/driver/ActiveTrip'));
+const DriverHistory = React.lazy(() => import('../panels/driver/DriverHistory'));
+const DriverProfile = React.lazy(() => import('../panels/driver/DriverProfile'));
+const DriverExpenses = React.lazy(() => import('../panels/driver/DriverExpenses'));
+const DriverDocuments = React.lazy(() => import('../panels/driver/DriverDocuments'));
 
 // Public Imports
-import BuyerBilling from '../panels/public/BuyerBilling';
-import Launchpad from '../pages/Launchpad';
-import Unauthorized from '../pages/Unauthorized';
+const BuyerBilling = React.lazy(() => import('../panels/public/BuyerBilling'));
+const Launchpad = React.lazy(() => import('../pages/Launchpad'));
+const Unauthorized = React.lazy(() => import('../pages/Unauthorized'));
 
 const restaurantNav = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/restaurant/dashboard' },

@@ -33,5 +33,37 @@ export default defineConfig(({ mode }) => {
         }
       })
     ],
+    build: {
+      chunkSizeWarningLimit: 650,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              // Core react libraries
+              if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler') || id.includes('react-router') || id.includes('react-router-dom')) {
+                return 'vendor-core';
+              }
+              // Icons
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              // Heavy charts
+              if (id.includes('recharts') || id.includes('d3') || id.includes('victory') || id.includes('recharts-scale')) {
+                return 'vendor-charts';
+              }
+              // API and Query clients
+              if (id.includes('@tanstack') || id.includes('axios')) {
+                return 'vendor-query';
+              }
+              // UI / Form helpers
+              if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) {
+                return 'vendor-forms';
+              }
+              return 'vendor-others';
+            }
+          }
+        }
+      }
+    }
   }
 })

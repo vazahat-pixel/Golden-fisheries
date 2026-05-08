@@ -8,6 +8,7 @@ import {
   Bell,
   History
 } from 'lucide-react';
+import { LoadingFallback } from '../components/LoadingFallback';
 
 export const MobileLayout = () => {
   return (
@@ -26,7 +27,9 @@ export const MobileLayout = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pb-32">
-        <Outlet />
+        <React.Suspense fallback={<LoadingFallback type="content" />}>
+          <Outlet />
+        </React.Suspense>
       </main>
 
       {/* Bottom Navigation */}
