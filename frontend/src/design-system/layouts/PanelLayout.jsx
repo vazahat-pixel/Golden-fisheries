@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { Menu, X, Bell, Search, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import { LoadingFallback } from '../components/LoadingFallback';
 
 export const PanelLayout = ({ children, navItems, panelName, userName }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -107,7 +108,9 @@ export const PanelLayout = ({ children, navItems, panelName, userName }) => {
         
         <div className="flex-1 p-4 md:p-8 overflow-y-auto">
           <div className="max-w-[1400px] mx-auto">
-            {children}
+            <React.Suspense fallback={<LoadingFallback type="content" />}>
+              {children}
+            </React.Suspense>
           </div>
         </div>
       </main>

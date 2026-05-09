@@ -3,11 +3,14 @@ import { BrowserRouter } from 'react-router-dom';
 // Force reload to clear HMR cache
 import AppRouter from './router';
 import { Toaster } from 'react-hot-toast';
+import { LoadingFallback } from './design-system/components/LoadingFallback';
 
 function App() {
   return (
     <BrowserRouter>
-      <AppRouter />
+      <React.Suspense fallback={<LoadingFallback type="full" />}>
+        <AppRouter />
+      </React.Suspense>
       <Toaster 
         position="top-right"
         toastOptions={{

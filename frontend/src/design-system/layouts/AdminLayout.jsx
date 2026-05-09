@@ -3,6 +3,7 @@ import { Sidebar } from '../components/Sidebar';
 import { Search, Bell, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '../../store/authStore';
+import { LoadingFallback } from '../components/LoadingFallback';
 
 export const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -59,7 +60,9 @@ export const AdminLayout = ({ children }) => {
         
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-page-bg">
           <div className="max-w-[1600px] mx-auto">
-            {children}
+            <React.Suspense fallback={<LoadingFallback type="content" />}>
+              {children}
+            </React.Suspense>
           </div>
         </div>
       </main>
