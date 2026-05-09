@@ -20,9 +20,17 @@ const DriverExpenses = () => {
   const { trips } = useAdminStore();
 
   // Aggregate all expenses from all trips for this driver
-  const allExpenses = trips
-    .filter(t => t.driverName === (user?.name || 'JAGRATI DOD'))
+  const realExpenses = trips
+    .filter(t => t.driverName === (user?.name || 'RAJESH KUMAR'))
     .flatMap(t => (t.expenses || []).map(e => ({ ...e, tripId: t.id, date: t.completedAt || t.createdAt })));
+
+  const dummyExpenses = [
+    { type: 'FUEL', amount: 1500, tripId: 'TRP-7721', date: '2024-05-02', status: 'Approved' },
+    { type: 'TOLL', amount: 350, tripId: 'TRP-7721', date: '2024-05-02', status: 'Approved' },
+    { type: 'FUEL', amount: 1200, tripId: 'TRP-7725', date: '2024-05-03', status: 'Pending' }
+  ];
+
+  const allExpenses = realExpenses.length > 0 ? realExpenses : dummyExpenses;
 
   const totalAmount = allExpenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
 

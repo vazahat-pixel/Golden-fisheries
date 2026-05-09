@@ -9,7 +9,12 @@ import {
   Scale, 
   Layers, 
   ClipboardList,
-  Settings
+  Settings,
+  ChefHat,
+  Wallet,
+  BarChart2,
+  ClipboardCheck,
+  AlertTriangle
 } from 'lucide-react';
 
 // Auth Imports
@@ -47,12 +52,17 @@ import RestaurantPOS from '../panels/restaurant/RestaurantPOS';
 import RestaurantOrderHistory from '../panels/restaurant/RestaurantOrderHistory';
 import RestaurantInventory from '../panels/restaurant/RestaurantInventory';
 import RestaurantSettings from '../panels/restaurant/RestaurantSettings';
+import RestaurantKitchen from '../panels/restaurant/RestaurantKitchen';
 
 // Fish Mall Imports
 import FishMallDashboard from '../panels/fishmall/FishMallDashboard';
 import FishMallBilling from '../panels/fishmall/FishMallBilling';
 import FishMallRates from '../panels/fishmall/FishMallRates';
 import FishMallStock from '../panels/fishmall/FishMallStock';
+import FishMallExpenses from '../panels/fishmall/FishMallExpenses';
+import FishMallReports from '../panels/fishmall/FishMallReports';
+import FishMallClosing from '../panels/fishmall/FishMallClosing';
+import FishMallAlerts from '../panels/fishmall/FishMallAlerts';
 
 // Driver Imports
 import { MobileLayout } from '../design-system/layouts/MobileLayout';
@@ -72,6 +82,7 @@ import Unauthorized from '../pages/Unauthorized';
 const restaurantNav = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/restaurant/dashboard' },
   { icon: Utensils, label: 'POS Billing', path: '/restaurant/pos' },
+  { icon: ChefHat, label: 'Kitchen', path: '/restaurant/kitchen' },
   { icon: ShoppingCart, label: 'Order History', path: '/restaurant/orders' },
   { icon: ClipboardList, label: 'Inventory', path: '/restaurant/inventory' },
   { icon: Settings, label: 'Settings', path: '/restaurant/settings' },
@@ -80,6 +91,10 @@ const restaurantNav = [
 const fishMallNav = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/fishmall/dashboard' },
   { icon: Scale, label: 'Weight Billing', path: '/fishmall/billing' },
+  { icon: Wallet, label: 'Expenses', path: '/fishmall/expenses' },
+  { icon: BarChart2, label: 'Reports', path: '/fishmall/reports' },
+  { icon: ClipboardCheck, label: 'Daily Closing', path: '/fishmall/closing' },
+  { icon: AlertTriangle, label: 'Alerts', path: '/fishmall/alerts' },
   { icon: Layers, label: 'Current Rates', path: '/fishmall/rates' },
   { icon: ClipboardList, label: 'Stock Inflow', path: '/fishmall/stock' },
 ];
@@ -130,6 +145,7 @@ const AppRouter = () => {
             <Route path="pos" element={<RestaurantPOS />} />
             <Route element={<PanelLayout navItems={restaurantNav} panelName="GF Restaurant" userName="Suresh"><Outlet /></PanelLayout>}>
               <Route path="dashboard" element={<RestaurantDashboard />} />
+              <Route path="kitchen" element={<RestaurantKitchen />} />
               <Route path="orders" element={<RestaurantOrderHistory />} />
               <Route path="inventory" element={<RestaurantInventory />} />
               <Route path="settings" element={<RestaurantSettings />} />
@@ -151,6 +167,10 @@ const AppRouter = () => {
           }>
             <Route path="dashboard" element={<FishMallDashboard />} />
             <Route path="billing" element={<FishMallBilling />} />
+            <Route path="expenses" element={<FishMallExpenses />} />
+            <Route path="reports" element={<FishMallReports />} />
+            <Route path="closing" element={<FishMallClosing />} />
+            <Route path="alerts" element={<FishMallAlerts />} />
             <Route path="rates" element={<FishMallRates />} />
             <Route path="stock" element={<FishMallStock />} />
           </Route>

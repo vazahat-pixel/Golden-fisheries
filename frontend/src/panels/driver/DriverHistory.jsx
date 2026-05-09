@@ -18,10 +18,33 @@ const DriverHistory = () => {
   const { trips } = useAdminStore();
 
   // Filter completed/closed trips for the current driver
-  const historyTrips = trips.filter(t => 
-    (t.driverName === (user?.name || 'JAGRATI DOD') || t.driverId === user?.id) && 
+  const myHistory = trips.filter(t => 
+    (t.driverName === (user?.name || 'RAJESH KUMAR') || t.driverId === user?.id) && 
     ['Delivered', 'Closed'].includes(t.status)
   ).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const dummyHistory = [
+    {
+      id: 'TRP-HIST-7701',
+      status: 'Closed',
+      date: '2024-05-01',
+      pickupLocation: 'SOUTH BAY DOCKS',
+      deliveryLocation: 'MARKET TERMINAL 1',
+      product: 'VANNAMEI SHRIMPS',
+      expectedQty: '450 KG'
+    },
+    {
+      id: 'TRP-HIST-7705',
+      status: 'Closed',
+      date: '2024-04-30',
+      pickupLocation: 'NORTHERN FARMS',
+      deliveryLocation: 'COLD STORAGE HUB',
+      product: 'POMFRET (LARGE)',
+      expectedQty: '250 KG'
+    }
+  ];
+
+  const historyTrips = myHistory.length > 0 ? myHistory : dummyHistory;
 
   return (
     <div className="bg-white min-h-screen pb-24 selection:bg-black selection:text-white animate-in fade-in duration-500">

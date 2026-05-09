@@ -25,13 +25,13 @@ export const MobileLayout = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-32">
+      <main className="flex-1 overflow-y-auto pb-10">
         <Outlet />
       </main>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-6 left-0 right-0 max-w-md mx-auto px-4 z-20">
-        <nav className="bg-white shadow-wapixo border border-[#E6E2C8] rounded-full px-2 py-2 flex justify-between items-center">
+      <div className="bg-white border-t border-[#E6E2C8] px-4 py-3 pb-8 z-20">
+        <nav className="bg-gray-50 border border-gray-100 rounded-2xl px-1 py-1 flex justify-between items-center">
           {[
             { icon: Home, label: 'Home', path: '/driver/dashboard' },
             { icon: ClipboardList, label: 'Tasks', path: '/driver/tasks' },
@@ -42,16 +42,16 @@ export const MobileLayout = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) => `flex items-center gap-2 px-4 py-3 rounded-full transition-all duration-300 ${
-                isActive ? 'bg-[#E6E2C8] text-[#6B7550]' : 'text-text-muted hover:bg-gray-50'
+              className={({ isActive }) => `flex flex-col items-center gap-1 flex-1 py-2 rounded-xl transition-all duration-300 ${
+                isActive ? 'bg-white text-[#6B7550] shadow-sm' : 'text-gray-400'
               }`}
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-[#6B7550]' : 'text-text-muted'} />
-                  {isActive && (
-                    <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-                  )}
+                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                    {item.label}
+                  </span>
                 </>
               )}
             </NavLink>

@@ -22,9 +22,34 @@ const DriverTasks = () => {
   const { user } = useAuthStore();
   const { trips, driverAcceptTrip, driverRejectTrip } = useAdminStore();
 
-  const myTrips = trips.filter(t => t.driverName === (user?.name || 'JAGRATI DOD') && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status));
-  const pendingCount = myTrips.filter(t => t.status === 'Assigned').length;
-  const activeCount = myTrips.filter(t => t.status === 'Accepted' || t.status === 'In Transit').length;
+  const myTrips = trips.filter(t => t.driverName === (user?.name || 'RAJESH KUMAR') && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status));
+  
+  const dummyTasks = [
+    {
+      id: 'TRP-DUMMY-1',
+      tapalId: 'TAPAL-8821',
+      status: 'Assigned',
+      product: 'VANNAMEI SHRIMPS',
+      pickupLocation: 'SOUTH BAY FARM - GATE 2',
+      deliveryLocation: 'COLD STORAGE HUB',
+      expectedQty: '450 KG',
+      createdAt: new Date().toLocaleString()
+    },
+    {
+      id: 'TRP-DUMMY-2',
+      tapalId: 'TAPAL-8825',
+      status: 'Accepted',
+      product: 'MACKEREL (LARGE)',
+      pickupLocation: 'MAIN DOCK TERMINAL',
+      deliveryLocation: 'RETAIL OUTLET - SECTOR A',
+      expectedQty: '1,200 KG',
+      createdAt: new Date().toLocaleString()
+    }
+  ];
+
+  const displayTasks = myTrips.length > 0 ? myTrips : dummyTasks;
+  const pendingCount = displayTasks.filter(t => t.status === 'Assigned').length;
+  const activeCount = displayTasks.filter(t => t.status === 'Accepted' || t.status === 'In Transit').length;
 
   const handleAccept = (tapalId) => {
     driverAcceptTrip(tapalId);
@@ -40,7 +65,7 @@ const DriverTasks = () => {
     navigate('/driver/active-trip');
   };
 
-  if (myTrips.length === 0) {
+  if (displayTasks.length === 0) {
     return (
       <div className="p-8 space-y-6 bg-page-bg min-h-screen flex flex-col items-center justify-center text-center">
          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-subtle border border-[#E6E2C8] relative mb-4">
@@ -85,7 +110,7 @@ const DriverTasks = () => {
       </div>
       
       <div className="p-6 space-y-6 -mt-10">
-        {myTrips.map((task) => (
+        {displayTasks.map((task) => (
           <Card key={task.id} padding="none" className="overflow-hidden border border-black/5 bg-white shadow-2xl group transition-all hover:border-black/20">
             <div className="p-8">
               <div className="flex justify-between items-start mb-8 pb-6 border-b border-black/5">
@@ -156,7 +181,7 @@ const DriverTasks = () => {
           </Card>
         ))}
 
-        {myTrips.length === 0 && (
+        {displayTasks.length === 0 && (
           <div className="py-32 text-center space-y-8 opacity-10">
              <Package size={80} className="mx-auto" />
              <p className="text-[12px] font-black uppercase tracking-[0.5em]">No Pending Manifests</p>

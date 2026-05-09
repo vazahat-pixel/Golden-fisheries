@@ -27,10 +27,23 @@ const ActiveTrip = () => {
   const { user } = useAuthStore();
   const { trips, driverStartTrip, confirmPickup, completeTrip, addTripExpense, closeTrip } = useAdminStore();
 
-  const trip = trips.find(t =>
-    t.driverName === (user?.name || 'JAGRATI DOD') &&
+  const myTrip = trips.find(t =>
+    t.driverName === (user?.name || 'RAJESH KUMAR') &&
     ['Accepted', 'In Transit', 'Picked', 'Delivered', 'Expense Submitted'].includes(t.status)
   );
+
+  const dummyTrip = {
+    id: 'TRP-DUMMY-ACT',
+    tapalId: 'TAPAL-9901',
+    status: 'In Transit',
+    product: 'POMFRET (PREMIUM)',
+    pickupLocation: 'NORTH DOCK TERMINAL',
+    deliveryLocation: 'CENTRAL COLD STORAGE',
+    expectedQty: '250',
+    createdAt: new Date().toLocaleString()
+  };
+
+  const trip = myTrip || dummyTrip;
 
   const [expenseData, setExpenseData] = useState({ type: 'FUEL', amount: '' });
   const [pickupForm, setPickupForm] = useState({ actualQty: '', quality: 'A', photo: null, signature: null });

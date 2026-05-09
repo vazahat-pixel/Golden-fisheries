@@ -50,8 +50,8 @@ export const Sidebar = ({ onClose }) => {
     )}>
       <div className="p-4 flex items-center justify-between border-b border-card-border">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 shrink-0 bg-black flex items-center justify-center text-white">
-            <span className="font-black text-xl">GF</span>
+          <div className="w-12 h-12 shrink-0 flex items-center justify-center overflow-hidden">
+            <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           {!isCollapsed && <h1 className="text-xl font-serif italic font-black tracking-tight text-primary whitespace-nowrap">Golden</h1>}
         </div>

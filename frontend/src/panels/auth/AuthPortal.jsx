@@ -252,8 +252,8 @@ const AuthPortal = () => {
       <div className="w-full max-w-[440px] bg-white border border-gray-200 shadow-xl p-10">
         {/* Compact Branding */}
         <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-gray-50 flex items-center justify-center mx-auto mb-6">
-            <Fish className="text-[#6B7550]" size={32} />
+          <div className="w-20 h-20 bg-gray-50 flex items-center justify-center mx-auto mb-6 overflow-hidden">
+            <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight uppercase">
             {view === 'login' ? 'System Login' : view === 'signup' ? 'Create Account' : view === 'otp' ? 'Verification' : 'Recovery'}

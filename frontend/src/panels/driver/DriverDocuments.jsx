@@ -20,9 +20,17 @@ const DriverDocuments = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { getDriverByMobile } = useDriverStore();
-  const driver = getDriverByMobile(user?.phone);
+  const realDriver = getDriverByMobile(user?.phone);
 
-  if (!driver) return null;
+  const dummyDriver = {
+    fullName: 'RAJESH KUMAR',
+    aadhaarNumber: 'XXXX-XXXX-9021',
+    licenseNumber: 'KA-19-20220011223',
+    licenseExpiry: '2028-12-31',
+    vehicleNumber: 'KA-19-GF-001',
+  };
+
+  const driver = realDriver || dummyDriver;
 
   const docs = [
     { id: 'aadhaar', label: 'Aadhaar Card', value: driver.aadhaarNumber, icon: CreditCard },

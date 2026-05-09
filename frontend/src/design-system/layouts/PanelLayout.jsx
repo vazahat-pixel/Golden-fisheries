@@ -16,8 +16,8 @@ export const PanelLayout = ({ children, navItems, panelName, userName }) => {
       )}>
         <div className="p-4 md:p-6 flex items-center justify-between border-b border-card-border gap-2">
           <div className="flex items-center gap-4 overflow-hidden">
-            <div className="w-10 h-10 shrink-0 bg-black flex items-center justify-center text-white">
-              <span className="font-black text-xl tracking-tighter">GF</span>
+            <div className="w-12 h-12 shrink-0 flex items-center justify-center overflow-hidden">
+              <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col whitespace-nowrap">

@@ -25,9 +25,20 @@ const DriverProfile = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { getDriverByMobile } = useDriverStore();
-  const driver = getDriverByMobile(user?.phone);
+  const realDriver = getDriverByMobile(user?.phone);
 
-  if (!driver) return null;
+  const dummyDriver = {
+    id: 'FLEET-ID-1002',
+    fullName: 'RAJESH KUMAR',
+    mobile: '9876543210',
+    currentAddress: 'FLAT 402, ROYAL PLAZA, MANGALORE, KARNATAKA - 575001',
+    aadhaarNumber: 'XXXX-XXXX-9021',
+    licenseNumber: 'KA-19-20220011223',
+    licenseExpiry: '2028-12-31',
+    status: 'active'
+  };
+
+  const driver = realDriver || dummyDriver;
 
   const getStatusBanner = () => {
     switch (driver.status) {
