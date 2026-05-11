@@ -16,40 +16,17 @@ import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import driverMockData from '../../data/driverMockData.json';
 
 const DriverTasks = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { trips, driverAcceptTrip, driverRejectTrip } = useAdminStore();
+  const { trips, driverAcceptTrip } = useAdminStore();
 
-  const myTrips = trips.filter(t => t.driverName === (user?.name || 'RAJESH KUMAR') && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status));
+  const driverName = user?.name || driverMockData.profile.name;
+  const myTrips = trips.filter(t => t.driverName === driverName && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status));
   
-  const dummyTasks = [
-    {
-      id: 'TRP-8821',
-      tapalId: 'TAPAL-8821',
-      status: 'Assigned',
-      product: 'VANNAMEI SHRIMPS',
-      pickupLocation: 'SOUTH BAY FARM - GATE 2',
-      deliveryLocation: 'COLD STORAGE HUB',
-      expectedQty: '450 KG',
-      customer: { name: 'JOHN DOE', phone: '+91 9887766554' },
-      instructions: 'Handle with care.',
-      createdAt: '10:30 AM'
-    },
-    {
-      id: 'TRP-8825',
-      tapalId: 'TAPAL-8825',
-      status: 'Accepted',
-      product: 'MACKEREL (LARGE)',
-      pickupLocation: 'MAIN DOCK TERMINAL',
-      deliveryLocation: 'RETAIL OUTLET - SECTOR A',
-      expectedQty: '1,200 KG',
-      customer: { name: 'SARAH SMITH', phone: '+91 9900887766' },
-      instructions: 'Deliver before 4 PM.',
-      createdAt: '09:15 AM'
-    }
-  ];
+  const dummyTasks = driverMockData.trips.filter(t => !['Delivered', 'Closed'].includes(t.status));
 
   const displayTasks = myTrips.length > 0 ? myTrips : dummyTasks;
 
