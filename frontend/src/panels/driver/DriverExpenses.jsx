@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '../../design-system/components/Card';
 import { Badge } from '../../design-system/components/Badge';
 import { 
@@ -8,123 +8,137 @@ import {
   CheckCircle2, 
   Clock,
   ArrowRight,
-  ChevronLeft
+  Plus,
+  Fuel,
+  Info,
+  MapPin,
+  Camera,
+  Trash2,
+  ChevronRight
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
-import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 const DriverExpenses = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { trips } = useAdminStore();
-
-  // Aggregate all expenses from all trips for this driver
-  const realExpenses = trips
-    .filter(t => t.driverName === (user?.name || 'RAJESH KUMAR'))
-    .flatMap(t => (t.expenses || []).map(e => ({ ...e, tripId: t.id, date: t.completedAt || t.createdAt })));
-
-  const dummyExpenses = [
-    { type: 'FUEL', amount: 1500, tripId: 'TRP-7721', date: '2024-05-02', status: 'Approved' },
-    { type: 'TOLL', amount: 350, tripId: 'TRP-7721', date: '2024-05-02', status: 'Approved' },
-    { type: 'FUEL', amount: 1200, tripId: 'TRP-7725', date: '2024-05-03', status: 'Pending' }
+  
+  const [activeTab, setActiveTab] = useState('All');
+  
+  const categories = [
+    { id: 'FUEL', icon: Fuel, color: 'bg-blue-500' },
+    { id: 'TOLL', icon: MapPin, color: 'bg-emerald-500' },
+    { id: 'FOOD', icon: Info, color: 'bg-amber-500' },
+    { id: 'MISC', icon: Info, color: 'bg-slate-500' },
   ];
 
-  const allExpenses = realExpenses.length > 0 ? realExpenses : dummyExpenses;
+  // Extract all expenses from all trips of this driver
+  const myExpenses = trips
+    .filter(t => t.driverName === (user?.name || 'RAJESH KUMAR'))
+    .flatMap(t => (t.expenses || []).map((e, idx) => ({ 
+      ...e, 
+      id: `${t.id}-${idx}`, 
+      tripId: t.id, 
+      date: e.date || t.date || 'Today',
+      status: e.status || 'Pending'
+    })))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  const totalAmount = allExpenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+  const filteredExpenses = activeTab === 'All' 
+    ? myExpenses 
+    : myExpenses.filter(e => e.type === activeTab.toUpperCase());
+
+  const totalAmount = myExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const pendingAmount = myExpenses
+    .filter(e => e.status === 'Pending')
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   return (
-    <div className="bg-white min-h-screen pb-24 selection:bg-black selection:text-white animate-in fade-in duration-500">
-      {/* Sharp Registry Header */}
-      <div className="bg-black text-white p-8">
-        <div className="flex items-center gap-6">
-          <button onClick={() => navigate(-1)} className="w-12 h-12 bg-white/10 hover:bg-white hover:text-black transition-all flex items-center justify-center border border-white/10 active:scale-95">
-            <ChevronLeft size={24} />
+    <div className="p-4 space-y-5 animate-in fade-in duration-500 pb-24 bg-slate-50 min-h-screen font-sans">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-black text-black tracking-tighter uppercase italic leading-none">Ledger Center</h2>
+          <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mt-1.5 italic">Financial Claims Portal</p>
+        </div>
+        <button 
+          onClick={() => navigate('/driver/expenses/new')}
+          className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+        >
+          <Plus size={20} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="glass-card p-4 rounded-2xl border-none shadow-soft">
+          <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Total Claimed</p>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center text-white">
+               <IndianRupee size={12} />
+            </div>
+            <p className="text-xl font-black text-black italic leading-none">₹{totalAmount.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="glass-card p-4 rounded-2xl border-none shadow-soft">
+          <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Pending Review</p>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-amber-500 rounded-lg flex items-center justify-center text-white">
+               <Clock size={12} />
+            </div>
+            <p className="text-xl font-black text-black italic leading-none">₹{pendingAmount.toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+        {['All', 'Fuel', 'Toll', 'Food', 'Misc'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all shrink-0 ${activeTab === tab ? 'bg-black text-white shadow-md' : 'bg-white text-gray-400 border border-black/5'}`}
+          >
+            {tab}
           </button>
-          <div>
-            <h2 className="text-2xl font-serif italic font-black text-white tracking-tight uppercase leading-none">
-              Expense <span className="text-[#6B7550]">Ledger.</span>
-            </h2>
-            <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40 mt-2">Financial Reimbursable Pipeline</p>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Summary Matrix Card */}
-      <div className="p-6 -mt-10">
-        <div className="bg-black text-white p-10 shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity">
-             <IndianRupee size={120} />
-          </div>
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-8">
-            <div className="space-y-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#6B7550]">Total Aggregate Claims</p>
-              <h3 className="text-6xl font-black tracking-tighter leading-none italic">₹{totalAmount.toLocaleString()}</h3>
-            </div>
-            
-            <div className="flex gap-8 border-l-2 border-[#6B7550] pl-8">
-              <div className="space-y-1">
-                <p className="text-[8px] font-black text-white/40 uppercase tracking-[0.2em]">Registry Items</p>
-                <p className="text-xl font-black">{allExpenses.length}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[8px] font-black text-white/40 uppercase tracking-[0.2em]">Validated</p>
-                <p className="text-xl font-black text-[#6B7550]">{allExpenses.filter(e => e.status === 'Approved').length}</p>
-              </div>
-            </div>
-          </div>
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#6B7550]" />
-        </div>
-      </div>
-
-      {/* Ledger Stream */}
-      <div className="p-6 space-y-6">
-        <div className="flex items-center gap-3 border-b border-black pb-2">
-          <h4 className="text-[10px] font-black text-black uppercase tracking-[0.3em]">Operational Manifest Stream</h4>
-          <Receipt size={12} className="text-[#6B7550]" />
-        </div>
-        
-        <div className="space-y-4">
-          {allExpenses.length > 0 ? (
-            allExpenses.map((exp, idx) => (
-              <Card key={idx} padding="none" className="bg-white border border-black/5 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center group hover:border-black transition-all">
-                <div className="p-6 flex items-center gap-6 w-full sm:w-auto">
-                  <div className="w-14 h-14 bg-black text-white flex items-center justify-center shrink-0 shadow-lg group-hover:bg-[#6B7550] transition-colors">
-                    <Receipt size={24} />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-black text-black uppercase tracking-tight">{exp.type}</span>
-                      <div className="w-1 h-1 bg-black/10 rounded-full" />
-                      <span className="text-[9px] font-black text-[#6B7550] uppercase tracking-widest">{exp.tripId}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-text-muted">
-                      <Calendar size={12} />
-                      <span className="text-[9px] font-black uppercase tracking-widest">{exp.date}</span>
-                    </div>
-                  </div>
+      <div className="space-y-3">
+        <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-1">Claim Manifest</h4>
+        {filteredExpenses.length > 0 ? (
+          filteredExpenses.map((exp) => (
+            <div key={exp.id} className="glass-card p-3 rounded-2xl flex items-center justify-between border-none shadow-extra-soft group active:scale-[0.98] transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-black border border-black/5 group-hover:rotate-3 transition-transform">
+                  {categories.find(c => c.id === exp.type)?.icon ? React.createElement(categories.find(c => c.id === exp.type).icon, { size: 18 }) : <Receipt size={18} />}
                 </div>
-                <div className="p-6 bg-gray-50/50 sm:bg-transparent border-t sm:border-t-0 border-black/5 w-full sm:w-auto text-right flex sm:flex-col justify-between items-center sm:items-end gap-2">
-                  <p className="text-xl font-black text-black leading-none italic group-hover:scale-110 transition-transform">₹{exp.amount}</p>
-                  <div className="flex items-center gap-2">
-                     {exp.status === 'Approved' ? (
-                       <CheckCircle2 size={14} className="text-[#6B7550]" />
-                     ) : (
-                       <Clock size={14} className="text-black animate-pulse" />
-                     )}
-                     <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${exp.status === 'Approved' ? 'text-[#6B7550]' : 'text-black'}`}>{exp.status || 'Pending'}</span>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <h3 className="text-[10px] font-black text-black uppercase tracking-tight">{exp.type}</h3>
+                    <div className="w-0.5 h-0.5 bg-gray-200 rounded-full"></div>
+                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{exp.tripId}</span>
                   </div>
+                  <p className="text-[8px] text-gray-400 font-medium italic">{exp.date}</p>
                 </div>
-              </Card>
-            ))
-          ) : (
-            <div className="text-center py-32 opacity-10 space-y-8">
-               <Receipt size={80} className="mx-auto" />
-               <p className="text-[12px] font-black uppercase tracking-[0.5em]">Ledger Empty</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-black text-black italic">₹{exp.amount}</p>
+                <div className="flex items-center justify-end gap-1 mt-0.5">
+                  {exp.status === 'Approved' ? <CheckCircle2 size={10} className="text-emerald-500" /> : <Clock size={10} className="text-amber-500" />}
+                  <span className={`text-[7px] font-black uppercase tracking-widest ${exp.status === 'Approved' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {exp.status}
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          ))
+        ) : (
+          <div className="py-12 text-center opacity-20 space-y-3">
+             <Receipt size={40} className="mx-auto" />
+             <p className="text-[10px] font-bold uppercase tracking-widest">No Claims Found</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -51,6 +51,7 @@ const RestaurantDashboard = React.lazy(() => import('../panels/restaurant/Restau
 const RestaurantPOS = React.lazy(() => import('../panels/restaurant/RestaurantPOS'));
 const RestaurantOrderHistory = React.lazy(() => import('../panels/restaurant/RestaurantOrderHistory'));
 const RestaurantInventory = React.lazy(() => import('../panels/restaurant/RestaurantInventory'));
+const RestaurantKitchen = React.lazy(() => import('../panels/restaurant/RestaurantKitchen'));
 const RestaurantSettings = React.lazy(() => import('../panels/restaurant/RestaurantSettings'));
 
 // Fish Mall Imports
@@ -58,6 +59,10 @@ const FishMallDashboard = React.lazy(() => import('../panels/fishmall/FishMallDa
 const FishMallBilling = React.lazy(() => import('../panels/fishmall/FishMallBilling'));
 const FishMallRates = React.lazy(() => import('../panels/fishmall/FishMallRates'));
 const FishMallStock = React.lazy(() => import('../panels/fishmall/FishMallStock'));
+const FishMallExpenses = React.lazy(() => import('../panels/fishmall/FishMallExpenses'));
+const FishMallReports = React.lazy(() => import('../panels/fishmall/FishMallReports'));
+const FishMallClosing = React.lazy(() => import('../panels/fishmall/FishMallClosing'));
+const FishMallAlerts = React.lazy(() => import('../panels/fishmall/FishMallAlerts'));
 
 // Driver Imports
 import { MobileLayout } from '../design-system/layouts/MobileLayout';
@@ -68,6 +73,13 @@ const DriverHistory = React.lazy(() => import('../panels/driver/DriverHistory'))
 const DriverProfile = React.lazy(() => import('../panels/driver/DriverProfile'));
 const DriverExpenses = React.lazy(() => import('../panels/driver/DriverExpenses'));
 const DriverDocuments = React.lazy(() => import('../panels/driver/DriverDocuments'));
+const DriverNotifications = React.lazy(() => import('../panels/driver/DriverNotifications'));
+const DriverLiveTracking = React.lazy(() => import('../panels/driver/DriverLiveTracking'));
+const DriverAlerts = React.lazy(() => import('../panels/driver/DriverAlerts'));
+const DriverSettings = React.lazy(() => import('../panels/driver/DriverSettings'));
+const DriverSupport = React.lazy(() => import('../panels/driver/DriverSupport'));
+const DriverAddExpense = React.lazy(() => import('../panels/driver/DriverAddExpense'));
+
 
 // Public Imports
 const BuyerBilling = React.lazy(() => import('../panels/public/BuyerBilling'));
@@ -188,7 +200,13 @@ const AppRouter = () => {
               <Route path="history" element={<DriverHistory />} />
               <Route path="profile" element={<DriverProfile />} />
               <Route path="expenses" element={<DriverExpenses />} />
+              <Route path="expenses/new" element={<DriverAddExpense />} />
               <Route path="documents" element={<DriverDocuments />} />
+              <Route path="notifications" element={<DriverNotifications />} />
+              <Route path="tracking" element={<DriverLiveTracking />} />
+              <Route path="alerts" element={<DriverAlerts />} />
+              <Route path="settings" element={<DriverSettings />} />
+              <Route path="support" element={<DriverSupport />} />
             </Route>
           </Route>
         </Routes>

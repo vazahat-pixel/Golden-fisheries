@@ -15,7 +15,10 @@ import {
   PackageCheck,
   Signature,
   Scale,
-  ArrowRight
+  ArrowRight,
+  ShieldCheck,
+  Phone,
+  Map as MapIcon
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
@@ -33,34 +36,36 @@ const ActiveTrip = () => {
   );
 
   const dummyTrip = {
-    id: 'TRP-DUMMY-ACT',
+    id: 'TRP-8821',
     tapalId: 'TAPAL-9901',
     status: 'In Transit',
     product: 'POMFRET (PREMIUM)',
     pickupLocation: 'NORTH DOCK TERMINAL',
     deliveryLocation: 'CENTRAL COLD STORAGE',
     expectedQty: '250',
+    customer: { name: 'JOHN DOE', phone: '+91 9887766554' },
     createdAt: new Date().toLocaleString()
   };
 
   const trip = myTrip || dummyTrip;
 
-  const [expenseData, setExpenseData] = useState({ type: 'FUEL', amount: '' });
   const [pickupForm, setPickupForm] = useState({ actualQty: '', quality: 'A', photo: null, signature: null });
+  const [otp, setOtp] = useState('');
   const [isPickupModalOpen, setIsPickupModalOpen] = useState(false);
+  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
 
-  if (!trip) {
-    return (
-      <div className="p-8 text-center bg-page-bg min-h-screen flex flex-col items-center justify-center">
-        <div className="w-20 h-20 bg-[#E6E2C8]/30 rounded-full flex items-center justify-center mb-6">
-          <Truck size={40} className="text-[#6B7550]" />
-        </div>
-        <h2 className="text-xl font-serif italic font-black text-black mb-2 uppercase tracking-tight">No Active Trip</h2>
-        <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mb-8">Your dashboard will notify you of new tasks</p>
-        <Button onClick={() => navigate('/driver/dashboard')} variant="outline" className="border-[#E6E2C8] text-black font-black text-[10px] uppercase tracking-widest px-8 py-3">BACK TO DASHBOARD</Button>
-      </div>
-    );
-  }
+  const simulateCamera = () => {
+    toast.loading('Activating Camera...', { duration: 1000 });
+    setTimeout(() => {
+      setPickupForm(prev => ({ ...prev, photo: 'CAPTURED_PROOF_IMG_URL' }));
+      toast.success('Photo Logged');
+    }, 1200);
+  };
+
+  const simulateSignature = () => {
+    setPickupForm(prev => ({ ...prev, signature: 'E_SIGN_DATA' }));
+    toast.success('Signature Captured');
+  };
 
   const handleStartTrip = () => {
     driverStartTrip(trip.tapalId);
@@ -75,15 +80,10 @@ const ActiveTrip = () => {
   };
 
   const handleDeliver = () => {
+    if (otp !== '1234') return toast.error('Invalid OTP. Use 1234 for demo.');
     completeTrip(trip.tapalId);
+    setIsDeliveryModalOpen(false);
     toast.success('Delivery Completed! Inventory updated.');
-  };
-
-  const handleExpenseSubmit = () => {
-    if (!expenseData.amount) return toast.error('Enter amount');
-    addTripExpense(trip.tapalId, expenseData);
-    setExpenseData({ type: 'FUEL', amount: '' });
-    toast.success('Expense submitted for review');
   };
 
   const handleFinish = () => {
@@ -92,178 +92,186 @@ const ActiveTrip = () => {
     navigate('/driver/dashboard');
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Accepted': return 'bg-black text-white';
-      case 'In Transit': return 'bg-[#6B7550] text-white';
-      case 'Picked': return 'bg-black text-white';
-      case 'Delivered': return 'bg-[#6B7550] text-white';
-      case 'Expense Submitted': return 'bg-gray-100 text-black/40';
-      default: return 'bg-black text-white';
-    }
-  };
-
   return (
-    <div className="bg-[#F9FAFB] min-h-screen pb-24 selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-300">
-      {/* Simple Header */}
-      <div className="bg-gray-900 text-white p-6 md:p-8">
-        <div className="flex justify-between items-start mb-8">
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold text-white tracking-tight uppercase">Mission Console</h2>
-            <div className="flex items-center gap-3">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Unit: GF-FLEET-01</p>
-              <div className="h-1 w-1 rounded-full bg-[#6B7550]" />
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#6B7550]">Signal: Stable</p>
-            </div>
+    <div className="p-4 space-y-5 animate-in fade-in duration-500 pb-24 bg-slate-50 min-h-screen font-sans">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-black text-black tracking-tighter uppercase italic leading-none">Mission Console</h2>
+          <div className="flex items-center gap-1.5 mt-1.5">
+             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none">Active Signal: GF-FLEET-01</p>
           </div>
-          <Badge className={`font-bold uppercase tracking-widest text-[8px] px-3 py-1 border-none ${getStatusColor(trip.status)}`}>
-            {trip.status}
-          </Badge>
+        </div>
+        <Badge className="bg-black text-white text-[8px] font-bold px-2 py-0.5 rounded-lg border-none">
+          {trip.status}
+        </Badge>
+      </div>
+
+      <div className="glass-card rounded-[1.8rem] p-5 shadow-extra-soft space-y-5 border-none relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+           <Truck size={60} className="text-black" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 bg-white/5 border border-white/10">
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1">Origin</p>
-            <p className="text-[10px] font-bold text-white uppercase tracking-tight line-clamp-1">{trip.pickupLocation}</p>
+        <div className="grid grid-cols-2 gap-3 relative z-10">
+          <div className="bg-white/40 p-3 rounded-xl border border-white/50">
+            <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-1">Cargo Payload</p>
+            <p className="text-[10px] font-black text-black truncate uppercase leading-tight">{trip.product}</p>
           </div>
-          <div className="p-4 bg-white/5 border border-white/10">
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1">Target</p>
-            <p className="text-[10px] font-bold text-white uppercase tracking-tight line-clamp-1">{trip.deliveryLocation}</p>
+          <div className="bg-white/40 p-3 rounded-xl border border-white/50 text-right">
+            <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-1">Target Weight</p>
+            <p className="text-[10px] font-black text-black leading-tight">{trip.expectedQty} KG</p>
           </div>
+        </div>
+
+        <div className="space-y-3 pt-1">
+          <div className="flex gap-3 items-start">
+            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center shrink-0">
+              <MapPin size={14} className="text-emerald-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Origin</p>
+              <p className="text-[10px] font-bold text-black uppercase leading-tight line-clamp-1">{trip.pickupLocation}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 items-start ml-3.5 pl-3.5 border-l-2 border-dashed border-gray-100 py-1">
+            <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
+              <Navigation size={14} className="text-black" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Target</p>
+              <p className="text-[10px] font-bold text-black uppercase leading-tight line-clamp-1">{trip.deliveryLocation}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-1">
+          {trip.status === 'Accepted' && (
+            <button onClick={handleStartTrip} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+              <Navigation size={14} className="animate-pulse" /> Deploy Vehicle
+            </button>
+          )}
+
+          {trip.status === 'In Transit' && (
+            <button onClick={() => setIsPickupModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+              <PackageCheck size={14} /> Execute Pickup
+            </button>
+          )}
+
+          {trip.status === 'Picked' && (
+            <button onClick={() => setIsDeliveryModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+              <CheckCircle2 size={14} /> Confirm Delivery
+            </button>
+          )}
+          
+          {['Delivered', 'Expense Submitted'].includes(trip.status) && (
+            <button onClick={handleFinish} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all border-none">
+              <CheckCircle2 size={14} /> Close Mission
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Action Deck */}
-      <div className="px-4 -mt-6">
-        <div className="bg-white border border-gray-200 shadow-sm p-8">
-          <div className="flex items-center gap-6 mb-10">
-            <div className="w-12 h-12 bg-gray-50 flex items-center justify-center border border-gray-100 text-gray-400">
-              <Navigation size={20} className={trip.status === 'In Transit' ? 'animate-pulse text-[#6B7550]' : ''} />
-            </div>
-            <div>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Primary Objective</p>
-              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">
-                {trip.status === 'Accepted' && 'Start Trip'}
-                {trip.status === 'In Transit' && 'Execute Pickup'}
-                {trip.status === 'Picked' && 'Deliver Cargo'}
-                {['Delivered', 'Expense Submitted'].includes(trip.status) && 'Finish Session'}
-              </h3>
-            </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => navigate('/driver/tracking')} className="glass-card p-4 rounded-2xl flex flex-col items-center gap-2 shadow-soft active:scale-95 transition-all border-none">
+          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
+            <MapIcon size={16} />
           </div>
-
-          <div className="space-y-4">
-            {trip.status === 'Accepted' && (
-              <Button onClick={handleStartTrip} className="w-full py-6 bg-gray-900 text-white hover:bg-[#6B7550] font-bold text-xs uppercase tracking-widest shadow-sm transition-all border-none">
-                <Truck size={18} className="mr-3" /> Deploy Vehicle
-              </Button>
-            )}
-
-            {trip.status === 'In Transit' && (
-              <Button onClick={() => setIsPickupModalOpen(true)} className="w-full py-6 bg-gray-900 text-white hover:bg-[#6B7550] font-bold text-xs uppercase tracking-widest shadow-sm transition-all border-none">
-                <PackageCheck size={18} className="mr-3" /> Log Pickup
-              </Button>
-            )}
-
-            {trip.status === 'Picked' && (
-              <Button onClick={handleDeliver} className="w-full py-6 bg-gray-900 text-white hover:bg-[#6B7550] font-bold text-xs uppercase tracking-widest shadow-sm transition-all border-none">
-                <CheckCircle2 size={18} className="mr-3" /> Mark Delivered
-              </Button>
-            )}
-            
-            {['Delivered', 'Expense Submitted'].includes(trip.status) && (
-              <Button onClick={handleFinish} className="w-full py-6 bg-[#6B7550] text-white hover:bg-gray-900 font-bold text-xs uppercase tracking-widest shadow-sm transition-all border-none">
-                <CheckCircle2 size={18} className="mr-3" /> Close Session
-              </Button>
-            )}
+          <span className="text-[8px] font-bold text-black uppercase tracking-widest">Live Route</span>
+        </button>
+        <button onClick={() => window.open(`tel:${trip.customer?.phone || '9876543210'}`)} className="glass-card p-4 rounded-2xl flex flex-col items-center gap-2 shadow-soft active:scale-95 transition-all border-none">
+          <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
+            <Phone size={16} />
           </div>
-        </div>
+          <span className="text-[8px] font-bold text-black uppercase tracking-widest">Call Client</span>
+        </button>
       </div>
-
-      {/* Expense Log */}
-      {['Picked', 'Delivered', 'Expense Submitted'].includes(trip.status) && (
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Financial Log</h3>
-            <IndianRupee size={12} className="text-gray-300" />
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-1">
-              {['FUEL', 'TOLL', 'OTHER'].map(type => (
-                <button
-                  key={type}
-                  onClick={() => setExpenseData({ ...expenseData, type })}
-                  className={`py-3 text-[8px] font-bold uppercase tracking-widest border transition-all ${expenseData.type === type ? 'bg-black text-white border-black' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-900'}`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-
-            <div className="p-6 bg-white border border-gray-200 shadow-sm space-y-6">
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Amount (₹)</label>
-                <input
-                  type="number"
-                  value={expenseData.amount}
-                  onChange={(e) => setExpenseData({ ...expenseData, amount: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-200 p-4 text-xl font-black text-gray-900 focus:border-[#6B7550] outline-none transition-all"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <button className="w-full p-4 border border-dashed border-gray-200 bg-gray-50 text-gray-400 text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-gray-100 transition-all">
-                <Camera size={14} /> Upload Receipt
-              </button>
-
-              <Button 
-                onClick={handleExpenseSubmit} 
-                disabled={trip.status === 'Expense Submitted'} 
-                className={`w-full py-4 font-bold text-[9px] uppercase tracking-widest transition-all border-none ${trip.status === 'Expense Submitted' ? 'bg-gray-100 text-gray-400' : 'bg-black text-white hover:bg-[#6B7550]'}`}
-              >
-                {trip.status === 'Expense Submitted' ? 'Submitted' : 'Commit Expense'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Pickup Modal */}
-      <Modal isOpen={isPickupModalOpen} onClose={() => setIsPickupModalOpen(false)} title="CARGO VERIFICATION">
-        <div className="space-y-6 p-2">
-          <div className="p-6 bg-gray-900 text-white text-center">
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1">Expected Quantity</p>
-            <p className="text-3xl font-black">{trip.expectedQty} <span className="text-xs font-bold text-gray-400">KG</span></p>
+      <Modal isOpen={isPickupModalOpen} onClose={() => setIsPickupModalOpen(false)} title="VERIFICATION">
+        <div className="space-y-5 p-2">
+          <div className="glass-dark p-6 rounded-[1.5rem] text-center shadow-xl relative overflow-hidden">
+            <div className="relative z-10">
+              <p className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] mb-1.5">Manifest Weight</p>
+              <h3 className="text-3xl font-black text-white italic tracking-tighter">{trip.expectedQty} <span className="text-sm opacity-40">KG</span></h3>
+            </div>
+            <Scale size={40} className="absolute -right-2 -bottom-2 text-white/10" />
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Scale size={12} className="text-[#6B7550]" /> Actual Weight (KG)
-              </label>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-2">Actual Scale Reading</label>
               <input
                 type="number"
                 value={pickupForm.actualQty}
                 onChange={(e) => setPickupForm({ ...pickupForm, actualQty: e.target.value })}
-                className="w-full border border-gray-200 bg-gray-50 p-4 text-2xl font-black outline-none focus:border-[#6B7550] transition-all"
+                className="w-full bg-slate-50 border border-black/5 rounded-xl p-4 text-2xl font-black text-black outline-none focus:ring-2 focus:ring-emerald-500/20 text-center"
                 placeholder="0.00"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button className="h-24 border border-gray-100 bg-gray-50 flex flex-col items-center justify-center gap-2 text-gray-400 hover:bg-gray-900 hover:text-white transition-all">
-                <Camera size={20} />
-                <span className="text-[8px] font-bold uppercase tracking-widest">Photo</span>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={simulateCamera}
+                className={`h-20 border rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all ${pickupForm.photo ? 'bg-emerald-500 text-white border-none shadow-lg' : 'bg-white border-black/5 text-gray-400 hover:bg-black hover:text-white'}`}
+              >
+                <Camera size={18} />
+                <span className="text-[8px] font-bold uppercase tracking-widest">{pickupForm.photo ? 'Photo Logged' : 'Photo'}</span>
               </button>
-              <button className="h-24 border border-gray-100 bg-gray-50 flex flex-col items-center justify-center gap-2 text-gray-400 hover:bg-gray-900 hover:text-white transition-all">
-                <Signature size={20} />
-                <span className="text-[8px] font-bold uppercase tracking-widest">Sign</span>
+              <button 
+                onClick={simulateSignature}
+                className={`h-20 border rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all ${pickupForm.signature ? 'bg-emerald-500 text-white border-none shadow-lg' : 'bg-white border-black/5 text-gray-400 hover:bg-black hover:text-white'}`}
+              >
+                <Signature size={18} />
+                <span className="text-[8px] font-bold uppercase tracking-widest">{pickupForm.signature ? 'Sign Captured' : 'Sign'}</span>
               </button>
             </div>
 
-            <Button onClick={handlePickupComplete} className="w-full py-4 bg-gray-900 text-white hover:bg-[#6B7550] font-bold text-[11px] uppercase tracking-widest mt-4 border-none transition-all">
-              Complete Log
-            </Button>
+            <button onClick={handlePickupComplete} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] shadow-lg">
+              Submit Log
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delivery Modal */}
+      <Modal isOpen={isDeliveryModalOpen} onClose={() => setIsDeliveryModalOpen(false)} title="SETTLEMENT">
+        <div className="space-y-5 p-2">
+          <div className="p-6 bg-emerald-500 rounded-[1.5rem] text-center text-white shadow-lg relative overflow-hidden">
+             <div className="relative z-10">
+               <p className="text-[8px] font-bold text-white/60 uppercase tracking-[0.2em] mb-1.5">Security Auth</p>
+               <h3 className="text-xl font-black italic tracking-tight">OTP VERIFICATION</h3>
+             </div>
+             <ShieldCheck size={60} className="absolute -right-4 -bottom-4 text-white/10" />
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-2">Client OTP (1234)</label>
+              <input
+                type="text"
+                maxLength={4}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full bg-slate-50 border border-black/5 rounded-xl p-4 text-3xl font-black text-black outline-none tracking-[0.8em] text-center"
+                placeholder="****"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button className="h-20 bg-white border border-black/5 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-400">
+                <Camera size={18} />
+                <span className="text-[8px] font-bold uppercase tracking-widest">Photo POD</span>
+              </button>
+              <button className="h-20 bg-white border border-black/5 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-400">
+                <Signature size={18} />
+                <span className="text-[8px] font-bold uppercase tracking-widest">Signature</span>
+              </button>
+            </div>
+
+            <button onClick={handleDeliver} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] shadow-lg">
+              Finalize Delivery
+            </button>
           </div>
         </div>
       </Modal>
@@ -272,5 +280,3 @@ const ActiveTrip = () => {
 };
 
 export default ActiveTrip;
-
-

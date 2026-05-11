@@ -406,7 +406,7 @@ const DriverAuth = () => {
         {/* Branding */}
         <div className="mb-8 flex flex-col items-center text-center">
            <div className="w-24 h-24 mb-4 relative group active:scale-95 transition-transform duration-300">
-              <img src="/IMG_8643-removebg-preview.png" alt="Golden Fisheries" className="w-full h-full object-contain drop-shadow-2xl" />
+              <img src="/logo.PNG" alt="Golden Fisheries" className="w-full h-full object-contain drop-shadow-2xl" />
            </div>
            <h1 className="text-3xl font-black text-white tracking-tight mb-1 uppercase">Logistics Portal</h1>
            <p className="text-[9px] text-[#E6E3C8]/60 font-bold tracking-[0.3em] uppercase">Fleet Management System</p>

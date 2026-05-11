@@ -1,6 +1,6 @@
-import React from 'react';
-import { Card } from '../../design-system/components/Card';
+import React, { useState, useRef } from 'react';
 import { Badge } from '../../design-system/components/Badge';
+import { Modal } from '../../design-system/components/Modal';
 import { 
   FileText, 
   CreditCard, 
@@ -10,97 +10,177 @@ import {
   AlertCircle,
   ChevronLeft,
   Download,
-  Eye
+  Eye,
+  Camera,
+  Clock,
+  Upload,
+  Search
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useDriverStore } from '../../store/driverStore';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 const DriverDocuments = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { getDriverByMobile } = useDriverStore();
-  const realDriver = getDriverByMobile(user?.phone);
+  const fileInputRef = useRef(null);
+  
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [viewingDoc, setViewingDoc] = useState(null);
 
-  const dummyDriver = {
-    fullName: 'RAJESH KUMAR',
-    aadhaarNumber: 'XXXX-XXXX-9021',
-    licenseNumber: 'KA-19-20220011223',
-    licenseExpiry: '2028-12-31',
-    vehicleNumber: 'KA-19-GF-001',
+  const [docs, setDocs] = useState([
+    { id: 'aadhaar', label: 'Aadhaar Card', value: 'XXXX-XXXX-9021', icon: CreditCard, status: 'Verified', image: '/docs/aadhaar_placeholder.png' },
+    { id: 'license', label: 'Driving License', value: 'KA-19-20220011223', expiry: 'Dec 31, 2028', icon: FileText, status: 'Verified', image: '/docs/license_placeholder.png' },
+    { id: 'rc', label: 'Vehicle RC', value: 'KA-19-GF-001', icon: Truck, status: 'Verified', image: '/docs/rc_placeholder.png' },
+    { id: 'insurance', label: 'Insurance Policy', expiry: 'Aug 15, 2026', icon: ShieldCheck, status: 'Active', image: '/docs/insurance_placeholder.png' },
+  ]);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file && selectedDoc) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setDocs(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, image: event.target.result, status: 'Pending Review' } : d));
+        toast.success(`${selectedDoc.label} updated and sent for verification`);
+        setSelectedDoc(null);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const driver = realDriver || dummyDriver;
-
-  const docs = [
-    { id: 'aadhaar', label: 'Aadhaar Card', value: driver.aadhaarNumber, icon: CreditCard },
-    { id: 'license', label: 'Driving License', value: driver.licenseNumber, expiry: driver.licenseExpiry, icon: FileText },
-    { id: 'rc', label: 'Vehicle RC', value: driver.vehicleNumber, icon: Truck },
-    { id: 'insurance', label: 'Insurance Policy', icon: ShieldCheck },
-  ];
+  const handleAction = (action) => {
+    toast.success(`${action} initiated`);
+  };
 
   return (
-    <div className="bg-[#F9FAFB] min-h-screen pb-24 selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-300">
-      {/* Simple Header */}
-      <div className="bg-white border-b border-gray-200 p-6 md:p-8">
-        <div className="flex items-center gap-6">
-          <button onClick={() => navigate(-1)} className="w-8 h-8 bg-gray-50 hover:bg-gray-100 text-gray-900 transition-all flex items-center justify-center border border-gray-200">
-            <ChevronLeft size={16} />
+    <div className="p-4 space-y-5 animate-in fade-in duration-500 pb-24 bg-slate-50 min-h-screen font-sans">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-2 bg-white rounded-xl shadow-soft active:scale-95 transition-all">
+            <ChevronLeft size={18} />
           </button>
           <div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight uppercase">Document Vault</h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Verified Logistics Credentials</p>
+            <h2 className="text-xl font-black text-black tracking-tighter uppercase italic leading-none">Vault</h2>
+            <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mt-1.5 italic">Verified Credentials</p>
           </div>
         </div>
+        <button onClick={() => handleAction('Sync')} className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-lg">
+          <ShieldCheck size={18} />
+        </button>
       </div>
 
-      <div className="p-6 md:p-8 space-y-6">
-        <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
-          <h4 className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Active Manifest</h4>
-          <ShieldCheck size={12} className="text-[#6B7550]" />
-        </div>
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept="image/*" 
+        onChange={handleFileUpload} 
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {docs.map((doc) => (
-            <div key={doc.id} className="bg-white border border-gray-200 shadow-sm group hover:border-[#6B7550] transition-all overflow-hidden p-6">
-              <div className="flex justify-between items-start mb-6">
-                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gray-50 text-gray-400 flex items-center justify-center shrink-0 border border-gray-100 group-hover:bg-[#6B7550]/10 group-hover:text-[#6B7550] transition-all">
-                      <doc.icon size={18} />
-                    </div>
-                    <div>
-                      <h3 className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">{doc.label}</h3>
-                      <p className="text-[9px] font-bold text-[#6B7550] uppercase tracking-widest mt-0.5">{doc.value || 'Verified'}</p>
-                      {doc.expiry && (
-                        <p className="text-[7px] font-bold text-red-500 uppercase mt-1">Expires: {doc.expiry}</p>
-                      )}
-                    </div>
-                 </div>
-                 <Badge className="text-[7px] font-bold border-none bg-[#6B7550]/10 text-[#6B7550] uppercase px-2 py-0.5">Valid</Badge>
+      <div className="grid grid-cols-1 gap-3">
+        {docs.map((doc) => (
+          <div key={doc.id} className="glass-card p-4 rounded-[1.8rem] space-y-4 border-none shadow-extra-soft relative overflow-hidden group">
+            <div className="flex justify-between items-start relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-black border border-black/5 group-hover:rotate-3 transition-transform">
+                  <doc.icon size={18} />
+                </div>
+                <div>
+                  <h3 className="text-[11px] font-black text-black uppercase tracking-tight">{doc.label}</h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{doc.value || 'Encrypted'}</p>
+                </div>
               </div>
-              
-              <div className="flex gap-1">
-                 <button className="flex-1 py-2 bg-gray-900 text-white text-[8px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#6B7550] transition-all">
-                    <Eye size={12} /> View
-                 </button>
-                 <button className="flex-1 py-2 bg-gray-50 text-gray-400 text-[8px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition-all border border-gray-100">
-                    <Download size={12} /> Save
-                 </button>
-              </div>
+              <Badge className={`text-[7px] font-black uppercase px-2 py-0.5 border-none ${doc.status === 'Verified' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                {doc.status}
+              </Badge>
             </div>
-          ))}
-        </div>
 
-        <div className="bg-gray-900 text-white p-6 shadow-sm flex gap-4 items-start border-l-4 border-[#6B7550]">
-          <AlertCircle size={20} className="text-[#6B7550] shrink-0" />
-          <div className="space-y-1">
-             <p className="text-[9px] font-bold uppercase tracking-widest text-[#6B7550]">Compliance Policy</p>
-             <p className="text-[9px] font-medium text-gray-400 leading-relaxed uppercase tracking-widest">
-                Document expiry results in immediate operational suspension. Ensure all records are updated before expiration.
-             </p>
+            <div className="flex items-center justify-between pt-3 border-t border-black/5 relative z-10">
+               {doc.expiry ? (
+                 <div className="flex items-center gap-1.5">
+                    <Clock size={10} className="text-amber-500" />
+                    <span className="text-[8px] font-bold text-gray-500 uppercase">Expires: {doc.expiry}</span>
+                 </div>
+               ) : (
+                 <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={10} className="text-emerald-500" />
+                    <span className="text-[8px] font-bold text-gray-500 uppercase">Life Valid</span>
+                 </div>
+               )}
+               
+               <div className="flex gap-2">
+                 <button 
+                  onClick={() => setViewingDoc(doc)} 
+                  className="p-2 bg-white border border-black/5 rounded-lg text-black active:scale-95 transition-all shadow-sm"
+                 >
+                    <Eye size={12} />
+                 </button>
+                 <button 
+                  onClick={() => {
+                    setSelectedDoc(doc);
+                    fileInputRef.current.click();
+                  }} 
+                  className="p-2 bg-black text-white rounded-lg active:scale-95 transition-all shadow-md"
+                 >
+                    <Camera size={12} />
+                 </button>
+               </div>
+            </div>
           </div>
+        ))}
+      </div>
+
+      <div className="glass-dark p-5 rounded-[1.8rem] flex gap-4 items-center border-none shadow-2xl relative overflow-hidden">
+        <div className="absolute right-0 top-0 p-4 opacity-10">
+          <AlertCircle size={40} className="text-white" />
+        </div>
+        <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shrink-0">
+          <AlertCircle size={20} />
+        </div>
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 mb-0.5">Compliance Notice</p>
+          <p className="text-[8px] font-medium text-white/60 leading-tight uppercase tracking-widest">
+            Document expiry results in immediate suspension. Update before expiration.
+          </p>
         </div>
       </div>
+
+      <Modal 
+        isOpen={!!viewingDoc} 
+        onClose={() => setViewingDoc(null)} 
+        title={viewingDoc?.label.toUpperCase() || ''}
+      >
+        <div className="p-4 space-y-4">
+          <div className="bg-slate-50 rounded-2xl p-2 border border-black/5 shadow-inner min-h-[300px] flex items-center justify-center overflow-hidden">
+            {viewingDoc?.image ? (
+              <img src={viewingDoc.image} alt={viewingDoc.label} className="max-w-full h-auto rounded-xl shadow-lg" />
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-gray-300">
+                <FileText size={60} />
+                <p className="text-[10px] font-black uppercase tracking-widest text-center">No Preview Available<br/><span className="text-gray-400">Please re-upload</span></p>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => handleAction('Download')}
+              className="flex-1 py-4 bg-white border border-black text-black rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+            >
+              <Download size={14} className="inline mr-2" /> Download
+            </button>
+            <button 
+              onClick={() => {
+                setSelectedDoc(viewingDoc);
+                setViewingDoc(null);
+                fileInputRef.current.click();
+              }}
+              className="flex-1 py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+            >
+              <Upload size={14} className="inline mr-2" /> Update
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

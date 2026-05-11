@@ -1,0 +1,106 @@
+{
+  "profile": {
+    "id": "DRV-9021",
+    "name": "RAJESH KUMAR",
+    "phone": "+91 9887766554",
+    "rank": "Gold",
+    "status": "Verified Pilot",
+    "stats": {
+      "totalKm": "12.4k",
+      "safetyScore": "4.9",
+      "tripsToday": 3
+    }
+  },
+  "trips": [
+    {
+      "id": "TRP-8821",
+      "tapalId": "TAPAL-8821",
+      "status": "Assigned",
+      "product": "VANNAMEI SHRIMPS",
+      "pickupLocation": "SOUTH BAY FARM - GATE 2",
+      "deliveryLocation": "COLD STORAGE HUB",
+      "expectedQty": "450 KG",
+      "customer": { "name": "JOHN DOE", "phone": "+91 9887766554" },
+      "instructions": "Handle with care. Temperature sensitive.",
+      "createdAt": "10:30 AM"
+    },
+    {
+      "id": "TRP-8825",
+      "tapalId": "TAPAL-8825",
+      "status": "Accepted",
+      "product": "MACKEREL (LARGE)",
+      "pickupLocation": "MAIN DOCK TERMINAL",
+      "deliveryLocation": "RETAIL OUTLET - SECTOR A",
+      "expectedQty": "1,200 KG",
+      "customer": { "name": "SARAH SMITH", "phone": "+91 9900887766" },
+      "instructions": "Deliver before 4 PM.",
+      "createdAt": "09:15 AM"
+    },
+    {
+      "id": "TRP-8810",
+      "tapalId": "TAPAL-8810",
+      "status": "Delivered",
+      "product": "TUNA (BLUEFIN)",
+      "pickupLocation": "COASTAL RADIUS",
+      "deliveryLocation": "GF CENTRAL MALL",
+      "expectedQty": "800 KG",
+      "deliveredQty": "795 KG",
+      "customer": { "name": "GF RETAIL", "phone": "+91 1122334455" },
+      "completedAt": "Yesterday, 06:30 PM",
+      "earnings": "₹1,250"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "EXP-001",
+      "tripId": "TRP-8810",
+      "category": "Fuel",
+      "amount": 2500,
+      "status": "Pending",
+      "date": "May 10, 2026",
+      "receipt": "https://example.com/receipt1.jpg"
+    },
+    {
+      "id": "EXP-002",
+      "tripId": "TRP-8810",
+      "category": "Toll",
+      "amount": 450,
+      "status": "Approved",
+      "date": "May 10, 2026",
+      "receipt": "https://example.com/receipt2.jpg"
+    }
+  ],
+  "documents": [
+    { "id": "aadhaar", "label": "Aadhaar Card", "value": "XXXX-XXXX-9021", "status": "Verified", "expiry": null },
+    { "id": "license", "label": "Driving License", "value": "KA-19-20220011223", "status": "Verified", "expiry": "Dec 31, 2028" },
+    { "id": "rc", "label": "Vehicle RC", "value": "KA-19-GF-001", "status": "Verified", "expiry": null },
+    { "id": "insurance", "label": "Insurance Policy", "value": "POL-88221", "status": "Active", "expiry": "Aug 15, 2026" }
+  ],
+  "alerts": [
+    {
+      "id": 1,
+      "title": "RC Expiry Reminder",
+      "status": "CRITICAL",
+      "expiry": "May 16, 2026",
+      "daysLeft": 5,
+      "description": "Vehicle Registration Certificate is nearing its expiration date."
+    },
+    {
+      "id": 2,
+      "title": "Insurance Policy",
+      "status": "WARNING",
+      "expiry": "June 02, 2026",
+      "daysLeft": 22,
+      "description": "Comprehensive insurance policy renewal window is now open."
+    }
+  ],
+  "notifications": [
+    { "id": 1, "title": "New Assignment", "body": "Trip TRP-8821 assigned to you.", "time": "10 mins ago", "unread": true },
+    { "id": 2, "title": "Expense Approved", "body": "Your fuel claim for ₹2500 has been approved.", "time": "2 hours ago", "unread": false }
+  ],
+  "faqs": [
+    { "q": "Trip not starting?", "a": "Ensure GPS is enabled and you have accepted the task." },
+    { "q": "Payment discrepancy?", "a": "Contact the accounts department at head office." },
+    { "q": "Vehicle breakdown?", "a": "Use the SOS button for immediate assistance." }
+  ]
+}
