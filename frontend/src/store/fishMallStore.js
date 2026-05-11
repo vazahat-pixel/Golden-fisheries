@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useAdminStore } from './adminStore';
 
 export const useFishMallStore = create(
   persist(
@@ -30,6 +31,16 @@ export const useFishMallStore = create(
         }));
         // Auto-check for alerts after a bill
         get().generateAlerts();
+
+        // NEW: Cross-post to Admin Finance
+        useAdminStore.getState().addTransaction({
+          date: new Date().toLocaleDateString('en-GB'),
+          desc: `FISH MALL BILL: #${billData.id}`,
+          method: 'CASH', // Default for mall
+          type: 'income',
+          amount: billData.total,
+          source: 'FISHMALL'
+        });
       },
 
       updateStockQty: (id, delta) => {
@@ -66,10 +77,33 @@ export const useFishMallStore = create(
         stock: [...state.stock, { ...newItem, id: state.stock.length + 1 }]
       })),
 
-      // NEW ACTIONS
-      addExpense: (expense) => set((state) => ({
-        expenses: [{ ...expense, id: Date.now(), timestamp: new Date().toISOString() }, ...state.expenses]
+      receiveStock: (items) => set((state) => ({
+        stock: state.stock.map(stockItem => {
+          const matchingItem = items.find(i => i.name.toUpperCase() === stockItem.name.toUpperCase());
+          if (matchingItem) {
+            return { ...stockItem, qty: stockItem.qty + (matchingItem.qty || matchingItem.quantity || 0) };
+          }
+          return stockItem;
+        })
       })),
+
+      // NEW ACTIONS
+      addExpense: (expense) => {
+        const expenseData = { ...expense, id: Date.now(), timestamp: new Date().toISOString() };
+        set((state) => ({
+          expenses: [expenseData, ...state.expenses]
+        }));
+
+        // NEW: Cross-post to Admin Finance
+        useAdminStore.getState().addTransaction({
+          date: new Date().toLocaleDateString('en-GB'),
+          desc: `FISH MALL EXPENSE: ${expenseData.description || expenseData.desc}`,
+          method: expenseData.method || 'CASH',
+          type: 'expense',
+          amount: Number(expenseData.amount),
+          source: 'FISHMALL'
+        });
+      },
 
       removeExpense: (id) => set((state) => ({
         expenses: state.expenses.filter(e => e.id !== id)

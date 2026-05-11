@@ -26,12 +26,16 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { useAdminStore } from '../../store/adminStore';
 import driverMockData from '../../data/driverMockData.json';
 
 const DriverProfile = () => {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuthStore();
+  const { vehicles } = useAdminStore();
   const fileInputRef = useRef(null);
+
+  const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
   
   const pilotData = driverMockData.profile;
   const [isEditing, setIsEditing] = useState(false);
@@ -183,6 +187,35 @@ const DriverProfile = () => {
             )}
           </div>
         </div>
+
+        {assignedVehicle && (
+          <div className="bg-black rounded-[2rem] p-5 border border-black shadow-lg space-y-4 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+               <Truck size={64} className="text-white" />
+            </div>
+            <h3 className="text-[9px] font-black text-white/40 uppercase tracking-widest px-1 relative z-10 italic">Assigned Fleet Asset</h3>
+            <div className="flex items-center gap-4 relative z-10">
+               <div className="w-12 h-12 bg-accent-olive rounded-2xl flex items-center justify-center text-white shadow-xl">
+                  <Truck size={20} />
+               </div>
+               <div>
+                  <p className="text-xl font-serif italic font-black text-white tracking-tight">{assignedVehicle.vehicleNumber}</p>
+                  <div className="flex gap-2 mt-1">
+                     <span className="text-[7px] font-black text-accent-olive uppercase tracking-[0.2em] border border-accent-olive/30 px-2 py-0.5">{assignedVehicle.type}</span>
+                     <span className="text-[7px] font-black text-white/40 uppercase tracking-[0.2em]">{assignedVehicle.capacity}</span>
+                  </div>
+               </div>
+            </div>
+            <div className="pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
+               <div className="flex gap-1">
+                  {Object.entries(assignedVehicle.documents).map(([key, doc]) => (
+                    <div key={key} className={`w-1.5 h-1.5 rounded-full ${doc.status === 'VALID' ? 'bg-emerald-500' : 'bg-red-500'}`} title={key.toUpperCase()} />
+                  ))}
+               </div>
+               <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Compliance Active</p>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Console Hub</h3>

@@ -24,7 +24,11 @@ const DriverTasks = () => {
   const { trips, driverAcceptTrip } = useAdminStore();
 
   const driverName = user?.name || driverMockData.profile.name;
-  const myTrips = trips.filter(t => t.driverName === driverName && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status));
+  const myTrips = trips.filter(t => {
+    const matchById = user?.id && t.driverId === user.id;
+    const matchByName = t.driverName?.toUpperCase().trim() === driverName?.toUpperCase().trim();
+    return (matchById || matchByName) && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status);
+  });
   
   const dummyTasks = driverMockData.trips.filter(t => !['Delivered', 'Closed'].includes(t.status));
 

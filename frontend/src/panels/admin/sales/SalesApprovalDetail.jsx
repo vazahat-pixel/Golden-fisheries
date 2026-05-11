@@ -4,6 +4,7 @@ import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
 import { Modal } from '../../../design-system/components/Modal';
 import { useAdminStore } from '../../../store/adminStore';
+import { useAuthStore } from '../../../store/authStore';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -24,6 +25,7 @@ function clsx(...c) { return c.filter(Boolean).join(' '); }
 const SalesApprovalDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuthStore();
   const { tapals, inventory, approveSalesTapal, rejectSalesTapal, suggestChangeSalesTapal } = useAdminStore();
   
   const tapal = tapals.find(t => t.id === id);
@@ -70,7 +72,7 @@ const SalesApprovalDetail = () => {
       qty: `${totalQty} KG`,
       amount: `₹${calculateTotal().toLocaleString()}`
     };
-    approveSalesTapal(tapal.id, editedData);
+    approveSalesTapal(tapal.id, editedData, user?.name || 'ADMIN');
     toast.success('Sales Tapal Approved & Invoice Generated');
     navigate('/admin/sales-approval');
   };
@@ -80,7 +82,7 @@ const SalesApprovalDetail = () => {
       toast.error('Please provide a reason for rejection');
       return;
     }
-    rejectSalesTapal(tapal.id, rejectionReason);
+    rejectSalesTapal(tapal.id, rejectionReason, user?.name || 'ADMIN');
     toast.error('Sales Tapal Rejected');
     setIsRejectModalOpen(false);
     navigate('/admin/sales-approval');
@@ -91,7 +93,7 @@ const SalesApprovalDetail = () => {
       toast.error('Please provide suggested changes');
       return;
     }
-    suggestChangeSalesTapal(tapal.id, suggestion);
+    suggestChangeSalesTapal(tapal.id, suggestion, user?.name || 'ADMIN');
     toast.info('Changes Suggested to Mahesh');
     setIsSuggestModalOpen(false);
     navigate('/admin/sales-approval');

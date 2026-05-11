@@ -30,10 +30,11 @@ const ActiveTrip = () => {
   const { user } = useAuthStore();
   const { trips, driverStartTrip, confirmPickup, completeTrip, addTripExpense, closeTrip } = useAdminStore();
 
-  const myTrip = trips.find(t =>
-    t.driverName === (user?.name || 'RAJESH KUMAR') &&
-    ['Accepted', 'In Transit', 'Picked', 'Delivered', 'Expense Submitted'].includes(t.status)
-  );
+  const myTrip = trips.find(t => {
+    const matchById = user?.id && t.driverId === user.id;
+    const matchByName = t.driverName?.toUpperCase().trim() === (user?.name || 'RAJESH KUMAR').toUpperCase().trim();
+    return (matchById || matchByName) && ['Accepted', 'In Transit', 'Picked', 'Delivered', 'Expense Submitted'].includes(t.status);
+  });
 
   const dummyTrip = {
     id: 'TRP-8821',

@@ -26,6 +26,7 @@ import { toast } from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
 import { useDriverStore } from '../../../store/driverStore';
+import { PrintableTapal } from './PrintableTapal';
 
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
@@ -325,7 +326,8 @@ const TapalDetail = () => {
               <div className="w-10 h-10 bg-olive-50 border border-card-border flex items-center justify-center text-accent-olive shadow-sm"><Truck size={18} /></div>
               <div>
                 <p className="text-[10px] font-bold text-black uppercase tracking-tight">{tapal.driver || 'UNASSIGNED'}</p>
-                <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">ASSIGNED AGENT</p>
+                {tapal.driverPhone && <p className="text-[9px] text-accent-olive font-bold uppercase tracking-tight">{tapal.driverPhone}</p>}
+                <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">{tapal.vehicleNumber || 'ASSIGNED AGENT'}</p>
               </div>
             </div>
           </Card>
@@ -389,7 +391,9 @@ const TapalDetail = () => {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-black uppercase tracking-tight">{driver.fullName}</p>
-                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">{driver.vehicleNumber || 'No Vehicle Assigned'}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">
+                      {driver.vehicleNumber || 'No Vehicle'} · {driver.mobile || driver.phone || 'No Phone'}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -425,6 +429,12 @@ const TapalDetail = () => {
            <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsExpenseModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleAddExpense}>LOG EXPENSE</Button></div>
         </div>
       </Modal>
+      {/* Hidden Printable Component */}
+      <div className="hidden print:block">
+        <div className="printable-content">
+          <PrintableTapal tapal={tapal} />
+        </div>
+      </div>
     </div>
   );
 };

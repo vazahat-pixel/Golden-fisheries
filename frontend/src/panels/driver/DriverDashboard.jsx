@@ -30,16 +30,17 @@ import driverMockData from '../../data/driverMockData.json';
 const DriverDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { trips, driverAcceptTrip } = useAdminStore();
+  const { trips, driverAcceptTrip, vehicles } = useAdminStore();
+
+  const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
 
   const pilotStats = driverMockData.profile.stats;
 
-  const myTrips = Array.isArray(trips) ? [
-    ...trips.filter(t => 
-      t.driverName === (user?.name || driverMockData.profile.name) || 
-      t.status === 'Assigned'
-    )
-  ] : [];
+  const myTrips = Array.isArray(trips) ? trips.filter(t => {
+    const matchById = user?.id && t.driverId === user.id;
+    const matchByName = t.driverName?.toUpperCase().trim() === (user?.name || driverMockData.profile.name).toUpperCase().trim();
+    return matchById || matchByName || t.status === 'Assigned';
+  }) : [];
 
   const newAssignment = myTrips.find(t => t.status === 'Assigned');
   const liveTrip = myTrips.find(t => ['Accepted', 'In Transit', 'Picked'].includes(t.status));
@@ -149,6 +150,24 @@ const DriverDashboard = () => {
                   <p className="text-[7px] text-slate-400 font-black uppercase tracking-widest leading-none">Pilot Score</p>
                 </div>
               </div>
+
+              {assignedVehicle && (
+                <div className="bg-black rounded-2xl p-4 flex items-center justify-between group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-accent-olive">
+                       <Truck size={16} />
+                    </div>
+                    <div className="text-left">
+                       <p className="text-[7px] font-black text-white/40 uppercase tracking-widest">Assigned Asset</p>
+                       <p className="text-[10px] font-black text-white uppercase tracking-tight">{assignedVehicle.vehicleNumber}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[7px] font-black text-white/40 uppercase tracking-widest">Type</p>
+                     <p className="text-[9px] font-bold text-accent-olive uppercase">{assignedVehicle.type}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

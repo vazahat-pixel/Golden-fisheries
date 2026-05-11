@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useAdminStore } from './adminStore';
 
 // ─── Menu Data ────────────────────────────────────────────────────────────────
 const INITIAL_MENU = [
@@ -86,6 +87,16 @@ export const useRestaurantStore = create(
         )
       })),
 
+      receiveStock: (items) => set((state) => ({
+        menuItems: state.menuItems.map(menuItem => {
+          const matchingItem = items.find(i => i.name.toUpperCase() === menuItem.name.toUpperCase());
+          if (matchingItem) {
+            return { ...menuItem, stock: menuItem.stock + (matchingItem.qty || matchingItem.quantity || 0) };
+          }
+          return menuItem;
+        })
+      })),
+
       // ── Table Actions ────────────────────────────────────────────────────────
       updateTableStatus: (tableId, status, orderId = null) => set((state) => ({
         tables: state.tables.map(t =>
@@ -170,6 +181,16 @@ export const useRestaurantStore = create(
             tables: updatedTables,
             kots: state.kots.map(k => k.tableId === tableId ? { ...k, status: 'completed' } : k),
           };
+        });
+
+        // Cross-post to Admin Finance
+        useAdminStore.getState().addTransaction({
+          date: new Date().toLocaleDateString('en-GB'),
+          desc: `RESTAURANT POS: #${invoiceNo}`,
+          method: Object.keys(paymentBreakdown || {})[0]?.toUpperCase() || 'CASH',
+          type: 'income',
+          amount: total,
+          source: 'RESTAURANT'
         });
 
         return order;

@@ -46,15 +46,20 @@ const expenseCategoryData = [
 ];
 
 const FinanceOverview = () => {
-  const { transactions, addTransaction } = useAdminStore();
+  const { transactions, addTransaction, purchaseInvoices } = useAdminStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ desc: '', amount: '', method: 'CASH' });
+  const [activeSource, setActiveSource] = useState('ALL');
 
-  const totalRevenue = transactions
+  const filteredTransactions = transactions.filter(t => 
+    activeSource === 'ALL' || t.source === activeSource || (activeSource === 'ADMIN' && !t.source)
+  );
+
+  const totalRevenue = filteredTransactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0);
 
-  const totalExpense = transactions
+  const totalExpense = filteredTransactions
     .filter(t => t.type === 'expense')
     .reduce((acc, t) => acc + t.amount, 0);
 
@@ -102,6 +107,24 @@ const FinanceOverview = () => {
             <Plus size={12} /> ADD EXPENSE
           </Button>
         </div>
+      </div>
+
+      {/* Source Tabs */}
+      <div className="flex gap-2 border-b border-card-border pb-2 overflow-x-auto no-scrollbar">
+        {['ALL', 'ADMIN', 'RESTAURANT', 'FISHMALL', 'LOGISTICS'].map(source => (
+          <button
+            key={source}
+            onClick={() => setActiveSource(source)}
+            className={clsx(
+              "px-4 py-1.5 rounded-full text-[8px] font-black tracking-widest transition-all",
+              activeSource === source 
+                ? "bg-black text-white shadow-md" 
+                : "bg-white text-text-muted hover:bg-olive-50 border border-card-border"
+            )}
+          >
+            {source}
+          </button>
+        ))}
       </div>
 
       {/* Stats */}
@@ -184,7 +207,7 @@ const FinanceOverview = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-olive-100/50">
-              {transactions.map((t, i) => (
+              {filteredTransactions.map((t, i) => (
                 <tr key={i} className="hover:bg-olive-50/30 transition-colors group">
                   <td className="px-4 py-2.5 text-[9px] font-bold text-text-muted group-hover:text-black">{t.date}</td>
                   <td className="px-4 py-2.5 text-[10px] font-bold text-black uppercase tracking-tight">{t.desc}</td>
@@ -198,6 +221,51 @@ const FinanceOverview = () => {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Purchase Invoices (Accounts Payable) */}
+      <Card padding="none" className="border border-card-border shadow-subtle overflow-hidden bg-white">
+        <div className="px-4 py-2 border-b border-card-border flex justify-between items-center bg-black text-white">
+          <div>
+            <h3 className="font-serif italic font-bold text-lg tracking-tight uppercase">Accounts Payable</h3>
+            <p className="text-[7px] font-bold opacity-50 uppercase tracking-widest">Farmer & Supplier Obligations</p>
+          </div>
+          <Badge className="bg-accent-olive text-black border-none text-[8px]">₹{(purchaseInvoices?.reduce((acc, inv) => acc + (inv.status === 'unpaid' ? inv.amount : 0), 0) || 0).toLocaleString()} PENDING</Badge>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-olive-100/20">
+                <th className="px-4 py-2.5 text-[8px] font-bold uppercase tracking-widest text-text-muted">Farmer</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold uppercase tracking-widest text-text-muted">Date</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold uppercase tracking-widest text-text-muted">Due Date</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold uppercase tracking-widest text-text-muted text-center">Status</th>
+                <th className="px-4 py-2.5 text-[8px] font-bold uppercase tracking-widest text-text-muted text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-olive-100/50">
+              {purchaseInvoices?.length > 0 ? purchaseInvoices.map((inv, i) => (
+                <tr key={i} className="hover:bg-olive-50/30 transition-colors group">
+                  <td className="px-4 py-2.5 text-[10px] font-bold text-black uppercase tracking-tight">{inv.farmer}</td>
+                  <td className="px-4 py-2.5 text-[9px] font-bold text-text-muted">{new Date(inv.date).toLocaleDateString('en-GB')}</td>
+                  <td className="px-4 py-2.5 text-[9px] font-bold text-red-400">{new Date(inv.dueDate).toLocaleDateString('en-GB')}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    <Badge variant={inv.status === 'paid' ? 'success' : 'warning'} className="text-[7px] border-none px-1.5 uppercase">
+                      {inv.status}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2.5 text-[11px] font-bold text-right text-black">
+                    ₹{inv.amount.toLocaleString()}
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="5" className="px-4 py-8 text-center text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">No outstanding payables</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

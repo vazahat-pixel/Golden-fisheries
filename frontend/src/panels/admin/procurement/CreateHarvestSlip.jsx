@@ -23,13 +23,52 @@ export default function CreateHarvestSlip() {
   const [harvest, setHarvest] = useState({ harvestDate: '', pickupDate: '', pickupTime: '', pickupLocation: '', logisticsNotes: '' });
   const [remarks, setRemarks] = useState('');
 
+  const [errors, setErrors] = useState({});
+
+  const validateStep = (s) => {
+    const newErrors = {};
+    
+    if (s === 1) {
+      if (isNewFarmer) {
+        if (!farmer.name || farmer.name.trim().length < 3) newErrors.name = 'Name must be at least 3 chars';
+        if (!/^[6-9]\d{9}$/.test(farmer.mobile)) newErrors.mobile = 'Enter valid 10-digit mobile';
+        if (!farmer.location) newErrors.location = 'Location is required';
+      } else {
+        if (!farmer.id) newErrors.farmer = 'Please select a farmer';
+      }
+    }
+
+    if (s === 2) {
+      products.forEach((p, i) => {
+        if (!p.fishName) newErrors[`fishName_${i}`] = 'Required';
+        if (!p.quantity || isNaN(p.quantity) || Number(p.quantity) <= 0) newErrors[`qty_${i}`] = 'Invalid Qty';
+      });
+      
+      if (!harvest.harvestDate) newErrors.harvestDate = 'Required';
+      if (!harvest.pickupDate) newErrors.pickupDate = 'Required';
+      
+      if (harvest.harvestDate && harvest.pickupDate) {
+        if (new Date(harvest.pickupDate) < new Date(harvest.harvestDate)) {
+          newErrors.pickupDate = 'Pickup cannot be before harvest';
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const nextStep = () => {
-    if (step === 1 && !farmer.name) { toast.error('Select a farmer'); return; }
-    if (step === 2 && products.some(p => !p.fishName || !p.quantity)) { toast.error('Check product data'); return; }
-    setStep(s => s + 1);
+    if (validateStep(step)) {
+      setStep(s => s + 1);
+    } else {
+      toast.error('Please fix the errors before proceeding');
+    }
   };
 
   const handleSubmit = () => {
+    if (!validateStep(step)) return;
+
     if (isNewFarmer && farmer.name) addFarmer({ ...farmer, name: farmer.name.toUpperCase(), whatsapp: true });
     const newSlip = {
       id: `HSL-${String(harvestSlips.length + 1).padStart(4, '0')}`,
@@ -73,20 +112,24 @@ export default function CreateHarvestSlip() {
                 ))}
               </div>
               {!isNewFarmer ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {farmers.map(f => (
-                    <button key={f.id} onClick={() => setFarmer(f)} className={clsx('p-3 border text-left transition-all', farmer.id === f.id ? 'border-black bg-black text-white' : 'border-card-border bg-white hover:border-black')}>
-                      <p className="text-[10px] font-bold uppercase">{f.name}</p>
-                      <p className="text-[8px] opacity-60 font-bold uppercase tracking-widest">{f.location}</p>
-                    </button>
-                  ))}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {farmers.map(f => (
+                      <button key={f.id} onClick={() => setFarmer(f)} className={clsx('p-3 border text-left transition-all', farmer.id === f.id ? 'border-black bg-black text-white' : 'border-card-border bg-white hover:border-black')}>
+                        <p className="text-[10px] font-bold uppercase">{f.name}</p>
+                        <p className="text-[8px] opacity-60 font-bold uppercase tracking-widest">{f.location}</p>
+                      </button>
+                    ))}
+                  </div>
+                  {errors.farmer && <p className="text-[9px] font-bold text-red-500 uppercase tracking-widest">{errors.farmer}</p>}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   {[['NAME', 'name'], ['MOBILE', 'mobile'], ['LOCATION', 'location'], ['VILLAGE', 'village']].map(([l, k]) => (
                     <div key={k} className="space-y-1">
                       <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">{l}</label>
-                      <input value={farmer[k]} onChange={e => setFarmer(f => ({ ...f, [k]: e.target.value }))} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-accent-olive shadow-none" />
+                      <input value={farmer[k]} onChange={e => setFarmer(f => ({ ...f, [k]: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-accent-olive shadow-none", errors[k] ? "border-red-500 bg-red-50" : "border-card-border")} />
+                      {errors[k] && <p className="text-[7px] font-bold text-red-500 uppercase">{errors[k]}</p>}
                     </div>
                   ))}
                 </div>
@@ -102,11 +145,13 @@ export default function CreateHarvestSlip() {
                   <div key={p.id} className="p-3 border border-card-border bg-olive-50/20 grid grid-cols-2 md:grid-cols-4 gap-3 relative group">
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">FISH NAME</label>
-                      <input value={p.fishName} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, fishName: e.target.value } : x))} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold uppercase outline-none" />
+                      <input value={p.fishName} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, fishName: e.target.value } : x))} className={clsx("w-full border px-2 py-1.5 text-[10px] font-bold uppercase outline-none", errors[`fishName_${idx}`] ? "border-red-500 bg-red-50" : "border-card-border")} />
+                      {errors[`fishName_${idx}`] && <p className="text-[7px] font-bold text-red-500 uppercase">{errors[`fishName_${idx}`]}</p>}
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">QTY (KG)</label>
-                      <input type="number" value={p.quantity} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, quantity: e.target.value } : x))} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold outline-none" />
+                      <input type="number" value={p.quantity} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, quantity: e.target.value } : x))} className={clsx("w-full border px-2 py-1.5 text-[10px] font-bold outline-none", errors[`qty_${idx}`] ? "border-red-500 bg-red-50" : "border-card-border")} />
+                      {errors[`qty_${idx}`] && <p className="text-[7px] font-bold text-red-500 uppercase">{errors[`qty_${idx}`]}</p>}
                     </div>
                     <div className="flex items-end">
                        <button onClick={() => setProducts(prev => prev.filter(x => x.id !== p.id))} className="p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Minus size={14} /></button>
@@ -118,8 +163,16 @@ export default function CreateHarvestSlip() {
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                 <div className="space-y-1"><label className="text-[8px] font-bold uppercase text-text-muted">HARVEST DATE</label><input type="date" value={harvest.harvestDate} onChange={e => setHarvest(h => ({ ...h, harvestDate: e.target.value }))} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
-                 <div className="space-y-1"><label className="text-[8px] font-bold uppercase text-text-muted">PICKUP DATE</label><input type="date" value={harvest.pickupDate} onChange={e => setHarvest(h => ({ ...h, pickupDate: e.target.value }))} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
+                 <div className="space-y-1">
+                   <label className="text-[8px] font-bold uppercase text-text-muted">HARVEST DATE</label>
+                   <input type="date" value={harvest.harvestDate} onChange={e => setHarvest(h => ({ ...h, harvestDate: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold outline-none", errors.harvestDate ? "border-red-500 bg-red-50" : "border-card-border")} />
+                   {errors.harvestDate && <p className="text-[7px] font-bold text-red-500 uppercase">{errors.harvestDate}</p>}
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[8px] font-bold uppercase text-text-muted">PICKUP DATE</label>
+                   <input type="date" value={harvest.pickupDate} onChange={e => setHarvest(h => ({ ...h, pickupDate: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold outline-none", errors.pickupDate ? "border-red-500 bg-red-50" : "border-card-border")} />
+                   {errors.pickupDate && <p className="text-[7px] font-bold text-red-500 uppercase">{errors.pickupDate}</p>}
+                 </div>
               </div>
             </div>
           )}

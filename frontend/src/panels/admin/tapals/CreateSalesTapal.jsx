@@ -33,7 +33,7 @@ const CreateSalesTapal = () => {
     buyerType: 'external',
     buyerName: '',
     deliveryAddress: '',
-    products: [{ id: Date.now(), type: '', qty: '', rate: '' }],
+    products: [{ id: Date.now(), type: '', qty: '', rate: '', boxQty: '', weightPerBox: '' }],
     driverRequired: true,
     channappaVerification: true
   });
@@ -63,7 +63,9 @@ const CreateSalesTapal = () => {
         name: p.type,
         qty: `${p.qty} KG`,
         rate: `₹${p.rate}`,
-        total: `₹${(p.qty * p.rate).toLocaleString()}`
+        total: `₹${(p.qty * p.rate).toLocaleString()}`,
+        boxQty: p.boxQty || null,
+        weightPerBox: p.weightPerBox || null
       }))
     };
     addTapal(newTapal);
@@ -128,29 +130,42 @@ const CreateSalesTapal = () => {
               <h2 className="text-lg font-serif italic font-bold text-black uppercase">Line <span className="text-accent-olive">Items.</span></h2>
               <div className="space-y-2">
                 {formData.products.map((p, idx) => (
-                  <div key={p.id} className="p-3 border border-card-border bg-olive-50/20 grid grid-cols-2 md:grid-cols-5 gap-3 group relative">
-                    <div className="md:col-span-2 space-y-1">
-                      <label className="text-[8px] font-bold uppercase text-text-muted">FISH TYPE</label>
-                      <select value={p.type} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, type: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold uppercase outline-none bg-white">
-                         <option value="">SELECT...</option>
-                         <option value="ROHU">ROHU</option><option value="CATLA">CATLA</option>
-                         <option value="TIGER PRAWNS">TIGER PRAWNS</option><option value="SQUID">SQUID</option>
-                      </select>
+                  <div key={p.id} className="p-3 border border-card-border bg-olive-50/20 space-y-3 group relative">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="text-[8px] font-bold uppercase text-text-muted">FISH TYPE</label>
+                        <select value={p.type} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, type: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold uppercase outline-none bg-white">
+                           <option value="">SELECT...</option>
+                           <option value="ROHU">ROHU</option><option value="CATLA">CATLA</option>
+                           <option value="TIGER PRAWNS">TIGER PRAWNS</option><option value="SQUID">SQUID</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-bold uppercase text-text-muted">QTY (KG)</label>
+                        <input type="number" value={p.qty} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, qty: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-bold uppercase text-text-muted">RATE (₹)</label>
+                        <input type="number" value={p.rate} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, rate: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold outline-none" />
+                      </div>
+                      <div className="flex items-end">
+                        <button onClick={() => setFormData({...formData, products: formData.products.filter(x => x.id !== p.id)})} className="p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Minus size={14} /></button>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[8px] font-bold uppercase text-text-muted">QTY (KG)</label>
-                      <input type="number" value={p.qty} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, qty: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold outline-none" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[8px] font-bold uppercase text-text-muted">RATE (₹)</label>
-                      <input type="number" value={p.rate} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, rate: e.target.value} : x)})} className="w-full border border-card-border px-2 py-1.5 text-[10px] font-bold outline-none" />
-                    </div>
-                    <div className="flex items-end">
-                      <button onClick={() => setFormData({...formData, products: formData.products.filter(x => x.id !== p.id)})} className="p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Minus size={14} /></button>
+                    
+                    <div className="flex gap-4 pt-1 border-t border-card-border/50">
+                       <div className="flex items-center gap-2">
+                          <label className="text-[7px] font-bold text-text-muted uppercase">BOX QTY:</label>
+                          <input type="number" value={p.boxQty} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, boxQty: e.target.value} : x)})} className="w-16 border border-card-border px-2 py-1 text-[9px] font-bold outline-none bg-white" placeholder="Boxes" />
+                       </div>
+                       <div className="flex items-center gap-2">
+                          <label className="text-[7px] font-bold text-text-muted uppercase">WT / BOX:</label>
+                          <input type="number" value={p.weightPerBox} onChange={(e) => setFormData({...formData, products: formData.products.map(x => x.id === p.id ? {...x, weightPerBox: e.target.value} : x)})} className="w-16 border border-card-border px-2 py-1 text-[9px] font-bold outline-none bg-white" placeholder="KG" />
+                       </div>
                     </div>
                   </div>
                 ))}
-                <button onClick={() => setFormData({...formData, products: [...formData.products, { id: Date.now(), type: '', qty: '', rate: '' }]})} className="w-full py-2 border border-dashed border-card-border text-[8px] font-bold uppercase tracking-widest text-text-muted hover:text-black transition-all">+ ADD LINE ITEM</button>
+                <button onClick={() => setFormData({...formData, products: [...formData.products, { id: Date.now(), type: '', qty: '', rate: '', boxQty: '', weightPerBox: '' }]})} className="w-full py-2 border border-dashed border-card-border text-[8px] font-bold uppercase tracking-widest text-text-muted hover:text-black transition-all">+ ADD LINE ITEM</button>
               </div>
               <div className="p-4 bg-black text-white flex justify-between items-center shadow-md">
                  <div><p className="text-[7px] text-white/40 font-bold uppercase tracking-widest">TOTAL VALUE</p><h3 className="text-lg font-serif italic font-bold">₹{calculateTotal().toLocaleString()}</h3></div>
@@ -180,7 +195,9 @@ const CreateSalesTapal = () => {
                        </div>
                        <div>
                           <p className="text-[9px] font-bold text-black uppercase">{selectedDriver ? `DRIVER: ${selectedDriver.fullName}` : 'DRIVER ASSIGNMENT'}</p>
-                          <p className="text-[7px] text-text-muted font-bold uppercase">{selectedDriver ? `VEHICLE: ${selectedDriver.vehicleNumber}` : 'ENABLE LOGISTICS TRACKING'}</p>
+                          <p className="text-[7px] text-text-muted font-bold uppercase">
+                            {selectedDriver ? `PH: ${selectedDriver.mobile || selectedDriver.phone} | VEHICLE: ${selectedDriver.vehicleNumber}` : 'ENABLE LOGISTICS TRACKING'}
+                          </p>
                        </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -216,7 +233,9 @@ const CreateSalesTapal = () => {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-black uppercase tracking-tight">{driver.fullName}</p>
-                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">{driver.vehicleNumber || 'No Vehicle'}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">
+                      {driver.vehicleNumber || 'No Vehicle'} · {driver.mobile || driver.phone || 'No Phone'}
+                    </p>
                   </div>
                 </div>
                 {selectedDriver?.id === driver.id && <Check size={14} className="text-accent-olive" />}
