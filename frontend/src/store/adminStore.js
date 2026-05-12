@@ -52,6 +52,55 @@ export const useAdminStore = create(
       incomingStock: [],
       purchaseInvoices: [],
 
+      // Expense Ledger — pending admin approval before hitting accounts
+      expenses: [
+        {
+          id: 'EXP-0001',
+          driverName: 'Suresh Kumar',
+          tripId: 'TRP-0001',
+          type: 'FUEL',
+          amount: 1200,
+          description: 'Diesel fill at HP Pump, NH-48',
+          receiptPhoto: null,
+          date: '10 May 2026',
+          submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'Pending',
+          reviewedBy: null,
+          reviewedAt: null,
+          rejectionReason: null
+        },
+        {
+          id: 'EXP-0002',
+          driverName: 'Ramesh Singh',
+          tripId: 'TRP-0002',
+          type: 'TOLL',
+          amount: 340,
+          description: 'Toll Plaza — Bangalore-Mysore Expressway',
+          receiptPhoto: null,
+          date: '11 May 2026',
+          submittedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'Approved',
+          reviewedBy: 'MAHESH KUMAR',
+          reviewedAt: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
+          rejectionReason: null
+        },
+        {
+          id: 'EXP-0003',
+          driverName: 'Suresh Kumar',
+          tripId: null,
+          type: 'MAINTENANCE',
+          amount: 2800,
+          description: 'Tyre puncture repair — Mangalore highway',
+          receiptPhoto: null,
+          date: '12 May 2026',
+          submittedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+          status: 'Rejected',
+          reviewedBy: 'MAHESH KUMAR',
+          reviewedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          rejectionReason: 'Duplicate submission — already covered in TRP-0001 maintenance log'
+        },
+      ],
+
       // Vehicle Fleet State
       vehicles: vehicleMockData.vehicles || [],
       maintenanceLogs: vehicleMockData.maintenanceLogs || [],
@@ -222,26 +271,85 @@ export const useAdminStore = create(
         };
       }),
 
+      // --- Expense Lifecycle Actions ---
+
+      // Driver submits an expense — stays Pending until admin reviews
+      submitExpense: (expenseData) => set((state) => {
+        const newExpense = {
+          ...expenseData,
+          id: generateId('EXP', state.expenses),
+          submittedAt: new Date().toISOString(),
+          status: 'Pending',
+          reviewedBy: null,
+          reviewedAt: null,
+          rejectionReason: null
+        };
+
+        // Also mark trip as 'Expense Submitted' if a trip is linked
+        const linkedTrip = expenseData.tripId
+          ? state.trips.find(t => t.id === expenseData.tripId)
+          : null;
+
+        return {
+          expenses: [newExpense, ...state.expenses],
+          trips: linkedTrip
+            ? state.trips.map(t => t.id === linkedTrip.id
+                ? { ...t, status: 'Expense Submitted', expenses: [...(t.expenses || []), newExpense] }
+                : t)
+            : state.trips,
+          tapals: linkedTrip
+            ? state.tapals.map(t => t.id === linkedTrip.tapalId ? { ...t, status: 'Expense Submitted' } : t)
+            : state.tapals
+        };
+      }),
+
+      // Admin approves — now posts to accounts/transactions
+      approveExpense: (id, reviewerName = 'ADMIN') => set((state) => {
+        const expense = state.expenses.find(e => e.id === id);
+        if (!expense || expense.status !== 'Pending') return {};
+
+        const newTransaction = {
+          date: new Date().toLocaleDateString('en-GB'),
+          desc: `APPROVED EXPENSE (${expense.type}) — ${expense.driverName}`,
+          method: 'CASH',
+          type: 'expense',
+          amount: Number(expense.amount)
+        };
+
+        return {
+          expenses: state.expenses.map(e => e.id === id ? {
+            ...e,
+            status: 'Approved',
+            reviewedBy: reviewerName,
+            reviewedAt: new Date().toISOString()
+          } : e),
+          transactions: [newTransaction, ...state.transactions]
+        };
+      }),
+
+      // Admin rejects with a reason
+      rejectExpense: (id, reason, reviewerName = 'ADMIN') => set((state) => ({
+        expenses: state.expenses.map(e => e.id === id ? {
+          ...e,
+          status: 'Rejected',
+          rejectionReason: reason,
+          reviewedBy: reviewerName,
+          reviewedAt: new Date().toISOString()
+        } : e)
+      })),
+
+      // Legacy trip expense helper (kept for backward compat, no longer auto-posts to accounts)
       addTripExpense: (tripId, expense) => set((state) => {
         const trip = state.trips.find(t => t.id === tripId || t.tapalId === tripId);
         if (!trip) return {};
-
         const updatedTrip = {
           ...trip,
           status: 'Expense Submitted',
           expenses: [...(trip.expenses || []), expense]
         };
-
         return {
           tapals: state.tapals.map(t => t.id === trip.tapalId ? { ...t, status: 'Expense Submitted' } : t),
-          trips: state.trips.map(t => t.id === trip.id ? updatedTrip : t),
-          transactions: [{
-            date: new Date().toLocaleDateString('en-GB'),
-            desc: `TRIP EXPENSE (${expense.type}): ${trip.id}`,
-            method: expense.method || 'CASH',
-            type: 'expense',
-            amount: Number(expense.amount)
-          }, ...state.transactions]
+          trips: state.trips.map(t => t.id === trip.id ? updatedTrip : t)
         };
       }),
 

@@ -46,6 +46,7 @@ const SalesApprovalList = React.lazy(() => import('../panels/admin/sales/SalesAp
 const SalesApprovalDetail = React.lazy(() => import('../panels/admin/sales/SalesApprovalDetail'));
 const OutletManagement = React.lazy(() => import('../panels/admin/outlets/OutletManagement'));
 const AccessControl = React.lazy(() => import('../panels/admin/access/AccessControl'));
+const ExpenseReviewPage = React.lazy(() => import('../panels/admin/expenses/ExpenseReviewPage'));
 
 // Vehicle Management Imports
 const VehicleDashboard = React.lazy(() => import('../panels/admin/vehicles/VehicleDashboard'));
@@ -146,6 +147,7 @@ const AppRouter = () => {
             <Route path="vehicles/new" element={<AddVehicle />} />
             <Route path="vehicles/:id" element={<VehicleDetail />} />
             <Route path="finance" element={<FinanceOverview />} />
+            <Route path="expenses" element={<ExpenseReviewPage />} />
             <Route path="billing" element={<AdminBilling />} />
             <Route path="outlets" element={<OutletManagement />} />
             <Route path="settings" element={<UsersAndRoles />} />

@@ -13,8 +13,10 @@ import {
   Download,
   Filter,
   Plus,
-  Check
+  Check,
+  Receipt
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { 
   BarChart, 
@@ -46,7 +48,8 @@ const expenseCategoryData = [
 ];
 
 const FinanceOverview = () => {
-  const { transactions, addTransaction, purchaseInvoices } = useAdminStore();
+  const navigate = useNavigate();
+  const { transactions, addTransaction, purchaseInvoices, expenses } = useAdminStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ desc: '', amount: '', method: 'CASH' });
   const [activeSource, setActiveSource] = useState('ALL');
@@ -98,6 +101,19 @@ const FinanceOverview = () => {
             onClick={() => window.print()}
           >
             <Download size={12} /> EXPORT TALLY
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="gap-2 text-[9px] font-bold border-card-border uppercase tracking-widest px-4 h-9 shadow-subtle relative"
+            onClick={() => navigate('/admin/expenses')}
+          >
+            <Receipt size={12} /> REVIEW CLAIMS
+            {expenses.filter(e => e.status === 'Pending').length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full text-[7px] font-black text-white flex items-center justify-center border-2 border-white">
+                {expenses.filter(e => e.status === 'Pending').length}
+              </span>
+            )}
           </Button>
           <Button 
             size="sm"

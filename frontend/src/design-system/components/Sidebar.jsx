@@ -10,6 +10,7 @@ import {
   Truck, 
   IndianRupee, 
   ReceiptText, 
+  Receipt,
   Settings,
   LogOut,
   Bell,
@@ -21,26 +22,31 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '../../store/authStore';
+import { useAdminStore } from '../../store/adminStore';
 
 const allNavItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard', roles: ['ADMIN', 'MANAGER'] },
-  { icon: Sprout, label: 'Harvest', path: '/admin/procurement/harvest', roles: ['ADMIN'] },
-  { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals', roles: ['ADMIN'] },
-  { icon: ClipboardList, label: 'Sales Approval', path: '/admin/sales-approval', roles: ['MANAGER'] },
-  { icon: Package, label: 'Inventory', path: '/admin/inventory', roles: ['ADMIN', 'MANAGER'] },
-  { icon: Truck, label: 'Logistics', path: '/admin/logistics', roles: ['ADMIN'] },
-  { icon: UserPlus, label: 'Drivers', path: '/admin/logistics/drivers', roles: ['ADMIN'] },
-  { icon: Truck, label: 'Vehicle Fleet', path: '/admin/vehicles', roles: ['ADMIN', 'MANAGER'] },
-  { icon: Store, label: 'Outlets', path: '/admin/outlets', roles: ['ADMIN'] },
-  { icon: IndianRupee, label: 'Finance', path: '/admin/finance', roles: ['ADMIN'] },
-  { icon: ReceiptText, label: 'Billing', path: '/admin/billing', roles: ['ADMIN'] },
-  { icon: Shield, label: 'Access Control', path: '/admin/access', roles: ['ADMIN'], highlight: true },
-  { icon: Settings, label: 'Settings', path: '/admin/settings', roles: ['ADMIN'] },
+  { icon: LayoutDashboard, label: 'Dashboard',     path: '/admin/dashboard',            roles: ['ADMIN', 'MANAGER'] },
+  { icon: Sprout,          label: 'Harvest',        path: '/admin/procurement/harvest',   roles: ['ADMIN'] },
+  { icon: ClipboardList,   label: 'Tapals',         path: '/admin/tapals',               roles: ['ADMIN'] },
+  { icon: ClipboardList,   label: 'Sales Approval', path: '/admin/sales-approval',       roles: ['MANAGER'] },
+  { icon: Package,         label: 'Inventory',      path: '/admin/inventory',            roles: ['ADMIN', 'MANAGER'] },
+  { icon: Truck,           label: 'Logistics',      path: '/admin/logistics',            roles: ['ADMIN'] },
+  { icon: UserPlus,        label: 'Drivers',        path: '/admin/logistics/drivers',    roles: ['ADMIN'] },
+  { icon: Truck,           label: 'Vehicle Fleet',  path: '/admin/vehicles',             roles: ['ADMIN', 'MANAGER'] },
+  { icon: Store,           label: 'Outlets',        path: '/admin/outlets',              roles: ['ADMIN'] },
+  { icon: IndianRupee,     label: 'Finance',        path: '/admin/finance',              roles: ['ADMIN'] },
+  { icon: Receipt,         label: 'Expenses',       path: '/admin/expenses',             roles: ['ADMIN'], badge: 'expenses' },
+  { icon: ReceiptText,     label: 'Billing',        path: '/admin/billing',              roles: ['ADMIN'] },
+  { icon: Shield,          label: 'Access Control', path: '/admin/access',               roles: ['ADMIN'], highlight: true },
+  { icon: Settings,        label: 'Settings',       path: '/admin/settings',             roles: ['ADMIN'] },
 ];
 
 export const Sidebar = ({ onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, logout } = useAuthStore();
+  const { expenses } = useAdminStore();
+
+  const pendingExpenseCount = expenses.filter(e => e.status === 'Pending').length;
 
   const filteredNavItems = allNavItems.filter(item => item.roles.includes(user?.role));
 
@@ -86,7 +92,18 @@ export const Sidebar = ({ onClose }) => {
             {({ isActive }) => (
               <>
                 <item.icon size={16} className={twMerge("shrink-0", isActive ? "text-white" : item.highlight ? "text-[#6B7550]" : "text-text-muted group-hover:text-primary")} />
-                {!isCollapsed && <span className={twMerge("text-[10px] uppercase tracking-widest font-black whitespace-nowrap", item.highlight && !isActive ? 'text-[#6B7550]' : '')}>{item.label}</span>}
+                {!isCollapsed && <span className={twMerge("flex-1 text-[10px] uppercase tracking-widest font-black whitespace-nowrap", item.highlight && !isActive ? 'text-[#6B7550]' : '')}>{item.label}</span>}
+                {!isCollapsed && item.badge === 'expenses' && pendingExpenseCount > 0 && (
+                  <span className={twMerge(
+                    "text-[8px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center",
+                    isActive ? "bg-amber-400 text-black" : "bg-amber-100 text-amber-700"
+                  )}>
+                    {pendingExpenseCount}
+                  </span>
+                )}
+                {isCollapsed && item.badge === 'expenses' && pendingExpenseCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-amber-400 rounded-full" />
+                )}
               </>
             )}
           </NavLink>

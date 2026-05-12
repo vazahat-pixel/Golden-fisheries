@@ -19,7 +19,10 @@ import {
    ShieldCheck,
    Zap,
    Activity,
-   Truck
+   Truck,
+   Plus,
+   Clock,
+   ChevronRight
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
@@ -30,7 +33,7 @@ import driverMockData from '../../data/driverMockData.json';
 const DriverDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { trips, driverAcceptTrip, vehicles } = useAdminStore();
+  const { trips, driverAcceptTrip, vehicles, expenses } = useAdminStore();
 
   const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
 
@@ -170,6 +173,51 @@ const DriverDashboard = () => {
               )}
             </div>
           )}
+
+          {/* Tactical Ledger Quick Link */}
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 relative z-10">
+            <div className="flex justify-between items-center px-1">
+              <h3 className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Tactical Ledger</h3>
+              <div 
+                onClick={() => navigate('/driver/expenses')}
+                className="flex items-center gap-1 cursor-pointer group"
+              >
+                <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest group-hover:text-black transition-colors">View All</span>
+                <ChevronRight size={10} className="text-slate-300 group-hover:text-black transition-colors" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button 
+                onClick={() => navigate('/driver/expenses')}
+                className="bg-slate-50 p-3 rounded-2xl border border-slate-100/50 flex flex-col items-start gap-1 active:scale-[0.98] transition-all"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <Clock size={12} className="text-amber-600" />
+                  </div>
+                  {expenses.filter(e => e.driverName === (user?.name || 'RAJESH KUMAR') && e.status === 'Pending').length > 0 && (
+                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                  )}
+                </div>
+                <p className="text-[10px] font-black text-slate-900 uppercase mt-1">
+                  {expenses.filter(e => e.driverName === (user?.name || 'RAJESH KUMAR') && e.status === 'Pending').length} Pending
+                </p>
+                <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Active Claims</p>
+              </button>
+
+              <button 
+                onClick={() => navigate('/driver/expenses/new')}
+                className="bg-black p-3 rounded-2xl flex flex-col items-start gap-1 active:scale-[0.98] transition-all shadow-lg shadow-black/10"
+              >
+                <div className="w-6 h-6 bg-white/10 rounded-lg flex items-center justify-center">
+                  <Plus size={12} className="text-white" />
+                </div>
+                <p className="text-[10px] font-black text-white uppercase mt-1">Add Expense</p>
+                <p className="text-[7px] text-white/40 font-bold uppercase tracking-widest">New Entry</p>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
