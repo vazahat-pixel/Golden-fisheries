@@ -4,9 +4,9 @@ import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
 import { StatCard } from '../../../design-system/components/StatCard';
 import { useAdminStore } from '../../../store/adminStore';
-import { 
-  Search, 
-  Package, 
+import {
+  Search,
+  Package,
   Layers,
   AlertCircle,
   Plus,
@@ -17,8 +17,11 @@ import {
   PlusCircle,
   Truck,
   ArrowRight,
-  Clock
+  Clock,
+  Edit3,
+  Check
 } from 'lucide-react';
+import { Modal } from '../../../design-system/components/Modal';
 import { toast } from 'react-hot-toast';
 
 function clsx(...c) { return c.filter(Boolean).join(' '); }
@@ -33,10 +36,10 @@ const InventoryOverview = () => {
   }, [fetchInventory]);
 
   const filteredInventory = inventory.filter(item => {
-    const matchesTab = activeTab === 'All' || 
-                      (activeTab === 'Low' && item.status === 'low-stock') ||
-                      (activeTab === 'Out' && item.status === 'out-of-stock');
-    const matchesSearch = 
+    const matchesTab = activeTab === 'All' ||
+      (activeTab === 'Low' && item.status === 'low-stock') ||
+      (activeTab === 'Out' && item.status === 'out-of-stock');
+    const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
@@ -48,7 +51,7 @@ const InventoryOverview = () => {
     const category = prompt("Enter category (FRESHWATER/SEAFOOD):", "FRESHWATER");
     const qty = parseInt(prompt("Initial quantity:", "0"));
     const price = parseInt(prompt("Price per unit (₹):", "100"));
-    
+
     if (name && category && !isNaN(qty) && !isNaN(price)) {
       try {
         await addInventoryItemAsync({
@@ -85,18 +88,18 @@ const InventoryOverview = () => {
           <p className="text-text-muted text-[9px] font-bold uppercase tracking-[0.2em] mt-1">STOCK MANAGEMENT • REAL-TIME TRACKING</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             className="gap-2 text-[9px] font-bold border-card-border uppercase tracking-widest px-4 h-9 shadow-subtle bg-white"
             onClick={() => toast.success('Stock history loading...')}
           >
             <History size={12} /> HISTORY
           </Button>
-          <Button 
+          <Button
             size="sm"
             className="gap-2 text-[9px] font-bold uppercase tracking-widest px-4 h-9 shadow-md"
-            onClick={handleAddNew}
+            onClick={() => navigate('/admin/inventory/new')}
           >
             <Plus size={12} /> ADD NEW ITEM
           </Button>
@@ -128,13 +131,13 @@ const InventoryOverview = () => {
               </button>
             ))}
           </div>
-          
+
           <div className="flex gap-2 flex-1 md:max-w-md">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
-              <input 
-                type="text" 
-                placeholder="SEARCH INVENTORY..." 
+              <input
+                type="text"
+                placeholder="SEARCH INVENTORY..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-white border border-card-border rounded-none py-2 pl-9 pr-4 text-[9px] font-bold uppercase tracking-widest focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle"
@@ -146,34 +149,34 @@ const InventoryOverview = () => {
 
         {activeTab === 'Incoming' ? (
           <div className="overflow-x-auto">
-             <table className="w-full text-left">
-               <thead>
-                 <tr className="bg-olive-100/10">
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Expected Date</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Tapal ID</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Product</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Exp. Qty</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-center">Status</th>
-                 </tr>
-               </thead>
-               <tbody className="divide-y divide-olive-100/30">
-                 {incomingStock.filter(i => i.status === 'in-transit').length === 0 ? (
-                   <tr><td colSpan={5} className="px-4 py-12 text-center text-[10px] font-bold text-text-muted uppercase">No incoming shipments at the moment.</td></tr>
-                 ) : (
-                   incomingStock.filter(i => i.status === 'in-transit').map((item) => (
-                     <tr key={item.id} className="hover:bg-olive-50/30 transition-colors">
-                       <td className="px-4 py-3 text-[10px] font-bold text-black flex items-center gap-2"><Clock size={12} className="text-accent-olive" /> TODAY</td>
-                       <td className="px-4 py-3 text-[10px] font-bold text-black uppercase tracking-tight underline cursor-pointer">{item.tapalId}</td>
-                       <td className="px-4 py-3 text-[10px] font-bold text-black uppercase">{item.productName}</td>
-                       <td className="px-4 py-3 text-[10px] font-bold text-black text-right">{item.expectedQty}</td>
-                       <td className="px-4 py-3 text-center">
-                          <Badge variant="secondary" className="bg-amber-50 text-amber-600 border-amber-200 uppercase text-[7px] font-bold italic shadow-none">IN TRANSIT</Badge>
-                       </td>
-                     </tr>
-                   ))
-                 )}
-               </tbody>
-             </table>
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-olive-100/10">
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Expected Date</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Tapal ID</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Product</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Exp. Qty</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-olive-100/30">
+                {incomingStock.filter(i => i.status === 'in-transit').length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-[10px] font-bold text-text-muted uppercase">No incoming shipments at the moment.</td></tr>
+                ) : (
+                  incomingStock.filter(i => i.status === 'in-transit').map((item) => (
+                    <tr key={item.id} className="hover:bg-olive-50/30 transition-colors">
+                      <td className="px-4 py-3 text-[10px] font-bold text-black flex items-center gap-2"><Clock size={12} className="text-accent-olive" /> TODAY</td>
+                      <td className="px-4 py-3 text-[10px] font-bold text-black uppercase tracking-tight underline cursor-pointer">{item.tapalId}</td>
+                      <td className="px-4 py-3 text-[10px] font-bold text-black uppercase">{item.productName}</td>
+                      <td className="px-4 py-3 text-[10px] font-bold text-black text-right">{item.expectedQty}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge variant="secondary" className="bg-amber-50 text-amber-600 border-amber-200 uppercase text-[7px] font-bold italic shadow-none">IN TRANSIT</Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -209,10 +212,13 @@ const InventoryOverview = () => {
                       <p className="text-[9px] font-serif italic font-bold text-accent-olive">₹{item.price}</p>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => updateInventoryQty(item.id, 50)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="Add Stock"><PlusCircle size={13} /></button>
-                        <button onClick={() => updateInventoryQty(item.id, -50)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="Reduce Stock"><MinusCircle size={13} /></button>
-                        <button className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white"><MoreVertical size={13} /></button>
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => setAdjustModal({ isOpen: true, item, amount: '', reason: '' })}
+                          className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-black bg-accent-olive hover:bg-black hover:text-white transition-all border border-black/10 flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Edit3 size={12} /> ADJUST
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -222,6 +228,49 @@ const InventoryOverview = () => {
           </div>
         )}
       </Card>
+      {/* Adjust Stock Modal */}
+      <Modal
+        isOpen={adjustModal.isOpen}
+        onClose={() => setAdjustModal({ ...adjustModal, isOpen: false })}
+        title={`Adjust Stock: ${adjustModal.item?.name}`}
+      >
+        <div className="space-y-4 p-1">
+          <div className="p-3 bg-olive-50 border border-card-border flex justify-between items-center">
+            <span className="text-[9px] font-bold text-text-muted uppercase">Current Qty</span>
+            <span className="text-sm font-black text-black">{adjustModal.item?.qty} KG</span>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">Adjustment Amount (KG)</label>
+            <input
+              type="number"
+              placeholder="e.g. 10 or -5"
+              value={adjustModal.amount}
+              onChange={(e) => setAdjustModal({ ...adjustModal, amount: e.target.value })}
+              className="w-full border border-card-border px-3 py-2 text-[11px] font-black outline-none focus:ring-1 focus:ring-black"
+            />
+            <p className="text-[7px] text-text-muted italic">* Use plus (+) to add, minus (-) to remove stock.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">Reason / Notes</label>
+            <input
+              type="text"
+              placeholder="e.g. Waste, Physical Count Correct..."
+              value={adjustModal.reason}
+              onChange={(e) => setAdjustModal({ ...adjustModal, reason: e.target.value.toUpperCase() })}
+              className="w-full border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1 text-[9px] font-bold h-9" onClick={() => setAdjustModal({ ...adjustModal, isOpen: false })}>CANCEL</Button>
+            <Button className="flex-1 text-[9px] font-bold h-9 gap-2 uppercase tracking-widest" onClick={handleAdjust}>
+              <Check size={14} /> Confirm Adjustment
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

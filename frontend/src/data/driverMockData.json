@@ -3,12 +3,16 @@
     "id": "DRV-9021",
     "name": "RAJESH KUMAR",
     "phone": "+91 9887766554",
+    "email": "rajesh@golden.com",
     "rank": "Gold",
     "status": "Verified Pilot",
+    "location": "South Bay",
     "stats": {
-      "totalKm": "12.4k",
+      "totalKm": "12,400",
       "safetyScore": "4.9",
-      "tripsToday": 3
+      "tripsToday": 3,
+      "efficiency": "98%",
+      "fuelSaved": "124L"
     }
   },
   "trips": [
@@ -22,7 +26,9 @@
       "expectedQty": "450 KG",
       "customer": { "name": "JOHN DOE", "phone": "+91 9887766554" },
       "instructions": "Handle with care. Temperature sensitive.",
-      "createdAt": "10:30 AM"
+      "createdAt": "10:30 AM",
+      "distance": "14.2 KM",
+      "estimatedTime": "45 MINS"
     },
     {
       "id": "TRP-8825",
@@ -34,7 +40,9 @@
       "expectedQty": "1,200 KG",
       "customer": { "name": "SARAH SMITH", "phone": "+91 9900887766" },
       "instructions": "Deliver before 4 PM.",
-      "createdAt": "09:15 AM"
+      "createdAt": "09:15 AM",
+      "distance": "8.5 KM",
+      "estimatedTime": "25 MINS"
     },
     {
       "id": "TRP-8810",
@@ -47,7 +55,8 @@
       "deliveredQty": "795 KG",
       "customer": { "name": "GF RETAIL", "phone": "+91 1122334455" },
       "completedAt": "Yesterday, 06:30 PM",
-      "earnings": "₹1,250"
+      "earnings": "₹1,250",
+      "distance": "22.0 KM"
     }
   ],
   "expenses": [
@@ -98,9 +107,24 @@
     { "id": 1, "title": "New Assignment", "body": "Trip TRP-8821 assigned to you.", "time": "10 mins ago", "unread": true },
     { "id": 2, "title": "Expense Approved", "body": "Your fuel claim for ₹2500 has been approved.", "time": "2 hours ago", "unread": false }
   ],
-  "faqs": [
-    { "q": "Trip not starting?", "a": "Ensure GPS is enabled and you have accepted the task." },
-    { "q": "Payment discrepancy?", "a": "Contact the accounts department at head office." },
-    { "q": "Vehicle breakdown?", "a": "Use the SOS button for immediate assistance." }
-  ]
+  "support": {
+    "emergencyContact": "+91 800 900 1000",
+    "dispatchOffice": "+91 800 123 4567",
+    "faqs": [
+      { "q": "Trip not starting?", "a": "Ensure GPS is enabled and you have accepted the task." },
+      { "q": "Payment discrepancy?", "a": "Contact the accounts department at head office." },
+      { "q": "Vehicle breakdown?", "a": "Use the SOS button for immediate assistance." },
+      { "q": "Insurance claim?", "a": "Upload clear photos of incident and submit report." }
+    ]
+  },
+  "liveTracking": {
+    "currentMission": {
+      "id": "TRP-8821",
+      "status": "En Route",
+      "speed": "42 KM/H",
+      "eta": "12 MINS",
+      "signal": "Strong",
+      "battery": "85%"
+    }
+  }
 }

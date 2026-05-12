@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { masterService } from '../services/masterService';
 import mockData from '../data/mockData.json';
+import vehicleMockData from '../data/vehicleMockData.json';
+import { useRestaurantStore } from './restaurantStore';
+import { useFishMallStore } from './fishMallStore';
+import { useDriverStore } from './driverStore';
 
 const generateId = (prefix, list) => {
   const next = (list.length + 1).toString().padStart(4, '0');
@@ -47,6 +51,12 @@ export const useAdminStore = create(
 
       trips: mockData.driver?.trips || [],
       incomingStock: [],
+      purchaseInvoices: [],
+
+      // Vehicle Fleet State
+      vehicles: vehicleMockData.vehicles || [],
+      maintenanceLogs: vehicleMockData.maintenanceLogs || [],
+      vehiclePerformance: vehicleMockData.performance || [],
 
       // Actions - Tapals
       addTapal: (tapal) => set((state) => ({ 
@@ -67,15 +77,23 @@ export const useAdminStore = create(
 
       assignDriver: (tapalId, driverId) => set((state) => {
         const tapal = state.tapals.find(t => t.id === tapalId);
-        const driver = state.drivers.find(d => d.id === driverId) || state.drivers[0]; // Fallback for demo
+        
+        // Search in local drivers and external driverStore
+        const externalDrivers = useDriverStore.getState().drivers || [];
+        const allDrivers = [...state.drivers, ...externalDrivers];
+        
+        const driver = allDrivers.find(d => d.id === driverId) || state.drivers[0]; 
         if (!tapal) return {};
+
+        // Find associated vehicle
+        const vehicle = state.vehicles.find(v => v.assignedDriverId === driverId || v.assignedDriverName === (driver.name || driver.fullName));
 
         const newTrip = {
           id: generateId('TRP', state.trips),
           tapalId,
           driverId: driverId || 'DRV-0001',
           driverName: driver.name || driver.fullName,
-          vehicle: driver.vehicle || driver.vehicleNumber,
+          vehicle: vehicle?.vehicleNumber || driver.vehicle || driver.vehicleNumber || 'UNASSIGNED',
           status: 'Assigned',
           pickupLocation: tapal.pickupLocation || 'FARM SITE',
           deliveryLocation: tapal.type === 'Purchase' ? 'WAREHOUSE' : 'BUYER SITE',
@@ -89,7 +107,13 @@ export const useAdminStore = create(
 
         return {
           trips: [newTrip, ...state.trips],
-          tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Assigned', driver: driver.name || driver.fullName } : t),
+          tapals: state.tapals.map(t => t.id === tapalId ? { 
+            ...t, 
+            status: 'Assigned', 
+            driver: driver.name || driver.fullName,
+            driverPhone: driver.phone || driver.mobile,
+            vehicleNumber: vehicle?.vehicleNumber || driver.vehicle || driver.vehicleNumber || 'UNASSIGNED'
+          } : t),
           drivers: state.drivers.map(d => d.id === driverId ? { ...d, status: 'on-trip' } : d)
         };
       }),
@@ -164,9 +188,22 @@ export const useAdminStore = create(
           return item;
         });
 
+        // Create Purchase Invoice if applicable
+        const newPurchaseInvoices = tapal.type === 'Purchase' ? [{
+          id: generateId('PINV', state.purchaseInvoices || []),
+          tapalId,
+          farmer: tapal.farmer?.name || tapal.party,
+          amount: amountVal,
+          date: new Date().toISOString(),
+          status: 'unpaid',
+          paidAmount: 0,
+          dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
+        }, ...(state.purchaseInvoices || [])] : (state.purchaseInvoices || []);
+
         return {
           tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Delivered' } : t),
           inventory: newInventory,
+          purchaseInvoices: newPurchaseInvoices,
           trips: state.trips.map(t => t.tapalId === tapalId ? { 
             ...t, 
             status: 'Delivered', 
@@ -246,7 +283,7 @@ export const useAdminStore = create(
         users: state.users.filter(u => u.id !== id)
       })),
 
-      approveSalesTapal: (id, editedData) => set((state) => {
+      approveSalesTapal: (id, editedData, userName = 'CHANNAPPA S.') => set((state) => {
         const tapal = state.tapals.find(t => t.id === id);
         if (!tapal) return {};
 
@@ -255,7 +292,7 @@ export const useAdminStore = create(
           ...editedData, 
           status: 'Approved',
           approvedAt: new Date().toISOString(),
-          approvedBy: 'CHANNAPPA S.' 
+          approvedBy: userName
         };
 
         // Auto-generate invoice
@@ -276,23 +313,23 @@ export const useAdminStore = create(
         };
       }),
 
-      rejectSalesTapal: (id, reason) => set((state) => ({
+      rejectSalesTapal: (id, reason, userName = 'CHANNAPPA S.') => set((state) => ({
         tapals: state.tapals.map(t => t.id === id ? { 
           ...t, 
           status: 'Rejected', 
           rejectionReason: reason,
           rejectedAt: new Date().toISOString(),
-          rejectedBy: 'CHANNAPPA S.' 
+          rejectedBy: userName
         } : t)
       })),
 
-      suggestChangeSalesTapal: (id, changes) => set((state) => ({
+      suggestChangeSalesTapal: (id, changes, userName = 'CHANNAPPA S.') => set((state) => ({
         tapals: state.tapals.map(t => t.id === id ? { 
           ...t, 
           status: 'Changes Requested', 
           suggestedChanges: changes,
           suggestedAt: new Date().toISOString(),
-          suggestedBy: 'CHANNAPPA S.' 
+          suggestedBy: userName
         } : t)
       })),
 
@@ -640,6 +677,68 @@ export const useAdminStore = create(
               : s
           ),
         };
+      }),
+
+      // Vehicle Actions
+      addVehicle: (vehicle) => set((state) => ({
+        vehicles: [...state.vehicles, { ...vehicle, id: generateId('VEH', state.vehicles) }]
+      })),
+
+      updateVehicle: (id, updates) => set((state) => ({
+        vehicles: state.vehicles.map(v => v.id === id ? { ...v, ...updates } : v)
+      })),
+
+      deleteVehicle: (id) => set((state) => ({
+        vehicles: state.vehicles.filter(v => v.id !== id)
+      })),
+
+      assignDriverToVehicle: (vehicleId, driverId, driverName) => set((state) => ({
+        vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, assignedDriverId: driverId, assignedDriverName: driverName } : v)
+      })),
+
+      addMaintenanceLog: (log) => set((state) => ({
+        maintenanceLogs: [...state.maintenanceLogs, { ...log, id: generateId('MLOG', state.maintenanceLogs) }]
+      })),
+
+      addVehicleDocument: (vehicleId, docType, docData) => set((state) => ({
+        vehicles: state.vehicles.map(v => 
+          v.id === vehicleId 
+            ? { ...v, documents: { ...v.documents, [docType]: docData } } 
+            : v
+        )
+      })),
+
+      transferStockToRestaurant: (items) => set((state) => {
+        // items is array of { name: 'ROHU', qty: 50 }
+        const newInventory = state.inventory.map(invItem => {
+          const matchingItem = items.find(i => i.name.toUpperCase() === invItem.name.toUpperCase());
+          if (matchingItem) {
+            const nextQty = Math.max(0, invItem.qty - matchingItem.qty);
+            return { ...invItem, qty: nextQty, status: nextQty === 0 ? 'out-of-stock' : nextQty < 50 ? 'low-stock' : 'in-stock' };
+          }
+          return invItem;
+        });
+
+        // Notify restaurant store
+        useRestaurantStore.getState().receiveStock(items);
+
+        return { inventory: newInventory };
+      }),
+
+      transferStockToFishMall: (items) => set((state) => {
+        const newInventory = state.inventory.map(invItem => {
+          const matchingItem = items.find(i => i.name.toUpperCase() === invItem.name.toUpperCase());
+          if (matchingItem) {
+            const nextQty = Math.max(0, invItem.qty - matchingItem.qty);
+            return { ...invItem, qty: nextQty, status: nextQty === 0 ? 'out-of-stock' : nextQty < 50 ? 'low-stock' : 'in-stock' };
+          }
+          return invItem;
+        });
+
+        // Notify fish mall store
+        useFishMallStore.getState().receiveStock(items);
+
+        return { inventory: newInventory };
       }),
     }),
     {

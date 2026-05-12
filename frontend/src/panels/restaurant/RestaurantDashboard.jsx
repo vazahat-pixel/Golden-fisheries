@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { TrendingUp, ShoppingCart, Flame, Utensils } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Flame, Utensils, Activity, Plus, ArrowRight, LayoutGrid, History, Settings } from 'lucide-react';
 import { Button } from '../../design-system/components/Button';
 import { Card } from '../../design-system/components/Card';
 import { StatCard } from '../../design-system/components/StatCard';
@@ -16,129 +16,144 @@ const RestaurantDashboard = () => {
   const totalSales = todayOrders.reduce((acc, o) => acc + o.total, 0);
   const criticalStock = menuItems.filter(i => i.stock < 10).length;
 
-  const recentOrders = orders.slice(0, 4);
+  const recentOrders = orders.slice(0, 5);
 
   return (
-    <div className="bg-[#F9FAFB] min-h-screen selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-300 px-4 py-6 md:px-8">
-      {/* Simple Compact Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 bg-white p-6 border border-gray-200 rounded-none shadow-sm">
+    <div className="bg-[#F9FAFB] min-h-screen selection:bg-accent-olive selection:text-white animate-in fade-in duration-500 px-4 py-6 md:px-8 font-sans">
+      {/* Tactical Restaurant Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 bg-white p-6 border border-card-border shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight uppercase flex items-center gap-3">
-            Kitchen Dashboard
-            <span className="text-[10px] bg-[#6B7550]/10 text-[#6B7550] px-2 py-0.5 rounded-none font-black tracking-widest border border-[#6B7550]/20">LIVE</span>
-          </h1>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Operational Station: HQ-MKE-01</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-serif italic font-black text-black tracking-tight uppercase">
+              Kitchen <span className="text-accent-olive">Command.</span>
+            </h1>
+            <div className="flex items-center gap-1.5 bg-accent-olive/10 px-2 py-0.5 border border-accent-olive/20">
+               <div className="w-1.5 h-1.5 bg-accent-olive rounded-full animate-pulse"></div>
+               <span className="text-[8px] font-black text-accent-olive uppercase tracking-widest">STATION_LIVE</span>
+            </div>
+          </div>
+          <p className="text-[9px] text-text-muted font-bold uppercase tracking-[0.3em] mt-1">OPERATIONAL HUB • HQ-MKE-01 • GOLDEN FISHERIES</p>
         </div>
-        <Link to="/restaurant/pos">
-          <Button className="text-[10px] font-black uppercase tracking-widest px-6 py-4 bg-black text-white hover:bg-[#6B7550] border-none shadow-sm active:scale-95 transition-all">
-            Launch POS Terminal
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/restaurant/kitchen">
+            <Button variant="outline" className="h-11 px-6 text-[10px] font-black uppercase tracking-widest border-card-border gap-2 shadow-sm">
+              <LayoutGrid size={14} /> LIVE QUEUE
+            </Button>
+          </Link>
+          <Link to="/restaurant/pos">
+            <Button className="h-11 px-6 text-[10px] font-black uppercase tracking-widest bg-black text-white border-none shadow-xl shadow-black/10 active:scale-95 transition-all gap-2">
+              <Plus size={14} /> LAUNCH TERMINAL
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-6">
         {/* Compact Metric Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Daily Revenue', value: `₹${totalSales.toLocaleString()}`, icon: TrendingUp, color: '#6B7550' },
-            { label: 'Order Volume', value: todayOrders.length.toString(), icon: Utensils, color: '#111827' },
-            { label: 'Low Stock SKU', value: criticalStock.toString(), icon: Flame, color: criticalStock > 0 ? '#EF4444' : '#111827' },
-            { label: 'Avg Order Value', value: `₹${todayOrders.length > 0 ? Math.round(totalSales / todayOrders.length).toLocaleString() : 0}`, icon: ShoppingCart, color: '#111827' }
-          ].map((metric, idx) => (
-            <div key={idx} className="bg-white p-5 border border-gray-200 shadow-sm flex items-center justify-between group hover:border-[#6B7550] transition-all">
-              <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">{metric.label}</p>
-                <h3 className="text-xl font-black text-gray-900 tracking-tighter" style={{ color: metric.color }}>{metric.value}</h3>
-              </div>
-              <div className="p-3 bg-gray-50 group-hover:bg-[#6B7550]/5 transition-all">
-                <metric.icon size={18} className="text-gray-400 group-hover:text-[#6B7550] transition-colors" />
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard title="DAILY REVENUE" value={`₹${totalSales.toLocaleString()}`} icon={TrendingUp} trend="+12.5%" trendType="up" />
+          <StatCard title="ORDER VOLUME" value={todayOrders.length.toString()} icon={Utensils} trend="ACTIVE" trendType="up" />
+          <StatCard title="LOW STOCK" value={criticalStock.toString()} icon={Flame} trend="REPLENISH" trendType={criticalStock > 0 ? "danger" : "up"} />
+          <StatCard title="AVG TICKET" value={`₹${todayOrders.length > 0 ? Math.round(totalSales / todayOrders.length).toLocaleString() : 0}`} icon={ShoppingCart} trend="YTD" trendType="up" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Operations Table */}
+          {/* Recent Operations Table - High Density */}
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
-                <h3 className="font-bold text-gray-900 text-[11px] uppercase tracking-widest">Recent Activity Log</h3>
-                <Link to="/restaurant/history" className="text-[10px] font-bold uppercase text-[#6B7550] hover:underline">View All</Link>
+            <Card padding="none" className="bg-white border border-card-border shadow-subtle overflow-hidden">
+              <div className="px-6 py-4 border-b border-card-border flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-black text-black text-[10px] uppercase tracking-widest flex items-center gap-2">
+                   <History size={14} className="text-accent-olive" /> Recent Activity Log
+                </h3>
+                <Link to="/restaurant/history" className="text-[9px] font-black uppercase text-accent-olive tracking-widest hover:underline">Full Manifest</Link>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400">Order ID</th>
-                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400">Time</th>
-                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400">Items</th>
-                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400 text-right">Amount</th>
+                    <tr className="bg-slate-50/30 border-b border-card-border">
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">Identity</th>
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">Timestamp</th>
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">Payload</th>
+                      <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400 text-right">Settlement</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-slate-100">
                     {recentOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50/50 transition-all">
-                        <td className="px-6 py-4">
-                          <span className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">#{order.id.slice(-8)}</span>
+                      <tr key={order.id} className="hover:bg-accent-olive/[0.02] transition-all group">
+                        <td className="px-6 py-3">
+                          <span className="text-[10px] font-black text-black uppercase tracking-tight italic font-serif">#{order.id.slice(-8)}</span>
                         </td>
-                        <td className="px-6 py-4 text-[10px] text-gray-400 font-medium">
+                        <td className="px-6 py-3 text-[9px] text-slate-500 font-bold uppercase tracking-widest">
                           {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="px-6 py-4">
-                          <span className="text-[10px] font-bold text-gray-600">{order.items.length} Items</span>
+                        <td className="px-6 py-3">
+                          <Badge variant="secondary" className="text-[7px] font-black bg-slate-100 border-none px-2 h-4">{order.items.length} UNITS</Badge>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="text-[11px] font-black text-gray-900">₹{order.total.toLocaleString()}</span>
+                        <td className="px-6 py-3 text-right">
+                          <span className="text-[11px] font-black text-black italic font-serif">₹{order.total.toLocaleString()}</span>
                         </td>
                       </tr>
                     ))}
-                    {recentOrders.length === 0 && (
-                      <tr>
-                        <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[10px] uppercase font-bold tracking-[0.2em]">No Recent Records</td>
-                      </tr>
-                    )}
                   </tbody>
                 </table>
               </div>
-            </div>
+              <div className="px-6 py-3 bg-slate-50/30 border-t border-card-border">
+                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest italic opacity-50 text-center">SYSTEM_SECURE // AUTH_LEVEL_RESTRICTED</p>
+              </div>
+            </Card>
           </div>
 
-          {/* Quick Actions & Low Stock */}
-          <div className="space-y-6">
-            <div className="bg-black p-6 shadow-sm flex flex-col justify-between h-[180px]">
-              <div>
-                <h3 className="text-white text-lg font-bold tracking-tight uppercase">Inventory Sync</h3>
-                <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Manage kitchen stock levels</p>
+          {/* Side Panels */}
+          <div className="space-y-4">
+            <Card padding="none" className="bg-black p-6 shadow-xl flex flex-col justify-between h-[160px] relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                 <Activity size={80} className="text-white" />
               </div>
-              <Link to="/restaurant/inventory">
-                <Button className="w-full bg-white text-black text-[10px] font-black uppercase py-3 border-none hover:bg-[#6B7550] hover:text-white transition-all">
-                  Open Manifest
+              <div className="relative z-10">
+                <h3 className="text-white text-lg font-serif italic font-black tracking-tight uppercase leading-none">Inventory Sync.</h3>
+                <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-2">Manage kitchen stock levels</p>
+              </div>
+              <Link to="/restaurant/inventory" className="relative z-10">
+                <Button className="w-full bg-accent-olive text-white text-[9px] font-black uppercase py-3 border-none hover:bg-white hover:text-black transition-all tracking-widest shadow-lg">
+                  OPEN MANIFEST
                 </Button>
               </Link>
-            </div>
+            </Card>
 
-            <div className="bg-white border border-gray-200 p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 text-[11px] uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">Status Alerts</h3>
+            <Card className="bg-white border border-card-border p-6 shadow-sm">
+              <h3 className="font-black text-black text-[10px] uppercase tracking-widest mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                 <Settings size={14} className="text-slate-400" /> Operational Status
+              </h3>
               <div className="space-y-3">
                 {criticalStock > 0 ? (
-                  <div className="flex items-center gap-4 p-4 bg-red-50 border border-red-100">
+                  <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-100">
                     <Flame size={16} className="text-red-500" />
                     <div>
-                      <p className="text-[10px] font-black text-red-600 uppercase tracking-tight">{criticalStock} Items Low</p>
-                      <p className="text-[8px] text-red-400 font-bold uppercase mt-0.5">Replenishment Required</p>
+                      <p className="text-[9px] font-black text-red-600 uppercase tracking-tight leading-none">{criticalStock} ASSETS LOW</p>
+                      <p className="text-[7px] text-red-400 font-bold uppercase mt-1 tracking-widest">REPLENISHMENT REQ.</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4 p-4 bg-green-50 border border-green-100">
-                    <Utensils size={16} className="text-[#6B7550]" />
+                  <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100">
+                    <Activity size={16} className="text-emerald-500" />
                     <div>
-                      <p className="text-[10px] font-black text-[#6B7550] uppercase tracking-tight">System Optimal</p>
-                      <p className="text-[8px] text-[#6B7550]/60 font-bold uppercase mt-0.5">All stock levels normal</p>
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tight leading-none">SYSTEM OPTIMAL</p>
+                      <p className="text-[7px] text-emerald-400 font-bold uppercase mt-1 tracking-widest">NOMINAL LEVELS</p>
                     </div>
                   </div>
                 )}
+                
+                <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100">
+                   <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-100">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                   </div>
+                   <div>
+                      <p className="text-[9px] font-black text-slate-900 uppercase tracking-tight leading-none">SERVER ONLINE</p>
+                      <p className="text-[7px] text-slate-400 font-bold uppercase mt-1 tracking-widest">PONG: 42MS</p>
+                   </div>
+                </div>
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       </div>
@@ -147,7 +162,3 @@ const RestaurantDashboard = () => {
 };
 
 export default RestaurantDashboard;
-
-function clsx(...classes) {
-  return classes.filter(Boolean).join(' ');
-}

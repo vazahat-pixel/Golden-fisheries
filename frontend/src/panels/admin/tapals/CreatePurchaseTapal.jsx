@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Button } from '../../../design-system/components/Button';
 import { Badge } from '../../../design-system/components/Badge';
+import { Modal } from '../../../design-system/components/Modal';
 import { useAdminStore } from '../../../store/adminStore';
+import { useDriverStore } from '../../../store/driverStore';
 import { 
   ArrowLeft, 
   ChevronRight, 
@@ -10,7 +12,9 @@ import {
   Sprout, 
   Package, 
   Truck, 
-  Clock
+  Clock,
+  Navigation,
+  User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -21,6 +25,12 @@ const CreatePurchaseTapal = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const { addTapal } = useAdminStore();
+  const { drivers: verifiedDrivers } = useDriverStore();
+  
+  const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
+
+  const availableDrivers = verifiedDrivers.filter(d => d.status === 'active' || d.status === 'approved');
   
   const [formData, setFormData] = useState({
     farmer: '',
@@ -28,7 +38,9 @@ const CreatePurchaseTapal = () => {
     quantity: '',
     rate: '',
     expectedDate: '',
-    whatsappDispatch: true
+    whatsappDispatch: true,
+    boxQty: '',
+    weightPerBox: ''
   });
 
   const nextStep = () => {
@@ -51,8 +63,12 @@ const CreatePurchaseTapal = () => {
       date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
       qty: `${formData.quantity} KG`,
       amount: `₹${(formData.quantity * formData.rate).toLocaleString()}`,
-      driver: 'Unassigned',
-      status: 'Pending'
+      boxQty: formData.boxQty || null,
+      weightPerBox: formData.weightPerBox || null,
+      driver: selectedDriver ? selectedDriver.fullName : 'Unassigned',
+      driverPhone: selectedDriver ? (selectedDriver.mobile || selectedDriver.phone) : null,
+      vehicleNumber: selectedDriver ? selectedDriver.vehicleNumber : null,
+      status: selectedDriver ? 'Assigned' : 'Pending'
     };
     addTapal(newTapal);
     toast.success('Purchase Tapal Created');
@@ -123,6 +139,20 @@ const CreatePurchaseTapal = () => {
                   <input type="number" value={formData.rate} onChange={(e) => setFormData({...formData, rate: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" placeholder="85" />
                 </div>
               </div>
+
+              <div className="p-3 bg-olive-50/30 border border-dashed border-card-border space-y-3">
+                <p className="text-[8px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-1.5"><Package size={12} /> Box Details (Optional)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[7px] font-bold text-text-muted uppercase tracking-widest">BOX QTY</label>
+                    <input type="number" value={formData.boxQty} onChange={(e) => setFormData({...formData, boxQty: e.target.value})} className="w-full border border-card-border px-3 py-1.5 text-[9px] font-bold outline-none bg-white" placeholder="e.g. 10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[7px] font-bold text-text-muted uppercase tracking-widest">WEIGHT / BOX (KG)</label>
+                    <input type="number" value={formData.weightPerBox} onChange={(e) => setFormData({...formData, weightPerBox: e.target.value})} className="w-full border border-card-border px-3 py-1.5 text-[9px] font-bold outline-none bg-white" placeholder="e.g. 25" />
+                  </div>
+                </div>
+              </div>
               <div className="p-4 bg-black text-white flex justify-between items-center shadow-md">
                  <div><p className="text-[7px] text-white/40 font-bold uppercase tracking-widest">ESTIMATED TOTAL</p><h3 className="text-lg font-serif italic font-bold">₹{(formData.quantity * formData.rate).toLocaleString()}</h3></div>
                  <Badge className="bg-white text-black text-[7px] font-bold px-2 py-0.5 border-none">SYSTEM CALC</Badge>
@@ -133,7 +163,7 @@ const CreatePurchaseTapal = () => {
           {step === 3 && (
             <div className="space-y-4 animate-in fade-in duration-300">
               <h2 className="text-lg font-serif italic font-bold text-black uppercase">Final <span className="text-accent-olive">Review.</span></h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                  <div className="p-3 bg-olive-50/50 border border-card-border space-y-1">
                     <p className="text-[7px] font-bold text-text-muted uppercase">PARTY</p>
                     <p className="text-[10px] font-bold text-black uppercase">{formData.farmer}</p>
@@ -142,10 +172,41 @@ const CreatePurchaseTapal = () => {
                     <p className="text-[7px] font-bold text-text-muted uppercase">PRODUCT</p>
                     <p className="text-[10px] font-bold text-black uppercase">{formData.product}</p>
                  </div>
+                 <div className="p-3 bg-olive-50/50 border border-card-border space-y-1">
+                    <p className="text-[7px] font-bold text-text-muted uppercase">QTY / RATE</p>
+                    <p className="text-[10px] font-bold text-black uppercase">{formData.quantity} KG @ ₹{formData.rate}</p>
+                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-white border border-card-border cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setFormData({...formData, whatsappDispatch: !formData.whatsappDispatch})}>
-                 <div className={clsx('w-5 h-5 border flex items-center justify-center', formData.whatsappDispatch ? 'bg-black border-black text-white' : 'border-card-border')}>{formData.whatsappDispatch && <Check size={12} />}</div>
-                 <p className="text-[9px] font-bold uppercase tracking-widest">DISPATCH WHATSAPP NOTIFICATION</p>
+              {formData.boxQty && (
+                <div className="p-3 border border-dashed border-card-border flex justify-between items-center text-[9px] font-bold uppercase">
+                   <span className="text-text-muted">Box Details:</span>
+                   <span>{formData.boxQty} Boxes · {formData.weightPerBox || '??'} KG/Box</span>
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                 <div className="flex items-center gap-3 p-3 bg-white border border-card-border cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setFormData({...formData, whatsappDispatch: !formData.whatsappDispatch})}>
+                    <div className={clsx('w-5 h-5 border flex items-center justify-center', formData.whatsappDispatch ? 'bg-black border-black text-white' : 'border-card-border')}>{formData.whatsappDispatch && <Check size={12} />}</div>
+                    <p className="text-[9px] font-bold uppercase tracking-widest">DISPATCH WHATSAPP NOTIFICATION</p>
+                 </div>
+
+                 {/* Driver Selection */}
+                 <div className="flex items-center justify-between p-3 border border-card-border bg-white cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setIsDriverModalOpen(true)}>
+                    <div className="flex items-center gap-3">
+                       <div className={clsx('w-8 h-8 flex items-center justify-center border', selectedDriver ? 'bg-black text-white border-black' : 'border-card-border text-text-muted')}>
+                          {selectedDriver ? <Navigation size={14} className="text-accent-olive" /> : <Truck size={14} />}
+                       </div>
+                       <div>
+                          <p className="text-[9px] font-bold text-black uppercase">{selectedDriver ? `DRIVER: ${selectedDriver.fullName}` : 'ASSIGN DRIVER (OPTIONAL)'}</p>
+                          <p className="text-[7px] text-text-muted font-bold uppercase">
+                            {selectedDriver ? `PH: ${selectedDriver.mobile || selectedDriver.phone} | VEHICLE: ${selectedDriver.vehicleNumber}` : 'SELECT DRIVER & VEHICLE'}
+                          </p>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       {selectedDriver && <Badge variant="success" className="text-[7px] px-1.5 py-0.5">SELECTED</Badge>}
+                       <div className={clsx('w-3 h-3 rounded-full', selectedDriver ? 'bg-accent-olive' : 'bg-card-border')}></div>
+                    </div>
+                 </div>
               </div>
             </div>
           )}
@@ -159,6 +220,32 @@ const CreatePurchaseTapal = () => {
            </Button>
         </div>
       </Card>
+
+      {/* Driver Selection Modal */}
+      <Modal isOpen={isDriverModalOpen} onClose={() => setIsDriverModalOpen(false)} title="Assign Driver to Purchase Tapal">
+        <div className="space-y-2">
+          {availableDrivers.length === 0 ? (
+            <div className="py-8 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">No verified drivers available.</div>
+          ) : (
+            availableDrivers.map(driver => (
+              <div key={driver.id} className={clsx("p-3 border border-card-border hover:bg-olive-50 cursor-pointer flex justify-between items-center transition-all group", selectedDriver?.id === driver.id && "bg-olive-50 border-accent-olive")} onClick={() => { setSelectedDriver(driver); setIsDriverModalOpen(false); }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-black text-[#C5A021] flex items-center justify-center font-bold text-[10px] border border-black shadow-sm overflow-hidden">
+                    <img src={`https://ui-avatars.com/api/?name=${driver.fullName}&background=0A0B09&color=C5A021&size=64&bold=true`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-black uppercase tracking-tight">{driver.fullName}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">
+                      {driver.vehicleNumber || 'No Vehicle'} · {driver.mobile || driver.phone || 'No Phone'}
+                    </p>
+                  </div>
+                </div>
+                {selectedDriver?.id === driver.id && <Check size={14} className="text-accent-olive" />}
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

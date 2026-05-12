@@ -32,6 +32,7 @@ const CreatePurchaseTapal = React.lazy(() => import('../panels/admin/tapals/Crea
 const CreateSalesTapal = React.lazy(() => import('../panels/admin/tapals/CreateSalesTapal'));
 const TapalDetail = React.lazy(() => import('../panels/admin/tapals/TapalDetail'));
 const InventoryOverview = React.lazy(() => import('../panels/admin/inventory/InventoryOverview'));
+const AddInventoryItem = React.lazy(() => import('../panels/admin/inventory/AddInventoryItem'));
 const DriverManagement = React.lazy(() => import('../panels/admin/logistics/DriverManagement'));
 const TripsAndExpenses = React.lazy(() => import('../panels/admin/logistics/TripsAndExpenses'));
 const VehicleDocuments = React.lazy(() => import('../panels/admin/logistics/VehicleDocuments'));
@@ -45,6 +46,11 @@ const SalesApprovalList = React.lazy(() => import('../panels/admin/sales/SalesAp
 const SalesApprovalDetail = React.lazy(() => import('../panels/admin/sales/SalesApprovalDetail'));
 const OutletManagement = React.lazy(() => import('../panels/admin/outlets/OutletManagement'));
 const AccessControl = React.lazy(() => import('../panels/admin/access/AccessControl'));
+
+// Vehicle Management Imports
+const VehicleDashboard = React.lazy(() => import('../panels/admin/vehicles/VehicleDashboard'));
+const AddVehicle = React.lazy(() => import('../panels/admin/vehicles/AddVehicle'));
+const VehicleDetail = React.lazy(() => import('../panels/admin/vehicles/VehicleDetail'));
 
 // Restaurant Imports
 const RestaurantDashboard = React.lazy(() => import('../panels/restaurant/RestaurantDashboard'));
@@ -132,9 +138,13 @@ const AppRouter = () => {
             <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
             <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
             <Route path="inventory" element={<InventoryOverview />} />
+            <Route path="inventory/new" element={<AddInventoryItem />} />
             <Route path="logistics" element={<TripsAndExpenses />} />
             <Route path="logistics/drivers" element={<DriverManagement />} />
-            <Route path="logistics/vehicles" element={<VehicleDocuments />} />
+            <Route path="logistics/vehicles" element={<Navigate to="/admin/vehicles" replace />} />
+            <Route path="vehicles" element={<VehicleDashboard />} />
+            <Route path="vehicles/new" element={<AddVehicle />} />
+            <Route path="vehicles/:id" element={<VehicleDetail />} />
             <Route path="finance" element={<FinanceOverview />} />
             <Route path="billing" element={<AdminBilling />} />
             <Route path="outlets" element={<OutletManagement />} />

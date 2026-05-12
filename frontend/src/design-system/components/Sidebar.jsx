@@ -24,12 +24,13 @@ import { useAuthStore } from '../../store/authStore';
 
 const allNavItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard', roles: ['ADMIN', 'MANAGER'] },
+  { icon: Sprout, label: 'Harvest', path: '/admin/procurement/harvest', roles: ['ADMIN'] },
   { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals', roles: ['ADMIN'] },
   { icon: ClipboardList, label: 'Sales Approval', path: '/admin/sales-approval', roles: ['MANAGER'] },
-  { icon: Sprout, label: 'Harvest', path: '/admin/procurement/harvest', roles: ['ADMIN'] },
   { icon: Package, label: 'Inventory', path: '/admin/inventory', roles: ['ADMIN', 'MANAGER'] },
   { icon: Truck, label: 'Logistics', path: '/admin/logistics', roles: ['ADMIN'] },
   { icon: UserPlus, label: 'Drivers', path: '/admin/logistics/drivers', roles: ['ADMIN'] },
+  { icon: Truck, label: 'Vehicle Fleet', path: '/admin/vehicles', roles: ['ADMIN', 'MANAGER'] },
   { icon: Store, label: 'Outlets', path: '/admin/outlets', roles: ['ADMIN'] },
   { icon: IndianRupee, label: 'Finance', path: '/admin/finance', roles: ['ADMIN'] },
   { icon: ReceiptText, label: 'Billing', path: '/admin/billing', roles: ['ADMIN'] },
