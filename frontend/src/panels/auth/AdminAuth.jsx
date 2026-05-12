@@ -4,6 +4,7 @@ import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { useAuthStore } from '../../store/authStore';
 import { useRbacStore } from '../../store/rbacStore';
+import { authService } from '../../services/authService';
 import { 
   ShieldCheck, 
   Smartphone, 
@@ -56,56 +57,46 @@ const AdminAuth = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [devOtp, setDevOtp] = useState(null);
 
-  const handlePhoneSubmit = (e) => {
+  const handlePhoneSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!/^[6-9]\d{9}$/.test(phone)) {
       toast.error('Enter valid 10-digit mobile'); return;
     }
     setLoading(true);
-    setTimeout(() => {
-      const generated = sendOtp(phone);
-      setDevOtp(generated);
+    try {
+      const res = await authService.requestOtp(phone);
+      if (res && res.devOtp) {
+        setDevOtp(res.devOtp);
+      }
       setView('otp');
       toast.success('Admin Verification OTP Sent');
+    } catch (err) {
+      toast.error(err.message || 'Failed to send OTP');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
-  const handleOtpVerify = (e) => {
+  const handleOtpVerify = async (e) => {
     if (e) e.preventDefault();
     const entered = otp.join('');
     if (entered.length !== 6) { toast.error('Enter 6-digit OTP'); return; }
     
     setLoading(true);
-    setTimeout(() => {
-      if (entered === '123456') {
-        const rbac = getUserByPhone(phone);
-        const userData = rbac || {
-          id: `ADMIN-${phone}`,
-          name: `Admin ${phone.slice(-4)}`,
-          role: 'ADMIN',
-          phone: phone,
-          permissions: {
-            panels: { admin: true, restaurant: true, fishmall: true, driver: true },
-            modules: {
-              tapals: { read: true, write: true, delete: true },
-              procurement: { read: true, write: true, delete: true },
-              logistics: { read: true, write: true, delete: true },
-              finance: { read: true, write: true, delete: true },
-              outlets: { read: true, write: true, delete: true },
-              accessControl: { read: true, write: true, delete: true },
-            }
-          }
-        };
-        
-        login(userData, 'admin-token-123456');
+    try {
+      const res = await authService.verifyOtp(phone, entered);
+      if (res && res.user) {
+        login(res.user, res.accessToken);
         toast.success('Admin Access Granted');
         navigate('/admin/dashboard');
       } else {
-        toast.error('Invalid OTP Code');
+        toast.error('Invalid response payload structure');
       }
+    } catch (err) {
+      toast.error(err.message || 'Invalid OTP Code');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (

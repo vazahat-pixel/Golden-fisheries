@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Button } from '../../../design-system/components/Button';
 import { Badge } from '../../../design-system/components/Badge';
@@ -21,11 +21,15 @@ function clsx(...c) { return c.filter(Boolean).join(' '); }
 const CreateSalesTapal = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
-  const { addTapal } = useAdminStore();
+  const { addTapal, buyers, fetchBuyers } = useAdminStore();
   const { drivers: verifiedDrivers } = useDriverStore();
   
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
+
+  useEffect(() => {
+    fetchBuyers();
+  }, [fetchBuyers]);
 
   const availableDrivers = verifiedDrivers.filter(d => d.status === 'active' || d.status === 'approved');
 
@@ -107,7 +111,23 @@ const CreateSalesTapal = () => {
               <div className="space-y-1.5">
                 <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">NAME / OUTLET</label>
                 {formData.buyerType === 'external' ? (
-                  <input value={formData.buyerName} onChange={(e) => setFormData({...formData, buyerName: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none" placeholder="e.g. CHANNAPPA BUYER" />
+                  <select 
+                    value={formData.buyerName} 
+                    onChange={(e) => {
+                      const selected = buyers.find(b => b.name === e.target.value);
+                      setFormData({
+                        ...formData, 
+                        buyerName: e.target.value,
+                        deliveryAddress: selected ? selected.address : formData.deliveryAddress
+                      });
+                    }} 
+                    className="w-full border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none appearance-none bg-white"
+                  >
+                    <option value="">SELECT REGISTERED BUYER...</option>
+                    {buyers.map(b => (
+                      <option key={b.id} value={b.name}>{b.name} ({b.phone})</option>
+                    ))}
+                  </select>
                 ) : (
                   <select value={formData.buyerName} onChange={(e) => setFormData({...formData, buyerName: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold uppercase outline-none appearance-none bg-white">
                     <option value="">SELECT OUTLET...</option>

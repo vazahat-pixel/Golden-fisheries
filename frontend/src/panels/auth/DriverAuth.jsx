@@ -23,7 +23,7 @@ import {
   User,
   Clock
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { authService } from '../../services/authService';
 
 const DriverAuth = () => {
   const navigate = useNavigate();
@@ -105,77 +105,34 @@ const DriverAuth = () => {
     if (e) e.preventDefault();
     setLoading(true);
     
-    setTimeout(() => {
+    try {
       if (view === 'login') {
-        // ── Check if it's an existing RBAC user ───────────────────────────
-        const rbacUser = getUserByPhone(loginPhone);
-        if (rbacUser) {
-          if (rbacUser.status === 'revoked') { toast.error('Access revoked. Contact admin.'); setLoading(false); return; }
-          if (rbacUser.status === 'paused') { toast.error('Account paused. Contact admin.'); setLoading(false); return; }
-          const gen = rbacSendOtp(loginPhone);
-          setRbacDevOtp(gen);
-          setPendingRbacUser(rbacUser);
-          setView('otp');
-          setTimer(60);
-          toast.success(`OTP sent! (Dev: ${gen})`);
-          setLoading(false);
-          return;
+        const res = await authService.requestOtp(loginPhone);
+        if (res && res.devOtp) {
+          setRbacDevOtp(res.devOtp);
         }
-
-        // If not an RBAC user, allow ANY number to login as a generic driver
-        const genericDriver = {
-          id: `GEN-DRV-${loginPhone}`,
-          name: `Driver ${loginPhone.slice(-4)}`,
-          role: 'DRIVER',
-          phone: loginPhone,
-          permissions: {
-            panels: { driver: true },
-            modules: { logistics: { read: true, write: true, delete: false } }
-          }
-        };
-        setPendingRbacUser(genericDriver);
-        const gen = rbacSendOtp(loginPhone);
-        setRbacDevOtp(gen);
         setView('otp');
         setTimer(60);
-        toast.success(`OTP sent to your number`);
-        setLoading(false);
-        return;
-
+        toast.success('Verification OTP code sent');
       } else if (view === 'otp') {
-        // RBAC path (including generic)
-        if (pendingRbacUser) {
-          const result = rbacVerifyOtp(loginPhone, otp.join(''));
-          if (!result.success) { toast.error(result.message); setLoading(false); return; }
-          clearOtpSession(loginPhone);
-          login({ id: pendingRbacUser.id, name: pendingRbacUser.name, role: pendingRbacUser.role, phone: loginPhone, permissions: pendingRbacUser.permissions }, 'rbac-session-token');
-          toast.success(`Welcome, ${pendingRbacUser.name}!`);
+        const res = await authService.verifyOtp(loginPhone, otp.join(''));
+        if (res && res.user) {
+          login(res.user, res.accessToken);
+          toast.success(`Welcome back, ${res.user.fullName || 'Driver'}!`);
           navigate('/driver/dashboard');
-          setLoading(false);
-          return;
-        }
-        // Legacy path (OTP = 123456)
-        if (otp.join('') === '123456') {
-          const existingDriver = getDriverByMobile(loginPhone || formData.mobile);
-          if (existingDriver) {
-            login({ name: existingDriver.fullName, role: 'DRIVER', phone: existingDriver.mobile, id: existingDriver.id }, 'mock-jwt-token');
-            toast.success('Welcome back, ' + existingDriver.fullName);
-            navigate('/driver/dashboard');
-          } else {
-            setFormData(prev => ({ ...prev, mobile: loginPhone }));
-            setView('signup');
-            setStep(1);
-          }
         } else {
-          toast.error('Invalid verification code.');
+          toast.error('Invalid OTP verification payload structure');
         }
       } else if (view === 'signup' && step === 5) {
         registerDriver(formData);
         setView('pending');
         toast.success('Registration complete! Pending admin approval.');
       }
+    } catch (err) {
+      toast.error(err.message || 'Verification failed. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const renderView = () => {

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
+import { useAdminStore } from '../../../store/adminStore';
 import { 
   FileText, 
   AlertTriangle, 
@@ -40,6 +41,45 @@ const mockVehicles = [
 ];
 
 const VehicleDocuments = () => {
+  const { vehicles, fetchVehicles, addVehicleAsync } = useAdminStore();
+
+  useEffect(() => {
+    fetchVehicles();
+  }, [fetchVehicles]);
+
+  const displayVehicles = vehicles.length > 0 ? vehicles.map(v => ({
+    id: v.id,
+    plate: v.plateNumber || 'KA-01-AX-1234',
+    model: `${v.model || 'REEFER'} (${v.capacity || '1.5 Tons'})`,
+    docs: [
+      { type: 'RC', status: v.status === 'ACTIVE' ? 'VALID' : 'EXPIRED', expiry: v.expiryDate || '12/10/2030' },
+      { type: 'INSURANCE', status: 'VALID', expiry: '15/05/2026' },
+      { type: 'PERMIT', status: 'VALID', expiry: '20/12/2027' },
+    ]
+  })) : mockVehicles;
+
+  const handleAddVehicle = async () => {
+    const plate = prompt("Enter Plate Number (e.g. KA-01-AX-9999):");
+    if (!plate) return;
+    const model = prompt("Enter Vehicle Model (e.g. TATA ACE):", "TATA ACE");
+    const capacity = prompt("Enter Capacity (e.g. 1.5 Tons):", "1.5 Tons");
+    
+    try {
+      await addVehicleAsync({
+        plateNumber: plate.toUpperCase(),
+        model: model.toUpperCase(),
+        capacity,
+        type: 'REEFER',
+        status: 'ACTIVE',
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+      });
+      await fetchVehicles();
+      toast.success('Vehicle registered successfully');
+    } catch (err) {
+      toast.error(err.message || 'Failed to register vehicle');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -57,7 +97,7 @@ const VehicleDocuments = () => {
           </Button>
           <Button 
             className="gap-4 text-[10px] font-black uppercase tracking-widest px-6 shadow-md transition-all active:scale-95"
-            onClick={() => toast.success('Add Vehicle Modal')}
+            onClick={handleAddVehicle}
           >
             <Plus size={14} /> ADD VEHICLE
           </Button>
@@ -65,7 +105,7 @@ const VehicleDocuments = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        {mockVehicles.map((vehicle) => (
+        {displayVehicles.map((vehicle) => (
           <Card key={vehicle.id} padding="none" className="border border-card-border shadow-subtle overflow-hidden bg-white hover:shadow-wapixo transition-all duration-300">
             <div className="p-4 border-b border-card-border bg-olive-100/30 flex justify-between items-center">
               <div className="flex items-center gap-4">

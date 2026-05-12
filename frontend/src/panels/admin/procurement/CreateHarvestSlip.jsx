@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../design-system/components/Card';
 import { Button } from '../../../design-system/components/Button';
@@ -13,7 +13,7 @@ const QUALITY = ['A', 'B', 'Mix'];
 
 export default function CreateHarvestSlip() {
   const navigate = useNavigate();
-  const { farmers, harvestSlips, addHarvestSlip, addFarmer } = useAdminStore();
+  const { farmers, harvestSlips, addHarvestSlip, addFarmer, fetchFarmers, addFarmerAsync } = useAdminStore();
   const [step, setStep] = useState(1);
   const [sendNow, setSendNow] = useState(false);
 
@@ -23,14 +23,28 @@ export default function CreateHarvestSlip() {
   const [harvest, setHarvest] = useState({ harvestDate: '', pickupDate: '', pickupTime: '', pickupLocation: '', logisticsNotes: '' });
   const [remarks, setRemarks] = useState('');
 
+  // Load Farmers on Mount
+  useEffect(() => {
+    fetchFarmers();
+  }, [fetchFarmers]);
+
   const nextStep = () => {
     if (step === 1 && !farmer.name) { toast.error('Select a farmer'); return; }
     if (step === 2 && products.some(p => !p.fishName || !p.quantity)) { toast.error('Check product data'); return; }
     setStep(s => s + 1);
   };
 
-  const handleSubmit = () => {
-    if (isNewFarmer && farmer.name) addFarmer({ ...farmer, name: farmer.name.toUpperCase(), whatsapp: true });
+  const handleSubmit = async () => {
+    if (isNewFarmer && farmer.name) {
+      try {
+        await addFarmerAsync({ ...farmer, name: farmer.name.toUpperCase(), whatsapp: true });
+        // Re-fetch list to sync local UI state
+        await fetchFarmers();
+      } catch (err) {
+        toast.error(err.message || 'Failed to create farmer on backend');
+        return;
+      }
+    }
     const newSlip = {
       id: `HSL-${String(harvestSlips.length + 1).padStart(4, '0')}`,
       status: sendNow ? 'sent' : 'pending',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
@@ -34,7 +34,7 @@ import {
 import { toast } from 'react-hot-toast';
 
 const DriverManagement = () => {
-  const { drivers: legacyDrivers, updateDriverStatus, deleteDriver } = useAdminStore();
+  const { drivers: legacyDrivers, fetchDrivers, loading } = useAdminStore();
   const { drivers: registeredDrivers, approveDriver, rejectDriver } = useDriverStore();
   
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, PENDING, APPROVED, REJECTED
@@ -45,8 +45,16 @@ const DriverManagement = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState({ title: '', url: '' });
 
+  // Debounced Search on real backend API
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchDrivers(searchQuery);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery, fetchDrivers]);
+
   // Combine or filter drivers
-  const allDrivers = [...registeredDrivers];
+  const allDrivers = legacyDrivers.length > 0 ? legacyDrivers : [...registeredDrivers];
   
   const handlePreview = (title, url) => {
     // For demo purposes, we use a generic high-quality document placeholder

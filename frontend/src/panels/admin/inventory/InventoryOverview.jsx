@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
@@ -24,9 +24,13 @@ import { toast } from 'react-hot-toast';
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const InventoryOverview = () => {
-  const { inventory, updateInventoryQty, addInventoryItem, incomingStock } = useAdminStore();
+  const { inventory, updateInventoryQty, fetchInventory, addInventoryItemAsync, incomingStock, loading } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+
+  useEffect(() => {
+    fetchInventory();
+  }, [fetchInventory]);
 
   const filteredInventory = inventory.filter(item => {
     const matchesTab = activeTab === 'All' || 
@@ -38,7 +42,7 @@ const InventoryOverview = () => {
     return matchesTab && matchesSearch;
   });
 
-  const handleAddNew = () => {
+  const handleAddNew = async () => {
     const name = prompt("Enter product name:");
     if (!name) return;
     const category = prompt("Enter category (FRESHWATER/SEAFOOD):", "FRESHWATER");
@@ -46,15 +50,20 @@ const InventoryOverview = () => {
     const price = parseInt(prompt("Price per unit (₹):", "100"));
     
     if (name && category && !isNaN(qty) && !isNaN(price)) {
-      addInventoryItem({
-        name: name.toUpperCase(),
-        category: category.toUpperCase(),
-        qty,
-        unit: 'KG',
-        price,
-        status: qty === 0 ? 'out-of-stock' : qty < 50 ? 'low-stock' : 'in-stock'
-      });
-      toast.success(`${name} added to inventory`);
+      try {
+        await addInventoryItemAsync({
+          name: name.toUpperCase(),
+          category: category.toUpperCase(),
+          qty,
+          unit: 'KG',
+          price,
+          status: qty === 0 ? 'out-of-stock' : qty < 50 ? 'low-stock' : 'in-stock'
+        });
+        await fetchInventory();
+        toast.success(`${name} added to inventory`);
+      } catch (err) {
+        toast.error(err.message || 'Failed to add product');
+      }
     }
   };
 

@@ -19,13 +19,22 @@ export const useAuthStore = create(
         pendingUser: null 
       }),
 
-      logout: () => set({ 
-        user: null, 
-        token: null, 
-        isAuthenticated: false,
-        isVerifying: false,
-        pendingUser: null
-      }),
+      logout: async () => {
+        try {
+          // Dynamic import to cleanly prevent circular dependencies during module loading
+          const { authService } = await import('../services/authService');
+          await authService.logout();
+        } catch (err) {
+          console.warn('[Session Teardown]: Unable to clear backend session cleanly.', err.message);
+        }
+        set({ 
+          user: null, 
+          token: null, 
+          isAuthenticated: false,
+          isVerifying: false,
+          pendingUser: null
+        });
+      },
 
       startVerification: (userData) => set({ 
         isVerifying: true, 

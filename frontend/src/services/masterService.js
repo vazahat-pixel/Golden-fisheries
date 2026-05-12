@@ -1,0 +1,42 @@
+import { apiClient } from './apiClient';
+
+/**
+ * Generic factory to create standard CRUD API clients for any master entity
+ */
+const createCrudService = (endpoint) => ({
+  getAll: async (params = {}) => {
+    // Unpacks standard { success, data, meta }
+    const response = await apiClient.get(`/${endpoint}/all`, { params });
+    return response; // response contains { docs, meta } or raw list if not paginated on backend
+  },
+  
+  getById: async (id) => {
+    const response = await apiClient.get(`/${endpoint}/${id}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await apiClient.post(`/${endpoint}/create`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await apiClient.put(`/${endpoint}/update/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    const response = await apiClient.delete(`/${endpoint}/${id}`);
+    return response;
+  }
+});
+
+export const masterService = {
+  farmers: createCrudService('farmers'),
+  buyers: createCrudService('buyers'),
+  products: createCrudService('products'),
+  vehicles: createCrudService('vehicles'),
+  drivers: createCrudService('drivers')
+};
+
+export default masterService;

@@ -5,6 +5,7 @@ import { Button } from '../../design-system/components/Button';
 import { useAuthStore } from '../../store/authStore';
 import { useRbacStore, ROLE_TEMPLATES } from '../../store/rbacStore';
 import { useOutletStore } from '../../store/outletStore';
+import { authService } from '../../services/authService';
 import { 
   ShieldCheck, Smartphone, Lock, ArrowRight, ArrowLeft,
   KeyRound, UserPlus, Mail, CheckCircle2, Globe, RotateCcw as RotateIcon
@@ -57,74 +58,36 @@ const FishMallAuth = () => {
     e.preventDefault();
     setLoading(true);
     
-    setTimeout(() => {
+    try {
       if (view === 'login') {
-        // ── Check if it's an existing RBAC user ───────────────────────────
-        const rbac = getUserByPhone(formData.phone);
-        if (rbac) {
-          if (rbac.status === 'revoked') { toast.error('Access revoked. Contact admin.'); setLoading(false); return; }
-          if (rbac.status === 'paused') { toast.error('Account paused. Contact admin.'); setLoading(false); return; }
-          const gen = rbacSendOtp(formData.phone);
-          setRbacDevOtp(gen);
-          setPendingRbacUser(rbac);
-          setView('otp-rbac');
-          toast.success(`OTP sent! (Dev: ${gen})`);
-          setLoading(false);
-          return;
+        const res = await authService.requestOtp(formData.phone);
+        if (res && res.devOtp) {
+          setRbacDevOtp(res.devOtp);
         }
-
-        // If not an RBAC user, create a temporary "Generic Manager" session
-        // This allows ANY number to login as requested
-        const genericUser = {
-          id: `GEN-${formData.phone}`,
-          name: `User ${formData.phone.slice(-4)}`,
-          role: 'MANAGER',
-          phone: formData.phone,
-          permissions: {
-            panels: {
-              restaurant: true,
-              fishmall: true,
-              driver: true,
-              admin: true,
-            },
-            modules: {
-              billing: { read: true, write: true, delete: false },
-            }
-          }
-        };
-        setPendingRbacUser(genericUser);
-        const gen = rbacSendOtp(formData.phone);
-        setRbacDevOtp(gen);
         setView('otp-rbac');
-        toast.success(`OTP sent to your number`);
-        setLoading(false);
-        return;
-
-      } else if (view === 'otp-rbac') {
-        const result = rbacVerifyOtp(formData.phone, otp.join(''));
-        if (!result.success) { toast.error(result.message); setLoading(false); return; }
-        clearOtpSession(formData.phone);
-        login({ id: pendingRbacUser.id, name: pendingRbacUser.name, role: pendingRbacUser.role, phone: formData.phone, permissions: pendingRbacUser.permissions }, 'rbac-session-token');
-        toast.success(`Welcome, ${pendingRbacUser.name}!`);
-        navigate('/fishmall/dashboard');
+        toast.success('Verification OTP code sent');
+      } else if (view === 'otp-rbac' || view === 'otp') {
+        const res = await authService.verifyOtp(formData.phone, otp.join(''));
+        if (res && res.user) {
+          login(res.user, res.accessToken);
+          toast.success(`Welcome back, ${res.user.fullName}!`);
+          navigate('/fishmall/dashboard');
+        } else {
+          toast.error('Invalid response payload structure');
+        }
       } else if (view === 'signup') {
         setView('otp');
         setTimer(60);
         toast.success('Verification code sent.');
-      } else if (view === 'otp') {
-        if (otp.join('') === '123456') {
-          registerFishMall(formData);
-          toast.success('Account created successfully!');
-          setView('login');
-        } else {
-          toast.error('Invalid code.');
-        }
       } else if (view === 'forgot') {
         toast.success('Reset link sent.');
         setView('login');
       }
+    } catch (err) {
+      toast.error(err.message || 'Verification failed. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const renderView = () => {
