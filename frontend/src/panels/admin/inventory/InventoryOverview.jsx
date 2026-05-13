@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
 import { StatCard } from '../../../design-system/components/StatCard';
 import { useAdminStore } from '../../../store/adminStore';
-import { 
-  Search, 
-  Package, 
+import {
+  Search,
+  Package,
   Layers,
   AlertCircle,
   Plus,
@@ -28,41 +27,47 @@ import { toast } from 'react-hot-toast';
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const InventoryOverview = () => {
-  const navigate = useNavigate();
-  const { inventory, updateInventoryQty, addInventoryItem, incomingStock, addTransaction } = useAdminStore();
+  const { inventory, updateInventoryQty, fetchInventory, addInventoryItemAsync, incomingStock, loading } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
-  const [adjustModal, setAdjustModal] = useState({ isOpen: false, item: null, amount: '', reason: '' });
+
+  useEffect(() => {
+    fetchInventory();
+  }, [fetchInventory]);
 
   const filteredInventory = inventory.filter(item => {
-    const matchesTab = activeTab === 'All' || 
-                      (activeTab === 'Low' && item.status === 'low-stock') ||
-                      (activeTab === 'Out' && item.status === 'out-of-stock');
-    const matchesSearch = 
+    const matchesTab = activeTab === 'All' ||
+      (activeTab === 'Low' && item.status === 'low-stock') ||
+      (activeTab === 'Out' && item.status === 'out-of-stock');
+    const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
+  const handleAddNew = async () => {
+    const name = prompt("Enter product name:");
+    if (!name) return;
+    const category = prompt("Enter category (FRESHWATER/SEAFOOD):", "FRESHWATER");
+    const qty = parseInt(prompt("Initial quantity:", "0"));
+    const price = parseInt(prompt("Price per unit (₹):", "100"));
 
-  const handleAdjust = () => {
-    const amt = parseFloat(adjustModal.amount);
-    if (isNaN(amt) || amt === 0) return toast.error('Enter valid amount');
-    
-    updateInventoryQty(adjustModal.item.id, amt);
-    
-    // Log as transaction for audit trail
-    addTransaction({
-      date: new Date().toLocaleDateString('en-GB'),
-      desc: `STOCK ADJUSTMENT: ${adjustModal.item.name} (${adjustModal.reason || 'Manual Correction'})`,
-      method: 'SYSTEM',
-      type: amt > 0 ? 'income' : 'expense',
-      amount: 0, // Adjustment doesn't necessarily change cash
-      source: 'ADMIN'
-    });
-
-    toast.success(`Stock adjusted by ${amt} KG`);
-    setAdjustModal({ isOpen: false, item: null, amount: '', reason: '' });
+    if (name && category && !isNaN(qty) && !isNaN(price)) {
+      try {
+        await addInventoryItemAsync({
+          name: name.toUpperCase(),
+          category: category.toUpperCase(),
+          qty,
+          unit: 'KG',
+          price,
+          status: qty === 0 ? 'out-of-stock' : qty < 50 ? 'low-stock' : 'in-stock'
+        });
+        await fetchInventory();
+        toast.success(`${name} added to inventory`);
+      } catch (err) {
+        toast.error(err.message || 'Failed to add product');
+      }
+    }
   };
 
   const getStatusVariant = (status) => {
@@ -83,15 +88,15 @@ const InventoryOverview = () => {
           <p className="text-text-muted text-[9px] font-bold uppercase tracking-[0.2em] mt-1">STOCK MANAGEMENT • REAL-TIME TRACKING</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             className="gap-2 text-[9px] font-bold border-card-border uppercase tracking-widest px-4 h-9 shadow-subtle bg-white"
             onClick={() => toast.success('Stock history loading...')}
           >
             <History size={12} /> HISTORY
           </Button>
-          <Button 
+          <Button
             size="sm"
             className="gap-2 text-[9px] font-bold uppercase tracking-widest px-4 h-9 shadow-md"
             onClick={() => navigate('/admin/inventory/new')}
@@ -126,13 +131,13 @@ const InventoryOverview = () => {
               </button>
             ))}
           </div>
-          
+
           <div className="flex gap-2 flex-1 md:max-w-md">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
-              <input 
-                type="text" 
-                placeholder="SEARCH INVENTORY..." 
+              <input
+                type="text"
+                placeholder="SEARCH INVENTORY..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-white border border-card-border rounded-none py-2 pl-9 pr-4 text-[9px] font-bold uppercase tracking-widest focus:ring-1 focus:ring-accent-olive outline-none shadow-subtle"
@@ -144,34 +149,34 @@ const InventoryOverview = () => {
 
         {activeTab === 'Incoming' ? (
           <div className="overflow-x-auto">
-             <table className="w-full text-left">
-               <thead>
-                 <tr className="bg-olive-100/10">
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Expected Date</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Tapal ID</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Product</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Exp. Qty</th>
-                   <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-center">Status</th>
-                 </tr>
-               </thead>
-               <tbody className="divide-y divide-olive-100/30">
-                 {incomingStock.filter(i => i.status === 'in-transit').length === 0 ? (
-                   <tr><td colSpan={5} className="px-4 py-12 text-center text-[10px] font-bold text-text-muted uppercase">No incoming shipments at the moment.</td></tr>
-                 ) : (
-                   incomingStock.filter(i => i.status === 'in-transit').map((item) => (
-                     <tr key={item.id} className="hover:bg-olive-50/30 transition-colors">
-                       <td className="px-4 py-3 text-[10px] font-bold text-black flex items-center gap-2"><Clock size={12} className="text-accent-olive" /> TODAY</td>
-                       <td className="px-4 py-3 text-[10px] font-bold text-black uppercase tracking-tight underline cursor-pointer">{item.tapalId}</td>
-                       <td className="px-4 py-3 text-[10px] font-bold text-black uppercase">{item.productName}</td>
-                       <td className="px-4 py-3 text-[10px] font-bold text-black text-right">{item.expectedQty}</td>
-                       <td className="px-4 py-3 text-center">
-                          <Badge variant="secondary" className="bg-amber-50 text-amber-600 border-amber-200 uppercase text-[7px] font-bold italic shadow-none">IN TRANSIT</Badge>
-                       </td>
-                     </tr>
-                   ))
-                 )}
-               </tbody>
-             </table>
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-olive-100/10">
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Expected Date</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Tapal ID</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">Product</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-right">Exp. Qty</th>
+                  <th className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-olive-100/30">
+                {incomingStock.filter(i => i.status === 'in-transit').length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-[10px] font-bold text-text-muted uppercase">No incoming shipments at the moment.</td></tr>
+                ) : (
+                  incomingStock.filter(i => i.status === 'in-transit').map((item) => (
+                    <tr key={item.id} className="hover:bg-olive-50/30 transition-colors">
+                      <td className="px-4 py-3 text-[10px] font-bold text-black flex items-center gap-2"><Clock size={12} className="text-accent-olive" /> TODAY</td>
+                      <td className="px-4 py-3 text-[10px] font-bold text-black uppercase tracking-tight underline cursor-pointer">{item.tapalId}</td>
+                      <td className="px-4 py-3 text-[10px] font-bold text-black uppercase">{item.productName}</td>
+                      <td className="px-4 py-3 text-[10px] font-bold text-black text-right">{item.expectedQty}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge variant="secondary" className="bg-amber-50 text-amber-600 border-amber-200 uppercase text-[7px] font-bold italic shadow-none">IN TRANSIT</Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -208,8 +213,8 @@ const InventoryOverview = () => {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
-                        <button 
-                          onClick={() => setAdjustModal({ isOpen: true, item, amount: '', reason: '' })} 
+                        <button
+                          onClick={() => setAdjustModal({ isOpen: true, item, amount: '', reason: '' })}
                           className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-black bg-accent-olive hover:bg-black hover:text-white transition-all border border-black/10 flex items-center gap-1.5 shadow-sm"
                         >
                           <Edit3 size={12} /> ADJUST
@@ -224,21 +229,21 @@ const InventoryOverview = () => {
         )}
       </Card>
       {/* Adjust Stock Modal */}
-      <Modal 
-        isOpen={adjustModal.isOpen} 
+      <Modal
+        isOpen={adjustModal.isOpen}
         onClose={() => setAdjustModal({ ...adjustModal, isOpen: false })}
         title={`Adjust Stock: ${adjustModal.item?.name}`}
       >
         <div className="space-y-4 p-1">
           <div className="p-3 bg-olive-50 border border-card-border flex justify-between items-center">
-             <span className="text-[9px] font-bold text-text-muted uppercase">Current Qty</span>
-             <span className="text-sm font-black text-black">{adjustModal.item?.qty} KG</span>
+            <span className="text-[9px] font-bold text-text-muted uppercase">Current Qty</span>
+            <span className="text-sm font-black text-black">{adjustModal.item?.qty} KG</span>
           </div>
-          
+
           <div className="space-y-1.5">
             <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">Adjustment Amount (KG)</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               placeholder="e.g. 10 or -5"
               value={adjustModal.amount}
               onChange={(e) => setAdjustModal({ ...adjustModal, amount: e.target.value })}
@@ -249,8 +254,8 @@ const InventoryOverview = () => {
 
           <div className="space-y-1.5">
             <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">Reason / Notes</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="e.g. Waste, Physical Count Correct..."
               value={adjustModal.reason}
               onChange={(e) => setAdjustModal({ ...adjustModal, reason: e.target.value.toUpperCase() })}

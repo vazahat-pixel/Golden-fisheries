@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { masterService } from '../services/masterService';
 import mockData from '../data/mockData.json';
 import vehicleMockData from '../data/vehicleMockData.json';
 import { useRestaurantStore } from './restaurantStore';
@@ -13,7 +14,7 @@ const generateId = (prefix, list) => {
 
 export const useAdminStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Data
       tapals: mockData.admin.tapals || [],
       inventory: [
@@ -496,6 +497,252 @@ export const useAdminStore = create(
       addFarmer: (farmer) => set((state) => ({
         farmers: [...state.farmers, { ...farmer, id: generateId('FRM', state.farmers), totalSlips: 0, active: true }],
       })),
+
+      // ── API State variables ────────────────────────────────────
+      loading: false,
+      error: null,
+      vehicles: [
+        { id: 'VEH-0001', model: 'TATA ACE', plateNumber: 'KA-04-A-1234', capacity: '1.2 Tons', type: 'REEFER', status: 'ACTIVE', expiryDate: '2028-12-31' },
+        { id: 'VEH-0002', model: 'MAHINDRA BOLERO', plateNumber: 'KA-04-B-5678', capacity: '1.8 Tons', type: 'REEFER', status: 'ACTIVE', expiryDate: '2027-06-30' }
+      ],
+      buyers: [
+        { id: 'BUY-0001', name: 'GOLDEN RESTAURANT', phone: '+91 99887 76655', email: 'pos@goldenrest.com', address: 'MG Road, Bangalore', creditLimit: 50000, active: true },
+        { id: 'BUY-0002', name: 'FISH MALL RETAIL', phone: '+91 99887 76656', email: 'mall@goldenrest.com', address: 'Ullal, Mangalore', creditLimit: 25000, active: true }
+      ],
+
+      // ── Async Actions: Farmers CRUD ────────────────────────────
+      fetchFarmers: async (search = '') => {
+        set({ loading: true, error: null });
+        try {
+          const res = await masterService.farmers.getAll({ search });
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(f => ({
+            id: f._id,
+            name: (f.fullName || f.name || '').toUpperCase(),
+            mobile: f.phone || f.mobile || '',
+            location: (f.location || '').toUpperCase(),
+            village: f.village || '',
+            whatsapp: f.whatsapp !== false,
+            active: f.isActive !== false,
+            totalSlips: f.totalSlips || 0
+          }));
+          if (mapped.length) {
+            set({ farmers: mapped });
+          }
+          set({ loading: false });
+        } catch (err) {
+          console.warn('Backend fetchFarmers failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      addFarmerAsync: async (farmerData) => {
+        set({ loading: true });
+        try {
+          await masterService.farmers.create({
+            fullName: farmerData.name,
+            phone: farmerData.mobile,
+            location: farmerData.location,
+            village: farmerData.village,
+            whatsapp: farmerData.whatsapp
+          });
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      updateFarmerAsync: async (id, farmerData) => {
+        set({ loading: true });
+        try {
+          await masterService.farmers.update(id, {
+            fullName: farmerData.name,
+            phone: farmerData.mobile,
+            location: farmerData.location,
+            village: farmerData.village,
+            whatsapp: farmerData.whatsapp,
+            isActive: farmerData.active
+          });
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      deleteFarmerAsync: async (id) => {
+        set({ loading: true });
+        try {
+          await masterService.farmers.delete(id);
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // ── Async Actions: Products (Inventory) CRUD ───────────────
+      fetchInventory: async () => {
+        set({ loading: true, error: null });
+        try {
+          const res = await masterService.products.getAll();
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(p => ({
+            id: p._id,
+            name: (p.name || '').toUpperCase(),
+            category: (p.category || '').toUpperCase(),
+            qty: p.quantity || 0,
+            unit: p.baseUnit || 'KG',
+            price: p.basePrice || 0,
+            status: (p.quantity || 0) === 0 ? 'out-of-stock' : (p.quantity || 0) < (p.minStockLimit || 50) ? 'low-stock' : 'in-stock'
+          }));
+          if (mapped.length) {
+            set({ inventory: mapped });
+          }
+          set({ loading: false });
+        } catch (err) {
+          console.warn('Backend fetchInventory failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      addInventoryItemAsync: async (itemData) => {
+        set({ loading: true });
+        try {
+          await masterService.products.create({
+            name: itemData.name,
+            category: itemData.category,
+            quantity: itemData.qty,
+            baseUnit: itemData.unit,
+            basePrice: itemData.price,
+            minStockLimit: 50
+          });
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // ── Async Actions: Drivers CRUD ────────────────────────────
+      fetchDrivers: async (search = '') => {
+        set({ loading: true, error: null });
+        try {
+          const res = await masterService.drivers.getAll({ search });
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(d => ({
+            id: d._id,
+            name: d.fullName || '',
+            phone: d.phone || d.mobile || '',
+            vehicle: d.vehicleNumber || 'MH-12-AS-4567',
+            status: d.status || 'active',
+            rating: d.rating || 4.5,
+            trips: d.totalTrips || 0
+          }));
+          if (mapped.length) {
+            set({ drivers: mapped });
+          }
+          set({ loading: false });
+        } catch (err) {
+          console.warn('Backend fetchDrivers failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      addDriverAsync: async (driverData) => {
+        set({ loading: true });
+        try {
+          await masterService.drivers.create({
+            fullName: driverData.name,
+            phone: driverData.phone,
+            vehicleNumber: driverData.vehicle,
+            status: 'active'
+          });
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // ── Async Actions: Vehicles CRUD ───────────────────────────
+      fetchVehicles: async () => {
+        set({ loading: true, error: null });
+        try {
+          const res = await masterService.vehicles.getAll();
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(v => ({
+            id: v._id,
+            model: v.model || '',
+            plateNumber: v.plateNumber || '',
+            capacity: v.capacity || '',
+            type: v.type || 'REEFER',
+            status: v.status || 'ACTIVE',
+            expiryDate: v.expiryDate ? new Date(v.expiryDate).toISOString().slice(0, 10) : '2028-12-31'
+          }));
+          if (mapped.length) {
+            set({ vehicles: mapped });
+          }
+          set({ loading: false });
+        } catch (err) {
+          console.warn('Backend fetchVehicles failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      addVehicleAsync: async (vehicleData) => {
+        set({ loading: true });
+        try {
+          await masterService.vehicles.create(vehicleData);
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // ── Async Actions: Buyers CRUD ─────────────────────────────
+      fetchBuyers: async (search = '') => {
+        set({ loading: true, error: null });
+        try {
+          const res = await masterService.buyers.getAll({ search });
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(b => ({
+            id: b._id,
+            name: (b.fullName || b.name || '').toUpperCase(),
+            phone: b.phone || '',
+            email: b.email || '',
+            address: b.address || '',
+            creditLimit: b.creditLimit || 0,
+            active: b.isActive !== false
+          }));
+          if (mapped.length) {
+            set({ buyers: mapped });
+          }
+          set({ loading: false });
+        } catch (err) {
+          console.warn('Backend fetchBuyers failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      addBuyerAsync: async (buyerData) => {
+        set({ loading: true });
+        try {
+          await masterService.buyers.create({
+            fullName: buyerData.name,
+            phone: buyerData.phone,
+            email: buyerData.email,
+            address: buyerData.address,
+            creditLimit: buyerData.creditLimit
+          });
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
       convertSlipToTapal: (slipId) => set((state) => {
         const slip = state.harvestSlips.find(s => s.id === slipId);
