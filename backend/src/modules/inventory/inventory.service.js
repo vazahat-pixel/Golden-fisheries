@@ -4,6 +4,8 @@ import { Product } from '../products/product.model.js';
 import { InventoryTransaction } from './inventoryTransaction.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
+import { broadcastEvent } from '../../sockets/socket.js';
+
 
 class InventoryService extends BaseService {
   constructor() {
@@ -58,6 +60,15 @@ class InventoryService extends BaseService {
       // Update product quantity
       product.quantity = nextQty;
       await product.save({ session: activeSession });
+
+      // Trigger real-time inventory level update across browser sessions
+      broadcastEvent('inventory:level_update', {
+        productId: product._id,
+        name: product.name,
+        quantity: nextQty,
+        transactionType
+      });
+
 
       // Spawn audit ledger log
       const tx = new InventoryTransaction({

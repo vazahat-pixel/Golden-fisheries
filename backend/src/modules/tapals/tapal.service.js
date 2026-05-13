@@ -8,6 +8,8 @@ import { Harvest } from '../harvests/harvest.model.js';
 import { Product } from '../products/product.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
+import { broadcastEvent } from '../../sockets/socket.js';
+
 
 class TapalService extends BaseService {
   constructor() {
@@ -105,8 +107,17 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'ASSIGNED',
+        driverName: driver.fullName,
+        tapalNumber: tapal.tapalNumber
+      }, 'dashboard:updates');
+
       logger.info(`[Logistics Engine]: Driver ${driver.fullName} assigned to Tapal ${tapal.tapalNumber}. Trip ${trip.tripNumber} spawned.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -146,8 +157,15 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'STARTED'
+      }, 'dashboard:updates');
+
       logger.info(`[Driver Flow]: Trip ${trip.tripNumber} has started.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -188,8 +206,16 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'PICKED',
+        actualPickupQty
+      }, 'dashboard:updates');
+
       logger.info(`[Driver Flow]: Cargo picked up for trip ${trip.tripNumber}. Qty: ${actualPickupQty} KG.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -232,8 +258,16 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'DELIVERED',
+        actualDeliveredQty
+      }, 'dashboard:updates');
+
       logger.info(`[Driver Flow]: Cargo delivered for trip ${trip.tripNumber}. Actual weight: ${actualDeliveredQty} KG.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -326,8 +360,15 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'CLOSED'
+      }, 'dashboard:updates');
+
       logger.info(`[Logistics Engine]: Trip ${trip.tripNumber} closed. Inventory adjusted. Tapal status shifted to BILL_PENDING.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();

@@ -6,6 +6,8 @@ import { config } from './config/config.js';
 import { loggingMiddleware } from './middleware/logging.middleware.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { AppError } from './utils/appError.js';
+import { sanitizeMongoQueries, sanitizeXSS, authRateLimiter, generalApiLimiter } from './middleware/security.middleware.js';
+
 
 // Route imports
 import authRoutes from './modules/auth/auth.routes.js';
@@ -31,7 +33,15 @@ const app = express();
 app.use(helmet()); // Sets standard security response headers (XSS, Clickjacking protection)
 
 app.use(cors({
-  origin: config.cors.origin,
+  origin: [
+    config.cors.origin,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5175'
+  ],
   credentials: config.cors.credentials,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -41,11 +51,16 @@ app.use(cors({
 app.use(loggingMiddleware);
 
 // ==========================================
-// 2. Request Parsers
+// 2. Request Parsers & Sanitizers
 // ==========================================
 app.use(express.json({ limit: '10kb' })); // Prevents large payload body flooding
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
+
+// Anti-injection & XSS security filters
+app.use(sanitizeMongoQueries);
+app.use(sanitizeXSS);
+
 
 // ==========================================
 // 3. API Routes Mounting
@@ -58,7 +73,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.use('/api/v1/auth', authRoutes);
+// Apply specific rate limit rules before mounting routes
+app.use('/api/v1/auth', authRateLimiter, authRoutes);
+
+// General traffic limits for other operational routes
+app.use('/api/v1', generalApiLimiter);
+
 app.use('/api/v1/farmers', farmerRoutes);
 app.use('/api/v1/buyers', buyerRoutes);
 app.use('/api/v1/products', productRoutes);
@@ -66,6 +86,7 @@ app.use('/api/v1/vehicles', vehicleRoutes);
 app.use('/api/v1/drivers', driverProfileRoutes);
 app.use('/api/v1/harvests', harvestRoutes);
 app.use('/api/v1/tapals', tapalRoutes);
+
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/restaurant', restaurantRoutes);
