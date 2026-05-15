@@ -1,5 +1,7 @@
 import { BaseService } from '../../services/base.service.js';
 import { User } from './user.model.js';
+import { ApiResponse } from '../../utils/apiResponse.js';
+import { asyncWrapper } from '../../utils/asyncWrapper.js';
 
 /**
  * Service Layer dealing with core User data operations.
@@ -40,3 +42,20 @@ class UserService extends BaseService {
 }
 
 export const userService = new UserService();
+
+export const userController = {
+  all: asyncWrapper(async (req, res) => {
+    const users = await userService.findMany({}, req.query);
+    new ApiResponse(200, users.docs, 'Users fetched successfully', users.meta).send(res);
+  }),
+
+  update: asyncWrapper(async (req, res) => {
+    const user = await userService.updateById(req.params.id, req.body);
+    new ApiResponse(200, { user }, 'User updated successfully').send(res);
+  }),
+
+  delete: asyncWrapper(async (req, res) => {
+    await userService.deleteById(req.params.id);
+    new ApiResponse(200, null, 'User deleted successfully').send(res);
+  })
+};

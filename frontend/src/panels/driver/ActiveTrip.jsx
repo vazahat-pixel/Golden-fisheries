@@ -22,19 +22,22 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
+import { useDriverStore } from '../../store/driverStore';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const ActiveTrip = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { trips, driverStartTrip, confirmPickup, completeTrip, addTripExpense, closeTrip } = useAdminStore();
+  const { 
+    activeTrip: myTrip, 
+    startTripAsync, 
+    pickupAsync, 
+    deliverAsync,
+    fetchMyTrips
+  } = useDriverStore();
 
-  const myTrip = trips.find(t => {
-    const matchById = user?.id && t.driverId === user.id;
-    const matchByName = t.driverName?.toUpperCase().trim() === (user?.name || 'RAJESH KUMAR').toUpperCase().trim();
-    return (matchById || matchByName) && ['Accepted', 'In Transit', 'Picked', 'Delivered', 'Expense Submitted'].includes(t.status);
-  });
+
 
   const dummyTrip = {
     id: 'TRP-8821',
@@ -68,28 +71,48 @@ const ActiveTrip = () => {
     toast.success('Signature Captured');
   };
 
-  const handleStartTrip = () => {
-    driverStartTrip(trip.tapalId);
-    toast.success('Trip Started! Drive safe.');
+  const handleStartTrip = async () => {
+    try {
+      await startTripAsync(trip._id || trip.tapalId || trip.id);
+      toast.success('Trip Started! Drive safe.');
+      if (user?.id) fetchMyTrips(user.id);
+    } catch (err) {
+      toast.error('Failed to start trip');
+    }
   };
 
-  const handlePickupComplete = () => {
+  const handlePickupComplete = async () => {
     if (!pickupForm.actualQty) return toast.error('Please enter actual quantity');
-    confirmPickup(trip.tapalId, pickupForm);
-    setIsPickupModalOpen(false);
-    toast.success('Pickup Execution Logged');
+    try {
+      await pickupAsync(trip._id || trip.tapalId || trip.id, pickupForm.actualQty);
+      setIsPickupModalOpen(false);
+      toast.success('Pickup Execution Logged');
+      if (user?.id) fetchMyTrips(user.id);
+    } catch (err) {
+      toast.error('Failed to log pickup');
+    }
   };
 
-  const handleDeliver = () => {
+  const handleDeliver = async () => {
     if (otp !== '1234') return toast.error('Invalid OTP. Use 1234 for demo.');
-    completeTrip(trip.tapalId);
-    setIsDeliveryModalOpen(false);
-    toast.success('Delivery Completed! Inventory updated.');
+    try {
+      await deliverAsync(
+        trip._id || trip.tapalId || trip.id, 
+        pickupForm.actualQty || trip.expectedQty, 
+        pickupForm.photo || '', 
+        pickupForm.signature || ''
+      );
+      setIsDeliveryModalOpen(false);
+      toast.success('Delivery Completed! Inventory updated.');
+      if (user?.id) fetchMyTrips(user.id);
+    } catch (err) {
+      toast.error('Failed to confirm delivery');
+    }
   };
 
   const handleFinish = () => {
-    closeTrip(trip.tapalId);
-    toast.success('Trip flow fully completed!');
+    // Finished trips are handled by admin closing them
+    toast.success('Trip finalized on your end!');
     navigate('/driver/dashboard');
   };
 

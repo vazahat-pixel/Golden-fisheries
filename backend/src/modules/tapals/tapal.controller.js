@@ -3,12 +3,21 @@ import { harvestService } from '../harvests/harvest.service.js';
 import { Trip } from '../trips/trip.model.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
+import { broadcastEvent } from '../../sockets/socket.js';
 
 export const tapalController = {
   // Convert Harvest slip to active purchase Tapal contract
   createFromHarvest: asyncWrapper(async (req, res) => {
     const { harvestId } = req.body;
     const tapal = await harvestService.convertToTapal(harvestId, req.user);
+    
+    // Broadcast for real-time dashboard sync
+    broadcastEvent('tapal:created', { tapal }, 'dashboard:updates');
+    broadcastEvent('harvest:status_update', { 
+      id: harvestId, 
+      status: 'CONVERTED_TO_TAPAL' 
+    }, 'dashboard:updates');
+
     new ApiResponse(201, { tapal }, 'Tapal created from harvest slip successfully').send(res);
   }),
 

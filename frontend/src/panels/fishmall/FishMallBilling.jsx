@@ -5,12 +5,16 @@ import { Button } from '../../design-system/components/Button';
 import { useFishMallStore } from '../../store/fishMallStore';
 
 const FishMallBilling = () => {
-  const { stock, addBill, updateStockQty } = useFishMallStore();
+  const { stock, createSaleAsync, fetchStock, loading } = useFishMallStore();
   const [cart, setCart] = useState([]);
   const [currentWeight, setCurrentWeight] = useState('0.00');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+
+  React.useEffect(() => {
+    fetchStock();
+  }, [fetchStock]);
   const [additionalCharges, setAdditionalCharges] = useState({
     cleaning: { active: false, amount: 20 },
     cutting: { active: false, amount: 10 },
@@ -57,30 +61,32 @@ const FishMallBilling = () => {
 
   const calculateTotal = () => calculateSubtotal() + calculateAdditionalTotal();
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (cart.length === 0) return;
     
     const billData = {
-      id: `FM-${Date.now()}`,
-      items: cart,
+      items: cart.map(item => ({
+        productId: item.id,
+        name: item.name,
+        quantity: item.weight,
+        rate: item.rate,
+        total: item.total
+      })),
       subtotal: calculateSubtotal(),
       additional: calculateAdditionalTotal(),
       total: calculateTotal(),
       paymentMethod,
-      timestamp: new Date().toISOString(),
       charges: additionalCharges
     };
 
-    addBill(billData);
-    
-    // Update stock
-    cart.forEach(item => {
-      updateStockQty(item.id, -item.weight);
-    });
-
-    setLastBill(billData);
-    setShowInvoice(true);
-    toast.success('Bill finalized!');
+    try {
+      await createSaleAsync(billData);
+      setLastBill({ ...billData, id: `FM-${Date.now()}`, timestamp: new Date().toISOString() });
+      setShowInvoice(true);
+      toast.success('Bill finalized & Stock Adjusted!');
+    } catch (err) {
+      toast.error('Failed to process sale');
+    }
   };
 
   const resetBilling = () => {

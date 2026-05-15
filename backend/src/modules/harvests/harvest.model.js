@@ -56,8 +56,8 @@ const harvestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['DRAFT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'CONVERTED_TO_TAPAL', 'COMPLETED'],
-      default: 'DRAFT',
+      enum: ['DRAFT', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'CONVERTED_TO_TAPAL', 'COMPLETED'],
+      default: 'PENDING',
       index: true
     },
     createdBy: {

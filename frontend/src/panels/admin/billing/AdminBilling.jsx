@@ -19,9 +19,13 @@ import { toast } from 'react-hot-toast';
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const AdminBilling = () => {
-  const { invoices } = useAdminStore();
+  const { invoices, fetchInvoices } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('ALL');
+
+  React.useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const filteredInvoices = invoices.filter(inv => {
     const matchesSearch = 

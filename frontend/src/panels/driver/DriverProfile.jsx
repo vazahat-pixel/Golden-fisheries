@@ -208,8 +208,8 @@ const DriverProfile = () => {
             </div>
             <div className="pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
                <div className="flex gap-1">
-                  {Object.entries(assignedVehicle.documents).map(([key, doc]) => (
-                    <div key={key} className={`w-1.5 h-1.5 rounded-full ${doc.status === 'VALID' ? 'bg-emerald-500' : 'bg-red-500'}`} title={key.toUpperCase()} />
+                  {Object.entries(assignedVehicle?.documents || {}).map(([key, doc]) => (
+                    <div key={key} className={`w-1.5 h-1.5 rounded-full ${doc?.status === 'VALID' ? 'bg-emerald-500' : 'bg-red-500'}`} title={key.toUpperCase()} />
                   ))}
                </div>
                <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Compliance Active</p>

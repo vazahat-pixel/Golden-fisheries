@@ -17,8 +17,12 @@ const RestaurantPOS = () => {
   const { user } = useAuthStore();
   const { 
     menuItems, tables, kots, coupons,
-    createKOT, settleOrder, updateTableStatus 
+    createKOT, settleOrderAsync, fetchOrders, updateTableStatus, loading 
   } = useRestaurantStore();
+
+  React.useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const [orderType, setOrderType] = useState('Dine In');
   const [tableLabel, setTableLabel] = useState('');
@@ -109,7 +113,7 @@ const RestaurantPOS = () => {
     }
   };
 
-  const handleSettle = () => {
+  const handleSettle = async () => {
     if (orderType === 'Dine In' && !tableLabel) {
       toast.error('Please select or enter a Table Number');
       return;
@@ -119,20 +123,35 @@ const RestaurantPOS = () => {
       tableId: tableLabel || 'COUNTER',
       tableLabel: tableLabel || 'COUNTER',
       orderType,
-      items: cart,
+      items: cart.map(item => ({
+        menuId: item.id,
+        name: item.name,
+        quantity: item.qty,
+        price: item.price,
+        gstRate: item.gstRate,
+        notes: item.notes
+      })),
       subtotal: calculateSubtotal(),
       gstAmount: calculateTax(),
       discount: calculateDiscount(),
-      coupon: appliedCoupon,
+      coupon: appliedCoupon ? appliedCoupon.code : null,
       total,
       paymentBreakdown: isMixedPayment ? mixedPayment : { [paymentMode.toLowerCase()]: total },
       staffName: user?.name || 'Staff'
     };
 
-    const order = settleOrder(orderData);
-    setLastOrder(order);
-    setShowInvoice(true);
-    toast.success('Order Settled Successfully!');
+    try {
+      const res = await settleOrderAsync(orderData);
+      setLastOrder({ 
+        ...orderData, 
+        invoiceNo: res?.invoiceNo || `ORD-${Date.now()}`, 
+        timestamp: new Date().toISOString() 
+      });
+      setShowInvoice(true);
+      toast.success('Order Settled Successfully!');
+    } catch (err) {
+      toast.error('Failed to settle order');
+    }
   };
 
   const resetPOS = () => {

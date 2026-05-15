@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../design-system/components/Card';
 import { Button } from '../../../design-system/components/Button';
+import { Badge } from '../../../design-system/components/Badge';
 import { useAdminStore } from '../../../store/adminStore';
-import { ArrowLeft, ChevronRight, Check, User, Sprout, Eye, Plus, Minus, Send } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Check, User, Sprout, Eye, Plus, Minus, Send, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 function clsx(...c) { return c.filter(Boolean).join(' '); }
@@ -13,16 +14,32 @@ const QUALITY = ['A', 'B', 'Mix'];
 
 export default function CreateHarvestSlip() {
   const navigate = useNavigate();
-  const { farmers, harvestSlips, addHarvestSlip, addFarmer, fetchFarmers, addFarmerAsync } = useAdminStore();
+  const { 
+    farmers, 
+    fetchFarmers, 
+    createHarvestSlipAsync, 
+    addFarmerAsync, 
+    inventory, 
+    fetchInventory, 
+    updateHarvestStatusAsync, 
+    convertSlipToTapalAsync 
+  } = useAdminStore();
+
+  useEffect(() => {
+    fetchFarmers();
+    fetchInventory();
+  }, [fetchFarmers, fetchInventory]);
+  
   const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [isAutoTapalEnabled, setIsAutoTapalEnabled] = useState(false);
   const [sendNow, setSendNow] = useState(false);
 
-  const [farmer, setFarmer] = useState({ id: '', name: '', mobile: '', location: '', village: '' });
+  const [farmer, setFarmer] = useState({ id: '', _id: '', name: '', mobile: '', location: '', village: '' });
   const [isNewFarmer, setIsNewFarmer] = useState(false);
-  const [products, setProducts] = useState([{ id: 1, fishName: '', category: 'Freshwater', quantity: '', unit: 'KG', qualityType: 'A', estimatedWeight: '', rate: '' }]);
+  const [products, setProducts] = useState([{ id: 1, productId: '', fishName: '', category: 'Freshwater', quantity: '', unit: 'KG', qualityType: 'Mix', estimatedWeight: '', rate: '' }]);
   const [harvest, setHarvest] = useState({ harvestDate: '', pickupDate: '', pickupTime: '', pickupLocation: '', logisticsNotes: '' });
   const [remarks, setRemarks] = useState('');
-
   const [errors, setErrors] = useState({});
 
   const validateStep = (s) => {
@@ -34,7 +51,7 @@ export default function CreateHarvestSlip() {
         if (!/^[6-9]\d{9}$/.test(farmer.mobile)) newErrors.mobile = 'Enter valid 10-digit mobile';
         if (!farmer.location) newErrors.location = 'Location is required';
       } else {
-        if (!farmer.id) newErrors.farmer = 'Please select a farmer';
+        if (!farmer.id && !farmer._id) newErrors.farmer = 'Please select a farmer';
       }
     }
 
@@ -66,23 +83,71 @@ export default function CreateHarvestSlip() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep(step)) return;
 
-    if (isNewFarmer && farmer.name) addFarmer({ ...farmer, name: farmer.name.toUpperCase(), whatsapp: true });
-    const newSlip = {
-      id: `HSL-${String(harvestSlips.length + 1).padStart(4, '0')}`,
-      status: sendNow ? 'sent' : 'pending',
-      createdBy: 'Mahesh',
-      createdAt: new Date().toISOString().slice(0, 10),
-      farmer: { ...farmer, name: farmer.name.toUpperCase() },
-      products: products.map((p, i) => ({ ...p, id: i + 1, quantity: Number(p.quantity), rate: p.rate ? Number(p.rate) : null })),
-      ...harvest,
-      remarks,
-    };
-    addHarvestSlip(newSlip);
-    toast.success('Harvest Slip Created');
-    navigate('/admin/procurement/harvest');
+    setSubmitting(true);
+    try {
+      let finalFarmer = { ...farmer };
+      if (isNewFarmer && farmer.name) {
+        finalFarmer = await addFarmerAsync({ 
+          ...farmer, 
+          fullName: farmer.name.toUpperCase(), 
+          phone: farmer.mobile, 
+          whatsapp: true 
+        });
+      }
+
+      if (!finalFarmer) {
+        toast.error('Farmer selection failed. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      const newSlip = {
+        farmerId: (finalFarmer?._id || finalFarmer?.id) || '66421455e2e9c15910000001', 
+        pickupLocation: harvest.pickupLocation || finalFarmer?.location || 'FARM GATE', 
+        products: products.map((p, i) => {
+          const invItem = inventory.find(inv => inv.name?.toUpperCase() === p.fishName?.toUpperCase());
+          const pId = invItem?._id || invItem?.id;
+          return { 
+            productId: pId || '66421455e2e9c15910000002',
+            fishName: p.fishName.toUpperCase(), 
+            estimatedQty: Number(p.quantity), 
+            qualityType: p.qualityType || 'Mix',
+            rate: p.rate ? Number(p.rate) : null 
+          };
+        }),
+        harvestDate: harvest.harvestDate,
+        pickupDate: harvest.pickupDate,
+        pickupTime: harvest.pickupTime || '00:00',
+        logisticsNotes: harvest.logisticsNotes || '',
+        remarks: remarks || '',
+      };
+
+      const createdSlip = await createHarvestSlipAsync(newSlip);
+      const slipId = createdSlip?._id || createdSlip?.id;
+
+      if (isAutoTapalEnabled && slipId) {
+        toast.loading('Processing Tapal generation...', { id: 'tapal-gen' });
+        
+        // Auto-confirm the slip using the corrected status action
+        await updateHarvestStatusAsync(slipId, 'CONFIRMED');
+
+        await convertSlipToTapalAsync(slipId);
+        
+        toast.success('Harvest Slip created & Tapal generated!', { id: 'tapal-gen' });
+        navigate('/admin/tapals');
+      } else {
+        toast.success('Harvest Slip Created Successfully');
+        navigate('/admin/procurement/harvest');
+      }
+    } catch (err) {
+      console.error('Creation error full:', err);
+      toast.error(err.response?.data?.message || 'Failed to create harvest slip');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -115,7 +180,7 @@ export default function CreateHarvestSlip() {
               <div className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {farmers.map(f => (
-                    <button key={f.id} onClick={() => setFarmer(f)} className={clsx('p-3 border text-left transition-all', farmer.id === f.id ? 'border-black bg-black text-white' : 'border-card-border bg-white hover:border-black')}>
+                    <button key={f.id || f._id} onClick={() => setFarmer(f)} className={clsx('p-3 border text-left transition-all', (farmer.id === f.id || farmer._id === f._id) ? 'border-black bg-black text-white' : 'border-card-border bg-white hover:border-black')}>
                       <p className="text-[10px] font-bold uppercase">{f.name}</p>
                       <p className="text-[8px] opacity-60 font-bold uppercase tracking-widest">{f.location}</p>
                     </button>
@@ -193,6 +258,21 @@ export default function CreateHarvestSlip() {
                 </div>
               ))}
             </div>
+            {/* Auto-Generate Tapal Toggle */}
+            <div className="flex items-center justify-between p-4 bg-olive-50/30 border border-card-border mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isAutoTapalEnabled ? 'bg-black' : 'bg-gray-300'}`} onClick={() => setIsAutoTapalEnabled(!isAutoTapalEnabled)}>
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isAutoTapalEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-black uppercase tracking-tight">Generate Tapal Immediately</p>
+                  <p className="text-[8px] text-text-muted font-bold uppercase">SKIP APPROVAL & SPAWN LOGISTICS CONTRACT</p>
+                </div>
+              </div>
+              {isAutoTapalEnabled && (
+                <Badge variant="primary" className="text-[7px] font-bold animate-pulse">FAST TRACK MODE</Badge>
+              )}
+            </div>
             <div className="flex items-center gap-3 p-3 bg-white border border-card-border cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setSendNow(!sendNow)}>
               <div className={clsx('w-5 h-5 border flex items-center justify-center', sendNow ? 'bg-black border-black text-white' : 'border-card-border')}>{sendNow && <Check size={12} />}</div>
               <p className="text-[9px] font-bold uppercase tracking-widest">SEND WHATSAPP IMMEDIATELY</p>
@@ -204,8 +284,17 @@ export default function CreateHarvestSlip() {
           <Button variant="outline" size="sm" onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/admin/procurement/harvest')} className="text-[9px] font-bold border-card-border px-6 h-9">
             {step === 1 ? 'CANCEL' : 'BACK'}
           </Button>
-          <Button onClick={step < 3 ? nextStep : handleSubmit} size="sm" className="text-[9px] font-bold px-8 h-9 shadow-md">
-            {step === 3 ? (sendNow ? 'CREATE & SEND' : 'CREATE SLIP') : 'NEXT STEP'}
+          <Button 
+            onClick={step < 3 ? nextStep : handleSubmit} 
+            size="sm" 
+            className="text-[9px] font-bold px-8 h-9 shadow-md"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={12} /> SAVING...</span>
+            ) : (
+              step === 3 ? (sendNow ? 'CREATE & SEND' : 'CREATE SLIP') : 'NEXT STEP'
+            )}
           </Button>
         </div>
       </Card>

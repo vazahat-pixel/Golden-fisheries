@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useAdminStore } from './adminStore';
+import { restaurantService } from '../services/restaurantService';
 
 // ─── Menu Data ────────────────────────────────────────────────────────────────
 const INITIAL_MENU = [
@@ -200,6 +201,41 @@ export const useRestaurantStore = create(
       addOrder: (order) => set((state) => ({
         orders: [{ ...order, id: `ORD-${Date.now()}`, timestamp: new Date().toISOString(), status: 'COMPLETED' }, ...state.orders]
       })),
+
+      // Async Actions
+      fetchOrders: async () => {
+        set({ loading: true });
+        try {
+          const res = await restaurantService.all();
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ orders: list, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch orders', err);
+          set({ loading: false });
+        }
+      },
+
+      settleOrderAsync: async (settleData) => {
+        set({ loading: true });
+        try {
+          // 1. Create the order document on backend
+          const res = await restaurantService.create(settleData);
+          const orderId = res?.data?._id || res?._id;
+
+          // 2. Settle the order (payment)
+          if (orderId) {
+            await restaurantService.settle(orderId, settleData.paymentBreakdown);
+          }
+
+          // 3. Refresh local state
+          await get().fetchOrders();
+          set({ loading: false });
+          return res;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
     }),
     { name: 'golden-fisheries-restaurant' }
   )

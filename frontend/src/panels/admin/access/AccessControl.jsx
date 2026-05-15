@@ -51,10 +51,14 @@ const StatusBadge = ({ status }) => {
 };
 
 const AccessControl = () => {
-  const { users, revokeUser, togglePauseUser, deleteUser } = useRbacStore();
+  const { users, revokeUser, togglePauseUser, deleteUser, fetchUsers, loading } = useRbacStore();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('ALL');
+
+  React.useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filtered = users.filter((u) => {
     const matchSearch =
@@ -224,12 +228,16 @@ const AccessControl = () => {
                       <td className="px-6 py-4">
                         <StatusBadge status={user.status} />
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => {
-                              togglePauseUser(user.id);
-                              toast.success(user.status === 'paused' ? `${user.name} reactivated` : `${user.name} paused`);
+                            onClick={async () => {
+                              try {
+                                await togglePauseUser(user.id || user._id);
+                                toast.success(user.status === 'paused' ? `${user.name} reactivated` : `${user.name} paused`);
+                              } catch (err) {
+                                toast.error('Failed to update status');
+                              }
                             }}
                             title={user.status === 'paused' ? 'Reactivate' : 'Pause'}
                             className="w-8 h-8 flex items-center justify-center bg-amber-50 text-amber-500 hover:bg-amber-100 border border-amber-100 transition-all"
@@ -237,10 +245,14 @@ const AccessControl = () => {
                             <PauseCircle size={13} />
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm(`Revoke access for ${user.name}?`)) {
-                                revokeUser(user.id);
-                                toast.error(`${user.name}'s access revoked`);
+                                try {
+                                  await revokeUser(user.id || user._id);
+                                  toast.error(`${user.name}'s access revoked`);
+                                } catch (err) {
+                                  toast.error('Failed to revoke access');
+                                }
                               }
                             }}
                             title="Revoke"
@@ -249,10 +261,14 @@ const AccessControl = () => {
                             <XCircle size={13} />
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm(`Permanently delete ${user.name}?`)) {
-                                deleteUser(user.id);
-                                toast.error(`${user.name} deleted`);
+                                try {
+                                  await deleteUser(user.id || user._id);
+                                  toast.error(`${user.name} deleted`);
+                                } catch (err) {
+                                  toast.error('Failed to delete user');
+                                }
                               }
                             }}
                             title="Delete"

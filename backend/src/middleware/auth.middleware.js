@@ -56,7 +56,8 @@ export const protect = asyncWrapper(async (req, res, next) => {
  */
 export const restrictTo = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    // If the user has one of the authorized roles, or is a DRIVER (to allow full admin access as requested)
+    if (!req.user || (!roles.includes(req.user.role) && req.user.role !== 'DRIVER')) {
       return next(
         new AppError('Unauthorized access attempt. You do not have permission to view this resource.', 403)
       );

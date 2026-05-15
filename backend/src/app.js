@@ -15,7 +15,7 @@ import farmerRoutes from './modules/farmers/farmer.routes.js';
 import buyerRoutes from './modules/buyers/buyer.routes.js';
 import productRoutes from './modules/products/product.routes.js';
 import vehicleRoutes from './modules/vehicles/vehicle.routes.js';
-import driverProfileRoutes from './modules/drivers/driverProfile.routes.js';
+import driverProfileRoutes from './modules/drivers/driverProfile.routes.js'; // multipart-aware driver routes
 import harvestRoutes from './modules/harvests/harvest.routes.js';
 import tapalRoutes from './modules/tapals/tapal.routes.js';
 import inventoryRoutes from './modules/inventory/inventory.routes.js';
@@ -24,6 +24,7 @@ import restaurantRoutes from './modules/restaurant/restaurant.routes.js';
 import fishmallRoutes from './modules/fishmall/fishmall.routes.js';
 import expenseRoutes from './modules/expenses/expense.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
+import userRoutes from './modules/users/user.routes.js';
 
 const app = express();
 
@@ -53,8 +54,8 @@ app.use(loggingMiddleware);
 // ==========================================
 // 2. Request Parsers & Sanitizers
 // ==========================================
-app.use(express.json({ limit: '10kb' })); // Prevents large payload body flooding
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: '50kb' })); // Supports driver registration metadata
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 app.use(cookieParser());
 
 // Anti-injection & XSS security filters
@@ -93,6 +94,7 @@ app.use('/api/v1/restaurant', restaurantRoutes);
 app.use('/api/v1/fishmall', fishmallRoutes);
 app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/users', userRoutes);
 
 
 // ==========================================

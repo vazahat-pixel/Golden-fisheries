@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useAdminStore } from './adminStore';
+import { fishmallService } from '../services/fishmallService';
+import { masterService } from '../services/masterService';
+import { expenseService } from '../services/expenseService';
 
 export const useFishMallStore = create(
   persist(
@@ -140,7 +143,65 @@ export const useFishMallStore = create(
 
       dismissAlert: (id) => set(state => ({
         alerts: state.alerts.filter(a => a.id !== id)
-      }))
+      })),
+
+      // Async Actions
+      fetchStock: async () => {
+        set({ loading: true });
+        try {
+          const res = await masterService.products.getAll();
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(p => ({
+            id: p._id,
+            name: p.name,
+            category: p.category,
+            qty: p.quantity,
+            unit: p.baseUnit,
+            rate: p.basePrice,
+            lastSync: new Date().toISOString().split('T')[0]
+          }));
+          set({ stock: mapped, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch stock', err);
+          set({ loading: false });
+        }
+      },
+
+      createSaleAsync: async (saleData) => {
+        set({ loading: true });
+        try {
+          await fishmallService.create(saleData);
+          await get().fetchStock();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      fetchExpensesAsync: async () => {
+        set({ loading: true });
+        try {
+          const res = await expenseService.all({ source: 'FISHMALL' });
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ expenses: list, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch fishmall expenses', err);
+          set({ loading: false });
+        }
+      },
+
+      submitExpenseAsync: async (expenseData) => {
+        set({ loading: true });
+        try {
+          await expenseService.create({ ...expenseData, source: 'FISHMALL' });
+          await get().fetchExpensesAsync();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
     }),
     {
       name: 'golden-fisheries-fishmall',

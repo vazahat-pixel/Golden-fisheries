@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { userService } from '../services/userService';
 
 // --- Role Templates ---
 export const ROLE_TEMPLATES = {
@@ -171,52 +172,87 @@ export const useRbacStore = create(
   persist(
     (set, get) => ({
       users: [],
+      loading: false,
+      error: null,
       otpSessions: {}, // phone → { otp, expiresAt }
 
       // ---- User Actions ----
-      createUser: (userData) => {
-        const newUser = {
-          id: `USR-${Date.now()}`,
-          name: userData.name,
-          phone: userData.phone,
-          email: userData.email || '',
-          phoneVerified: userData.phoneVerified || false,
-          role: userData.role,
-          status: 'active',
-          loginPortal: userData.loginPortal,
-          createdAt: new Date().toISOString(),
-          createdBy: 'ADMIN',
-          permissions: userData.permissions,
-        };
-        set((state) => ({ users: [...state.users, newUser] }));
-        return newUser;
+      fetchUsers: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await userService.all(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ users: list, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch users', err);
+          set({ loading: false });
+        }
       },
 
-      updateUser: (userId, updates) =>
-        set((state) => ({
-          users: state.users.map((u) =>
-            u.id === userId ? { ...u, ...updates } : u
-          ),
-        })),
+      createUser: async (userData) => {
+        set({ loading: true });
+        try {
+          const newUser = await userService.register(userData);
+          await get().fetchUsers();
+          set({ loading: false });
+          return newUser;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
-      revokeUser: (userId) =>
-        set((state) => ({
-          users: state.users.map((u) =>
-            u.id === userId ? { ...u, status: 'revoked' } : u
-          ),
-        })),
+      updateUser: async (userId, updates) => {
+        set({ loading: true });
+        try {
+          await userService.update(userId, updates);
+          await get().fetchUsers();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
-      togglePauseUser: (userId) =>
-        set((state) => ({
-          users: state.users.map((u) =>
-            u.id === userId
-              ? { ...u, status: u.status === 'paused' ? 'active' : 'paused' }
-              : u
-          ),
-        })),
+      revokeUser: async (userId) => {
+        set({ loading: true });
+        try {
+          await userService.update(userId, { status: 'revoked' });
+          await get().fetchUsers();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
-      deleteUser: (userId) =>
-        set((state) => ({ users: state.users.filter((u) => u.id !== userId) })),
+      togglePauseUser: async (userId) => {
+        const user = get().users.find((u) => u.id === userId || u._id === userId);
+        if (!user) return;
+        
+        set({ loading: true });
+        try {
+          const newStatus = user.status === 'paused' ? 'active' : 'paused';
+          await userService.update(userId, { status: newStatus });
+          await get().fetchUsers();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      deleteUser: async (userId) => {
+        set({ loading: true });
+        try {
+          await userService.delete(userId);
+          await get().fetchUsers();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
       // ---- OTP Actions (Simulated) ----
       sendOtp: (phone) => {

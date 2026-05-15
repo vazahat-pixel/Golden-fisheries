@@ -49,12 +49,21 @@ class TapalService extends BaseService {
       // 1. Validate Tapal
       const tapal = await this.model.findById(tapalId).session(session);
       if (!tapal) throw new AppError('Tapal not found', 404);
-      if (tapal.status !== 'CREATED') {
-        throw new AppError(`Driver assignment blocked: Tapal status is ${tapal.status}, must be CREATED`, 400);
+
+      // Accept both CREATED (fresh) and CONFIRMED (converted from harvest) statuses
+      const assignableStatuses = ['CREATED', 'CONFIRMED'];
+      if (!assignableStatuses.includes(tapal.status)) {
+        throw new AppError(`Driver assignment blocked: Tapal status is '${tapal.status}'. Must be CREATED or CONFIRMED.`, 400);
       }
 
-      // 2. Validate Driver
-      const driver = await User.findOne({ _id: driverId, role: 'DRIVER' }).session(session);
+      // 2. Validate Driver — driverId may be User._id or DriverProfile._id
+      let driver = await User.findOne({ _id: driverId, role: 'DRIVER' }).session(session);
+      if (!driver) {
+        // Fallback: driverId might be DriverProfile._id — resolve via import
+        const { DriverProfile } = await import('../drivers/driverProfile.model.js');
+        const profile = await DriverProfile.findById(driverId).populate('userId').session(session);
+        if (profile?.userId) driver = profile.userId;
+      }
       if (!driver) throw new AppError('Driver not found or invalid role', 404);
       if (!driver.isActive) throw new AppError('Driver is currently inactive', 400);
 

@@ -60,12 +60,9 @@ class HarvestService extends BaseService {
    * Leverages MongoDB Multi-Document ACID Transactions to guarantee data integrity.
    */
   async convertToTapal(harvestId, creatorUser) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      // 1. Fetch Harvest and lock it in session
-      const harvest = await this.model.findById(harvestId).session(session);
+      // 1. Fetch Harvest
+      const harvest = await this.model.findById(harvestId);
       if (!harvest) {
         throw new AppError(`Harvest Slip with ID ${harvestId} does not exist.`, 404);
       }
@@ -76,12 +73,12 @@ class HarvestService extends BaseService {
       }
 
       // Business rule: Harvest slip must be in 'CONFIRMED' state to trigger downstream logistics Tapals
-      if (harvest.status !== 'CONFIRMED') {
+      if (harvest.status.toUpperCase() !== 'CONFIRMED') {
         throw new AppError(`Procurement workflow block: Harvest slip status must be CONFIRMED before generating a Tapal. Current status: ${harvest.status}`, 400);
       }
 
       // 2. Fetch Farmer details to cache party info
-      const farmer = await Farmer.findById(harvest.farmerId).session(session);
+      const farmer = await Farmer.findById(harvest.farmerId);
       if (!farmer) {
         throw new AppError('Farmer registry lookup failed for this harvest slip.', 404);
       }
@@ -92,25 +89,26 @@ class HarvestService extends BaseService {
       const tapalProducts = [];
 
       for (const item of harvest.products) {
-        totalQty += item.estimatedQty;
+        const qty = parseFloat(item.estimatedQty) || 0;
+        totalQty += qty;
 
         // If no rate is defined on slip, use base pricing
-        let activeRate = item.rate;
-        if (activeRate === null || activeRate === undefined) {
-          const product = await Product.findById(item.productId).session(session);
+        let activeRate = parseFloat(item.rate);
+        if (isNaN(activeRate)) {
+          const product = await Product.findById(item.productId);
           if (!product) {
             throw new AppError(`Product lookup failed for ID: ${item.productId}`, 404);
           }
-          activeRate = product.basePrice;
+          activeRate = product.basePrice || 0;
         }
 
-        const lineTotal = item.estimatedQty * activeRate;
+        const lineTotal = qty * activeRate;
         totalAmount += lineTotal;
 
         // Map line item details to standard Tapal string representations
         tapalProducts.push({
           name: item.fishName.toUpperCase(),
-          qty: `${item.estimatedQty} KG`,
+          qty: `${qty} KG`,
           rate: `₹${activeRate}`,
           total: `₹${lineTotal.toLocaleString('en-IN')}`
         });
@@ -126,29 +124,22 @@ class HarvestService extends BaseService {
         numericQty: totalQty,
         amount: `₹${totalAmount.toLocaleString('en-IN')}`,
         numericAmount: totalAmount,
-        status: 'Pending Approval', // Initially requires admin rate/weight lock confirmation
+        status: 'CREATED', 
         driver: 'Unassigned',
         createdBy: creatorUser.phone, // Track auditing details
         products: tapalProducts
       });
 
       // Save new Tapal
-      await newTapal.save({ session });
+      await newTapal.save();
 
       // 5. Update Harvest Slip state representation
       harvest.status = 'CONVERTED_TO_TAPAL';
-      await harvest.save({ session });
-
-      // Commit operations
-      await session.commitTransaction();
-      session.endSession();
+      await harvest.save();
 
       logger.info(`[Harvest Engine]: Successfully converted Slip ${harvest.harvestNumber} to Tapal ${newTapal.tapalNumber}`);
       return newTapal;
     } catch (error) {
-      // Abort active changes
-      await session.abortTransaction();
-      session.endSession();
       logger.error(`[Harvest Engine Error]: Transition failure. ${error.message}`);
       throw error;
     }

@@ -19,14 +19,27 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { driverService } from '../../../services/driverService';
 
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const TapalList = () => {
   const navigate = useNavigate();
-  const { tapals: storeTapals, editTapal, drivers } = useAdminStore();
+  const { tapals: storeTapals, fetchTapals, editTapal } = useAdminStore();
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDrivers, setActiveDrivers] = useState([]);
+
+  React.useEffect(() => {
+    fetchTapals();
+    // Fetch real active drivers from DB
+    driverService.getActive()
+      .then(res => {
+        const list = res?.data || (Array.isArray(res) ? res : []);
+        setActiveDrivers(list);
+      })
+      .catch(err => console.error('Failed to load active drivers', err));
+  }, [fetchTapals]);
   
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -51,11 +64,11 @@ const TapalList = () => {
     }
   };
 
-  const filteredTapals = storeTapals.filter(tapal => {
+  const filteredTapals = (storeTapals || []).filter(tapal => {
     const matchesFilter = filter === 'all' || tapal.type.toLowerCase() === filter.toLowerCase();
     const matchesSearch = 
-      tapal.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tapal.party.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tapal.tapalNumber || tapal.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tapal.partyName || tapal.party || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (tapal.driver && tapal.driver.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
@@ -173,13 +186,15 @@ const TapalList = () => {
             </thead>
             <tbody className="divide-y divide-olive-100/50">
               {filteredTapals.map((tapal) => (
-                <tr key={tapal.id} className="hover:bg-olive-50/50 transition-colors group">
+                <tr key={tapal._id || tapal.id} className="hover:bg-olive-50/50 transition-colors group">
                   <td className="px-4 py-2.5">
-                    <p className="text-[11px] font-bold text-black uppercase">{tapal.id}</p>
-                    <p className="text-[8px] text-text-muted font-bold uppercase">{tapal.date}</p>
+                    <p className="text-[11px] font-bold text-black uppercase">{tapal.tapalNumber || tapal.id}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase">
+                      {tapal.createdAt ? new Date(tapal.createdAt).toLocaleDateString() : (tapal.date || 'RECENT')}
+                    </p>
                   </td>
                   <td className="px-4 py-2.5">
-                    <p className="text-[10px] font-bold text-black uppercase">{tapal.party}</p>
+                    <p className="text-[10px] font-bold text-black uppercase">{tapal.partyName || tapal.party}</p>
                     <Badge variant={tapal.type.toLowerCase() === 'purchase' ? 'info' : 'secondary'} className="bg-opacity-10 text-[7px] border-none px-1 h-3.5 mt-0.5">{tapal.type}</Badge>
                   </td>
                   <td className="px-4 py-2.5">
@@ -207,7 +222,7 @@ const TapalList = () => {
                   <td className="px-4 py-2.5 text-right">
                     <div className="flex justify-end gap-1 transition-all">
                       <button onClick={() => openEditModal(tapal)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="Quick Edit"><Pencil size={13} /></button>
-                      <button onClick={() => navigate(`/admin/tapals/${tapal.id}`)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="View"><Eye size={13} /></button>
+                      <button onClick={() => navigate(`/admin/tapals/${tapal._id || tapal.id}`)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="View"><Eye size={13} /></button>
                       <button onClick={() => window.print()} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="Print"><FileText size={13} /></button>
                       <button className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white"><MoreVertical size={13} /></button>
                     </div>
@@ -288,9 +303,12 @@ const TapalList = () => {
               className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none bg-white appearance-none"
             >
               <option value="Unassigned">UNASSIGNED</option>
-              {drivers.map(d => (
-                <option key={d.id} value={d.name}>{d.name.toUpperCase()}</option>
-              ))}
+              {activeDrivers.map(d => {
+                const name = d.userId?.fullName || 'Unknown';
+                return (
+                  <option key={d._id} value={name}>{name.toUpperCase()}</option>
+                );
+              })}
             </select>
           </div>
 

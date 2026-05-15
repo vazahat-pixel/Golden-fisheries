@@ -12,59 +12,124 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+function clsx(...c) { return c.filter(Boolean).join(' '); }
+
 const STATUS_CONFIG = {
-  pending:   { label: 'PENDING',   variant: 'warning',   icon: Clock },
-  sent:      { label: 'SENT',      variant: 'secondary',  icon: Send },
-  confirmed: { label: 'CONFIRMED', variant: 'success',   icon: CheckCircle },
-  rejected:  { label: 'REJECTED',  variant: 'danger',    icon: XCircle },
-  converted: { label: 'CONVERTED', variant: 'primary',   icon: CheckCircle },
+  pending:             { label: 'PENDING',   variant: 'warning',   icon: Clock },
+  sent:                { label: 'SENT',      variant: 'secondary',  icon: Send },
+  confirmed:           { label: 'CONFIRMED', variant: 'success',   icon: CheckCircle },
+  rejected:            { label: 'REJECTED',  variant: 'danger',    icon: XCircle },
+  CONVERTED_TO_TAPAL:  { label: 'CONVERTED', variant: 'primary',   icon: CheckCircle },
 };
 
 const TABS = ['ALL', 'PENDING', 'SENT', 'CONFIRMED', 'REJECTED', 'CONVERTED'];
 
 export default function HarvestSlips() {
   const navigate = useNavigate();
-  const { harvestSlips, farmers, updateSlipStatus, convertSlipToTapal } = useAdminStore();
+  const { 
+    harvestSlips, 
+    farmers, 
+    fetchHarvestSlips,
+    fetchFarmers,
+    confirmSlipAsync, 
+    rejectSlipAsync, 
+    updateHarvestStatusAsync,
+    convertSlipToTapalAsync,
+    updateSlipStatus 
+  } = useAdminStore();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('ALL');
 
+  React.useEffect(() => {
+    // Fetch all for local filtering (or could pass status to backend if list is huge)
+    fetchHarvestSlips();
+    fetchFarmers();
+  }, [fetchHarvestSlips, fetchFarmers]);
+
   const filtered = harvestSlips.filter(s => {
-    const matchTab = activeTab === 'ALL' || s.status.toUpperCase() === activeTab;
+    // Status Filter Logic
+    let matchTab = activeTab === 'ALL';
+    if (!matchTab) {
+      if (activeTab === 'CONVERTED') {
+        matchTab = s.status === 'CONVERTED_TO_TAPAL';
+      } else {
+        matchTab = (s.status || '').toUpperCase() === activeTab;
+      }
+    }
+
+    // Search Filter Logic
+    const searchLower = search.toLowerCase();
     const matchSearch =
-      s.id.toLowerCase().includes(search.toLowerCase()) ||
-      s.farmer.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.products.some(p => p.fishName.toLowerCase().includes(search.toLowerCase()));
+      (s.id || '').toLowerCase().includes(searchLower) ||
+      (s.harvestNumber || '').toLowerCase().includes(searchLower) ||
+      (s.farmer?.name || '').toLowerCase().includes(searchLower) ||
+      s.products?.some(p => (p.fishName || '').toLowerCase().includes(searchLower));
+
     return matchTab && matchSearch;
   });
 
-  const handleSendWhatsApp = (slip) => {
-    updateSlipStatus(slip.id, 'sent');
-    toast.success(`WhatsApp sent to ${slip.farmer.name}`);
+  const handleSendWhatsApp = async (slip) => {
+    const slipId = slip._id || slip.id;
+    try {
+      await updateHarvestStatusAsync(slipId, 'SENT');
+      toast.success(`WhatsApp sent & status updated to SENT`);
+    } catch (err) {
+      toast.error('Failed to update status');
+    }
   };
 
-  const handleConfirm = (slip) => {
-    updateSlipStatus(slip.id, 'confirmed');
-    toast.success(`${slip.id} Confirmed`);
+  const handleConfirm = async (slip) => {
+    const slipId = slip._id || slip.id;
+    try {
+      toast.loading('Confirming & Generating Tapal...', { id: 'harvest-action' });
+      
+      // 1. Update status to CONFIRMED
+      await updateHarvestStatusAsync(slipId, 'CONFIRMED');
+      
+      // 2. Automatically convert to Tapal
+      await convertSlipToTapalAsync(slipId);
+      
+      toast.success(`${slip.harvestNumber || slipId} Confirmed & Tapal Generated`, { id: 'harvest-action' });
+      fetchHarvestSlips(); // Refresh for good measure, though socket handles it
+    } catch (err) {
+      console.error('Confirm/Convert error:', err);
+      toast.error(err.response?.data?.message || 'Action failed', { id: 'harvest-action' });
+    }
   };
 
-  const handleReject = (slip) => {
-    const reason = window.prompt('Enter rejection reason:');
+  const handleReject = async (slip) => {
+    const slipId = slip._id || slip.id;
+    const reason = window.prompt('ENTER REJECTION REASON:');
     if (reason === null) return;
-    updateSlipStatus(slip.id, 'rejected', { rejectedReason: reason || 'No reason given' });
-    toast.error(`${slip.id} Rejected`);
+    
+    try {
+      toast.loading('Rejecting slip...', { id: 'harvest-reject' });
+      await updateHarvestStatusAsync(slipId, 'REJECTED');
+      toast.error(`${slip.harvestNumber || slipId} Rejected`, { id: 'harvest-reject' });
+    } catch (err) {
+      toast.error('Failed to reject slip', { id: 'harvest-reject' });
+    }
   };
 
-  const handleConvert = (slip) => {
-    if (slip.status !== 'confirmed') {
-      toast.error('Slip must be Confirmed first');
+  const handleConvert = async (slip) => {
+    const slipId = slip._id || slip.id;
+    if (!slipId) {
+      toast.error('Invalid Harvest Slip ID');
       return;
     }
-    convertSlipToTapal(slip.id);
-    toast.success('Tapal created successfully!', { icon: '📋' });
+    try {
+      toast.loading('Converting to Tapal...', { id: 'conv-tapal' });
+      await convertSlipToTapalAsync(slipId);
+      toast.success('Tapal created successfully!', { icon: '📋', id: 'conv-tapal' });
+    } catch (err) {
+      toast.error(err.message || 'Failed to convert to tapal', { id: 'conv-tapal' });
+    }
   };
 
-  const totalQty = harvestSlips.reduce((a, s) =>
-    a + s.products.reduce((b, p) => b + p.quantity, 0), 0);
+  const totalQty = (Array.isArray(harvestSlips) ? harvestSlips : []).reduce((a, s) => {
+    const slipProducts = s.products || [];
+    return a + slipProducts.reduce((b, p) => b + (parseFloat(p.confirmedQty || p.estimatedQty || p.quantity) || 0), 0);
+  }, 0);
 
   return (
     <div className="space-y-3">
@@ -144,19 +209,23 @@ export default function HarvestSlips() {
                 const cfg = STATUS_CONFIG[slip.status] || STATUS_CONFIG.pending;
                 const StatusIcon = cfg.icon;
                 return (
-                  <tr key={slip.id} className="hover:bg-olive-50/50 transition-colors group">
+                  <tr key={slip._id || slip.id} className="hover:bg-olive-50/50 transition-colors group">
                     <td className="px-4 py-2.5">
-                      <p className="text-[11px] font-bold text-black uppercase">{slip.id}</p>
-                      <p className="text-[8px] text-text-muted font-bold">{slip.createdAt}</p>
+                      <p className="text-[11px] font-bold text-black uppercase">{slip.harvestNumber || slip.id}</p>
+                      <p className="text-[8px] text-text-muted font-bold">{slip.createdAt ? new Date(slip.createdAt).toLocaleDateString() : 'RECENT'}</p>
                     </td>
                     <td className="px-4 py-2.5">
-                      <p className="text-[10px] font-bold text-black uppercase">{slip.farmer.name}</p>
-                      <p className="text-[8px] text-text-muted font-bold flex items-center gap-1"><MapPin size={8} /> {slip.farmer.location}</p>
+                      <p className="text-[10px] font-bold text-black uppercase">
+                        {slip.farmerId?.fullName || slip.farmer?.name || slip.farmerName || 'STATION GUEST'}
+                      </p>
+                      <p className="text-[8px] text-text-muted font-bold flex items-center gap-1">
+                        <MapPin size={8} /> {slip.farmerId?.location || slip.farmer?.location || 'FIELD'}
+                      </p>
                     </td>
                     <td className="px-4 py-2.5">
-                      {slip.products.map((p, i) => (
+                      {(slip.products || []).map((p, i) => (
                         <p key={i} className="text-[9px] font-bold text-black uppercase">
-                          {p.fishName} — <span className="text-text-muted font-normal">{p.confirmedQty ?? p.quantity} {p.unit}</span>
+                          {p.fishName} — <span className="text-text-muted font-normal">{p.confirmedQty ?? p.estimatedQty ?? p.quantity} {p.unit || 'KG'}</span>
                         </p>
                       ))}
                     </td>
@@ -165,20 +234,71 @@ export default function HarvestSlips() {
                       <p className="text-[8px] text-text-muted font-bold uppercase">📦 {slip.pickupDate}</p>
                     </td>
                     <td className="px-4 py-2.5">
-                      <Badge variant={cfg.variant} className="uppercase text-[8px] font-bold border border-card-border px-2 py-0.5 flex items-center gap-1 w-fit shadow-none">
-                        <StatusIcon size={9} /> {cfg.label}
-                      </Badge>
+                      <select 
+                        value={(slip.status || 'pending').toLowerCase()}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value.toUpperCase();
+                          const slipId = slip._id || slip.id;
+                          
+                          if (newStatus === 'CONFIRMED') {
+                            await handleConfirm(slip);
+                          } else {
+                            try {
+                              toast.loading(`Updating to ${newStatus}...`, { id: 'status-update' });
+                              await updateHarvestStatusAsync(slipId, newStatus);
+                              toast.success(`Status updated to ${newStatus}`, { id: 'status-update' });
+                            } catch (err) {
+                              toast.error('Failed to update status', { id: 'status-update' });
+                            }
+                          }
+                        }}
+                        className={clsx(
+                          "text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 border outline-none cursor-pointer transition-all",
+                          cfg.variant === 'warning' ? "border-amber-200 bg-amber-50 text-amber-700" :
+                          cfg.variant === 'secondary' ? "border-blue-200 bg-blue-50 text-blue-700" :
+                          cfg.variant === 'success' ? "border-green-200 bg-green-50 text-green-700" :
+                          cfg.variant === 'danger' ? "border-red-200 bg-red-50 text-red-700" :
+                          "border-card-border bg-white text-black"
+                        )}
+                      >
+                        <option value="pending">PENDING</option>
+                        <option value="sent">SENT</option>
+                        <option value="confirmed">CONFIRM & TAPAL</option>
+                        <option value="rejected">REJECT</option>
+                        {(slip.status || '').toUpperCase() === 'CONVERTED_TO_TAPAL' && <option value="converted_to_tapal">CONVERTED</option>}
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1 transition-all">
-                        <button onClick={() => navigate(`/admin/procurement/harvest/${slip.id}`)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white" title="View"><Eye size={13} /></button>
-                        {slip.status === 'pending' && <button onClick={() => handleSendWhatsApp(slip)} className="p-1.5 text-green-600 hover:bg-green-50 transition-all border border-card-border/30 bg-white" title="WhatsApp"><Send size={13} /></button>}
-                        {slip.status === 'sent' && (
-                          <button onClick={() => handleConfirm(slip)} className="p-1.5 text-green-600 hover:bg-green-50 border border-card-border/30 bg-white" title="Confirm"><CheckCircle size={13} /></button>
+                      <div className="flex justify-end gap-1 opacity-100 transition-all">
+                        <button onClick={() => navigate(`/admin/procurement/harvest/${slip._id || slip.id}`)} className="p-1.5 text-black hover:bg-black hover:text-white transition-all border border-card-border/30 bg-white shadow-sm" title="View Detail"><Eye size={13} /></button>
+                        
+                        {/* Case-insensitive check to ensure buttons show regardless of backend casing */}
+                        {(() => {
+                          const s = (slip.status || '').toUpperCase();
+                          if (['PENDING', 'DRAFT', 'SENT', 'PENDING_CONFIRMATION'].includes(s)) {
+                            return (
+                              <>
+                                <button onClick={() => handleSendWhatsApp(slip)} className="p-1.5 text-blue-600 hover:bg-blue-600 hover:text-white transition-all border border-card-border/30 bg-white shadow-sm" title="Mark as Sent">
+                                  <Send size={13} />
+                                </button>
+                                <button onClick={() => handleConfirm(slip)} className="p-1.5 text-green-600 hover:bg-green-600 hover:text-white transition-all border border-card-border/30 bg-white shadow-sm" title="Confirm & Generate Tapal">
+                                  <CheckCircle size={13} />
+                                </button>
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {slip.status === 'CONFIRMED' && (
+                          <button onClick={() => handleConvert(slip)} className="p-1.5 text-accent-olive hover:bg-black hover:text-white border border-card-border/30 bg-white shadow-sm" title="Manual Convert to Tapal">
+                            <RefreshCw size={13} />
+                          </button>
                         )}
-                        {slip.status === 'confirmed' && (
-                          <button onClick={() => handleConvert(slip)} className="p-1.5 text-accent-olive hover:bg-olive-50 border border-card-border/30 bg-white" title="Convert"><RefreshCw size={13} /></button>
-                        )}
+                        
+                        <button onClick={() => handleReject(slip)} className="p-1.5 text-red-600 hover:bg-red-600 hover:text-white transition-all border border-card-border/30 bg-white shadow-sm" title="Reject">
+                          <XCircle size={13} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -195,8 +315,8 @@ export default function HarvestSlips() {
           <Sprout className="text-accent-olive" size={16} /> FARMER DIRECTORY
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {farmers.map(farmer => (
-            <Card key={farmer.id} className="border border-card-border hover:shadow-md transition-all bg-white overflow-hidden group" padding="none">
+          {farmers.map((farmer, idx) => (
+            <Card key={farmer._id || farmer.id || idx} className="border border-card-border hover:shadow-md transition-all bg-white overflow-hidden group" padding="none">
               <div className="p-3 border-b border-card-border flex justify-between items-start bg-olive-50/10">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-black text-white flex items-center justify-center font-bold text-xs shadow-sm border border-black">

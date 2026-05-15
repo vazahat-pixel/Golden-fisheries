@@ -65,7 +65,7 @@ export const harvestValidators = {
   }),
 
   patchStatus: Joi.object({
-    status: Joi.string().valid('DRAFT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'CONVERTED_TO_TAPAL', 'COMPLETED').required().messages({
+    status: Joi.string().valid('DRAFT', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'CONVERTED_TO_TAPAL', 'COMPLETED').required().messages({
       'any.only': 'Invalid harvest slip state requested'
     })
   })

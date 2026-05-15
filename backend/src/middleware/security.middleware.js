@@ -5,12 +5,12 @@ import { logger } from '../utils/logger.js';
 // 1. Core API Rate Limiters to prevent brute-force attacks
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes window
-  max: 30, // Limit each IP to 30 authentication requests per windowMs
+  max: 500, // Increased from 30 to 500 for dev/testing flexibility
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   handler: (req, res, next) => {
     logger.warn(`[API Rate Limiter Alert]: Brute-force threshold hit from IP: ${req.ip} on route: ${req.originalUrl}`);
-    next(new AppError('Brute force threshold exceeded. Please try again after 15 minutes.', 429));
+    next(new AppError('Too many authentication attempts. Please try again later.', 429));
   }
 });
 

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import AppRouter from './router';
 import { Toaster } from 'react-hot-toast';
 import { LoadingFallback } from './design-system/components/LoadingFallback';
+import { OfflineIndicator } from './design-system/components/OfflineIndicator';
 import { useAuthStore } from './store/authStore';
 import { socketService } from './services/socketService';
 
@@ -29,6 +30,7 @@ function App() {
       <React.Suspense fallback={<LoadingFallback type="full" />}>
         <AppRouter />
       </React.Suspense>
+      <OfflineIndicator />
       <Toaster 
         position="top-right"
         toastOptions={{

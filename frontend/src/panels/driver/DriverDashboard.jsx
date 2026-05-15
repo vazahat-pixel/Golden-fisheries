@@ -33,21 +33,30 @@ import driverMockData from '../../data/driverMockData.json';
 const DriverDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { incomingAssignment, clearIncomingAssignment } = useDriverStore();
-  const { trips, driverAcceptTrip, vehicles, expenses } = useAdminStore();
+  const { 
+    incomingAssignment, 
+    clearIncomingAssignment, 
+    myTrips, 
+    myExpenses, 
+    fetchMyTrips, 
+    fetchMyExpenses,
+    activeTrip 
+  } = useDriverStore();
+  const { driverAcceptTrip, vehicles } = useAdminStore();
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchMyTrips(user.id);
+      fetchMyExpenses(user.id);
+    }
+  }, [user?.id, fetchMyTrips, fetchMyExpenses]);
 
   const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
 
   const pilotStats = driverMockData.profile.stats;
 
-  const myTrips = Array.isArray(trips) ? trips.filter(t => {
-    const matchById = user?.id && t.driverId === user.id;
-    const matchByName = t.driverName?.toUpperCase().trim() === (user?.name || driverMockData.profile.name).toUpperCase().trim();
-    return matchById || matchByName || t.status === 'Assigned';
-  }) : [];
-
-  const newAssignment = myTrips.find(t => t.status === 'Assigned');
-  const liveTrip = myTrips.find(t => ['Accepted', 'In Transit', 'Picked'].includes(t.status));
+  const newAssignment = myTrips.find(t => t.status === 'Assigned' || t.status === 'DRIVER_ASSIGNED');
+  const liveTrip = activeTrip;
 
   const handleAccept = async () => {
     if (incomingAssignment) {
@@ -222,12 +231,12 @@ const DriverDashboard = () => {
                   <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
                     <Clock size={12} className="text-amber-600" />
                   </div>
-                  {expenses.filter(e => e.driverName === (user?.name || 'RAJESH KUMAR') && e.status === 'Pending').length > 0 && (
+                  {(myExpenses || []).filter(e => e.status === 'Pending').length > 0 && (
                     <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                   )}
                 </div>
                 <p className="text-[10px] font-black text-slate-900 uppercase mt-1">
-                  {expenses.filter(e => e.driverName === (user?.name || 'RAJESH KUMAR') && e.status === 'Pending').length} Pending
+                  {(myExpenses || []).filter(e => e.status === 'Pending').length} Pending
                 </p>
                 <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Active Claims</p>
               </button>

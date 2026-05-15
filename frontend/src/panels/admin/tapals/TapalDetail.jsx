@@ -25,7 +25,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
-import { useDriverStore } from '../../../store/driverStore';
+import { driverService } from '../../../services/driverService';
 import { PrintableTapal } from './PrintableTapal';
 
 function clsx(...c) { return c.filter(Boolean).join(' '); }
@@ -39,16 +39,15 @@ const TapalDetail = () => {
     updateTapalStatus,
     editTapal,
     drivers,
-    assignDriver,
+    assignDriverAsync,
+    endTripAsync,
     trips,
     markStockReceived,
     addTripExpense
   } = useAdminStore();
 
-  const { drivers: verifiedDrivers } = useDriverStore();
-
-  const [dbDrivers, setDbDrivers] = useState([]);
-  const availableDrivers = dbDrivers;
+  const [availableDrivers, setAvailableDrivers] = useState([]);
+  const [driversLoading, setDriversLoading] = useState(false);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
@@ -59,8 +58,8 @@ const TapalDetail = () => {
   const [receiveQty, setReceiveQty] = useState('');
   const [expenseData, setExpenseData] = useState({ type: 'FUEL', amount: '', method: 'CASH' });
 
-  const tapal = tapals.find(t => t.id === id);
-  const trip = trips.find(t => t.tapalId === id);
+  const tapal = tapals.find(t => t.id === id || t._id === id);
+  const trip = trips.find(t => t.tapalId === id || t.tapalId === tapal?._id);
 
   if (!tapal) return <div className="p-12 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">Tapal record not found.</div>;
 
@@ -71,8 +70,8 @@ const TapalDetail = () => {
   const openEditModal = () => {
     setEditFormData({
       party: tapal.party,
-      qty: tapal.qty.replace(' KG', ''),
-      amount: tapal.amount.replace('₹', '').replace(/,/g, ''),
+      qty: tapal.qty?.toString().replace(' KG', '') || '',
+      amount: tapal.amount?.toString().replace('₹', '').replace(/,/g, '') || '',
       type: tapal.type,
       driver: tapal.driver || 'Unassigned',
       date: tapal.date
@@ -93,39 +92,37 @@ const TapalDetail = () => {
     toast.success('Tapal information updated');
   };
 
-  const handleAssignDriver = async (driverId) => {
+  const handleAssignDriver = async (driver) => {
     try {
-      const { apiClient } = await import('../../../services/apiClient');
-      const tapalMongoId = tapal._id || tapal.id; // use mongo ID if present
-      await apiClient.patch('/tapals/assign-driver', {
-        tapalId: tapalMongoId,
-        driverId: driverId
-      });
-      // also update locally for UI
-      assignDriver(tapal.id, driverId);
+      const tapalMongoId = tapal._id || tapal.id;
+      // Backend expects User._id (not DriverProfile._id)
+      // driver.userId is populated from the backend response
+      const driverMongoId = driver.userId?._id || driver.userId || driver._id;
+      const vehicleId = driver.vehicleId || null;
+      await assignDriverAsync(tapalMongoId, driverMongoId, vehicleId);
       setIsDriverModalOpen(false);
-      toast.success('Driver assigned successfully');
+      toast.success(`Driver ${driver.userId?.fullName || 'assigned'} successfully`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to assign driver');
+      toast.error(err.response?.data?.message || err.message || 'Failed to assign driver');
     }
   };
 
   React.useEffect(() => {
-    const fetchDbDrivers = async () => {
+    const fetchActiveDrivers = async () => {
+      setDriversLoading(true);
       try {
-        const { masterService } = await import('../../../services/masterService');
-        const activeDrivers = await masterService.drivers.getActive();
-        // The API returns { success: true, data: [...] } from ApiResponse
-        if (activeDrivers.data) {
-          setDbDrivers(activeDrivers.data);
-        } else if (Array.isArray(activeDrivers)) {
-          setDbDrivers(activeDrivers);
-        }
+        const res = await driverService.getActive();
+        // Backend returns: { success, data: [ DriverProfile with userId populated ] }
+        const list = res?.data || (Array.isArray(res) ? res : []);
+        setAvailableDrivers(list);
       } catch (err) {
-        console.error('Failed to fetch active drivers', err);
+        console.error('Failed to fetch active drivers from DB', err);
+        setAvailableDrivers([]);
+      } finally {
+        setDriversLoading(false);
       }
     };
-    fetchDbDrivers();
+    fetchActiveDrivers();
   }, []);
 
   const handleConfirmReceipt = () => {
@@ -143,11 +140,17 @@ const TapalDetail = () => {
     toast.success('Expense recorded');
   };
 
-  const isLocked = !['Confirmed', 'Assigned'].includes(tapal.status);
+  // Statuses where driver can be assigned
+  const canAssignDriver = ['CREATED', 'Confirmed', 'CONFIRMED', 'confirmed'].includes(tapal.status);
+  const isLocked = !canAssignDriver && !['Assigned', 'DRIVER_ASSIGNED'].includes(tapal.status);
 
-  const handleCloseTrip = () => {
-    closeTrip(tapal.id);
-    toast.success('Trip Closed and Record Finalized');
+  const handleCloseTrip = async () => {
+    try {
+      await endTripAsync(tapal._id || tapal.id);
+      toast.success('Trip Closed and Record Finalized');
+    } catch (err) {
+      toast.error('Failed to close trip');
+    }
   };
 
   const getStepStatus = (step) => {
@@ -316,7 +319,7 @@ const TapalDetail = () => {
           <Card className="border border-black bg-black p-4 text-white shadow-lg">
             <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] mb-4 text-white/60 text-center md:text-left">WORKFLOW ACTION</h3>
 
-            {tapal.status === 'Confirmed' && (
+            {canAssignDriver && (
               <Button className="w-full bg-white text-black hover:bg-olive-50 text-[10px] font-bold uppercase gap-2 h-11" onClick={() => setIsDriverModalOpen(true)}>
                 <UserPlus size={16} /> ASSIGN DRIVER
               </Button>
@@ -409,29 +412,54 @@ const TapalDetail = () => {
       </Modal>
 
       {/* Driver Assignment Modal */}
-      <Modal isOpen={isDriverModalOpen} onClose={() => setIsDriverModalOpen(false)} title="Select Driver from Verified Fleet">
+      <Modal isOpen={isDriverModalOpen} onClose={() => setIsDriverModalOpen(false)} title="Assign Driver from Active Fleet">
         <div className="space-y-2">
-          {availableDrivers.length === 0 ? (
-            <div className="py-8 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">No verified drivers currently available.</div>
+          {driversLoading ? (
+            <div className="py-8 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest animate-pulse">Loading active drivers...</div>
+          ) : availableDrivers.length === 0 ? (
+            <div className="py-8 text-center space-y-2">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">No active drivers in the system.</p>
+              <p className="text-[9px] text-text-muted font-bold">Approve drivers from Logistics → Drivers panel first.</p>
+            </div>
           ) : (
-            availableDrivers.map(driver => (
-              <div key={driver.id} className="p-3 border border-card-border hover:bg-olive-50 cursor-pointer flex justify-between items-center transition-all group" onClick={() => handleAssignDriver(driver.id)}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-black text-[#C5A021] flex items-center justify-center font-bold text-[10px] border border-black shadow-sm">
-                    <img src={`https://ui-avatars.com/api/?name=${driver.fullName}&background=0A0B09&color=C5A021&size=64&bold=true`} alt="" className="w-full h-full object-cover" />
+            availableDrivers.map(driver => {
+              const name = driver.userId?.fullName || '—';
+              const phone = driver.userId?.phone || '—';
+              const vehicle = driver.vehicleNumber || 'COMPANY ASSIGNED';
+              const photo = driver.profilePhotoUrl;
+              return (
+                <div
+                  key={driver._id}
+                  className="p-3 border border-card-border hover:bg-olive-50 cursor-pointer flex justify-between items-center transition-all group"
+                  onClick={() => handleAssignDriver(driver)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-black rounded-full overflow-hidden border border-black shadow-sm shrink-0">
+                      <img
+                        src={photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0A0B09&color=C5A021&size=80&bold=true`}
+                        alt={name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black text-black uppercase tracking-tight">{name}</p>
+                      <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest mt-0.5">
+                        📱 {phone}
+                      </p>
+                      <p className="text-[8px] text-accent-olive font-bold uppercase tracking-widest">
+                        🚛 {vehicle}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-black uppercase tracking-tight">{driver.fullName}</p>
-                    <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest">
-                      {driver.vehicleNumber || 'No Vehicle'} · {driver.mobile || driver.phone || 'No Phone'}
-                    </p>
+                  <div className="text-right flex flex-col items-end gap-1">
+                    <Badge variant="success" className="text-[7px] uppercase px-2 py-0.5 border border-card-border shadow-none">ACTIVE</Badge>
+                    {driver.licenseNumber && (
+                      <span className="text-[7px] font-bold text-text-muted uppercase">{driver.licenseNumber}</span>
+                    )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <Badge variant="success" className="text-[7px] uppercase px-2 py-0.5 border border-card-border shadow-none">VERIFIED</Badge>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </Modal>

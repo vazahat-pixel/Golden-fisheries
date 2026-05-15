@@ -1,8 +1,9 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables with explicit path to ensure reliability
+const envPath = path.resolve(process.cwd(), '.env');
+dotenv.config({ path: envPath });
 
 /**
  * Validate configuration inputs to ensure the backend fails-fast
@@ -19,6 +20,9 @@ const requiredEnv = [
 const missingEnv = requiredEnv.filter((env) => !process.env[env]);
 
 if (missingEnv.length > 0) {
+  console.error('[Config Error] Process CWD:', process.cwd());
+  console.error('[Config Error] Loading .env from:', envPath);
+  console.error('[Config Error] Current Keys:', Object.keys(process.env).filter(k => !k.startsWith('npm_')));
   throw new Error(
     `[Config Engine Error]: Missing mandatory environment variables: ${missingEnv.join(', ')}`
   );

@@ -2,6 +2,10 @@ import Joi from 'joi';
 
 export const tapalValidators = {
   assignDriver: Joi.object({
+    tapalId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/).messages({
+      'any.required': 'Tapal ID is required',
+      'string.pattern.base': 'Tapal ID must be a valid 24-char MongoDB ObjectId'
+    }),
     driverId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/).messages({
       'any.required': 'Driver reference ID is required',
       'string.pattern.base': 'Driver ID must be a valid 24-char MongoDB ObjectId'

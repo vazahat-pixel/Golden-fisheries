@@ -38,7 +38,7 @@ const TripsAndExpenses = React.lazy(() => import('../panels/admin/logistics/Trip
 const VehicleDocuments = React.lazy(() => import('../panels/admin/logistics/VehicleDocuments'));
 const FinanceOverview = React.lazy(() => import('../panels/admin/finance/FinanceOverview'));
 const HarvestSlips = React.lazy(() => import('../panels/admin/procurement/HarvestSlips'));
-const CreateHarvestSlip = React.lazy(() => import('../panels/admin/procurement/CreateHarvestSlip'));
+const CreateHarvestSlip = React.lazy(() => import('../panels/admin/procurement/CreateHarvestSlipV2'));
 const HarvestSlipDetail = React.lazy(() => import('../panels/admin/procurement/HarvestSlipDetail'));
 const UsersAndRoles = React.lazy(() => import('../panels/admin/settings/UsersAndRoles'));
 const AdminBilling = React.lazy(() => import('../panels/admin/billing/AdminBilling'));

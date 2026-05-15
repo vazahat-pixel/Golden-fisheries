@@ -140,6 +140,34 @@ class SocketService {
       }
     });
 
+    // 4. Harvest Procurement Synchronizer
+    this.socket.on('harvest:status_update', (data) => {
+      console.log('[Socket Received - Harvest Sync]:', data);
+      const { id, status } = data;
+      const adminStore = useAdminStore.getState();
+      
+      // Update local state reactive collection
+      useAdminStore.setState((state) => ({
+        harvestSlips: state.harvestSlips.map(s => 
+          (s._id === id || s.id === id) ? { ...s, status } : s
+        )
+      }));
+    });
+
+    // 5. Tapal (Contract) Creation Synchronizer
+    this.socket.on('tapal:created', (data) => {
+      console.log('[Socket Received - Tapal Sync]:', data);
+      const adminStore = useAdminStore.getState();
+      
+      // Add new tapal to list if it doesn't exist
+      useAdminStore.setState((state) => ({
+        tapals: [data.tapal, ...state.tapals].filter((v, i, a) => a.findIndex(t => t._id === v._id) === i)
+      }));
+      
+      // Optional: Refresh slips to reflect conversion status
+      adminStore.fetchHarvestSlips?.();
+    });
+
     this.socket.on('disconnect', (reason) => {
       console.log(`[Socket Disconnected]: Connection severed. Reason: ${reason}`);
     });

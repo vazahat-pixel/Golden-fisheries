@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { masterService } from '../services/masterService';
+import { tapalService } from '../services/tapalService';
+import { billingService } from '../services/billingService';
+import { harvestService } from '../services/harvestService';
+import { expenseService } from '../services/expenseService';
+import { reportsService } from '../services/reportsService';
 import mockData from '../data/mockData.json';
 import vehicleMockData from '../data/vehicleMockData.json';
 import { useRestaurantStore } from './restaurantStore';
@@ -106,6 +111,276 @@ export const useAdminStore = create(
       vehicles: vehicleMockData.vehicles || [],
       maintenanceLogs: vehicleMockData.maintenanceLogs || [],
       vehiclePerformance: vehicleMockData.performance || [],
+
+      // Dashboard KPIs
+      dashboardStats: null,
+      fetchDashboardStats: async () => {
+        set({ loading: true });
+        try {
+          const sales = await reportsService.getSales();
+          const profit = await reportsService.getProfitability();
+          set({ dashboardStats: { ...sales, ...profit }, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch dashboard stats', err);
+          set({ loading: false });
+        }
+      },
+
+      // Master Lists Async
+      fetchInventory: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await masterService.products.getAll(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ inventory: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchInventory failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      fetchDrivers: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await masterService.drivers.getAll(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ drivers: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchDrivers failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      fetchVehicles: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await masterService.vehicles.getAll(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ vehicles: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchVehicles failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      fetchFarmers: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await masterService.farmers.getAll(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ farmers: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchFarmers failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      fetchBuyers: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await masterService.buyers.getAll(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ buyers: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchBuyers failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      // Tapals Async
+      fetchTapals: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await tapalService.all(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ tapals: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchTapals failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      assignDriverAsync: async (tapalId, driverId, vehicleId) => {
+        set({ loading: true });
+        try {
+          await tapalService.assignDriver(tapalId, driverId, vehicleId);
+          await get().fetchTapals();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      endTripAsync: async (tapalId) => {
+        set({ loading: true });
+        try {
+          await tapalService.endTrip(tapalId);
+          await get().fetchTapals();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // Harvest Slips Async
+      fetchHarvestSlips: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await harvestService.all(params);
+          const list = res?.data?.docs || res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ harvestSlips: Array.isArray(list) ? list : [], loading: false });
+        } catch (err) {
+          console.warn('Backend fetchHarvestSlips failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      convertSlipToTapalAsync: async (slipId) => {
+        set({ loading: true });
+        try {
+          // Use the more reliable URL-based endpoint
+          await harvestService.convertToTapal(slipId);
+          await get().fetchHarvestSlips();
+          await get().fetchTapals();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      createHarvestSlipAsync: async (data) => {
+        set({ loading: true });
+        try {
+          const res = await harvestService.create(data);
+          await get().fetchHarvestSlips();
+          set({ loading: false });
+          return res?.data?.harvest || res?.data || res;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      addFarmerAsync: async (data) => {
+        set({ loading: true });
+        try {
+          const res = await masterService.farmers.create(data);
+          await get().fetchFarmers();
+          set({ loading: false });
+          return res?.data || res;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      updateInventoryQtyAsync: async (itemId, delta) => {
+        set({ loading: true });
+        try {
+          const item = get().inventory.find(i => i.id === itemId || i._id === itemId);
+          if (!item) throw new Error("Item not found");
+          
+          const newQty = (item.qty || 0) + delta;
+          const mongoId = item._id || item.id;
+          
+          await masterService.products.update(mongoId, { qty: newQty });
+          await get().fetchInventory();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      updateHarvestStatusAsync: async (id, status) => {
+        set({ loading: true });
+        try {
+          await harvestService.updateStatus(id, status);
+          await get().fetchHarvestSlips();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      convertSlipToTapalAsync: async (slipId) => {
+        set({ loading: true });
+        try {
+          await tapalService.createFromHarvest(slipId);
+          await get().fetchTapals();
+          await get().fetchHarvestSlips();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // Invoices Async
+      fetchInvoices: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await billingService.all(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ invoices: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchInvoices failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      updatePaymentAsync: async (id, paymentData) => {
+        set({ loading: true });
+        try {
+          await billingService.updatePayment(id, paymentData);
+          await get().fetchInvoices();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // Expenses Async
+      fetchExpenses: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await expenseService.all(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ expenses: list, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchExpenses failed, using mock persistence:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      approveExpenseAsync: async (id) => {
+        set({ loading: true });
+        try {
+          await expenseService.approve(id, 'APPROVED');
+          await get().fetchExpenses();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      rejectExpenseAsync: async (id) => {
+        set({ loading: true });
+        try {
+          await expenseService.approve(id, 'REJECTED');
+          await get().fetchExpenses();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
       // Actions - Tapals
       addTapal: (tapal) => set((state) => ({ 
@@ -744,48 +1019,10 @@ export const useAdminStore = create(
         }
       },
 
-      convertSlipToTapal: (slipId) => set((state) => {
-        const slip = state.harvestSlips.find(s => s.id === slipId);
-        if (!slip) return {};
-
-        const totalQty = slip.products.reduce((a, p) => a + (p.confirmedQty ?? p.quantity), 0);
-        const totalAmt = slip.products.reduce((a, p) => {
-          const qty = p.confirmedQty ?? p.quantity;
-          const rate = p.rate ?? 0;
-          return a + qty * rate;
-        }, 0);
-
-        const newTapal = {
-          id: generateId('PUR', state.tapals),
-          type: 'Purchase',
-          party: slip.farmer.name,
-          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
-          qty: `${totalQty} KG`,
-          amount: totalAmt > 0 ? `₹${totalAmt.toLocaleString()}` : 'RATE TBD',
-          driver: 'Unassigned',
-          status: 'Confirmed',
-          products: slip.products.map(p => ({
-            name: p.fishName.toUpperCase(),
-            qty: `${p.confirmedQty ?? p.quantity} ${p.unit}`,
-            rate: p.rate ? `₹${p.rate}` : 'TBD',
-            total: p.rate ? `₹${((p.confirmedQty ?? p.quantity) * p.rate).toLocaleString()}` : 'TBD'
-          })),
-          farmer: slip.farmer,
-          timeline: [
-            { status: 'SLIP CREATED', time: slip.createdAt, user: slip.createdBy },
-            { status: 'CONVERTED TO TAPAL', time: new Date().toLocaleTimeString(), user: 'Admin' }
-          ]
-        };
-
-        return {
-          tapals: [newTapal, ...state.tapals],
-          harvestSlips: state.harvestSlips.map(s =>
-            s.id === slipId
-              ? { ...s, status: 'converted', convertedToTapalId: newTapal.id }
-              : s
-          ),
-        };
-      }),
+      // Legacy helper removed in favor of convertSlipToTapalAsync
+      convertSlipToTapal: async (slipId) => {
+        return await get().convertSlipToTapalAsync(slipId);
+      },
 
       // Vehicle Actions
       addVehicle: (vehicle) => set((state) => ({

@@ -27,7 +27,7 @@ import { toast } from 'react-hot-toast';
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const InventoryOverview = () => {
-  const { inventory, updateInventoryQty, fetchInventory, addInventoryItemAsync, incomingStock, loading } = useAdminStore();
+  const { inventory, updateInventoryQtyAsync, fetchInventory, addInventoryItemAsync, incomingStock, loading } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
   const [adjustModal, setAdjustModal] = useState({ isOpen: false, item: null, amount: '', reason: '' });
@@ -52,7 +52,7 @@ const InventoryOverview = () => {
       const amount = parseInt(adjustModal.amount, 10);
       if (isNaN(amount)) throw new Error("Invalid amount");
       
-      updateInventoryQty(adjustModal.item.id, amount);
+      await updateInventoryQtyAsync(adjustModal.item.id, amount);
       toast.success("Stock adjusted successfully");
       setAdjustModal({ isOpen: false, item: null, amount: '', reason: '' });
     } catch (err) {

@@ -43,10 +43,14 @@ const topProducts = [
 ];
 
 const AdminDashboard = () => {
-  const { tapals, inventory, invoices, transactions } = useAdminStore();
+  const { tapals, inventory, invoices, transactions, fetchDashboardStats, dashboardStats, loading } = useAdminStore();
   const { user } = useAuthStore();
 
-  const weeklyRevenue = transactions
+  React.useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
+
+  const weeklyRevenue = dashboardStats?.totalCumulativeRevenue || transactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0);
 

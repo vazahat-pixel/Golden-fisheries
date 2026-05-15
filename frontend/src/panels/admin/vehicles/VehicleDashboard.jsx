@@ -28,8 +28,8 @@ const VehicleDashboard = () => {
   const activeVehicles = vehicles.filter(v => v.status === 'Active').length;
   
   // Logic to find expiring documents (within 30 days - for demo we'll use 'EXPIRING' status)
-  const expiringDocs = vehicles.reduce((acc, v) => {
-    const expiring = Object.values(v.documents).filter(d => d.status === 'EXPIRING' || d.status === 'EXPIRED');
+  const expiringDocs = (vehicles || []).reduce((acc, v) => {
+    const expiring = Object.values(v?.documents || {}).filter(d => d?.status === 'EXPIRING' || d?.status === 'EXPIRED');
     return acc + expiring.length;
   }, 0);
 
@@ -149,14 +149,14 @@ const VehicleDashboard = () => {
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex gap-1">
-                       {Object.entries(vehicle.documents).map(([key, doc]) => (
+                       {Object.entries(vehicle?.documents || {}).map(([key, doc]) => (
                          <div 
                            key={key} 
                            className={`w-5 h-5 flex items-center justify-center text-[6px] font-black rounded-sm border ${
-                             doc.status === 'VALID' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
-                             doc.status === 'EXPIRING' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-red-50 text-red-700 border-red-100'
+                             doc?.status === 'VALID' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                             doc?.status === 'EXPIRING' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-red-50 text-red-700 border-red-100'
                            }`}
-                           title={`${key.toUpperCase()}: ${doc.expiry}`}
+                           title={`${key.toUpperCase()}: ${doc?.expiry}`}
                          >
                            {key.substring(0, 1).toUpperCase()}
                          </div>

@@ -12,6 +12,29 @@ export const errorHandler = (err, req, res, next) => {
   // Log all errors to the console/files via Winston
   logger.error(`[Error Trace]: ${err.message}\nStack: ${err.stack}`);
 
+  // Handle MongoDB duplicate key errors (11000)
+  if (err.code === 11000) {
+    const field = err.keyValue ? Object.keys(err.keyValue)[0] : 'field';
+    err.message = `Duplicate field value: ${field}. Please use another value!`;
+    err.statusCode = 400;
+    err.isOperational = true;
+  }
+
+  // Handle Mongoose Validation Errors
+  if (err.name === 'ValidationError') {
+    const errors = Object.values(err.errors).map(el => el.message);
+    err.message = `Invalid input data: ${errors.join('. ')}`;
+    err.statusCode = 400;
+    err.isOperational = true;
+  }
+
+  // Handle Mongoose Cast Errors (Invalid ID)
+  if (err.name === 'CastError') {
+    err.message = `Invalid ${err.path}: ${err.value}.`;
+    err.statusCode = 400;
+    err.isOperational = true;
+  }
+
   if (config.env === 'development') {
     return res.status(err.statusCode).json({
       success: false,

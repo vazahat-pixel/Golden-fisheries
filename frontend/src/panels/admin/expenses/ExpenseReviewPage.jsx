@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
 };
 
 export default function ExpenseReviewPage() {
-  const { expenses, approveExpense, rejectExpense } = useAdminStore();
+  const { expenses, reviewExpenseAsync, fetchExpenses } = useAdminStore();
   const { user } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState('Pending');
@@ -46,6 +46,10 @@ export default function ExpenseReviewPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [detailId, setDetailId] = useState(null);
+
+  React.useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
 
   const reviewerName = user?.name || 'ADMIN';
 
@@ -59,19 +63,27 @@ export default function ExpenseReviewPage() {
     ? allExpenses
     : allExpenses.filter(e => e.status === activeTab);
 
-  const handleApprove = (id) => {
-    approveExpense(id, reviewerName);
-    toast.success('Expense approved & posted to accounts');
-    setDetailId(null);
+  const handleApprove = async (id) => {
+    try {
+      await reviewExpenseAsync(id, 'Approved');
+      toast.success('Expense approved & posted to accounts');
+      setDetailId(null);
+    } catch (err) {
+      toast.error('Failed to approve expense');
+    }
   };
 
-  const handleReject = (id) => {
+  const handleReject = async (id) => {
     if (!rejectReason.trim()) return toast.error('Enter a rejection reason');
-    rejectExpense(id, rejectReason.trim(), reviewerName);
-    toast.error('Expense rejected');
-    setRejectingId(null);
-    setRejectReason('');
-    setDetailId(null);
+    try {
+      await reviewExpenseAsync(id, 'Rejected', rejectReason.trim());
+      toast.error('Expense rejected');
+      setRejectingId(null);
+      setRejectReason('');
+      setDetailId(null);
+    } catch (err) {
+      toast.error('Failed to reject expense');
+    }
   };
 
   const detailExpense = detailId ? allExpenses.find(e => e.id === detailId) : null;

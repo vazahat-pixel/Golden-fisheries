@@ -79,9 +79,27 @@ class AuthService {
    * Leverages a mock fallback in development, while storing real expiration in DB.
    */
   async sendOtp(phone) {
-    const user = await User.findOne({ phone });
+    let user = await User.findOne({ phone });
+    
+    // Auto-create test user if not found (Quality of life for dev testing)
+    if (!user && config.env === 'development') {
+      user = await User.create({
+        phone,
+        fullName: 'DEVELOPER ADMIN',
+        role: 'ADMIN',
+        password: 'dev_password_123', // Mandatory field in schema
+        phoneVerified: false
+      });
+      logger.info(`[OTP Service]: Auto-registered unknown number ${phone} as DEVELOPER ADMIN`);
+    }
+
     if (!user) {
       throw new AppError('No registered user was found with that phone number.', 404);
+    }
+
+    // Block inactive drivers from logging in (pending admin approval)
+    if (user.role === 'DRIVER' && !user.isActive) {
+      throw new AppError('Your registration is pending admin approval. Please wait for verification.', 403);
     }
 
     // Generate simulated/mock 6-digit OTP for dev ease
