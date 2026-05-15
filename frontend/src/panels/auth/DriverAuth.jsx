@@ -24,6 +24,7 @@ import {
   Clock
 } from 'lucide-react';
 import { authService } from '../../services/authService';
+import { toast } from 'react-hot-toast';
 
 const DriverAuth = () => {
   const navigate = useNavigate();
@@ -147,7 +148,7 @@ const DriverAuth = () => {
                     type="tel" 
                     placeholder="Mobile Number"
                     value={loginPhone}
-                    onChange={e => setLoginPhone(e.target.value)}
+                    onChange={e => setLoginPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className="w-full bg-[#E6E3C8] border-none rounded-2xl px-12 py-4 text-sm text-[#6A7051] placeholder-[#6A7051]/60 outline-none focus:ring-2 focus:ring-[#C5A021] transition-all font-bold"
                     required
                   />
@@ -161,6 +162,12 @@ const DriverAuth = () => {
             <p className="text-[10px] text-center text-[#E6E3C8]/40 uppercase tracking-[0.2em] font-bold">
               ONE-TIME PASSWORD WILL BE SENT
             </p>
+
+            <div className="text-center pt-4 border-t border-[#E6E3C8]/10">
+               <p className="text-[10px] text-[#E6E3C8]/60 uppercase tracking-widest font-bold">
+                 New Driver? <button type="button" onClick={() => setView('signup')} className="text-[#C5A021] font-black hover:underline">Register Here</button>
+               </p>
+            </div>
           </form>
         );
 
@@ -211,7 +218,8 @@ const DriverAuth = () => {
                 {step === 1 && (
                   <div className="space-y-4">
                     <input placeholder="FULL NAME" value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value.toUpperCase()})} className="w-full bg-[#E6E3C8]/10 border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#C5A021]" />
-                    <input placeholder="ALTERNATE MOBILE (OPTIONAL)" value={formData.alternateMobile} onChange={e => setFormData({...formData, alternateMobile: e.target.value})} className="w-full bg-[#E6E3C8]/10 border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#C5A021]" />
+                    <input placeholder="MOBILE NUMBER" value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value.replace(/\D/g, '').slice(0, 10)})} className="w-full bg-[#E6E3C8]/10 border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#C5A021]" />
+                    <input placeholder="ALTERNATE MOBILE (OPTIONAL)" value={formData.alternateMobile} onChange={e => setFormData({...formData, alternateMobile: e.target.value.replace(/\D/g, '').slice(0, 10)})} className="w-full bg-[#E6E3C8]/10 border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#C5A021]" />
                     <textarea placeholder="CURRENT ADDRESS" rows={2} value={formData.currentAddress} onChange={e => setFormData({...formData, currentAddress: e.target.value})} className="w-full bg-[#E6E3C8]/10 border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#C5A021]" />
                     <div className="flex items-center gap-2 text-white/60 text-[10px] font-bold">
                        <input type="checkbox" onChange={e => e.target.checked && setFormData({...formData, permanentAddress: formData.currentAddress})} />

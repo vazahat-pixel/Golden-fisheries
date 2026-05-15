@@ -74,12 +74,26 @@ const seedDatabase = async () => {
         password: hashedPassword,
         role: 'DRIVER',
         isActive: true
+      },
+      {
+        fullName: 'RESTAURANT MANAGER',
+        phone: '8888811111',
+        password: hashedPassword,
+        role: 'RESTAURANT',
+        isActive: true
+      },
+      {
+        fullName: 'FISHMALL MANAGER',
+        phone: '7777711111',
+        password: hashedPassword,
+        role: 'FISHMALL',
+        isActive: true
       }
     ]);
     logger.info(`[Seeding Run]: Seeded ${users.length} system users.`);
 
-    // 4. Seed Farmers
-    const farmers = await Farmer.insertMany([
+    // 4. Seed Farmers (Sequentially to allow automatic increment without validation race conditions)
+    const farmersData = [
       {
         fullName: 'ANDHRA AQUA FARMS LTD',
         phone: '9123456789',
@@ -101,33 +115,45 @@ const seedDatabase = async () => {
         pondCount: 15,
         isActive: true
       }
-    ]);
+    ];
+    const farmers = [];
+    for (const f of farmersData) {
+      const farmer = new Farmer(f);
+      await farmer.save();
+      farmers.push(farmer);
+    }
     logger.info(`[Seeding Run]: Seeded ${farmers.length} partner aquaculture farmers.`);
 
-    // 5. Seed Buyers
-    const buyers = await Buyer.insertMany([
+    // 5. Seed Buyers (Sequentially and using correct schema enums: EXTERNAL/INTERNAL)
+    const buyersData = [
       {
         buyerName: 'HYDERABAD SEAFOOD WHOLESALERS',
         phone: '8123456780',
         deliveryAddress: 'Begum Bazaar, Hyderabad',
-        buyerType: 'WHOLESALE',
+        buyerType: 'EXTERNAL',
         isActive: true
       },
       {
         buyerName: 'GOLDEN FISHERIES RETAIL OUTLET (FISHMALL)',
         phone: '8123456781',
         deliveryAddress: 'Main Mall Branch, Gachibowli',
-        buyerType: 'RETAIL_MALL',
+        buyerType: 'INTERNAL',
         isActive: true
       },
       {
         buyerName: 'GOLDEN GRACE FINE DINE RESTAURANT',
         phone: '8123456782',
         deliveryAddress: 'Golden Grace Hotel Suite, Hyderabad',
-        buyerType: 'RESTAURANT',
+        buyerType: 'INTERNAL',
         isActive: true
       }
-    ]);
+    ];
+    const buyers = [];
+    for (const b of buyersData) {
+      const buyer = new Buyer(b);
+      await buyer.save();
+      buyers.push(buyer);
+    }
     logger.info(`[Seeding Run]: Seeded ${buyers.length} distribution buyers.`);
 
     // 6. Seed Products
@@ -179,14 +205,14 @@ const seedDatabase = async () => {
     const vehicles = await Vehicle.insertMany([
       {
         vehicleNumber: 'AP-16-TJ-1234',
-        vehicleType: 'TATA ACE REEFER (1.5 TON)',
+        vehicleType: 'Mini Truck',
         payloadCapacity: 1500,
         ownVehicle: true,
         status: 'AVAILABLE'
       },
       {
         vehicleNumber: 'AP-39-UL-5678',
-        vehicleType: 'MAHINDRA BOLERO PICKUP (2.5 TON)',
+        vehicleType: 'Pickup',
         payloadCapacity: 2500,
         ownVehicle: true,
         status: 'AVAILABLE'
@@ -202,14 +228,16 @@ const seedDatabase = async () => {
       {
         userId: driver1._id,
         licenseNumber: 'DL-39AP1234567',
+        licenseExpiry: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000),
         vehicleId: vehicles[0]._id,
-        registrationStatus: 'VERIFIED'
+        registrationStatus: 'active'
       },
       {
         userId: driver2._id,
         licenseNumber: 'DL-16AP9876543',
+        licenseExpiry: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000),
         vehicleId: vehicles[1]._id,
-        registrationStatus: 'VERIFIED'
+        registrationStatus: 'active'
       }
     ]);
     logger.info(`[Seeding Run]: Binded ${drivers.length} Driver Profiles with reefer trucks.`);

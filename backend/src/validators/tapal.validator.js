@@ -6,8 +6,7 @@ export const tapalValidators = {
       'any.required': 'Driver reference ID is required',
       'string.pattern.base': 'Driver ID must be a valid 24-char MongoDB ObjectId'
     }),
-    vehicleId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/).messages({
-      'any.required': 'Vehicle reference ID is required',
+    vehicleId: Joi.string().optional().allow(null, '').pattern(/^[0-9a-fA-F]{24}$/).messages({
       'string.pattern.base': 'Vehicle ID must be a valid 24-char MongoDB ObjectId'
     })
   }),

@@ -130,22 +130,42 @@ class AuthService {
     return { user, accessToken, refreshToken };
   }
 
-  /**
-   * Validates and rotates the user refresh token.
-   */
   async refreshTokens(tokenValue) {
     try {
-      const decoded = jwt.verify(tokenValue, config.jwt.refreshSecret);
+      if (!tokenValue) {
+        throw new AppError('Refresh token required.', 401);
+      }
+
+      let decoded;
+      try {
+        decoded = jwt.verify(tokenValue, config.jwt.refreshSecret);
+      } catch (jwtErr) {
+        throw new AppError('Session expired. Please log in again.', 401);
+      }
       
       const user = await User.findById(decoded.id).select('+refreshToken');
-      if (!user || user.refreshToken !== tokenValue) {
-        throw new AppError('Invalid or revoked refresh token session.', 401);
+      if (!user) {
+        throw new AppError('User session not found.', 401);
+      }
+
+      // RTR Reuse Detection:
+      if (user.refreshToken && user.refreshToken !== tokenValue) {
+        // Someone is presenting an old refresh token that was already rotated.
+        // Revoke user access completely as a defensive posture!
+        user.refreshToken = undefined;
+        await user.save();
+        logger.error(`[SECURITY ALERT]: Refresh token reuse attempt detected for User [ID: ${user._id}, Name: ${user.fullName}]. Revoking all current session families.`);
+        throw new AppError('Security Warning: Session hijacked or token replayed. Access entirely revoked.', 401);
+      }
+
+      if (!user.refreshToken) {
+        throw new AppError('Session expired or revoked. Please log in again.', 401);
       }
 
       const accessToken = this.generateAccessToken(user);
       const refreshToken = this.generateRefreshToken(user);
 
-      // Rotate token values
+      // Rotate token values in DB
       user.refreshToken = refreshToken;
       await user.save();
 
@@ -155,6 +175,7 @@ class AuthService {
       throw new AppError('Session expired. Please log in again.', 401);
     }
   }
+
 
   /**
    * Logs out user and revokes refresh tokens.

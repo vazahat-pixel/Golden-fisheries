@@ -3,13 +3,13 @@ import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
 import { Modal } from '../../../design-system/components/Modal';
-import { 
-  ArrowLeft, 
-  Printer, 
-  Trash2, 
-  Clock, 
-  User, 
-  Truck, 
+import {
+  ArrowLeft,
+  Printer,
+  Trash2,
+  Clock,
+  User,
+  Truck,
   CheckCircle2,
   FileText,
   MessageCircle,
@@ -33,26 +33,28 @@ function clsx(...c) { return c.filter(Boolean).join(' '); }
 const TapalDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { 
-    tapals, 
-    deleteTapal, 
-    updateTapalStatus, 
-    editTapal, 
-    drivers, 
-    assignDriver, 
-    trips, 
+  const {
+    tapals,
+    deleteTapal,
+    updateTapalStatus,
+    editTapal,
+    drivers,
+    assignDriver,
+    trips,
     markStockReceived,
-    addTripExpense 
+    addTripExpense
   } = useAdminStore();
 
   const { drivers: verifiedDrivers } = useDriverStore();
-  const availableDrivers = verifiedDrivers.filter(d => d.status === 'active' || d.status === 'approved');
+
+  const [dbDrivers, setDbDrivers] = useState([]);
+  const availableDrivers = dbDrivers;
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-  
+
   const [editFormData, setEditFormData] = useState({ party: '', qty: '', amount: '', type: 'Purchase', driver: '', date: '' });
   const [receiveQty, setReceiveQty] = useState('');
   const [expenseData, setExpenseData] = useState({ type: 'FUEL', amount: '', method: 'CASH' });
@@ -67,9 +69,9 @@ const TapalDetail = () => {
   ];
 
   const openEditModal = () => {
-    setEditFormData({ 
+    setEditFormData({
       party: tapal.party,
-      qty: tapal.qty.replace(' KG', ''), 
+      qty: tapal.qty.replace(' KG', ''),
       amount: tapal.amount.replace('₹', '').replace(/,/g, ''),
       type: tapal.type,
       driver: tapal.driver || 'Unassigned',
@@ -91,11 +93,40 @@ const TapalDetail = () => {
     toast.success('Tapal information updated');
   };
 
-  const handleAssignDriver = (driverId) => {
-    assignDriver(tapal.id, driverId);
-    setIsDriverModalOpen(false);
-    toast.success('Driver assigned successfully');
+  const handleAssignDriver = async (driverId) => {
+    try {
+      const { apiClient } = await import('../../../services/apiClient');
+      const tapalMongoId = tapal._id || tapal.id; // use mongo ID if present
+      await apiClient.patch('/tapals/assign-driver', {
+        tapalId: tapalMongoId,
+        driverId: driverId
+      });
+      // also update locally for UI
+      assignDriver(tapal.id, driverId);
+      setIsDriverModalOpen(false);
+      toast.success('Driver assigned successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to assign driver');
+    }
   };
+
+  React.useEffect(() => {
+    const fetchDbDrivers = async () => {
+      try {
+        const { masterService } = await import('../../../services/masterService');
+        const activeDrivers = await masterService.drivers.getActive();
+        // The API returns { success: true, data: [...] } from ApiResponse
+        if (activeDrivers.data) {
+          setDbDrivers(activeDrivers.data);
+        } else if (Array.isArray(activeDrivers)) {
+          setDbDrivers(activeDrivers);
+        }
+      } catch (err) {
+        console.error('Failed to fetch active drivers', err);
+      }
+    };
+    fetchDbDrivers();
+  }, []);
 
   const handleConfirmReceipt = () => {
     if (!receiveQty) return toast.error('Please enter received quantity');
@@ -123,7 +154,7 @@ const TapalDetail = () => {
     const statusOrder = ['Confirmed', 'Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered', 'Closed'];
     const currentIndex = statusOrder.indexOf(tapal.status);
     const stepIndex = statusOrder.indexOf(step);
-    
+
     if (currentIndex >= stepIndex) return 'completed';
     if (currentIndex === stepIndex - 1) return 'current';
     return 'upcoming';
@@ -144,18 +175,18 @@ const TapalDetail = () => {
           </p>
         </div>
         <div className="flex gap-2">
-           {!isLocked && (
-             <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={openEditModal}><Pencil size={12} className="mr-1" /> EDIT</Button>
-           )}
-           {isLocked && (
-             <Badge variant="secondary" className="bg-olive-50 text-[8px] font-bold border-card-border px-3 flex items-center gap-1.5 opacity-60 cursor-not-allowed">
-               <Check size={10} /> EDIT LOCKED
-             </Badge>
-           )}
-           <Badge variant={tapal.status === 'Delivered' || tapal.status === 'Closed' ? 'success' : 'warning'} className="uppercase text-[9px] font-bold border border-card-border px-4 py-1 shadow-none">
-             {tapal.status}
-           </Badge>
-           <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={() => window.print()}><Printer size={12} className="mr-1" /> PRINT</Button>
+          {!isLocked && (
+            <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={openEditModal}><Pencil size={12} className="mr-1" /> EDIT</Button>
+          )}
+          {isLocked && (
+            <Badge variant="secondary" className="bg-olive-50 text-[8px] font-bold border-card-border px-3 flex items-center gap-1.5 opacity-60 cursor-not-allowed">
+              <Check size={10} /> EDIT LOCKED
+            </Badge>
+          )}
+          <Badge variant={tapal.status === 'Delivered' || tapal.status === 'Closed' ? 'success' : 'warning'} className="uppercase text-[9px] font-bold border border-card-border px-4 py-1 shadow-none">
+            {tapal.status}
+          </Badge>
+          <Button variant="outline" size="sm" className="h-8 px-4 text-[9px] font-bold border-card-border" onClick={() => window.print()}><Printer size={12} className="mr-1" /> PRINT</Button>
         </div>
       </div>
 
@@ -169,8 +200,8 @@ const TapalDetail = () => {
               <div key={i} className="flex flex-col items-center gap-2 relative z-10 bg-white px-4">
                 <div className={clsx(
                   "w-8 h-8 flex items-center justify-center border-2 font-bold text-[10px]",
-                  status === 'completed' ? "bg-black border-black text-white" : 
-                  status === 'current' ? "border-black text-black animate-pulse shadow-glow" : "border-olive-100 text-olive-200"
+                  status === 'completed' ? "bg-black border-black text-white" :
+                    status === 'current' ? "border-black text-black animate-pulse shadow-glow" : "border-olive-100 text-olive-200"
                 )}>
                   {status === 'completed' ? <CheckCircle2 size={16} /> : i + 1}
                 </div>
@@ -195,8 +226,8 @@ const TapalDetail = () => {
               <div className="flex-1">
                 <p className="text-sm font-bold text-black uppercase tracking-tight">{tapal.party}</p>
                 <div className="flex gap-4 mt-1">
-                   <p className="text-[9px] text-text-muted font-bold flex items-center gap-1.5"><MessageCircle size={10} className="text-accent-olive" /> {tapal.phone || 'NO CONTACT'}</p>
-                   <Badge variant="secondary" className="bg-olive-50/50 text-[7px] border-none px-1.5">{tapal.type === 'Purchase' ? 'SUPPLIER' : 'CLIENT'}</Badge>
+                  <p className="text-[9px] text-text-muted font-bold flex items-center gap-1.5"><MessageCircle size={10} className="text-accent-olive" /> {tapal.phone || 'NO CONTACT'}</p>
+                  <Badge variant="secondary" className="bg-olive-50/50 text-[7px] border-none px-1.5">{tapal.type === 'Purchase' ? 'SUPPLIER' : 'CLIENT'}</Badge>
                 </div>
               </div>
             </div>
@@ -205,23 +236,23 @@ const TapalDetail = () => {
           {/* Manager Suggestions / Feedback Section */}
           {tapal.suggestedChanges && (
             <Card className="border-2 border-accent-olive bg-olive-50/20 p-5 shadow-sm">
-               <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-accent-olive rounded-full flex items-center justify-center text-white shrink-0 shadow-lg">
-                     <MessageCircle size={20} />
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-accent-olive rounded-full flex items-center justify-center text-white shrink-0 shadow-lg">
+                  <MessageCircle size={20} />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-[10px] font-black text-black uppercase tracking-widest">Feedback from Channappa</h4>
+                    <Badge variant="warning" className="text-[7px] bg-black text-white border-none px-2 py-0.5">ACTION REQUIRED</Badge>
                   </div>
-                  <div className="space-y-1">
-                     <div className="flex items-center gap-2">
-                        <h4 className="text-[10px] font-black text-black uppercase tracking-widest">Feedback from Channappa</h4>
-                        <Badge variant="warning" className="text-[7px] bg-black text-white border-none px-2 py-0.5">ACTION REQUIRED</Badge>
-                     </div>
-                     <p className="text-xs font-bold text-black leading-relaxed italic">
-                        "{tapal.suggestedChanges}"
-                     </p>
-                     <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest mt-2">
-                        SENT AT: {new Date(tapal.suggestedAt).toLocaleTimeString()} · PLEASE UPDATE TAPAL AS PER SUGGESTIONS
-                     </p>
-                  </div>
-               </div>
+                  <p className="text-xs font-bold text-black leading-relaxed italic">
+                    "{tapal.suggestedChanges}"
+                  </p>
+                  <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest mt-2">
+                    SENT AT: {new Date(tapal.suggestedAt).toLocaleTimeString()} · PLEASE UPDATE TAPAL AS PER SUGGESTIONS
+                  </p>
+                </div>
+              </div>
             </Card>
           )}
 
@@ -270,10 +301,10 @@ const TapalDetail = () => {
                 <Badge className={clsx("text-[7px] font-bold uppercase", trip.status === 'Delivered' || trip.status === 'Closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>{trip.status}</Badge>
               </div>
               <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">PICKUP SITE</p><p className="text-[10px] font-bold text-black uppercase">{trip.pickupLocation}</p></div>
-                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">ACTUAL QTY</p><p className="text-[10px] font-bold text-accent-olive uppercase">{trip.actualQty || 'AWAITING PICKUP'} {trip.actualQty ? 'KG' : ''}</p></div>
-                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">COMPLETED AT</p><p className="text-[10px] font-bold text-black">{trip.completedAt || '—'}</p></div>
-                 <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">TOTAL EXPENSES</p><p className="text-[10px] font-bold text-accent-olive">₹{trip.expenses?.reduce((a,e) => a+Number(e.amount), 0).toLocaleString() || '0'}</p></div>
+                <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">PICKUP SITE</p><p className="text-[10px] font-bold text-black uppercase">{trip.pickupLocation}</p></div>
+                <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">ACTUAL QTY</p><p className="text-[10px] font-bold text-accent-olive uppercase">{trip.actualQty || 'AWAITING PICKUP'} {trip.actualQty ? 'KG' : ''}</p></div>
+                <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">COMPLETED AT</p><p className="text-[10px] font-bold text-black">{trip.completedAt || '—'}</p></div>
+                <div><p className="text-[8px] text-text-muted font-bold uppercase mb-1">TOTAL EXPENSES</p><p className="text-[10px] font-bold text-accent-olive">₹{trip.expenses?.reduce((a, e) => a + Number(e.amount), 0).toLocaleString() || '0'}</p></div>
               </div>
             </Card>
           )}
@@ -283,40 +314,40 @@ const TapalDetail = () => {
         <div className="space-y-3">
           {/* Action Control Panel */}
           <Card className="border border-black bg-black p-4 text-white shadow-lg">
-             <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] mb-4 text-white/60 text-center md:text-left">WORKFLOW ACTION</h3>
-             
-             {tapal.status === 'Confirmed' && (
-               <Button className="w-full bg-white text-black hover:bg-olive-50 text-[10px] font-bold uppercase gap-2 h-11" onClick={() => setIsDriverModalOpen(true)}>
-                 <UserPlus size={16} /> ASSIGN DRIVER
-               </Button>
-             )}
+            <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] mb-4 text-white/60 text-center md:text-left">WORKFLOW ACTION</h3>
 
-             {tapal.status === 'Expense Submitted' && (
-               <div className="space-y-2">
-                  <Button className="w-full bg-green-600 text-white hover:bg-green-700 text-[10px] font-bold uppercase gap-2 h-11" onClick={handleCloseTrip}>
-                    <CheckCircle2 size={16} /> APPROVE & CLOSE
-                  </Button>
-                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 text-[9px] font-bold h-10 uppercase">
-                    REJECT EXPENSES
-                  </Button>
-               </div>
-             )}
+            {tapal.status === 'Confirmed' && (
+              <Button className="w-full bg-white text-black hover:bg-olive-50 text-[10px] font-bold uppercase gap-2 h-11" onClick={() => setIsDriverModalOpen(true)}>
+                <UserPlus size={16} /> ASSIGN DRIVER
+              </Button>
+            )}
 
-             {tapal.status === 'Closed' && (
-               <div className="text-center py-2">
-                 <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-glow"><CheckCircle2 size={24} /></div>
-                 <p className="text-[10px] font-bold uppercase tracking-widest text-green-400">TRIP CLOSED</p>
-                 <p className="text-[8px] font-bold text-white/50 uppercase mt-1">LOGISTICS COMPLETE</p>
-               </div>
-             )}
+            {tapal.status === 'Expense Submitted' && (
+              <div className="space-y-2">
+                <Button className="w-full bg-green-600 text-white hover:bg-green-700 text-[10px] font-bold uppercase gap-2 h-11" onClick={handleCloseTrip}>
+                  <CheckCircle2 size={16} /> APPROVE & CLOSE
+                </Button>
+                <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 text-[9px] font-bold h-10 uppercase">
+                  REJECT EXPENSES
+                </Button>
+              </div>
+            )}
 
-             {['Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered'].includes(tapal.status) && (
-               <div className="text-center py-4 border border-white/10 bg-white/5">
-                  <div className="animate-spin h-6 w-6 border-2 border-white/20 border-t-white rounded-full mx-auto mb-3"></div>
-                  <p className="text-[9px] font-bold uppercase tracking-widest">Waiting for Driver Action</p>
-                  <p className="text-[7px] text-white/50 uppercase mt-1">Status: {tapal.status}</p>
-               </div>
-             )}
+            {tapal.status === 'Closed' && (
+              <div className="text-center py-2">
+                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-glow"><CheckCircle2 size={24} /></div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-green-400">TRIP CLOSED</p>
+                <p className="text-[8px] font-bold text-white/50 uppercase mt-1">LOGISTICS COMPLETE</p>
+              </div>
+            )}
+
+            {['Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered'].includes(tapal.status) && (
+              <div className="text-center py-4 border border-white/10 bg-white/5">
+                <div className="animate-spin h-6 w-6 border-2 border-white/20 border-t-white rounded-full mx-auto mb-3"></div>
+                <p className="text-[9px] font-bold uppercase tracking-widest">Waiting for Driver Action</p>
+                <p className="text-[7px] text-white/50 uppercase mt-1">Status: {tapal.status}</p>
+              </div>
+            )}
           </Card>
 
           {/* Logistics Card (Static Info) */}
@@ -336,17 +367,17 @@ const TapalDetail = () => {
           <Card className="border border-card-border shadow-subtle bg-white p-4">
             <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-4">TIMELINE</h3>
             <div className="space-y-4 relative before:absolute before:left-3 before:top-4 before:bottom-4 before:w-px before:bg-olive-100">
-               {[ {s: 'DRAFTED', t: tapal.date}, {s: tapal.status.toUpperCase(), t: 'LATEST UPDATE'} ].map((ev, i) => (
-                 <div key={i} className="flex gap-4 relative z-10">
-                   <div className="w-6 h-6 bg-white border border-card-border flex items-center justify-center shadow-sm">
-                      <div className="w-1.5 h-1.5 bg-black"></div>
-                   </div>
-                   <div>
-                      <p className="text-[9px] font-bold text-black uppercase tracking-tight">{ev.s}</p>
-                      <p className="text-[8px] text-text-muted font-bold">{ev.t}</p>
-                   </div>
-                 </div>
-               ))}
+              {[{ s: 'DRAFTED', t: tapal.date }, { s: tapal.status.toUpperCase(), t: 'LATEST UPDATE' }].map((ev, i) => (
+                <div key={i} className="flex gap-4 relative z-10">
+                  <div className="w-6 h-6 bg-white border border-card-border flex items-center justify-center shadow-sm">
+                    <div className="w-1.5 h-1.5 bg-black"></div>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-black uppercase tracking-tight">{ev.s}</p>
+                    <p className="text-[8px] text-text-muted font-bold">{ev.t}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </Card>
         </div>
@@ -358,20 +389,20 @@ const TapalDetail = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">TYPE</label>
-              <select value={editFormData.type} onChange={(e) => setEditFormData({...editFormData, type: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none bg-white">
+              <select value={editFormData.type} onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none bg-white">
                 <option value="Purchase">PURCHASE</option>
                 <option value="Sale">SALE</option>
               </select>
             </div>
             <div className="space-y-1.5">
               <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">DATE</label>
-              <input type="text" value={editFormData.date} onChange={(e) => setEditFormData({...editFormData, date: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase" />
+              <input type="text" value={editFormData.date} onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase" />
             </div>
           </div>
-          <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">PARTY NAME</label><input type="text" value={editFormData.party} onChange={(e) => setEditFormData({...editFormData, party: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase" /></div>
+          <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">PARTY NAME</label><input type="text" value={editFormData.party} onChange={(e) => setEditFormData({ ...editFormData, party: e.target.value })} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none uppercase" /></div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">QTY (KG)</label><input type="number" value={editFormData.qty} onChange={(e) => setEditFormData({...editFormData, qty: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
-            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AMOUNT (₹)</label><input type="number" value={editFormData.amount} onChange={(e) => setEditFormData({...editFormData, amount: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
+            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">QTY (KG)</label><input type="number" value={editFormData.qty} onChange={(e) => setEditFormData({ ...editFormData, qty: e.target.value })} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
+            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AMOUNT (₹)</label><input type="number" value={editFormData.amount} onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none" /></div>
           </div>
           <div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-9" onClick={() => setIsEditModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-9 gap-2" onClick={handleSaveEdit}><Check size={14} /> UPDATE</Button></div>
         </div>
@@ -397,7 +428,7 @@ const TapalDetail = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                   <Badge variant="success" className="text-[7px] uppercase px-2 py-0.5 border border-card-border shadow-none">VERIFIED</Badge>
+                  <Badge variant="success" className="text-[7px] uppercase px-2 py-0.5 border border-card-border shadow-none">VERIFIED</Badge>
                 </div>
               </div>
             ))
@@ -408,25 +439,25 @@ const TapalDetail = () => {
       {/* Receive Stock Modal */}
       <Modal isOpen={isReceiveModalOpen} onClose={() => setIsReceiveModalOpen(false)} title="Final Stock Confirmation">
         <div className="space-y-4 text-center">
-           <AlertCircle size={40} className="text-accent-olive mx-auto mb-2" />
-           <div><p className="text-[11px] font-bold text-black uppercase tracking-tight">Enter Actual Quantity Received</p><p className="text-[9px] text-text-muted font-bold uppercase mt-1">Expected: {tapal.qty}</p></div>
-           <input type="number" placeholder="Actual Weight (KG)" value={receiveQty} onChange={(e) => setReceiveQty(e.target.value)} className="w-full border border-card-border px-4 py-3 text-lg font-serif italic text-center outline-none focus:ring-1 focus:ring-accent-olive" />
-           <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsReceiveModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleConfirmReceipt}>CONFIRM & ADD STOCK</Button></div>
+          <AlertCircle size={40} className="text-accent-olive mx-auto mb-2" />
+          <div><p className="text-[11px] font-bold text-black uppercase tracking-tight">Enter Actual Quantity Received</p><p className="text-[9px] text-text-muted font-bold uppercase mt-1">Expected: {tapal.qty}</p></div>
+          <input type="number" placeholder="Actual Weight (KG)" value={receiveQty} onChange={(e) => setReceiveQty(e.target.value)} className="w-full border border-card-border px-4 py-3 text-lg font-serif italic text-center outline-none focus:ring-1 focus:ring-accent-olive" />
+          <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsReceiveModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleConfirmReceipt}>CONFIRM & ADD STOCK</Button></div>
         </div>
       </Modal>
 
       {/* Expense Modal */}
       <Modal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} title="Log Trip Expense">
         <div className="space-y-4">
-           <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">EXPENSE TYPE</label>
-                <select value={expenseData.type} onChange={(e) => setExpenseData({...expenseData, type: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold bg-white">
-                  <option value="FUEL">FUEL</option><option value="TOLL">TOLL</option><option value="FOOD">FOOD</option><option value="REPAIR">REPAIR</option><option value="OTHER">OTHER</option>
-                </select>
-              </div>
-              <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AMOUNT (₹)</label><input type="number" value={expenseData.amount} onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold" /></div>
-           </div>
-           <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsExpenseModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleAddExpense}>LOG EXPENSE</Button></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">EXPENSE TYPE</label>
+              <select value={expenseData.type} onChange={(e) => setExpenseData({ ...expenseData, type: e.target.value })} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold bg-white">
+                <option value="FUEL">FUEL</option><option value="TOLL">TOLL</option><option value="FOOD">FOOD</option><option value="REPAIR">REPAIR</option><option value="OTHER">OTHER</option>
+              </select>
+            </div>
+            <div className="space-y-1.5"><label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AMOUNT (₹)</label><input type="number" value={expenseData.amount} onChange={(e) => setExpenseData({ ...expenseData, amount: e.target.value })} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold" /></div>
+          </div>
+          <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsExpenseModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleAddExpense}>LOG EXPENSE</Button></div>
         </div>
       </Modal>
       {/* Hidden Printable Component */}

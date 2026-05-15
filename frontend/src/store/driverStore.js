@@ -101,7 +101,11 @@ export const useDriverStore = create(
 
       getDriverByMobile: (mobile) => {
         return get().drivers.find(d => d.mobile === mobile);
-      }
+      },
+
+      incomingAssignment: null,
+      setIncomingAssignment: (data) => set({ incomingAssignment: data }),
+      clearIncomingAssignment: () => set({ incomingAssignment: null }),
     }),
     {
       name: 'golden-fisheries-drivers',

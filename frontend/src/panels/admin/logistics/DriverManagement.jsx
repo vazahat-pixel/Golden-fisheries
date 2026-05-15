@@ -68,8 +68,11 @@ const DriverManagement = () => {
   };
   
   const filteredDrivers = allDrivers.filter(d => {
-    const matchesSearch = d.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         (d.vehicleNumber && d.vehicleNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+    const driverName = (d.fullName || d.name || '').toLowerCase();
+    const driverVehicle = (d.vehicleNumber || d.vehicle || '').toLowerCase();
+    
+    const matchesSearch = driverName.includes(searchQuery.toLowerCase()) || 
+                          driverVehicle.includes(searchQuery.toLowerCase());
     
     if (activeTab === 'ALL') return matchesSearch;
     if (activeTab === 'PENDING') return matchesSearch && d.status === 'pending_verification';
@@ -174,11 +177,11 @@ const DriverManagement = () => {
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-black text-white flex items-center justify-center font-bold text-xs border border-black shadow-md overflow-hidden">
-                        <img src={`https://ui-avatars.com/api/?name=${driver.fullName}&background=0A0B09&color=C5A021&size=128&bold=true`} alt="" className="w-full h-full object-cover" />
+                        <img src={`https://ui-avatars.com/api/?name=${driver.fullName || driver.name}&background=0A0B09&color=C5A021&size=128&bold=true`} alt="" className="w-full h-full object-cover" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-black uppercase tracking-tight">{driver.fullName}</p>
-                        <p className="text-[10px] text-text-muted font-bold tracking-widest">{driver.mobile}</p>
+                        <p className="text-sm font-bold text-black uppercase tracking-tight">{driver.fullName || driver.name}</p>
+                        <p className="text-[10px] text-text-muted font-bold tracking-widest">{driver.mobile || driver.phone}</p>
                       </div>
                     </div>
                   </td>
@@ -190,7 +193,7 @@ const DriverManagement = () => {
                      </div>
                   </td>
                   <td className="px-6 py-5">
-                     <p className="text-[11px] font-bold text-black uppercase">{driver.vehicleNumber || 'COMPANY ASSIGNED'}</p>
+                     <p className="text-[11px] font-bold text-black uppercase">{driver.vehicleNumber || driver.vehicle || 'COMPANY ASSIGNED'}</p>
                      <p className="text-[9px] text-text-muted font-bold uppercase tracking-widest mt-1">{driver.vehicleType || '---'}</p>
                   </td>
                   <td className="px-6 py-5 text-[11px] font-bold text-black">{driver.registeredAt}</td>
@@ -221,7 +224,7 @@ const DriverManagement = () => {
         <Modal 
           isOpen={!!selectedDriver} 
           onClose={() => setSelectedDriver(null)} 
-          title={`DRIVER VERIFICATION: ${selectedDriver.fullName}`}
+          title={`DRIVER VERIFICATION: ${selectedDriver.fullName || selectedDriver.name}`}
           maxWidth="max-w-4xl"
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
@@ -239,7 +242,7 @@ const DriverManagement = () => {
                    <div>
                       <label className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-1">Contact Details</label>
                       <div className="p-3 bg-white border border-card-border space-y-1">
-                         <p className="text-[10px] font-black text-black">P: {selectedDriver.mobile}</p>
+                         <p className="text-[10px] font-black text-black">P: {selectedDriver.mobile || selectedDriver.phone}</p>
                          {selectedDriver.alternateMobile && <p className="text-[10px] font-bold text-text-muted">A: {selectedDriver.alternateMobile}</p>}
                       </div>
                    </div>

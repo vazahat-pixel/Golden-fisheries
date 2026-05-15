@@ -8,6 +8,8 @@ import { Harvest } from '../harvests/harvest.model.js';
 import { Product } from '../products/product.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
+import { broadcastEvent } from '../../sockets/socket.js';
+
 
 class TapalService extends BaseService {
   constructor() {
@@ -56,11 +58,14 @@ class TapalService extends BaseService {
       if (!driver) throw new AppError('Driver not found or invalid role', 404);
       if (!driver.isActive) throw new AppError('Driver is currently inactive', 400);
 
-      // 3. Validate Vehicle
-      const vehicle = await Vehicle.findById(vehicleId).session(session);
-      if (!vehicle) throw new AppError('Vehicle not found', 404);
-      if (vehicle.status !== 'AVAILABLE') {
-        throw new AppError(`Vehicle is not available. Status: ${vehicle.status}`, 400);
+      // 3. Validate Vehicle (Optional for seeded drivers without vehicles)
+      let vehicle = null;
+      if (vehicleId) {
+        vehicle = await Vehicle.findById(vehicleId).session(session);
+        if (!vehicle) throw new AppError('Vehicle not found', 404);
+        if (vehicle.status !== 'AVAILABLE') {
+          throw new AppError(`Vehicle is not available. Status: ${vehicle.status}`, 400);
+        }
       }
 
       // 4. Resolve pickup/delivery locations
@@ -82,7 +87,7 @@ class TapalService extends BaseService {
       const trip = new Trip({
         tapalId: tapal._id,
         driverId: driver._id,
-        vehicleId: vehicle._id,
+        vehicleId: vehicle ? vehicle._id : null,
         status: 'ASSIGNED',
         pickupLocation,
         deliveryLocation,
@@ -99,14 +104,39 @@ class TapalService extends BaseService {
       await tapal.save({ session });
 
       // 7. Update Vehicle Status
-      vehicle.status = 'ON_TRIP';
-      await vehicle.save({ session });
+      if (vehicle) {
+        vehicle.status = 'ON_TRIP';
+        await vehicle.save({ session });
+      }
 
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'ASSIGNED',
+        driverName: driver.fullName,
+        tapalNumber: tapal.tapalNumber
+      }, 'dashboard:updates');
+
+      // 8. Emit explicitly to the specific driver's room
+      broadcastEvent('trip:new_assignment', {
+        tapalId: tapal._id,
+        tapalNumber: tapal.tapalNumber,
+        type: tapal.type,
+        partyName: tapal.partyName,
+        qty: tapal.qty,
+        amount: tapal.amount,
+        pickupLocation,
+        deliveryLocation,
+        products: tapal.products,
+        assignedAt: new Date()
+      }, `user:${driver._id}`);
+
       logger.info(`[Logistics Engine]: Driver ${driver.fullName} assigned to Tapal ${tapal.tapalNumber}. Trip ${trip.tripNumber} spawned.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -146,8 +176,75 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'STARTED'
+      }, 'dashboard:updates');
+
       logger.info(`[Driver Flow]: Trip ${trip.tripNumber} has started.`);
       return { tapal, trip };
+
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  }
+
+  /**
+   * Safe Transaction: Driver rejects the trip
+   */
+  async rejectTrip(tapalId, driverId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const tapal = await this.model.findById(tapalId).session(session);
+      if (!tapal) throw new AppError('Tapal not found', 404);
+      if (tapal.status !== 'DRIVER_ASSIGNED') {
+        throw new AppError('Trip cannot be rejected. Invalid state.', 400);
+      }
+
+      if (tapal.driverId.toString() !== driverId.toString()) {
+        throw new AppError('Access Denied: You are not the assigned driver for this trip', 403);
+      }
+
+      const trip = await Trip.findOne({ tapalId: tapal._id }).session(session);
+      
+      // Update Tapal back to unassigned state
+      tapal.status = 'CREATED';
+      tapal.driver = null;
+      tapal.driverId = null;
+      await tapal.save({ session });
+
+      if (trip) {
+        // If vehicle was assigned, make it available again
+        if (trip.vehicleId) {
+          const vehicle = await Vehicle.findById(trip.vehicleId).session(session);
+          if (vehicle) {
+            vehicle.status = 'AVAILABLE';
+            await vehicle.save({ session });
+          }
+        }
+        
+        // Delete the trip document
+        await Trip.findByIdAndDelete(trip._id).session(session);
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      broadcastEvent('trip:status_change', {
+        tripId: trip ? trip._id : null,
+        tripNumber: trip ? trip.tripNumber : null,
+        status: 'REJECTED',
+        tapalId: tapal._id
+      }, 'dashboard:updates');
+
+      logger.info(`[Driver Flow]: Driver rejected Trip for Tapal ${tapal.tapalNumber}. Reset to CREATED.`);
+      return { tapal };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -188,8 +285,16 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'PICKED',
+        actualPickupQty
+      }, 'dashboard:updates');
+
       logger.info(`[Driver Flow]: Cargo picked up for trip ${trip.tripNumber}. Qty: ${actualPickupQty} KG.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -232,8 +337,16 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'DELIVERED',
+        actualDeliveredQty
+      }, 'dashboard:updates');
+
       logger.info(`[Driver Flow]: Cargo delivered for trip ${trip.tripNumber}. Actual weight: ${actualDeliveredQty} KG.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -326,8 +439,15 @@ class TapalService extends BaseService {
       await session.commitTransaction();
       session.endSession();
 
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'CLOSED'
+      }, 'dashboard:updates');
+
       logger.info(`[Logistics Engine]: Trip ${trip.tripNumber} closed. Inventory adjusted. Tapal status shifted to BILL_PENDING.`);
       return { tapal, trip };
+
     } catch (error) {
       await session.abortTransaction();
       session.endSession();

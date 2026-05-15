@@ -21,11 +21,11 @@ import {
    Activity,
    Truck,
    Plus,
-   Clock,
    ChevronRight
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
+import { useDriverStore } from '../../store/driverStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import driverMockData from '../../data/driverMockData.json';
@@ -33,6 +33,7 @@ import driverMockData from '../../data/driverMockData.json';
 const DriverDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { incomingAssignment, clearIncomingAssignment } = useDriverStore();
   const { trips, driverAcceptTrip, vehicles, expenses } = useAdminStore();
 
   const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
@@ -48,11 +49,36 @@ const DriverDashboard = () => {
   const newAssignment = myTrips.find(t => t.status === 'Assigned');
   const liveTrip = myTrips.find(t => ['Accepted', 'In Transit', 'Picked'].includes(t.status));
 
-  const handleAccept = () => {
-    if (newAssignment) {
+  const handleAccept = async () => {
+    if (incomingAssignment) {
+      try {
+        const { apiClient } = await import('../../services/apiClient');
+        await apiClient.patch('/tapals/start-trip', { tapalId: incomingAssignment.tapalId });
+        clearIncomingAssignment();
+        // Fallback for local store
+        driverAcceptTrip(incomingAssignment.tapalId);
+        toast.success('Task Accepted!');
+        navigate('/driver/active-trip');
+      } catch (err) {
+        toast.error('Failed to accept trip');
+      }
+    } else if (newAssignment) {
       driverAcceptTrip(newAssignment.tapalId);
       toast.success('Task Accepted!');
       navigate('/driver/active-trip');
+    }
+  };
+
+  const handleReject = async () => {
+    if (incomingAssignment) {
+      try {
+        const { apiClient } = await import('../../services/apiClient');
+        await apiClient.patch('/tapals/reject-trip', { tapalId: incomingAssignment.tapalId });
+        clearIncomingAssignment();
+        toast.success('Task Rejected');
+      } catch (err) {
+        toast.error('Failed to reject trip');
+      }
     }
   };
 
@@ -220,6 +246,62 @@ const DriverDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Real-time Fullscreen Incoming Assignment Popup */}
+      {incomingAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-300">
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2">
+              <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center shadow-lg border-4 border-white">
+                <AlertCircle size={24} className="text-accent-olive animate-pulse" />
+              </div>
+            </div>
+
+            <div className="mt-6 text-center space-y-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Incoming Tapal Assignment</p>
+              <h2 className="text-xl font-black text-black tracking-tight">{incomingAssignment.tapalNumber}</h2>
+              <Badge className="bg-amber-100 text-amber-700 uppercase font-black text-[9px] border-none px-3 mt-2">{incomingAssignment.type}</Badge>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Party</p>
+                  <p className="text-[10px] font-black text-slate-900 uppercase">{incomingAssignment.partyName}</p>
+                </div>
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Quantity</p>
+                  <p className="text-[10px] font-black text-slate-900">{incomingAssignment.qty}</p>
+                </div>
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pickup</p>
+                  <p className="text-[10px] font-black text-slate-900 uppercase text-right truncate max-w-[150px]">{incomingAssignment.pickupLocation}</p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivery</p>
+                  <p className="text-[10px] font-black text-slate-900 uppercase text-right truncate max-w-[150px]">{incomingAssignment.deliveryLocation}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={handleReject}
+                  className="flex-1 py-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 active:scale-95 transition-all"
+                >
+                  Reject
+                </button>
+                <button 
+                  onClick={handleAccept}
+                  className="flex-[2] py-4 rounded-xl bg-emerald-500 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Check size={16} /> Accept Trip
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

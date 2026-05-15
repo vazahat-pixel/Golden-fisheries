@@ -9,22 +9,22 @@ const createCrudService = (endpoint) => ({
     const response = await apiClient.get(`/${endpoint}/all`, { params });
     return response; // response contains { docs, meta } or raw list if not paginated on backend
   },
-  
+
   getById: async (id) => {
     const response = await apiClient.get(`/${endpoint}/${id}`);
     return response.data;
   },
-  
+
   create: async (data) => {
     const response = await apiClient.post(`/${endpoint}/create`, data);
     return response.data;
   },
-  
+
   update: async (id, data) => {
     const response = await apiClient.put(`/${endpoint}/update/${id}`, data);
     return response.data;
   },
-  
+
   delete: async (id) => {
     const response = await apiClient.delete(`/${endpoint}/${id}`);
     return response;
@@ -36,7 +36,13 @@ export const masterService = {
   buyers: createCrudService('buyers'),
   products: createCrudService('products'),
   vehicles: createCrudService('vehicles'),
-  drivers: createCrudService('drivers')
+  drivers: {
+    ...createCrudService('drivers'),
+    getActive: async () => {
+      const response = await apiClient.get('/drivers/active');
+      return response.data;
+    }
+  }
 };
 
 export default masterService;

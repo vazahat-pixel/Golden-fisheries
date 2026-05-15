@@ -39,6 +39,13 @@ router.patch(
   tapalController.startTrip
 );
 
+// 4.1 Driver rejects the trip
+router.patch(
+  '/reject-trip',
+  restrictTo(ROLES.DRIVER),
+  tapalController.rejectTrip
+);
+
 // 5. Driver records scale weight at pickup
 router.patch(
   '/pickup',

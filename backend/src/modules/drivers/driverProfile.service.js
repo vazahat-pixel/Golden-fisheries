@@ -29,6 +29,15 @@ class DriverProfileService extends BaseService {
     // Populate user profile and assigned vehicle details
     return await this.findMany(filter, { page, limit }, 'userId vehicleId');
   }
+
+  /**
+   * Get all active drivers with user details populated (for assignment dropdown)
+   */
+  async getActiveDrivers() {
+    return await this.model.find({ registrationStatus: 'active' })
+      .populate('userId', 'fullName phone role')
+      .populate('vehicleId', 'plateNumber model');
+  }
 }
 
 export const driverProfileService = new DriverProfileService();
@@ -42,6 +51,11 @@ export const driverProfileController = {
   all: asyncWrapper(async (req, res) => {
     const result = await driverProfileService.findDriverProfilesWithFilters(req.query);
     new ApiResponse(200, result.docs, 'Driver Profiles fetched successfully', result.meta).send(res);
+  }),
+
+  active: asyncWrapper(async (req, res) => {
+    const drivers = await driverProfileService.getActiveDrivers();
+    new ApiResponse(200, drivers, 'Active Drivers fetched successfully').send(res);
   }),
 
   getById: asyncWrapper(async (req, res) => {

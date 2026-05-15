@@ -30,6 +30,7 @@ const InventoryOverview = () => {
   const { inventory, updateInventoryQty, fetchInventory, addInventoryItemAsync, incomingStock, loading } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+  const [adjustModal, setAdjustModal] = useState({ isOpen: false, item: null, amount: '', reason: '' });
 
   useEffect(() => {
     fetchInventory();
@@ -44,6 +45,20 @@ const InventoryOverview = () => {
       item.category.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
+
+  const handleAdjust = async () => {
+    if (!adjustModal.item || !adjustModal.amount) return;
+    try {
+      const amount = parseInt(adjustModal.amount, 10);
+      if (isNaN(amount)) throw new Error("Invalid amount");
+      
+      updateInventoryQty(adjustModal.item.id, amount);
+      toast.success("Stock adjusted successfully");
+      setAdjustModal({ isOpen: false, item: null, amount: '', reason: '' });
+    } catch (err) {
+      toast.error(err.message || 'Failed to adjust stock');
+    }
+  };
 
   const handleAddNew = async () => {
     const name = prompt("Enter product name:");
