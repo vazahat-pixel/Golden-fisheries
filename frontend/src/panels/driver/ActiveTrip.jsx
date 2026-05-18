@@ -75,38 +75,38 @@ const ActiveTrip = () => {
     try {
       await startTripAsync(trip._id || trip.tapalId || trip.id);
       toast.success('Trip Started! Drive safe.');
-      if (user?.id) fetchMyTrips(user.id);
+      fetchMyTrips();
     } catch (err) {
-      toast.error('Failed to start trip');
+      toast.error(err?.message || 'Failed to start trip');
     }
   };
 
   const handlePickupComplete = async () => {
-    if (!pickupForm.actualQty) return toast.error('Please enter actual quantity');
+    if (!pickupForm.actualQty) return toast.error('Please enter actual weight at pickup');
     try {
-      await pickupAsync(trip._id || trip.tapalId || trip.id, pickupForm.actualQty);
+      await pickupAsync(trip._id || trip.tapalId || trip.id, parseFloat(pickupForm.actualQty));
       setIsPickupModalOpen(false);
-      toast.success('Pickup Execution Logged');
-      if (user?.id) fetchMyTrips(user.id);
+      toast.success('Pickup weight logged successfully');
+      fetchMyTrips();
     } catch (err) {
-      toast.error('Failed to log pickup');
+      toast.error(err?.message || 'Failed to log pickup');
     }
   };
 
   const handleDeliver = async () => {
-    if (otp !== '1234') return toast.error('Invalid OTP. Use 1234 for demo.');
+    if (!pickupForm.actualQty) return toast.error('Please enter delivered weight');
     try {
       await deliverAsync(
         trip._id || trip.tapalId || trip.id, 
-        pickupForm.actualQty || trip.expectedQty, 
+        parseFloat(pickupForm.actualQty || trip.expectedQty), 
         pickupForm.photo || '', 
         pickupForm.signature || ''
       );
       setIsDeliveryModalOpen(false);
-      toast.success('Delivery Completed! Inventory updated.');
-      if (user?.id) fetchMyTrips(user.id);
+      toast.success('Delivery Confirmed! Proof of Delivery recorded.');
+      fetchMyTrips();
     } catch (err) {
-      toast.error('Failed to confirm delivery');
+      toast.error(err?.message || 'Failed to confirm delivery');
     }
   };
 
@@ -170,28 +170,32 @@ const ActiveTrip = () => {
         </div>
 
         <div className="pt-1">
-          {trip.status === 'Accepted' && (
+          {/* ASSIGNED — driver can start trip */}
+          {['ASSIGNED', 'Accepted'].includes(trip.status) && (
             <button onClick={handleStartTrip} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
-              <Navigation size={14} className="animate-pulse" /> Deploy Vehicle
+              <Navigation size={14} className="animate-pulse" /> Start Trip
             </button>
           )}
 
-          {trip.status === 'In Transit' && (
+          {/* STARTED — driver can log pickup weight */}
+          {['STARTED', 'In Transit'].includes(trip.status) && (
             <button onClick={() => setIsPickupModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
-              <PackageCheck size={14} /> Execute Pickup
+              <PackageCheck size={14} /> Log Pickup Weight
             </button>
           )}
 
-          {trip.status === 'Picked' && (
+          {/* PICKED — driver can confirm delivery */}
+          {['PICKED', 'Picked'].includes(trip.status) && (
             <button onClick={() => setIsDeliveryModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
               <CheckCircle2 size={14} /> Confirm Delivery
             </button>
           )}
           
-          {['Delivered', 'Expense Submitted'].includes(trip.status) && (
-            <button onClick={handleFinish} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all border-none">
-              <CheckCircle2 size={14} /> Close Mission
-            </button>
+          {/* DELIVERED / CLOSED — await admin trip closure */}
+          {['DELIVERED', 'CLOSED', 'Delivered', 'Expense Submitted'].includes(trip.status) && (
+            <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+              <CheckCircle2 size={14} /> Delivered — Awaiting Admin Closure
+            </div>
           )}
         </div>
       </div>

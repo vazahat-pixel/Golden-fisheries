@@ -110,6 +110,8 @@ class TapalService extends BaseService {
       tapal.status = 'DRIVER_ASSIGNED';
       tapal.driver = driver.fullName;
       tapal.driverId = driver._id;
+      tapal.driverPhone = driver.phone || null;
+      tapal.vehicleNumber = vehicle ? vehicle.plateNumber : null;
       await tapal.save({ session });
 
       // 7. Update Vehicle Status
@@ -389,8 +391,8 @@ class TapalService extends BaseService {
       if (tapal.type === 'Purchase') {
         // Add actual delivered stock to inventory
         for (const line of tapal.products) {
-          // Remove unit tags like " KG" and convert to number
-          const numericLineQty = parseFloat(line.qty.replace(/[^\d.]/g, ''));
+          // Strip commas (Indian formatting) AND non-numeric characters before parsing
+          const numericLineQty = parseFloat(line.qty.replace(/,/g, '').replace(/[^\d.]/g, ''));
           const actualLineQty = numericLineQty * scaleRatio;
 
           await Product.findOneAndUpdate(
@@ -403,7 +405,7 @@ class TapalService extends BaseService {
       } else if (tapal.type === 'Sale') {
         // Deduct delivered stock from inventory
         for (const line of tapal.products) {
-          const numericLineQty = parseFloat(line.qty.replace(/[^\d.]/g, ''));
+          const numericLineQty = parseFloat(line.qty.replace(/,/g, '').replace(/[^\d.]/g, ''));
           const actualLineQty = numericLineQty * scaleRatio;
 
           // Check stock before deduction

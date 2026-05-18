@@ -106,11 +106,14 @@ class HarvestService extends BaseService {
         totalAmount += lineTotal;
 
         // Map line item details to standard Tapal string representations
+        // Carry through optional box fields from Harvest slip
         tapalProducts.push({
           name: item.fishName.toUpperCase(),
           qty: `${qty} KG`,
           rate: `₹${activeRate}`,
-          total: `₹${lineTotal.toLocaleString('en-IN')}`
+          total: `₹${lineTotal.toLocaleString('en-IN')}`,
+          boxQty: item.boxCount || null,          // Optional: number of boxes
+          weightPerBox: item.weightPerBox || null  // Optional: KG per box
         });
       }
 

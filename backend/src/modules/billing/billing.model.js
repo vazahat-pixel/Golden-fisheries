@@ -48,6 +48,12 @@ const billingSchema = new mongoose.Schema(
       default: null, // Optional (required if triggered from delivered Tapals)
       index: true
     },
+    harvestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Harvest',
+      default: null, // Resolved from Tapal.harvestId at invoice creation time
+      index: true
+    },
     partyName: {
       type: String,
       required: [true, 'Recipient/Party name is required'],

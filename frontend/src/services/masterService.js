@@ -42,6 +42,26 @@ export const masterService = {
       const response = await apiClient.get('/drivers/active');
       return response.data;
     }
+  },
+  // Inventory — read-only from frontend, writes always through backend service
+  inventory: {
+    getAll: async (params = {}) => {
+      const response = await apiClient.get('/inventory', { params });
+      return response;
+    },
+    getTransactions: async (params = {}) => {
+      const response = await apiClient.get('/inventory/transactions', { params });
+      return response;
+    },
+    // Admin-only manual stock calibration — always goes through backend inventory ledger
+    adjustManual: async (productId, { qtyChange, remarks }) => {
+      const response = await apiClient.post('/inventory/adjust', {
+        productId,
+        quantityChange: qtyChange,
+        remarks
+      });
+      return response;
+    }
   }
 };
 

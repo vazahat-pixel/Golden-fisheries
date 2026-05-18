@@ -108,7 +108,7 @@ class RestaurantService extends BaseService {
             'RESTAURANT_CONSUMPTION',
             {
               referenceId: order._id,
-              referenceModel: 'Harvest', // Mock mapping model fallback
+              referenceModel: 'RestaurantOrder',
               session
             },
             userId,

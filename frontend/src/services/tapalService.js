@@ -6,9 +6,14 @@ export const tapalService = {
     return await apiClient.get('/tapals/all', { params });
   },
 
-  // 1.1 Fetch all Trips
+  // 1.1 Fetch all Trips (Admin)
   allTrips: async () => {
     return await apiClient.get('/tapals/trips/all');
+  },
+
+  // 1.2 Driver fetches only their own trips (scoped by JWT)
+  myTrips: async () => {
+    return await apiClient.get('/tapals/my-trips');
   },
 
   // 2. Create Tapal from Harvest Slip
@@ -24,11 +29,6 @@ export const tapalService = {
   // 4. Driver starts the trip
   startTrip: async (tapalId) => {
     return await apiClient.patch('/tapals/start-trip', { tapalId });
-  },
-
-  // 4.1 Driver rejects the trip
-  rejectTrip: async (tapalId) => {
-    return await apiClient.patch('/tapals/reject-trip', { tapalId });
   },
 
   // 5. Driver records scale weight at pickup

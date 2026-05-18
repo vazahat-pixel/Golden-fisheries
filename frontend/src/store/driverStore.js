@@ -6,66 +6,7 @@ import { expenseService } from '../services/expenseService';
 export const useDriverStore = create(
   persist(
     (set, get) => ({
-      drivers: [
-        {
-          id: 'DRV-0001',
-          status: 'pending_verification',
-          registeredAt: '2026-05-04',
-          fullName: 'RAJESH KUMAR',
-          mobile: '6655443322',
-          alternateMobile: '',
-          currentAddress: 'Plot 5, Main Road, Hassan',
-          permanentAddress: 'Village Hemavathi, Hassan',
-          profilePhoto: null,
-          aadhaarNumber: '1234 5678 9012',
-          aadhaarFrontImage: null,
-          aadhaarBackImage: null,
-          panNumber: '',
-          panImage: null,
-          licenseNumber: 'KA-01-2020-0001234',
-          licenseExpiry: '2028-12-31',
-          licenseFrontImage: null,
-          licenseBackImage: null,
-          hasOwnVehicle: true,
-          vehicleType: 'Mini Truck',
-          vehicleNumber: 'KA-01-AX-1234',
-          rcImage: null,
-          rcExpiry: '2030-06-15',
-          insuranceImage: null,
-          insuranceExpiry: '2027-01-01',
-          permitImage: null,
-          permitExpiry: '2027-06-01',
-          pucImage: null,
-          pucExpiry: '2026-12-31',
-          verifiedBy: null,
-          verifiedAt: null,
-          rejectionReason: null,
-        },
-        {
-          id: 'DRV-0002',
-          status: 'registered',
-          registeredAt: '2026-05-04',
-          fullName: 'AMIT SHARMA',
-          mobile: '9988776655',
-          alternateMobile: '',
-          currentAddress: 'Market St, Mangalore',
-          permanentAddress: 'Market St, Mangalore',
-          profilePhoto: null,
-          aadhaarNumber: '8877 6655 4433',
-          aadhaarFrontImage: null,
-          aadhaarBackImage: null,
-          panNumber: '',
-          panImage: null,
-          licenseNumber: 'KA-19-2021-0009876',
-          licenseExpiry: '2029-05-20',
-          licenseFrontImage: null,
-          licenseBackImage: null,
-          hasOwnVehicle: false,
-          verifiedBy: null,
-          verifiedAt: null,
-          rejectionReason: null,
-        }
-      ],
+      drivers: [],
 
       registerDriver: (driverData) => set((state) => ({
         drivers: [
@@ -114,11 +55,12 @@ export const useDriverStore = create(
       myExpenses: [],
       loading: false,
 
-      fetchMyTrips: async (driverId) => {
+      fetchMyTrips: async () => {
         set({ loading: true });
         try {
-          const res = await tapalService.all({ driverId });
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          // Driver-scoped endpoint: only returns this driver's trips (JWT-filtered server-side)
+          const res = await tapalService.myTrips();
+          const list = res?.data || res?.docs || (Array.isArray(res) ? res : []);
           const live = list.find(t => ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED'].includes(t.status));
           set({ myTrips: list, activeTrip: live, loading: false });
         } catch (err) {

@@ -40,6 +40,25 @@ class BillingService extends BaseService {
     session.startTransaction();
 
     try {
+      // BUSINESS RULE: Billing only after delivery — verify Tapal status
+      if (invoiceData.tapalId) {
+        const linkedTapal = await Tapal.findById(invoiceData.tapalId).session(session);
+        if (!linkedTapal) throw new AppError('Tapal not found for billing', 404);
+
+        const billableStatuses = ['DELIVERED', 'BILL_PENDING', 'COMPLETED'];
+        if (!billableStatuses.includes(linkedTapal.status)) {
+          throw new AppError(
+            `Billing blocked: Tapal must be DELIVERED before an invoice can be raised. Current status: ${linkedTapal.status}`,
+            400
+          );
+        }
+
+        // Auto-resolve harvestId from Tapal for permanent chain linkage
+        if (!invoiceData.harvestId && linkedTapal.harvestId) {
+          invoiceData.harvestId = linkedTapal.harvestId;
+        }
+      }
+
       // 1. Compute subtotals and totals
       let subtotal = 0;
       const verifiedItems = [];
@@ -72,6 +91,7 @@ class BillingService extends BaseService {
       const invoice = new Billing({
         type: invoiceData.type,
         tapalId: invoiceData.tapalId || null,
+        harvestId: invoiceData.harvestId || null,
         partyName: invoiceData.partyName,
         partyId: invoiceData.partyId || null,
         items: verifiedItems,

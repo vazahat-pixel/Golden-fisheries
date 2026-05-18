@@ -31,6 +31,13 @@ router.get(
   tapalController.allTrips
 );
 
+// 2.2 Driver fetches ONLY their own assigned trips (scoped by JWT identity)
+router.get(
+  '/my-trips',
+  restrictTo(ROLES.DRIVER),
+  tapalController.myTrips
+);
+
 // 3. Assign Driver & Vehicle to Tapal (Launches active trip)
 router.patch(
   '/assign-driver',
@@ -44,13 +51,6 @@ router.patch(
   '/start-trip',
   restrictTo(ROLES.DRIVER),
   tapalController.startTrip
-);
-
-// 4.1 Driver rejects the trip
-router.patch(
-  '/reject-trip',
-  restrictTo(ROLES.DRIVER),
-  tapalController.rejectTrip
 );
 
 // 5. Driver records scale weight at pickup

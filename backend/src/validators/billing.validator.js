@@ -6,6 +6,7 @@ export const billingValidators = {
       'any.only': 'Billing type must be either SALES or PROCUREMENT'
     }),
     tapalId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).allow(null),
+    harvestId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).allow(null),
     partyName: Joi.string().required().trim().messages({
       'any.required': 'Party/Recipient name is required'
     }),

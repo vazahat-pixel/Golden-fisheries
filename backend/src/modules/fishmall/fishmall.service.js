@@ -78,7 +78,7 @@ class FishMallService extends BaseService {
           'FISHMALL_SALE',
           {
             referenceId: sale._id,
-            referenceModel: 'Harvest', // Mock mapping model fallback
+            referenceModel: 'FishMallSale',
             session
           },
           userId,

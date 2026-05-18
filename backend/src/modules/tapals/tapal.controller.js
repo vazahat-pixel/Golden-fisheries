@@ -21,6 +21,14 @@ export const tapalController = {
     new ApiResponse(201, { tapal }, 'Tapal created from harvest slip successfully').send(res);
   }),
 
+  // Driver fetches only their own trips (scoped by JWT identity — no data leakage)
+  myTrips: asyncWrapper(async (req, res) => {
+    const trips = await Trip.find({ driverId: req.user.id })
+      .populate('tapalId vehicleId')
+      .sort({ createdAt: -1 });
+    new ApiResponse(200, trips, 'Your assigned trips fetched successfully').send(res);
+  }),
+
   // Fetch all Tapals with filtering and pagination
   all: asyncWrapper(async (req, res) => {
     const result = await tapalService.findTapalsWithFilters(req.query);
@@ -35,7 +43,7 @@ export const tapalController = {
 
   // Get a single Tapal details by database ID
   getById: asyncWrapper(async (req, res) => {
-    const tapal = await tapalService.findById(req.params.id, 'harvestId');
+    const tapal = await tapalService.findById(req.params.id, 'harvestId farmerId');
     new ApiResponse(200, { tapal }, 'Tapal retrieved successfully').send(res);
   }),
 

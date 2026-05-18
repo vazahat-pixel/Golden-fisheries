@@ -2,9 +2,12 @@ import mongoose from 'mongoose';
 
 const tapalLineItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  qty: { type: String, required: true }, // e.g. "300 KG"
+  qty: { type: String, required: true }, // e.g. "300 KG" — total weight display string
   rate: { type: String, required: true }, // e.g. "₹95"
-  total: { type: String, required: true } // e.g. "₹28,500"
+  total: { type: String, required: true }, // e.g. "₹28,500"
+  // Optional box-based weight fields (matches real Tapal slip format)
+  boxQty: { type: Number, default: null }, // Number of boxes (optional)
+  weightPerBox: { type: Number, default: null } // KG per box (optional)
 });
 
 const tapalSchema = new mongoose.Schema(
@@ -71,6 +74,14 @@ const tapalSchema = new mongoose.Schema(
     driver: {
       type: String,
       default: 'Unassigned'
+    },
+    driverPhone: {
+      type: String,
+      default: null
+    },
+    vehicleNumber: {
+      type: String,
+      default: null
     },
     driverId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -28,6 +28,8 @@ export const useAdminStore = create(
       trips: [],
       incomingStock: [],
       purchaseInvoices: [],
+      harvestSlips: [],
+      farmers: [],
 
       // Expense Ledger — pending admin approval before hitting accounts
       expenses: [],
@@ -190,16 +192,13 @@ export const useAdminStore = create(
         }
       },
 
-      updateInventoryQtyAsync: async (itemId, delta) => {
+      // NOTE: Frontend NEVER directly updates stock qty.
+      // All stock changes must go through the backend inventory service.
+      // Use masterService.inventory.adjustManual for admin manual corrections.
+      updateInventoryQtyAsync: async (itemId, delta, remarks = 'Admin manual adjustment') => {
         set({ loading: true });
         try {
-          const item = get().inventory.find(i => i.id === itemId || i._id === itemId);
-          if (!item) throw new Error("Item not found");
-          
-          const newQty = (item.qty || 0) + delta;
-          const mongoId = item._id || item.id;
-          
-          await masterService.products.update(mongoId, { qty: newQty });
+          await masterService.inventory.adjustManual(itemId, { qtyChange: delta, remarks });
           await get().fetchInventory();
           set({ loading: false });
         } catch (err) {
@@ -220,18 +219,6 @@ export const useAdminStore = create(
         }
       },
 
-      convertSlipToTapalAsync: async (slipId) => {
-        set({ loading: true });
-        try {
-          await tapalService.createFromHarvest(slipId);
-          await get().fetchTapals();
-          await get().fetchHarvestSlips();
-          set({ loading: false });
-        } catch (err) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
 
       // Invoices Async
       fetchInvoices: async (params = {}) => {
