@@ -5,7 +5,7 @@ import { Button } from '../../design-system/components/Button';
 import { useFishMallStore } from '../../store/fishMallStore';
 
 const FishMallRates = () => {
-  const { stock, updateRate } = useFishMallStore();
+  const { stock, updateRate, publishRatesAsync, loading } = useFishMallStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredRates = stock.filter(item => 
@@ -38,8 +38,16 @@ const FishMallRates = () => {
             <History size={12} className="mr-1.5" /> History
           </Button>
           <Button 
-            className="text-[8px] font-black uppercase tracking-widest px-4 py-2 bg-black text-white border-none shadow-lg active:scale-95 transition-all"
-            onClick={() => toast.success('Rates Broadcasted!')}
+            className="text-[8px] font-black uppercase tracking-widest px-4 py-2 bg-black text-white border-none shadow-lg active:scale-95 transition-all disabled:opacity-50"
+            onClick={async () => {
+              try {
+                await publishRatesAsync();
+                toast.success('Rates Published!');
+              } catch (err) {
+                toast.error('Failed to publish rates');
+              }
+            }}
+            disabled={loading}
           >
             <Save size={12} className="mr-1.5" /> Publish
           </Button>

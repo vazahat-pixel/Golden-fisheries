@@ -15,11 +15,14 @@ import { toast } from 'react-hot-toast';
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const STATUS_CONFIG = {
-  pending:             { label: 'PENDING',   variant: 'warning',   icon: Clock },
-  sent:                { label: 'SENT',      variant: 'secondary',  icon: Send },
-  confirmed:           { label: 'CONFIRMED', variant: 'success',   icon: CheckCircle },
-  rejected:            { label: 'REJECTED',  variant: 'danger',    icon: XCircle },
+  PENDING:             { label: 'PENDING',   variant: 'warning',   icon: Clock },
+  DRAFT:               { label: 'DRAFT',     variant: 'warning',   icon: Clock },
+  SENT:                { label: 'SENT',      variant: 'secondary',  icon: Send },
+  PENDING_CONFIRMATION:{ label: 'AWAITING',  variant: 'secondary',  icon: Clock },
+  CONFIRMED:           { label: 'CONFIRMED', variant: 'success',   icon: CheckCircle },
+  REJECTED:            { label: 'REJECTED',  variant: 'danger',    icon: XCircle },
   CONVERTED_TO_TAPAL:  { label: 'CONVERTED', variant: 'primary',   icon: CheckCircle },
+  COMPLETED:           { label: 'COMPLETED', variant: 'success',   icon: CheckCircle },
 };
 
 const TABS = ['ALL', 'PENDING', 'SENT', 'CONFIRMED', 'REJECTED', 'CONVERTED'];
@@ -31,8 +34,6 @@ export default function HarvestSlips() {
     farmers, 
     fetchHarvestSlips,
     fetchFarmers,
-    confirmSlipAsync, 
-    rejectSlipAsync, 
     updateHarvestStatusAsync,
     convertSlipToTapalAsync,
     updateSlipStatus 
@@ -155,8 +156,8 @@ export default function HarvestSlips() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard title="TOTAL SLIPS" value={harvestSlips.length.toString()} icon={ClipboardList} trend="ALL TIME" trendType="up" />
-        <StatCard title="PENDING" value={harvestSlips.filter(s => s.status === 'pending').length.toString()} icon={Clock} trend="AWAITING" trendType="down" />
-        <StatCard title="CONFIRMED" value={harvestSlips.filter(s => s.status === 'confirmed').length.toString()} icon={CheckCircle} trend="READY" trendType="up" />
+        <StatCard title="PENDING" value={harvestSlips.filter(s => ['PENDING','DRAFT','SENT'].includes((s.status||'').toUpperCase())).length.toString()} icon={Clock} trend="AWAITING" trendType="down" />
+        <StatCard title="CONFIRMED" value={harvestSlips.filter(s => s.status === 'CONFIRMED').length.toString()} icon={CheckCircle} trend="READY" trendType="up" />
         <StatCard title="TOTAL QTY" value={`${totalQty} KG`} icon={Sprout} trend="PLANNED" trendType="up" />
       </div>
 
@@ -211,15 +212,15 @@ export default function HarvestSlips() {
                 return (
                   <tr key={slip._id || slip.id} className="hover:bg-olive-50/50 transition-colors group">
                     <td className="px-4 py-2.5">
-                      <p className="text-[11px] font-bold text-black uppercase">{slip.harvestNumber || slip.id}</p>
-                      <p className="text-[8px] text-text-muted font-bold">{slip.createdAt ? new Date(slip.createdAt).toLocaleDateString() : 'RECENT'}</p>
+                      <p className="text-[11px] font-bold text-black uppercase">{slip.harvestNumber || slip._id}</p>
+                      <p className="text-[8px] text-text-muted font-bold">{slip.createdAt ? new Date(slip.createdAt).toLocaleDateString('en-IN') : 'RECENT'}</p>
                     </td>
                     <td className="px-4 py-2.5">
                       <p className="text-[10px] font-bold text-black uppercase">
-                        {slip.farmerId?.fullName || slip.farmer?.name || slip.farmerName || 'STATION GUEST'}
+                        {slip.farmerId?.fullName || slip.farmerName || 'FARMER'}
                       </p>
                       <p className="text-[8px] text-text-muted font-bold flex items-center gap-1">
-                        <MapPin size={8} /> {slip.farmerId?.location || slip.farmer?.location || 'FIELD'}
+                        <MapPin size={8} /> {slip.farmerId?.location || slip.pickupLocation || 'FIELD'}
                       </p>
                     </td>
                     <td className="px-4 py-2.5">
@@ -230,19 +231,23 @@ export default function HarvestSlips() {
                       ))}
                     </td>
                     <td className="px-4 py-2.5">
-                      <p className="text-[10px] font-bold text-black">{slip.harvestDate}</p>
-                      <p className="text-[8px] text-text-muted font-bold uppercase">📦 {slip.pickupDate}</p>
+                      <p className="text-[10px] font-bold text-black">
+                        {slip.harvestDate ? new Date(slip.harvestDate).toLocaleDateString('en-IN') : '—'}
+                      </p>
+                      <p className="text-[8px] text-text-muted font-bold uppercase">
+                        📦 {slip.pickupDate ? new Date(slip.pickupDate).toLocaleDateString('en-IN') : '—'}
+                      </p>
                     </td>
                     <td className="px-4 py-2.5">
                       <select 
-                        value={(slip.status || 'pending').toLowerCase()}
+                        value={(slip.status || 'PENDING').toUpperCase()}
                         onChange={async (e) => {
                           const newStatus = e.target.value.toUpperCase();
                           const slipId = slip._id || slip.id;
                           
                           if (newStatus === 'CONFIRMED') {
                             await handleConfirm(slip);
-                          } else {
+                          } else if (newStatus !== (slip.status || '').toUpperCase()) {
                             try {
                               toast.loading(`Updating to ${newStatus}...`, { id: 'status-update' });
                               await updateHarvestStatusAsync(slipId, newStatus);
@@ -261,11 +266,11 @@ export default function HarvestSlips() {
                           "border-card-border bg-white text-black"
                         )}
                       >
-                        <option value="pending">PENDING</option>
-                        <option value="sent">SENT</option>
-                        <option value="confirmed">CONFIRM & TAPAL</option>
-                        <option value="rejected">REJECT</option>
-                        {(slip.status || '').toUpperCase() === 'CONVERTED_TO_TAPAL' && <option value="converted_to_tapal">CONVERTED</option>}
+                        <option value="PENDING">PENDING</option>
+                        <option value="SENT">SENT</option>
+                        <option value="CONFIRMED">CONFIRM &amp; TAPAL</option>
+                        <option value="REJECTED">REJECT</option>
+                        {(slip.status || '').toUpperCase() === 'CONVERTED_TO_TAPAL' && <option value="CONVERTED_TO_TAPAL">CONVERTED</option>}
                       </select>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -315,25 +320,30 @@ export default function HarvestSlips() {
           <Sprout className="text-accent-olive" size={16} /> FARMER DIRECTORY
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {(farmers.length === 0) && (
+            <div className="col-span-3 text-center py-8 text-text-muted text-[9px] font-bold uppercase tracking-widest">
+              No farmers registered yet. Add via the harvest slip form.
+            </div>
+          )}
           {farmers.map((farmer, idx) => (
             <Card key={farmer._id || farmer.id || idx} className="border border-card-border hover:shadow-md transition-all bg-white overflow-hidden group" padding="none">
               <div className="p-3 border-b border-card-border flex justify-between items-start bg-olive-50/10">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-black text-white flex items-center justify-center font-bold text-xs shadow-sm border border-black">
-                    {farmer.name[0]}
+                    {(farmer.fullName || farmer.name || '?')[0]}
                   </div>
                   <div>
-                    <h3 className="font-bold text-black uppercase tracking-tight text-[11px]">{farmer.name}</h3>
+                    <h3 className="font-bold text-black uppercase tracking-tight text-[11px]">{farmer.fullName || farmer.name}</h3>
                     <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest flex items-center gap-1"><MapPin size={8} /> {farmer.location}</p>
                   </div>
                 </div>
-                <Badge variant={farmer.active ? 'success' : 'secondary'} className="uppercase text-[7px] font-bold border border-card-border px-1.5">
-                  {farmer.active ? 'ACTIVE' : 'IDLE'}
+                <Badge variant={farmer.isActive !== false ? 'success' : 'secondary'} className="uppercase text-[7px] font-bold border border-card-border px-1.5">
+                  {farmer.isActive !== false ? 'ACTIVE' : 'IDLE'}
                 </Badge>
               </div>
               <div className="p-3 flex justify-between items-center bg-white">
-                 <div className="text-[9px] font-bold text-black flex items-center gap-1.5"><Phone size={10} className="text-accent-olive" /> {farmer.mobile}</div>
-                 <button onClick={() => { setSearch(farmer.name); setActiveTab('ALL'); }} className="text-[8px] font-bold text-accent-olive uppercase tracking-widest hover:underline">VIEW SLIPS →</button>
+                 <div className="text-[9px] font-bold text-black flex items-center gap-1.5"><Phone size={10} className="text-accent-olive" /> {farmer.phone || farmer.mobile}</div>
+                 <button onClick={() => { setSearch(farmer.fullName || farmer.name || ''); setActiveTab('ALL'); }} className="text-[8px] font-bold text-accent-olive uppercase tracking-widest hover:underline">VIEW SLIPS →</button>
               </div>
             </Card>
           ))}

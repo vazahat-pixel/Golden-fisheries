@@ -91,10 +91,11 @@ export default function CreateHarvestSlip() {
       let finalFarmer = { ...farmer };
       if (isNewFarmer && farmer.name) {
         finalFarmer = await addFarmerAsync({ 
-          ...farmer, 
           fullName: farmer.name.toUpperCase(), 
-          phone: farmer.mobile, 
-          whatsapp: true 
+          phone: farmer.mobile,
+          location: farmer.location.toUpperCase(),
+          village: farmer.village || '',
+          hasWhatsapp: true 
         });
       }
 
@@ -180,8 +181,14 @@ export default function CreateHarvestSlip() {
               <div className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {farmers.map(f => (
-                    <button key={f.id || f._id} onClick={() => setFarmer(f)} className={clsx('p-3 border text-left transition-all', (farmer.id === f.id || farmer._id === f._id) ? 'border-black bg-black text-white' : 'border-card-border bg-white hover:border-black')}>
-                      <p className="text-[10px] font-bold uppercase">{f.name}</p>
+                    <button key={f._id || f.id} onClick={() => setFarmer({
+                      id: f.id || f._id,
+                      _id: f._id || f.id,
+                      name: f.fullName || f.name,
+                      mobile: f.phone || f.mobile,
+                      location: f.location
+                    })} className={clsx('p-3 border text-left transition-all', (farmer._id === f._id || farmer.id === f.id) ? 'border-black bg-black text-white' : 'border-card-border bg-white hover:border-black')}>
+                      <p className="text-[10px] font-bold uppercase">{f.fullName || f.name}</p>
                       <p className="text-[8px] opacity-60 font-bold uppercase tracking-widest">{f.location}</p>
                     </button>
                   ))}

@@ -61,13 +61,6 @@ export const tapalController = {
     new ApiResponse(200, result, 'Trip started successfully').send(res);
   }),
 
-  // Driver rejects the trip assignment
-  rejectTrip: asyncWrapper(async (req, res) => {
-    const { tapalId } = req.body;
-    const result = await tapalService.rejectTrip(tapalId, req.user.id);
-    new ApiResponse(200, result, 'Trip rejected successfully').send(res);
-  }),
-
   // Driver records cargo pickup scale weight
   pickup: asyncWrapper(async (req, res) => {
     const { tapalId, actualPickupQty } = req.body;

@@ -27,6 +27,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
 import { driverService } from '../../../services/driverService';
 import { PrintableTapal } from './PrintableTapal';
+import { billingService } from '../../../services/billingService';
 
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
@@ -38,6 +39,7 @@ const TapalDetail = () => {
     deleteTapal,
     updateTapalStatus,
     editTapal,
+    fetchTapals,
     drivers,
     assignDriverAsync,
     endTripAsync,
@@ -58,10 +60,20 @@ const TapalDetail = () => {
   const [receiveQty, setReceiveQty] = useState('');
   const [expenseData, setExpenseData] = useState({ type: 'FUEL', amount: '', method: 'CASH' });
 
-  const tapal = tapals.find(t => t.id === id || t._id === id);
-  const trip = trips.find(t => t.tapalId === id || t.tapalId === tapal?._id);
+  const tapal = tapals.find(t => t._id === id || t.id === id);
+  const trip = trips.find(t => 
+    t.tapalId === id || 
+    t.tapalId === tapal?._id ||
+    (t.tapalId?._id || t.tapalId) === id ||
+    (t.tapalId?._id || t.tapalId) === tapal?._id
+  );
 
-  if (!tapal) return <div className="p-12 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">Tapal record not found.</div>;
+  if (!tapal) return (
+    <div className="p-12 text-center space-y-3">
+      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Tapal not found in store.</p>
+      <button onClick={() => { window.location.reload(); }} className="text-[9px] font-bold text-accent-olive uppercase">Refresh Page</button>
+    </div>
+  );
 
   const displayProducts = tapal.products || [
     { name: 'GENERAL FISH STOCK', qty: tapal.qty || '0 KG', rate: '—', total: tapal.amount || '—' }
@@ -80,16 +92,15 @@ const TapalDetail = () => {
   };
 
   const handleSaveEdit = () => {
-    editTapal(tapal.id, {
-      party: editFormData.party.toUpperCase(),
+    editTapal(tapal._id || tapal.id, {
+      partyName: editFormData.party.toUpperCase(),
       qty: `${editFormData.qty} KG`,
-      amount: `₹${Number(editFormData.amount).toLocaleString()}`,
+      amount: `₹${Number(editFormData.amount).toLocaleString('en-IN')}`,
       type: editFormData.type,
       driver: editFormData.driver,
-      date: editFormData.date
     });
     setIsEditModalOpen(false);
-    toast.success('Tapal information updated');
+    toast.success('Tapal information updated locally');
   };
 
   const handleAssignDriver = async (driver) => {
@@ -125,38 +136,84 @@ const TapalDetail = () => {
     fetchActiveDrivers();
   }, []);
 
-  const handleConfirmReceipt = () => {
+  const handleConfirmReceipt = async () => {
     if (!receiveQty) return toast.error('Please enter received quantity');
-    markStockReceived(tapal.id, receiveQty);
-    setIsReceiveModalOpen(false);
-    toast.success('Stock updated and record finalized!');
+    try {
+      toast.loading('Updating inventory...', { id: 'stock-receive' });
+      await markStockReceived(tapal._id || tapal.id, receiveQty);
+      setIsReceiveModalOpen(false);
+      toast.success('Stock updated and inventory finalized!', { id: 'stock-receive' });
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update stock', { id: 'stock-receive' });
+    }
   };
 
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!expenseData.amount) return toast.error('Amount is required');
-    addTripExpense(trip.id, expenseData);
-    setIsExpenseModalOpen(false);
-    setExpenseData({ type: 'FUEL', amount: '', method: 'CASH' });
-    toast.success('Expense recorded');
+    try {
+      const tripId = trip?._id || trip?.id;
+      if (!tripId) return toast.error('No active trip found for this Tapal');
+      await addTripExpense(tripId, expenseData);
+      setIsExpenseModalOpen(false);
+      setExpenseData({ type: 'FUEL', amount: '', method: 'CASH' });
+      toast.success('Expense logged successfully');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to log expense');
+    }
   };
 
+  // Real backend status enum lifecycle order
+  const STATUS_ORDER = ['CREATED', 'DRIVER_ASSIGNED', 'TRIP_STARTED', 'PICKED_UP', 'DELIVERED', 'BILL_PENDING', 'COMPLETED'];
   // Statuses where driver can be assigned
-  const canAssignDriver = ['CREATED', 'Confirmed', 'CONFIRMED', 'confirmed'].includes(tapal.status);
-  const isLocked = !canAssignDriver && !['Assigned', 'DRIVER_ASSIGNED'].includes(tapal.status);
+  const canAssignDriver = ['CREATED'].includes(tapal.status);
+  const isDelivered = ['DELIVERED', 'BILL_PENDING', 'COMPLETED'].includes(tapal.status);
+  const isInTransit = ['DRIVER_ASSIGNED', 'TRIP_STARTED', 'PICKED_UP'].includes(tapal.status);
+  const isLocked = !canAssignDriver;
 
   const handleCloseTrip = async () => {
     try {
+      toast.loading('Closing trip...', { id: 'end-trip' });
       await endTripAsync(tapal._id || tapal.id);
-      toast.success('Trip Closed and Record Finalized');
+      toast.success('Trip Closed!', { id: 'end-trip' });
     } catch (err) {
-      toast.error('Failed to close trip');
+      toast.error(err?.message || 'Failed to close trip', { id: 'end-trip' });
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    try {
+      toast.loading('Generating invoice...', { id: 'gen-inv' });
+      const invoiceData = {
+        type: tapal.type === 'Purchase' ? 'PROCUREMENT' : 'SALES',
+        tapalId: tapal._id || tapal.id,
+        partyName: tapal.partyName || tapal.party,
+        items: tapal.products.map(p => ({
+          productName: p.name,
+          quantity: parseFloat(p.qty.replace(/[^\d.]/g, '')) || 0,
+          rate: parseFloat(p.rate.replace(/[^\d.]/g, '')) || 0
+        })),
+        taxRate: 5
+      };
+      await billingService.create(invoiceData);
+      toast.success('Invoice Generated & Stock Deducted!', { id: 'gen-inv' });
+      await fetchTapals(); 
+    } catch (err) {
+      toast.error(err?.message || 'Failed to generate invoice', { id: 'gen-inv' });
     }
   };
 
   const getStepStatus = (step) => {
-    const statusOrder = ['Confirmed', 'Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered', 'Closed'];
-    const currentIndex = statusOrder.indexOf(tapal.status);
-    const stepIndex = statusOrder.indexOf(step);
+    // Map stepper labels to real backend enum values
+    const stepToEnum = {
+      'Created': 'CREATED',
+      'Assigned': 'DRIVER_ASSIGNED',
+      'In Transit': 'TRIP_STARTED',
+      'Picked Up': 'PICKED_UP',
+      'Delivered': 'DELIVERED',
+      'Closed': 'COMPLETED'
+    };
+    const currentIndex = STATUS_ORDER.indexOf(tapal.status);
+    const stepIndex = STATUS_ORDER.indexOf(stepToEnum[step]);
 
     if (currentIndex >= stepIndex) return 'completed';
     if (currentIndex === stepIndex - 1) return 'current';
@@ -197,7 +254,7 @@ const TapalDetail = () => {
       <Card className="border border-card-border bg-white p-6 shadow-subtle overflow-x-auto no-scrollbar">
         <div className="flex justify-between items-center min-w-[800px] relative">
           <div className="absolute left-0 right-0 h-0.5 bg-olive-100 -z-0"></div>
-          {['Confirmed', 'Assigned', 'In Transit', 'Picked', 'Delivered', 'Closed'].map((step, i) => {
+          {['Created', 'Assigned', 'In Transit', 'Picked Up', 'Delivered', 'Closed'].map((step, i) => {
             const status = getStepStatus(step);
             return (
               <div key={i} className="flex flex-col items-center gap-2 relative z-10 bg-white px-4">
@@ -227,9 +284,9 @@ const TapalDetail = () => {
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-black text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0"><User size={16} /></div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-black uppercase tracking-tight">{tapal.party}</p>
+                <p className="text-sm font-bold text-black uppercase tracking-tight">{tapal.partyName || tapal.party}</p>
                 <div className="flex gap-4 mt-1">
-                  <p className="text-[9px] text-text-muted font-bold flex items-center gap-1.5"><MessageCircle size={10} className="text-accent-olive" /> {tapal.phone || 'NO CONTACT'}</p>
+                  <p className="text-[9px] text-text-muted font-bold flex items-center gap-1.5"><MessageCircle size={10} className="text-accent-olive" /> {tapal.phone || tapal.driverPhone || 'NO CONTACT'}</p>
                   <Badge variant="secondary" className="bg-olive-50/50 text-[7px] border-none px-1.5">{tapal.type === 'Purchase' ? 'SUPPLIER' : 'CLIENT'}</Badge>
                 </div>
               </div>
@@ -325,26 +382,34 @@ const TapalDetail = () => {
               </Button>
             )}
 
-            {tapal.status === 'Expense Submitted' && (
+            {/* Admin: Close trip after delivery */}
+            {isDelivered && (
               <div className="space-y-2">
                 <Button className="w-full bg-green-600 text-white hover:bg-green-700 text-[10px] font-bold uppercase gap-2 h-11" onClick={handleCloseTrip}>
-                  <CheckCircle2 size={16} /> APPROVE & CLOSE
+                  <CheckCircle2 size={16} /> CLOSE TRIP &amp; UPDATE STOCK
                 </Button>
-                <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 text-[9px] font-bold h-10 uppercase">
-                  REJECT EXPENSES
-                </Button>
+                <p className="text-[8px] text-white/50 text-center font-bold uppercase tracking-widest">Inventory will update with actual delivered qty</p>
               </div>
             )}
 
-            {tapal.status === 'Closed' && (
+            {tapal.status === 'BILL_PENDING' && (
+              <div className="space-y-2 mb-2">
+                <Button className="w-full bg-accent-olive text-white hover:bg-black text-[10px] font-bold uppercase gap-2 h-11" onClick={handleGenerateInvoice}>
+                  <FileText size={16} /> GENERATE INVOICE
+                </Button>
+                <p className="text-[8px] text-white/50 text-center font-bold uppercase tracking-widest">Create official invoice and deduct stock</p>
+              </div>
+            )}
+
+            {tapal.status === 'COMPLETED' && (
               <div className="text-center py-2">
                 <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-glow"><CheckCircle2 size={24} /></div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-green-400">TRIP CLOSED</p>
-                <p className="text-[8px] font-bold text-white/50 uppercase mt-1">LOGISTICS COMPLETE</p>
+                <p className="text-[8px] font-bold text-white/50 uppercase mt-1">INVENTORY UPDATED · BILLING ENABLED</p>
               </div>
             )}
 
-            {['Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered'].includes(tapal.status) && (
+            {isInTransit && (
               <div className="text-center py-4 border border-white/10 bg-white/5">
                 <div className="animate-spin h-6 w-6 border-2 border-white/20 border-t-white rounded-full mx-auto mb-3"></div>
                 <p className="text-[9px] font-bold uppercase tracking-widest">Waiting for Driver Action</p>

@@ -160,9 +160,9 @@ export const reportsService = {
       const sales = await reportsService.getSalesSummary();
       
       const totalTapals = await Tapal.countDocuments();
-      const pendingTapals = await Tapal.countDocuments({ status: 'pending' });
-      const activeTapals = await Tapal.countDocuments({ status: 'active' });
-      const completedTapals = await Tapal.countDocuments({ status: 'completed' });
+      const pendingTapals = await Tapal.countDocuments({ status: 'CREATED' });
+      const activeTapals = await Tapal.countDocuments({ status: { $in: ['DRIVER_ASSIGNED', 'TRIP_STARTED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'BILL_PENDING'] } });
+      const completedTapals = await Tapal.countDocuments({ status: 'COMPLETED' });
       
       const products = await Product.find({});
       const totalInventoryKg = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
@@ -173,20 +173,35 @@ export const reportsService = {
       const pendingExpenses = await Expense.countDocuments({ status: 'PENDING' });
       
       // Real data for charts
-      const revenueChartData = await Billing.aggregate([
-        {
-          $group: {
-            _id: { $month: "$createdAt" },
-            amount: { $sum: "$totalAmount" }
-          }
-        },
-        { $sort: { "_id": 1 } }
+      const wholesaleChartData = await Billing.aggregate([
+        { $group: { _id: { $month: "$createdAt" }, amount: { $sum: "$totalAmount" } } }
       ]);
+      const restaurantChartData = await RestaurantOrder.aggregate([
+        { $match: { status: 'PAID' } },
+        { $group: { _id: { $month: "$createdAt" }, amount: { $sum: "$totalAmount" } } }
+      ]);
+      const fishmallChartData = await FishMallSale.aggregate([
+        { $group: { _id: { $month: "$createdAt" }, amount: { $sum: "$totalAmount" } } }
+      ]);
+
+      // Merge results by month
+      const monthlyData = {};
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const revenueChart = revenueChartData.map(item => ({
-        month: months[item._id - 1] || 'Unknown',
-        amount: item.amount
-      }));
+      
+      wholesaleChartData.forEach(item => {
+        monthlyData[item._id] = (monthlyData[item._id] || 0) + item.amount;
+      });
+      restaurantChartData.forEach(item => {
+        monthlyData[item._id] = (monthlyData[item._id] || 0) + item.amount;
+      });
+      fishmallChartData.forEach(item => {
+        monthlyData[item._id] = (monthlyData[item._id] || 0) + item.amount;
+      });
+
+      const revenueChart = Object.keys(monthlyData).map(monthId => ({
+        month: months[parseInt(monthId) - 1] || 'Unknown',
+        amount: monthlyData[monthId]
+      })).sort((a, b) => months.indexOf(a.month) - months.indexOf(b.month));
       
       const tapalChartData = await Tapal.aggregate([
         {
@@ -203,21 +218,40 @@ export const reportsService = {
         count: item.count
       }));
 
-      const topProductsData = await Billing.aggregate([
+      const wholesaleProducts = await Billing.aggregate([
         { $unwind: "$items" },
-        {
-          $group: {
-            _id: "$items.productName",
-            value: { $sum: "$items.quantity" }
-          }
-        },
-        { $sort: { "value": -1 } },
-        { $limit: 4 }
+        { $group: { _id: "$items.productName", value: { $sum: "$items.quantity" } } }
       ]);
-      const topProducts = topProductsData.map(item => ({
-        name: item._id || 'Unknown',
-        value: item.value
-      }));
+      const restaurantProducts = await RestaurantOrder.aggregate([
+        { $match: { status: 'PAID' } },
+        { $unwind: "$items" },
+        { $group: { _id: "$items.name", value: { $sum: "$items.quantity" } } }
+      ]);
+      const fishmallProducts = await FishMallSale.aggregate([
+        { $unwind: "$items" },
+        { $group: { _id: "$items.fishName", value: { $sum: "$items.scaleWeight" } } }
+      ]);
+
+      // Merge results by product name
+      const productData = {};
+      
+      wholesaleProducts.forEach(item => {
+        const name = (item._id || 'Unknown').toUpperCase();
+        productData[name] = (productData[name] || 0) + item.value;
+      });
+      restaurantProducts.forEach(item => {
+        const name = (item._id || 'Unknown').toUpperCase();
+        productData[name] = (productData[name] || 0) + item.value;
+      });
+      fishmallProducts.forEach(item => {
+        const name = (item._id || 'Unknown').toUpperCase();
+        productData[name] = (productData[name] || 0) + item.value;
+      });
+
+      const topProducts = Object.keys(productData).map(name => ({
+        name,
+        value: productData[name]
+      })).sort((a, b) => b.value - a.value).slice(0, 4);
 
       return {
         totalTapals,

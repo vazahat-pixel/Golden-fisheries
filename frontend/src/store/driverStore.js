@@ -58,25 +58,29 @@ export const useDriverStore = create(
       fetchMyTrips: async () => {
         set({ loading: true });
         try {
-          // Driver-scoped endpoint: only returns this driver's trips (JWT-filtered server-side)
+          // GET /tapals/my-trips — DRIVER-scoped, JWT-filtered server-side
+          // tapalController.myTrips: ApiResponse(200, trips, ...)
+          // After apiClient interceptor: res = { success, data: [...trips] }
           const res = await tapalService.myTrips();
-          const list = res?.data || res?.docs || (Array.isArray(res) ? res : []);
+          const list = Array.isArray(res?.data) ? res.data : [];
+          // Active trip = any in-progress Trip status (Trip model enum: ASSIGNED, STARTED, PICKED, DELIVERED, CLOSED)
           const live = list.find(t => ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED'].includes(t.status));
-          set({ myTrips: list, activeTrip: live, loading: false });
+          set({ myTrips: list, activeTrip: live || null, loading: false });
         } catch (err) {
-          console.error('Failed to fetch driver trips', err);
+          console.error('[Driver] Failed to fetch my trips:', err?.message || err);
           set({ loading: false });
         }
       },
 
-      fetchMyExpenses: async (driverId) => {
+      fetchMyExpenses: async () => {
         set({ loading: true });
         try {
-          const res = await expenseService.all({ driverId });
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          // GET /expenses — backend should filter by JWT driverId server-side
+          const res = await expenseService.all();
+          const list = Array.isArray(res?.data) ? res.data : [];
           set({ myExpenses: list, loading: false });
         } catch (err) {
-          console.error('Failed to fetch driver expenses', err);
+          console.error('[Driver] Failed to fetch expenses:', err?.message || err);
           set({ loading: false });
         }
       },

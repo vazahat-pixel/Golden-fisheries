@@ -6,6 +6,7 @@ import { billingService } from '../services/billingService';
 import { harvestService } from '../services/harvestService';
 import { expenseService } from '../services/expenseService';
 import { reportsService } from '../services/reportsService';
+import { apiClient } from '../services/apiClient';
 import { useRestaurantStore } from './restaurantStore';
 import { useFishMallStore } from './fishMallStore';
 import { useDriverStore } from './driverStore';
@@ -63,10 +64,13 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           const res = await masterService.farmers.getAll(params);
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          // apiClient interceptor returns response.data = ApiResponse envelope
+          // farmerController.all: ApiResponse(200, result.docs, ..., result.meta)
+          // So res = { success, data: [...farmers], meta }
+          const list = Array.isArray(res?.data) ? res.data : [];
           set({ farmers: list, loading: false });
         } catch (err) {
-          console.warn('Backend fetchFarmers failed:', err.message);
+          console.warn('[Procurement] fetchFarmers failed:', err.message);
           set({ loading: false });
         }
       },
@@ -78,10 +82,17 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           const res = await tapalService.all(params);
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ tapals: list, loading: false });
+          // tapalController.all: ApiResponse(200, result.docs, ..., result.meta)
+          // So res = { success, data: [...tapals], meta }
+          const list = Array.isArray(res?.data) ? res.data : [];
+          const mapped = list.map(t => ({
+            ...t,
+            id: t._id,
+            status: (t.type === 'Sale' && t.status === 'CREATED') ? 'Pending Approval' : t.status
+          }));
+          set({ tapals: mapped, loading: false });
         } catch (err) {
-          console.warn('Backend fetchTapals failed:', err.message);
+          console.warn('[Tapals] fetchTapals failed:', err.message);
           set({ loading: false });
         }
       },
@@ -90,7 +101,9 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           const res = await tapalService.allTrips();
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          // tapalController trips: ApiResponse(200, result.docs, ..., result.meta)
+          // So res = { success, data: [...trips], meta }
+          const list = Array.isArray(res?.data) ? res.data : [];
           const mapped = list.map(t => ({
             id: t._id,
             tripNumber: t.tripNumber,
@@ -110,7 +123,7 @@ export const useAdminStore = create(
           }));
           set({ trips: mapped, loading: false });
         } catch (err) {
-          console.warn('Backend fetchTrips failed:', err.message);
+          console.warn('[Logistics] fetchTrips failed:', err.message);
           set({ loading: false });
         }
       },
@@ -144,50 +157,57 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           const res = await harvestService.all(params);
-          const list = res?.data?.docs || res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          // harvestService calls apiClient.get directly — interceptor returns response.data
+          // harvestController.all sends: ApiResponse(200, result.docs, ..., result.meta)
+          // So res = { success, data: [...harvests], meta: {...} }
+          const list = Array.isArray(res?.data) ? res.data : (res?.docs || []);
           set({ harvestSlips: Array.isArray(list) ? list : [], loading: false });
         } catch (err) {
-          console.warn('Backend fetchHarvestSlips failed:', err.message);
+          console.warn('[Procurement] fetchHarvestSlips failed:', err.message);
           set({ loading: false });
         }
       },
 
       convertSlipToTapalAsync: async (slipId) => {
-        set({ loading: true });
         try {
-          // Use the more reliable URL-based endpoint
-          await harvestService.convertToTapal(slipId);
+          // POST /harvests/convert-to-tapal/:id
+          // Returns ApiResponse(201, { tapal }, ...)
+          // After interceptor: res = { success, data: { tapal } }
+          const res = await harvestService.convertToTapal(slipId);
+          const tapal = res?.data?.tapal || res?.tapal || res;
           await get().fetchHarvestSlips();
           await get().fetchTapals();
-          set({ loading: false });
+          return tapal;
         } catch (err) {
-          set({ error: err.message, loading: false });
+          set({ error: err.message });
           throw err;
         }
       },
 
       createHarvestSlipAsync: async (data) => {
-        set({ loading: true });
         try {
           const res = await harvestService.create(data);
+          // harvestController.create sends ApiResponse(201, { harvest }, ...)
+          // After interceptor: res = { success, data: { harvest } }
+          const created = res?.data?.harvest || res?.harvest || res;
           await get().fetchHarvestSlips();
-          set({ loading: false });
-          return res?.data?.harvest || res?.data || res;
+          return created;
         } catch (err) {
-          set({ error: err.message, loading: false });
+          set({ error: err.message });
           throw err;
         }
       },
 
       addFarmerAsync: async (data) => {
-        set({ loading: true });
         try {
+          // masterService.create returns response.data (ApiResponse envelope)
+          // farmerController.create: ApiResponse(201, { farmer }, ...)
+          // So res = { success, data: { farmer } }
           const res = await masterService.farmers.create(data);
           await get().fetchFarmers();
-          set({ loading: false });
-          return res?.data || res;
+          return res?.data?.farmer || res?.farmer || res;
         } catch (err) {
-          set({ error: err.message, loading: false });
+          set({ error: err.message });
           throw err;
         }
       },
@@ -199,7 +219,7 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           await masterService.inventory.adjustManual(itemId, { qtyChange: delta, remarks });
-          await get().fetchInventory();
+          // Inventory is managed server-side; no client-side store holds live qty
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -226,7 +246,20 @@ export const useAdminStore = create(
         try {
           const res = await billingService.all(params);
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ invoices: list, loading: false });
+          const mapped = list.map(inv => ({
+            id: inv.invoiceNumber || inv._id,
+            client: inv.partyName || 'Unknown Client',
+            type: inv.type,
+            amount: `₹${inv.totalAmount?.toLocaleString('en-IN') || 0}`,
+            numericAmount: inv.totalAmount || 0,
+            status: (inv.paymentStatus || 'pending').toLowerCase(),
+            date: inv.createdAt ? new Date(inv.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : 'RECENT',
+            dueDate: inv.dueDate,
+            tapalId: inv.tapalId
+          }));
+          const salesInvoices = mapped.filter(inv => inv.type === 'SALES');
+          const purchaseInvoices = mapped.filter(inv => inv.type === 'PROCUREMENT');
+          set({ invoices: salesInvoices, purchaseInvoices, loading: false });
         } catch (err) {
           console.warn('Backend fetchInvoices failed, using mock persistence:', err.message);
           set({ loading: false });
@@ -261,13 +294,17 @@ export const useAdminStore = create(
       fetchTransactions: async () => {
         set({ loading: true });
         try {
-          const [invoicesRes, expensesRes] = await Promise.all([
+          const [invoicesRes, expensesRes, restaurantRes, fishmallRes] = await Promise.all([
             billingService.all(),
-            expenseService.all()
+            expenseService.all(),
+            apiClient.get('/restaurant/all'),
+            apiClient.get('/fishmall/all')
           ]);
           
           const invoices = invoicesRes?.docs || invoicesRes?.data || [];
           const expenses = expensesRes?.docs || expensesRes?.data || [];
+          const restaurantOrders = restaurantRes?.docs || restaurantRes?.data || [];
+          const fishmallSales = fishmallRes?.docs || fishmallRes?.data || [];
           
           const tx1 = invoices.map(inv => ({
             date: new Date(inv.createdAt).toLocaleDateString(),
@@ -276,16 +313,32 @@ export const useAdminStore = create(
             type: inv.type === 'Sale' ? 'income' : 'expense',
             amount: inv.numericAmount
           }));
-          
-          const tx2 = expenses.map(exp => ({
-            date: new Date(exp.expenseCode || 'EXP').toLocaleDateString(), // Fallback if date is missing
-            desc: `Expense ${exp.expenseCode || 'EXP'} - ${exp.payee || 'Payee'}`,
-            method: 'Cash',
+
+          const tx2 = restaurantOrders.map(order => ({
+            date: new Date(order.createdAt).toLocaleDateString(),
+            desc: `Restaurant Order #${order.orderNumber || order._id}`,
+            method: order.paymentMethod || 'CASH',
+            type: 'income',
+            amount: order.totalAmount
+          }));
+
+          const tx3 = fishmallSales.map(sale => ({
+            date: new Date(sale.createdAt).toLocaleDateString(),
+            desc: `FishMall Sale #${sale.saleNumber || sale._id}`,
+            method: sale.paymentMethod || 'CASH',
+            type: 'income',
+            amount: sale.totalAmount
+          }));
+
+          const tx4 = expenses.map(exp => ({
+            date: new Date(exp.createdAt).toLocaleDateString(),
+            desc: `${exp.expenseType} - ${exp.description || 'Expense'}`,
+            method: exp.paymentMethod || 'CASH',
             type: 'expense',
             amount: exp.amount
           }));
           
-          const allTx = [...tx1, ...tx2].sort((a, b) => new Date(b.date) - new Date(a.date));
+          const allTx = [...tx1, ...tx2, ...tx3, ...tx4].sort((a, b) => new Date(b.date) - new Date(a.date));
           set({ transactions: allTx, loading: false });
         } catch (err) {
           console.warn('Backend fetchTransactions failed:', err.message);
@@ -324,11 +377,11 @@ export const useAdminStore = create(
       })),
       
       updateTapalStatus: (id, status) => set((state) => ({
-        tapals: state.tapals.map(t => t.id === id ? { ...t, status } : t)
+        tapals: state.tapals.map(t => (t._id === id || t.id === id) ? { ...t, status } : t)
       })),
 
       editTapal: (id, updates) => set((state) => ({
-        tapals: state.tapals.map(t => t.id === id ? { ...t, ...updates } : t)
+        tapals: state.tapals.map(t => (t._id === id || t.id === id) ? { ...t, ...updates } : t)
       })),
 
       deleteTapal: (id) => set((state) => ({
@@ -388,14 +441,7 @@ export const useAdminStore = create(
         } : t)
       })),
 
-      driverRejectTrip: (tripId) => set((state) => {
-        const trip = state.trips.find(t => t.id === tripId);
-        if (!trip) return {};
-        return {
-          trips: state.trips.map(t => t.id === tripId ? { ...t, status: 'Rejected' } : t),
-          tapals: state.tapals.map(t => t.id === trip.tapalId ? { ...t, status: 'pending', driver: 'Unassigned' } : t)
-        };
-      }),
+      // driverRejectTrip REMOVED — business rule: drivers have no reject option
 
       driverStartTrip: (tapalId) => set((state) => ({
         tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'In Transit' } : t),
@@ -494,6 +540,30 @@ export const useAdminStore = create(
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      // Admin marks stock received — triggers inventory update via endTrip (backend-safe)
+      markStockReceived: async (tapalId, qty) => {
+        try {
+          await tapalService.endTrip(tapalId);
+          await get().fetchTapals();
+          await get().fetchTrips();
+          // Inventory is updated server-side by tapalService.endTrip — no client-side stock mutation
+        } catch (err) {
+          console.error('[Tapal] markStockReceived failed:', err.message);
+          throw err;
+        }
+      },
+
+      // Log a trip expense via backend (maps to POST /tapals/expense)
+      addTripExpense: async (tripId, expenseData) => {
+        try {
+          await tapalService.logExpense(tripId, expenseData);
+          await get().fetchTrips();
+        } catch (err) {
+          console.error('[Tapal] addTripExpense failed:', err.message);
           throw err;
         }
       },
