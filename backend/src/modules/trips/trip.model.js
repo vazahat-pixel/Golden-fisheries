@@ -111,7 +111,9 @@ const tripSchema = new mongoose.Schema(
 tripSchema.pre('validate', async function (next) {
   if (this.tripNumber) return next();
   try {
-    const lastTrip = await this.constructor.findOne().sort({ createdAt: -1 });
+    const lastTrip = await this.constructor.findOne({ tripNumber: { $regex: /^TRP-\d+$/i } }, 'tripNumber')
+      .sort({ tripNumber: -1 })
+      .collation({ locale: 'en_US', numericOrdering: true });
     let nextId = 1;
     if (lastTrip && lastTrip.tripNumber) {
       const match = lastTrip.tripNumber.match(/TRP-(\d+)/);

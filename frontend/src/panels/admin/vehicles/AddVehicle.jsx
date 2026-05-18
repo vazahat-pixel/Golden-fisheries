@@ -12,16 +12,21 @@ import {
   CheckCircle2, 
   Upload, 
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Loader
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 
+import { masterService } from '../../../services/masterService';
+
 const AddVehicle = () => {
   const navigate = useNavigate();
-  const { addVehicle, drivers } = useAdminStore();
+  const { addVehicleAsync, drivers } = useAdminStore();
   
   const [step, setStep] = useState(1);
+  const [uploadingDoc, setUploadingDoc] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     vehicleNumber: '',
     type: '',
@@ -32,11 +37,11 @@ const AddVehicle = () => {
     assignedDriverId: '',
     assignedDriverName: '',
     documents: {
-      rc: { status: 'VALID', expiry: '', url: '#' },
-      insurance: { status: 'VALID', expiry: '', url: '#' },
-      permit: { status: 'VALID', expiry: '', url: '#' },
-      fitness: { status: 'VALID', expiry: '', url: '#' },
-      pollution: { status: 'VALID', expiry: '', url: '#' }
+      rc: { status: 'VALID', expiry: '', url: '' },
+      insurance: { status: 'VALID', expiry: '', url: '' },
+      permit: { status: 'VALID', expiry: '', url: '' },
+      fitness: { status: 'VALID', expiry: '', url: '' },
+      pollution: { status: 'VALID', expiry: '', url: '' }
     }
   });
 
@@ -49,20 +54,54 @@ const AddVehicle = () => {
 
   const handleBack = () => setStep(prev => prev - 1);
 
-  const handleSubmit = () => {
-    addVehicle(formData);
-    toast.success('Vehicle added to fleet successfully!');
-    navigate('/admin/vehicles');
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await addVehicleAsync(formData);
+      toast.success('Vehicle added to fleet successfully!');
+      navigate('/admin/vehicles');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to add vehicle');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const updateDoc = (type, field, value) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       documents: {
-        ...formData.documents,
-        [type]: { ...formData.documents[type], [field]: value }
+        ...prev.documents,
+        [type]: { ...prev.documents[type], [field]: value }
       }
-    });
+    }));
+  };
+
+  const handleFileUpload = async (type, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      return toast.error('Only JPG, PNG, WebP, and PDF files are allowed');
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return toast.error('File size exceeds 10MB limit');
+    }
+
+    setUploadingDoc(type);
+    try {
+      const { url } = await masterService.vehicles.uploadDocument(file);
+      updateDoc(type, 'url', url);
+      toast.success(`${type.toUpperCase()} document uploaded successfully`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to upload document');
+    } finally {
+      setUploadingDoc(null);
+      e.target.value = ''; // Reset input
+    }
   };
 
   const renderStep1 = () => (
@@ -150,9 +189,30 @@ const AddVehicle = () => {
                     onChange={e => updateDoc(docType, 'expiry', e.target.value)}
                    />
                 </div>
-                <button className="w-full py-3 bg-white border border-card-border border-dashed text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
-                   <Upload size={14} /> Upload Scan
-                </button>
+                {formData.documents[docType].url ? (
+                  <div className="w-full py-3 bg-emerald-50 border border-emerald-200 text-[9px] font-black uppercase tracking-widest text-emerald-700 flex items-center justify-center gap-2 relative group cursor-pointer" onClick={() => window.open(formData.documents[docType].url, '_blank')}>
+                    <CheckCircle2 size={14} /> Document Uploaded
+                    <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-black font-bold">View Document</span>
+                    </div>
+                  </div>
+                ) : (
+                  <label className={`w-full py-3 border border-card-border border-dashed text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${uploadingDoc === docType ? 'bg-slate-100 text-slate-500 cursor-wait' : 'bg-white text-slate-400 hover:bg-slate-50 cursor-pointer'}`}>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept=".jpg,.jpeg,.png,.webp,.pdf"
+                      onChange={(e) => handleFileUpload(docType, e)}
+                      disabled={uploadingDoc === docType}
+                    />
+                    {uploadingDoc === docType ? (
+                      <Loader className="animate-spin" size={14} />
+                    ) : (
+                      <Upload size={14} />
+                    )}
+                    {uploadingDoc === docType ? 'Uploading...' : 'Upload Scan'}
+                  </label>
+                )}
              </div>
           </div>
         ))}
@@ -267,8 +327,9 @@ const AddVehicle = () => {
             <Button 
               className="h-12 px-12 text-[10px] font-black uppercase tracking-[0.3em] gap-3 bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-xl shadow-emerald-600/20 active:scale-95 transition-all"
               onClick={handleSubmit}
+              disabled={isSubmitting}
             >
-              COMMISSION VEHICLE
+              {isSubmitting ? <Loader className="animate-spin" size={16} /> : 'COMMISSION VEHICLE'}
             </Button>
           )}
         </div>

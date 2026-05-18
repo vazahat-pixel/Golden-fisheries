@@ -29,10 +29,10 @@ import { useNavigate } from 'react-router-dom';
 const ActiveTrip = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { 
-    activeTrip: myTrip, 
-    startTripAsync, 
-    pickupAsync, 
+  const {
+    activeTrip: myTrip,
+    startTripAsync,
+    pickupAsync,
     deliverAsync,
     fetchMyTrips
   } = useDriverStore();
@@ -97,9 +97,9 @@ const ActiveTrip = () => {
     if (!pickupForm.actualQty) return toast.error('Please enter delivered weight');
     try {
       await deliverAsync(
-        trip._id || trip.tapalId || trip.id, 
-        parseFloat(pickupForm.actualQty || trip.expectedQty), 
-        pickupForm.photo || '', 
+        trip._id || trip.tapalId || trip.id,
+        parseFloat(pickupForm.actualQty || trip.expectedQty),
+        pickupForm.photo || '',
         pickupForm.signature || ''
       );
       setIsDeliveryModalOpen(false);
@@ -122,8 +122,8 @@ const ActiveTrip = () => {
         <div>
           <h2 className="text-xl font-black text-black tracking-tighter uppercase italic leading-none">Mission Console</h2>
           <div className="flex items-center gap-1.5 mt-1.5">
-             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none">Active Signal: GF-FLEET-01</p>
+            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none">Active Signal: GF-FLEET-01</p>
           </div>
         </div>
         <Badge className="bg-black text-white text-[8px] font-bold px-2 py-0.5 rounded-lg border-none">
@@ -133,7 +133,7 @@ const ActiveTrip = () => {
 
       <div className="glass-card rounded-[1.8rem] p-5 shadow-extra-soft space-y-5 border-none relative overflow-hidden">
         <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
-           <Truck size={60} className="text-black" />
+          <Truck size={60} className="text-black" />
         </div>
 
         <div className="grid grid-cols-2 gap-3 relative z-10">
@@ -190,7 +190,7 @@ const ActiveTrip = () => {
               <CheckCircle2 size={14} /> Confirm Delivery
             </button>
           )}
-          
+
           {/* DELIVERED / CLOSED — await admin trip closure */}
           {['DELIVERED', 'CLOSED', 'Delivered', 'Expense Submitted'].includes(trip.status) && (
             <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
@@ -239,14 +239,14 @@ const ActiveTrip = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button 
+              <button
                 onClick={simulateCamera}
                 className={`h-20 border rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all ${pickupForm.photo ? 'bg-emerald-500 text-white border-none shadow-lg' : 'bg-white border-black/5 text-gray-400 hover:bg-black hover:text-white'}`}
               >
                 <Camera size={18} />
                 <span className="text-[8px] font-bold uppercase tracking-widest">{pickupForm.photo ? 'Photo Logged' : 'Photo'}</span>
               </button>
-              <button 
+              <button
                 onClick={simulateSignature}
                 className={`h-20 border rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all ${pickupForm.signature ? 'bg-emerald-500 text-white border-none shadow-lg' : 'bg-white border-black/5 text-gray-400 hover:bg-black hover:text-white'}`}
               >
@@ -266,11 +266,11 @@ const ActiveTrip = () => {
       <Modal isOpen={isDeliveryModalOpen} onClose={() => setIsDeliveryModalOpen(false)} title="SETTLEMENT">
         <div className="space-y-5 p-2">
           <div className="p-6 bg-emerald-500 rounded-[1.5rem] text-center text-white shadow-lg relative overflow-hidden">
-             <div className="relative z-10">
-               <p className="text-[8px] font-bold text-white/60 uppercase tracking-[0.2em] mb-1.5">Security Auth</p>
-               <h3 className="text-xl font-black italic tracking-tight">OTP VERIFICATION</h3>
-             </div>
-             <ShieldCheck size={60} className="absolute -right-4 -bottom-4 text-white/10" />
+            <div className="relative z-10">
+              <p className="text-[8px] font-bold text-white/60 uppercase tracking-[0.2em] mb-1.5">Security Auth</p>
+              <h3 className="text-xl font-black italic tracking-tight">OTP VERIFICATION</h3>
+            </div>
+            <ShieldCheck size={60} className="absolute -right-4 -bottom-4 text-white/10" />
           </div>
 
           <div className="space-y-4">

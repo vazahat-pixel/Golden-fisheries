@@ -124,7 +124,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<AdminAuth />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT']}>
               <AdminLayout><Outlet /></AdminLayout>
             </ProtectedRoute>
           }>
@@ -160,7 +160,7 @@ const AppRouter = () => {
       <Route path="/restaurant/*" element={
         <Routes>
           <Route path="auth" element={<RestaurantAuth />} />
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING']}><Outlet /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'RESTAURANT_STAFF']}><Outlet /></ProtectedRoute>}>
             <Route path="pos" element={<RestaurantPOS />} />
             <Route element={<PanelLayout navItems={restaurantNav} panelName="GF Restaurant" userName="Suresh"><Outlet /></PanelLayout>}>
               <Route path="dashboard" element={<RestaurantDashboard />} />
@@ -178,7 +178,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<FishMallAuth />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'FISHMALL_BILLING']}>
               <PanelLayout navItems={fishMallNav} panelName="GF Fish Mall" userName="Ramesh">
                 <Outlet />
               </PanelLayout>

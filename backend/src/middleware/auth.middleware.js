@@ -56,8 +56,9 @@ export const protect = asyncWrapper(async (req, res, next) => {
  */
 export const restrictTo = (...roles) => {
   return (req, res, next) => {
-    // If the user has one of the authorized roles
+    // Debug logging for 403 errors
     if (!req.user || !roles.includes(req.user.role)) {
+      console.log(`[AUTH 403] User Role: ${req.user?.role}, Allowed Roles: ${roles.join(', ')}`);
       return next(
         new AppError('Unauthorized access attempt. You do not have permission to view this resource.', 403)
       );

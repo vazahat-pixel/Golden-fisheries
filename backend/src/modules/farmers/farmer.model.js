@@ -57,10 +57,13 @@ const farmerSchema = new mongoose.Schema(
 farmerSchema.pre('validate', async function (next) {
   if (this.farmerCode) return next();
   try {
-    const lastFarmer = await this.constructor.findOne().sort({ createdAt: -1 });
+    const lastFarmer = await this.constructor.findOne({ farmerCode: { $regex: /^FRM-\d+$/i } }, 'farmerCode')
+      .sort({ farmerCode: -1 })
+      .collation({ locale: 'en_US', numericOrdering: true });
+      
     let nextId = 1;
     if (lastFarmer && lastFarmer.farmerCode) {
-      const match = lastFarmer.farmerCode.match(/FRM-(\d+)/);
+      const match = lastFarmer.farmerCode.match(/FRM-(\d+)/i);
       if (match) {
         nextId = parseInt(match[1], 10) + 1;
       }

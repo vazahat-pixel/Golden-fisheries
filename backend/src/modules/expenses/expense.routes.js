@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import multer from 'multer';
 import { BaseService } from '../../services/base.service.js';
 import { Expense } from './expense.model.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
@@ -7,6 +8,7 @@ import { Router } from 'express';
 import { protect, restrictTo } from '../../middleware/auth.middleware.js';
 import { ROLES } from '../../constants/roles.js';
 import { AppError } from '../../utils/appError.js';
+import { cloudinaryService } from '../../services/cloudinary.service.js';
 
 class ExpenseService extends BaseService {
   constructor() {
@@ -79,8 +81,20 @@ export const expenseController = {
 };
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(protect);
+
+router.post(
+  '/upload-receipt',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.DRIVER),
+  upload.single('file'),
+  asyncWrapper(async (req, res) => {
+    if (!req.file) throw new AppError('No file uploaded', 400);
+    const result = await cloudinaryService.uploadStream(req.file.buffer, 'expenses/receipts', req.file.originalname);
+    res.status(200).json({ success: true, url: result.url });
+  })
+);
 
 router.post(
   '/create',

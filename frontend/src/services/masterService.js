@@ -35,7 +35,17 @@ export const masterService = {
   farmers: createCrudService('farmers'),
   buyers: createCrudService('buyers'),
   products: createCrudService('products'),
-  vehicles: createCrudService('vehicles'),
+  vehicles: {
+    ...createCrudService('vehicles'),
+    uploadDocument: async (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await apiClient.post('/vehicles/upload-document', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    }
+  },
   drivers: {
     ...createCrudService('drivers'),
     getActive: async () => {

@@ -26,20 +26,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to={authPath} state={{ from: location }} replace />;
   }
 
-  // RBAC sub-roles that have valid panel-level clearance (checked at auth portal):
-  const RBAC_ROLES = ['RESTAURANT_STAFF', 'FISHMALL_BILLING', 'DRIVER', 'ACCOUNTANT', 'MANAGER'];
-
-  // If user has an RBAC role, trust that the auth portal already verified panel access.
-  const isRbacUser = RBAC_ROLES.includes(user?.role);
-
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role) && !isRbacUser) {
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
     console.warn('Unauthorized access attempt:', user?.role, '→ allowed:', allowedRoles);
-    return <Navigate to="/unauthorized" replace />;
-  }
-
-  // Extra safety: if allowedRoles is strict admin-only, block RBAC non-admins
-  const adminOnly = allowedRoles.length > 0 && !allowedRoles.some(r => RBAC_ROLES.includes(r));
-  if (adminOnly && isRbacUser && !allowedRoles.includes(user?.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

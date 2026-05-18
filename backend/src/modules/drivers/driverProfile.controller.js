@@ -186,10 +186,21 @@ export const driverController = {
   // GET /api/v1/drivers/active
   // ─────────────────────────────────────────────────────────────────────────
   active: asyncWrapper(async (req, res) => {
-    const drivers = await DriverProfile.find({ registrationStatus: 'active' })
-      .populate('userId', 'fullName phone')
-      .populate('vehicleId', 'vehicleNumber vehicleType')
-      .sort({ createdAt: -1 });
+    // Fetch all users with DRIVER role (including those created via Users & Roles admin panel)
+    const driverUsers = await User.find({ role: 'DRIVER', isActive: true })
+      .select('fullName phone')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Map them to the shape expected by the frontend (which expects populated DriverProfiles)
+    const drivers = driverUsers.map(u => ({
+      _id: u._id,
+      userId: {
+        _id: u._id,
+        fullName: u.fullName,
+        phone: u.phone
+      }
+    }));
 
     new ApiResponse(200, drivers, 'Active drivers fetched successfully').send(res);
   }),

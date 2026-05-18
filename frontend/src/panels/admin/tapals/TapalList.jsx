@@ -236,9 +236,9 @@ const TapalList = () => {
 
       {/* Edit Modal - All Info Editable */}
       <Modal 
-        isOpen={isEditModalOpen} 
-        onClose={() => setIsEditModalOpen(false)} 
-        title={`Edit Tapal: ${editingTapal?.id}`}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Tapal: ${editingTapal?.tapalNumber || editingTapal?.id || editingTapal?._id}`}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

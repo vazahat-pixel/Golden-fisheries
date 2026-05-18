@@ -1,9 +1,9 @@
 import React from 'react';
 import { Badge } from '../../design-system/components/Badge';
-import { 
-  Package, 
-  MapPin, 
-  Clock, 
+import {
+  Package,
+  MapPin,
+  Clock,
   ArrowRight,
   Phone,
   CheckCircle2,
@@ -27,9 +27,9 @@ const DriverTasks = () => {
   React.useEffect(() => {
     fetchTrips();
   }, [fetchTrips]);
-  const { 
-    incomingAssignment, 
-    clearIncomingAssignment 
+  const {
+    incomingAssignment,
+    clearIncomingAssignment
   } = useDriverStore();
 
   const driverName = user?.name || 'Unknown Driver';
@@ -38,7 +38,7 @@ const DriverTasks = () => {
     const matchByName = t.driverName?.toUpperCase().trim() === driverName?.toUpperCase().trim();
     return (matchById || matchByName) && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status);
   });
-  
+
   const displayTasks = myTrips;
 
   const handleAccept = async (tapalIdArg) => {
@@ -48,9 +48,9 @@ const DriverTasks = () => {
     try {
       const { apiClient } = await import('../../services/apiClient');
       await apiClient.patch('/tapals/start-trip', { tapalId: tId });
-      
+
       if (incomingAssignment) clearIncomingAssignment();
-      
+
       // Fallback for local store
       driverAcceptTrip(tId);
       toast.success('Task Accepted!');
@@ -124,25 +124,25 @@ const DriverTasks = () => {
             </div>
 
             <div className="flex justify-between items-center pt-2.5 border-t border-black/5 relative z-10">
-               <div className="flex items-center gap-4">
-                 <div className="flex items-center gap-1">
-                    <Package size={10} className="text-gray-400" />
-                    <span className="text-[9px] font-black text-black uppercase">{task.expectedQty}</span>
-                 </div>
-                 <div className="w-0.5 h-0.5 bg-gray-200 rounded-full"></div>
-                 <p className="text-[8px] font-bold text-gray-500 uppercase truncate max-w-[80px]">{task.customer?.name || 'GENERIC CLIENT'}</p>
-               </div>
-               <button 
-                 onClick={() => window.open(`tel:${task.customer?.phone || '9876543210'}`)}
-                 className="p-2 bg-emerald-50 text-emerald-600 rounded-lg active:scale-95 transition-all"
-               >
-                 <Phone size={12} />
-               </button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <Package size={10} className="text-gray-400" />
+                  <span className="text-[9px] font-black text-black uppercase">{task.expectedQty}</span>
+                </div>
+                <div className="w-0.5 h-0.5 bg-gray-200 rounded-full"></div>
+                <p className="text-[8px] font-bold text-gray-500 uppercase truncate max-w-[80px]">{task.customer?.name || 'GENERIC CLIENT'}</p>
+              </div>
+              <button
+                onClick={() => window.open(`tel:${task.customer?.phone || '9876543210'}`)}
+                className="p-2 bg-emerald-50 text-emerald-600 rounded-lg active:scale-95 transition-all"
+              >
+                <Phone size={12} />
+              </button>
             </div>
 
             <div className="flex gap-2 pt-1 relative z-10">
               {task.status === 'Assigned' ? (
-                <button 
+                <button
                   onClick={() => handleAccept(task.tapalId)}
                   className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
                 >
@@ -150,13 +150,13 @@ const DriverTasks = () => {
                 </button>
               ) : (
                 <>
-                  <button 
+                  <button
                     onClick={() => navigate('/driver/tracking')}
                     className="flex-1 py-3 bg-white border border-black text-black rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-sm active:scale-95"
                   >
                     Route
                   </button>
-                  <button 
+                  <button
                     onClick={() => navigate('/driver/active-trip')}
                     className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95"
                   >
@@ -206,13 +206,13 @@ const DriverTasks = () => {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button 
+                <button
                   onClick={handleReject}
                   className="flex-1 py-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 active:scale-95 transition-all"
                 >
                   Reject
                 </button>
-                <button 
+                <button
                   onClick={() => handleAccept()}
                   className="flex-[2] py-4 rounded-xl bg-emerald-500 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >

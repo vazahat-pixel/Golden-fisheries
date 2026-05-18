@@ -111,7 +111,9 @@ const harvestSchema = new mongoose.Schema(
 harvestSchema.pre('validate', async function (next) {
   if (this.harvestNumber) return next();
   try {
-    const lastHarvest = await this.constructor.findOne().sort({ createdAt: -1 });
+    const lastHarvest = await this.constructor.findOne({ harvestNumber: { $regex: /^HSL-\d+$/i } }, 'harvestNumber')
+      .sort({ harvestNumber: -1 })
+      .collation({ locale: 'en_US', numericOrdering: true });
     let nextId = 1;
     if (lastHarvest && lastHarvest.harvestNumber) {
       const match = lastHarvest.harvestNumber.match(/HSL-(\d+)/);

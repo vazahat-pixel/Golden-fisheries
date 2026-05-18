@@ -13,12 +13,14 @@ import {
   ChevronDown,
   Wrench,
   AlignLeft,
-  CheckCircle2
+  CheckCircle2,
+  Loader
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
+import { expenseService } from '../../services/expenseService';
 
 const DriverAddExpense = () => {
   const navigate = useNavigate();
@@ -48,15 +50,41 @@ const DriverAddExpense = () => {
     !['Closed', 'Rejected'].includes(t.status)
   );
 
-  const handlePhotoUpload = (e) => {
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      return toast.error('Only JPG, PNG, WebP, and PDF files are allowed');
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return toast.error('File size exceeds 10MB limit');
+    }
+
+    setUploadingReceipt(true);
+    try {
+      // Create a local preview immediately
       const reader = new FileReader();
       reader.onload = (event) => {
         setExpenseForm(prev => ({ ...prev, receiptPhoto: event.target.result }));
-        toast.success('Receipt captured');
       };
       reader.readAsDataURL(file);
+
+      // Upload to server
+      const { url } = await expenseService.uploadReceipt(file);
+      setExpenseForm(prev => ({ ...prev, receiptPhoto: url }));
+      toast.success('Receipt uploaded securely');
+    } catch (err) {
+      toast.error('Failed to upload receipt');
+      // Revert preview on failure
+      setExpenseForm(prev => ({ ...prev, receiptPhoto: null }));
+    } finally {
+      setUploadingReceipt(false);
+      e.target.value = ''; // Reset input
     }
   };
 
@@ -64,15 +92,20 @@ const DriverAddExpense = () => {
     if (!expenseForm.amount) return toast.error('Enter expense amount');
     if (!expenseForm.description.trim()) return toast.error('Add a description');
 
+    const typeMapping = {
+      'MAINTENANCE': 'REPAIR',
+      'MISC': 'OTHER'
+    };
+    const backendType = typeMapping[expenseForm.type] || expenseForm.type;
+
     try {
       await submitExpense({
-        driverName: user?.name || 'RAJESH KUMAR',
-        tripId: expenseForm.tripId || null,
-        type: expenseForm.type,
+        expenseType: backendType,
         amount: Number(expenseForm.amount),
-        description: expenseForm.description.trim(),
-        receiptPhoto: expenseForm.receiptPhoto,
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        payee: user?.name || user?.fullName || 'DRIVER',
+        linkedTripId: expenseForm.tripId || null,
+        invoicePhotoUrl: expenseForm.receiptPhoto,
+        remarks: expenseForm.description.trim()
       });
       setSubmitted(true);
     } catch (err) {
@@ -222,10 +255,16 @@ const DriverAddExpense = () => {
         <div className="space-y-2">
           <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Receipt / Proof</label>
           <button
-            onClick={() => fileInputRef.current.click()}
-            className="w-full bg-white border-2 border-dashed border-slate-100 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all overflow-hidden relative min-h-[90px]"
+            onClick={() => !uploadingReceipt && fileInputRef.current.click()}
+            disabled={uploadingReceipt}
+            className={`w-full border-2 border-dashed rounded-2xl py-5 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden relative min-h-[90px] ${uploadingReceipt ? 'bg-slate-50 border-slate-200 cursor-wait' : 'bg-white border-slate-100 active:scale-95'}`}
           >
-            {expenseForm.receiptPhoto ? (
+            {uploadingReceipt ? (
+              <>
+                <Loader className="animate-spin text-slate-400" size={24} />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Uploading securely...</span>
+              </>
+            ) : expenseForm.receiptPhoto ? (
               <>
                 <img src={expenseForm.receiptPhoto} className="absolute inset-0 w-full h-full object-cover" alt="Receipt" />
                 <div className="absolute inset-0 bg-emerald-500/20 backdrop-blur-[2px] flex flex-col items-center justify-center gap-1">
@@ -240,7 +279,7 @@ const DriverAddExpense = () => {
               </>
             )}
           </button>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handlePhotoUpload} disabled={uploadingReceipt} />
         </div>
 
         {/* Approval Notice */}

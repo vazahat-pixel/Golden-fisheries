@@ -11,6 +11,16 @@ export const expenseService = {
     return await apiClient.post('/expenses/create', data);
   },
 
+  // 2.5 Upload Receipt Image
+  uploadReceipt: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post('/expenses/upload-receipt', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
   // 3. Approve/Reject Expense (Admin)
   approve: async (id, status) => {
     return await apiClient.patch(`/expenses/approve/${id}`, { status });
