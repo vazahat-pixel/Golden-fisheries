@@ -48,9 +48,11 @@ apiClient.interceptors.response.use(
     // Check if error is due to an expired/unauthorized token and isn't a retry attempt
     if (error.response?.status === 401 && !originalRequest._retry) {
       
-      // Avoid infinite refresh loops if the refresh call itself is returning 401
-      if (originalRequest.url.includes('/auth/refresh')) {
-        useAuthStore.getState().logout();
+      // Avoid infinite refresh loops if the refresh or logout call itself is returning 401
+      if (originalRequest.url.includes('/auth/refresh') || originalRequest.url.includes('/auth/logout')) {
+        if (originalRequest.url.includes('/auth/refresh')) {
+          useAuthStore.getState().logout();
+        }
         return Promise.reject(error);
       }
 
