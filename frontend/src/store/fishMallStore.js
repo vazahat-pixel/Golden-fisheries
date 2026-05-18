@@ -181,6 +181,7 @@ export const useFishMallStore = create(
         } catch (err) {
           set({ error: err.message, loading: false });
           throw err;
+        }
       },
 
       publishRatesAsync: async () => {

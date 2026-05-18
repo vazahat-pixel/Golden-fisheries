@@ -24,7 +24,13 @@ class SocketService {
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
-    if (this.socket?.connected) {
+    if (this.socket) {
+      // Update the token dynamically in case it was refreshed by Axios interceptor
+      this.socket.auth.token = token;
+      if (!this.socket.connected) {
+        console.log(`[Socket Client]: Reconnecting with fresh token to: ${socketUrl}`);
+        this.socket.connect();
+      }
       return;
     }
 
@@ -52,8 +58,23 @@ class SocketService {
       this.reconnectAttempts = 0;
     });
 
-    this.socket.on('connect_error', (error) => {
+    this.socket.on('connect_error', async (error) => {
       console.error('[Socket Connection Error]: Handshake rejected.', error.message);
+      
+      // If token expired, force a background HTTP request to trigger the Axios interceptor
+      // which will automatically refresh the token and update the AuthStore.
+      if (error.message.includes('Session expired') || error.message.includes('Authentication failed')) {
+        console.log('[Socket Client]: Attempting background token refresh...');
+        try {
+          const { apiClient } = await import('./apiClient');
+          // Hit a protected route lightweight endpoint to trigger the 401 -> interceptor -> refresh flow
+          // OR hit refresh directly. Let's just let the interceptor handle it via a dummy ping.
+          await apiClient.get('/vehicles/all').catch(() => {}); 
+        } catch (e) {
+          console.warn('[Socket Client]: Background token refresh failed.');
+        }
+      }
+
       this.reconnectAttempts++;
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.warn('[Socket Client]: Maximum reconnection limit hit. Pausing retries.');
