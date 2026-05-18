@@ -61,7 +61,8 @@ const tripSchema = new mongoose.Schema(
     vehicleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vehicle',
-      required: [true, 'Vehicle reference is required'],
+      required: false,  // optional — some drivers may not have an assigned vehicle
+      default: null,
       index: true
     },
     status: {

@@ -39,24 +39,26 @@ const ActiveTrip = () => {
 
 
 
-  const dummyTrip = {
-    id: 'TRP-8821',
-    tapalId: 'TAPAL-9901',
-    status: 'In Transit',
-    product: 'POMFRET (PREMIUM)',
-    pickupLocation: 'NORTH DOCK TERMINAL',
-    deliveryLocation: 'CENTRAL COLD STORAGE',
-    expectedQty: '250',
-    customer: { name: 'JOHN DOE', phone: '+91 9887766554' },
-    createdAt: new Date().toLocaleString()
-  };
+  // Use active trip from driverStore — no dummy fallback to avoid masking real errors
+  const trip = myTrip;
 
-  const trip = myTrip || dummyTrip;
-
+  // ALL hooks MUST be declared before any conditional returns (React Rules of Hooks)
   const [pickupForm, setPickupForm] = useState({ actualQty: '', quality: 'A', photo: null, signature: null });
   const [otp, setOtp] = useState('');
   const [isPickupModalOpen, setIsPickupModalOpen] = useState(false);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+
+  if (!trip) {
+    return (
+      <div className="p-8 text-center space-y-3 min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto">
+          <Truck size={24} className="text-slate-300" />
+        </div>
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">No Active Assignment</p>
+        <p className="text-[9px] text-slate-300 font-bold uppercase tracking-widest">Awaiting dispatch orders from admin</p>
+      </div>
+    );
+  }
 
   const simulateCamera = () => {
     toast.loading('Activating Camera...', { duration: 1000 });
@@ -73,9 +75,12 @@ const ActiveTrip = () => {
 
   const handleStartTrip = async () => {
     try {
-      await startTripAsync(trip._id || trip.tapalId || trip.id);
+      // startTripAsync expects the Tapal _id (not Trip _id)
+      // trip.tapalId is populated from fetchMyTrips response
+      const tapalId = trip.tapalId?._id || trip.tapalId || trip._id;
+      await startTripAsync(tapalId);
       toast.success('Trip Started! Drive safe.');
-      fetchMyTrips();
+      await fetchMyTrips();
     } catch (err) {
       toast.error(err?.message || 'Failed to start trip');
     }
@@ -84,10 +89,12 @@ const ActiveTrip = () => {
   const handlePickupComplete = async () => {
     if (!pickupForm.actualQty) return toast.error('Please enter actual weight at pickup');
     try {
-      await pickupAsync(trip._id || trip.tapalId || trip.id, parseFloat(pickupForm.actualQty));
+      // pickupAsync expects the Tapal _id
+      const tapalId = trip.tapalId?._id || trip.tapalId || trip._id;
+      await pickupAsync(tapalId, parseFloat(pickupForm.actualQty));
       setIsPickupModalOpen(false);
       toast.success('Pickup weight logged successfully');
-      fetchMyTrips();
+      await fetchMyTrips();
     } catch (err) {
       toast.error(err?.message || 'Failed to log pickup');
     }
@@ -96,15 +103,17 @@ const ActiveTrip = () => {
   const handleDeliver = async () => {
     if (!pickupForm.actualQty) return toast.error('Please enter delivered weight');
     try {
+      // deliverAsync expects the Tapal _id and actual delivered weight
+      const tapalId = trip.tapalId?._id || trip.tapalId || trip._id;
       await deliverAsync(
-        trip._id || trip.tapalId || trip.id,
+        tapalId,
         parseFloat(pickupForm.actualQty || trip.expectedQty),
         pickupForm.photo || '',
         pickupForm.signature || ''
       );
       setIsDeliveryModalOpen(false);
       toast.success('Delivery Confirmed! Proof of Delivery recorded.');
-      fetchMyTrips();
+      await fetchMyTrips();
     } catch (err) {
       toast.error(err?.message || 'Failed to confirm delivery');
     }
@@ -171,28 +180,28 @@ const ActiveTrip = () => {
 
         <div className="pt-1">
           {/* ASSIGNED — driver can start trip */}
-          {['ASSIGNED', 'Accepted'].includes(trip.status) && (
+          {trip.status === 'ASSIGNED' && (
             <button onClick={handleStartTrip} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
               <Navigation size={14} className="animate-pulse" /> Start Trip
             </button>
           )}
 
           {/* STARTED — driver can log pickup weight */}
-          {['STARTED', 'In Transit'].includes(trip.status) && (
+          {trip.status === 'STARTED' && (
             <button onClick={() => setIsPickupModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
               <PackageCheck size={14} /> Log Pickup Weight
             </button>
           )}
 
           {/* PICKED — driver can confirm delivery */}
-          {['PICKED', 'Picked'].includes(trip.status) && (
+          {trip.status === 'PICKED' && (
             <button onClick={() => setIsDeliveryModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
               <CheckCircle2 size={14} /> Confirm Delivery
             </button>
           )}
 
           {/* DELIVERED / CLOSED — await admin trip closure */}
-          {['DELIVERED', 'CLOSED', 'Delivered', 'Expense Submitted'].includes(trip.status) && (
+          {['DELIVERED', 'CLOSED'].includes(trip.status) && (
             <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
               <CheckCircle2 size={14} /> Delivered — Awaiting Admin Closure
             </div>
@@ -275,7 +284,7 @@ const ActiveTrip = () => {
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-2">Client OTP (1234)</label>
+              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-2">Client OTP</label>
               <input
                 type="text"
                 maxLength={4}

@@ -35,10 +35,12 @@ const TapalList = () => {
     // Fetch real active drivers from DB
     driverService.getActive()
       .then(res => {
-        const list = res?.data || (Array.isArray(res) ? res : []);
+        // apiClient interceptor returns response.data (ApiResponse envelope)
+        // driverService.getActive returns that envelope, so res.data is the array
+        const list = Array.isArray(res?.data) ? res.data : [];
         setActiveDrivers(list);
       })
-      .catch(err => console.error('Failed to load active drivers', err));
+      .catch(err => console.error('[Tapals] Failed to load active drivers', err));
   }, [fetchTapals]);
   
   // Edit Modal State
@@ -54,18 +56,22 @@ const TapalList = () => {
   });
 
   const getStatusVariant = (status) => {
-    switch (status.toLowerCase()) {
-      case 'pending': return 'warning';
-      case 'confirmed': return 'info';
-      case 'in-transit': return 'secondary';
-      case 'delivered': return 'success';
-      case 'rejected': return 'danger';
-      default: return 'secondary';
+    const s = (status || '').toUpperCase();
+    switch (s) {
+      case 'CREATED':        return 'secondary';
+      case 'DRIVER_ASSIGNED': return 'info';
+      case 'TRIP_STARTED':   return 'info';
+      case 'PICKED_UP':      return 'warning';
+      case 'IN_TRANSIT':     return 'warning';
+      case 'DELIVERED':      return 'success';
+      case 'BILL_PENDING':   return 'warning';
+      case 'COMPLETED':      return 'success';
+      default:               return 'secondary';
     }
   };
 
   const filteredTapals = (storeTapals || []).filter(tapal => {
-    const matchesFilter = filter === 'all' || tapal.type.toLowerCase() === filter.toLowerCase();
+    const matchesFilter = filter === 'all' || (tapal.type || '').toLowerCase() === filter.toLowerCase();
     const matchesSearch = 
       (tapal.tapalNumber || tapal.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (tapal.partyName || tapal.party || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -76,9 +82,9 @@ const TapalList = () => {
   const openEditModal = (tapal) => {
     setEditingTapal(tapal);
     setEditFormData({ 
-      party: tapal.party,
-      qty: tapal.qty.replace(' KG', ''), 
-      amount: tapal.amount.replace('₹', '').replace(/,/g, ''),
+      party: tapal.partyName || tapal.party || '',
+      qty: (tapal.qty || '').replace(' KG', ''), 
+      amount: (tapal.amount || '').replace('₹', '').replace(/,/g, ''),
       type: tapal.type,
       driver: tapal.driver || 'Unassigned',
       date: tapal.date
@@ -91,18 +97,18 @@ const TapalList = () => {
       toast.error('Required fields are missing');
       return;
     }
-    
-    editTapal(editingTapal.id, {
-      party: editFormData.party.toUpperCase(),
+    // Note: editTapal is a local Zustand optimistic update only
+    // Full Tapal editing requires a backend PATCH — implemented in TapalDetail
+    editTapal(editingTapal._id || editingTapal.id, {
+      partyName: editFormData.party.toUpperCase(),
       qty: `${editFormData.qty} KG`,
-      amount: `₹${Number(editFormData.amount).toLocaleString()}`,
+      amount: `₹${Number(editFormData.amount).toLocaleString('en-IN')}`,
       type: editFormData.type,
       driver: editFormData.driver,
-      date: editFormData.date
     });
     
     setIsEditModalOpen(false);
-    toast.success('Tapal information updated');
+    toast.success('Tapal information updated locally');
   };
 
   return (
@@ -195,7 +201,7 @@ const TapalList = () => {
                   </td>
                   <td className="px-4 py-2.5">
                     <p className="text-[10px] font-bold text-black uppercase">{tapal.partyName || tapal.party}</p>
-                    <Badge variant={tapal.type.toLowerCase() === 'purchase' ? 'info' : 'secondary'} className="bg-opacity-10 text-[7px] border-none px-1 h-3.5 mt-0.5">{tapal.type}</Badge>
+                    <Badge variant={(tapal.type || '').toLowerCase() === 'purchase' ? 'info' : 'secondary'} className="bg-opacity-10 text-[7px] border-none px-1 h-3.5 mt-0.5">{tapal.type || '—'}</Badge>
                   </td>
                   <td className="px-4 py-2.5">
                     <p className="text-[10px] font-bold text-black">{tapal.qty}</p>

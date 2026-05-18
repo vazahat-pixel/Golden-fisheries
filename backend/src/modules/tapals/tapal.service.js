@@ -204,66 +204,6 @@ class TapalService extends BaseService {
   }
 
   /**
-   * Safe Transaction: Driver rejects the trip
-   */
-  async rejectTrip(tapalId, driverId) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const tapal = await this.model.findById(tapalId).session(session);
-      if (!tapal) throw new AppError('Tapal not found', 404);
-      if (tapal.status !== 'DRIVER_ASSIGNED') {
-        throw new AppError('Trip cannot be rejected. Invalid state.', 400);
-      }
-
-      if (tapal.driverId.toString() !== driverId.toString()) {
-        throw new AppError('Access Denied: You are not the assigned driver for this trip', 403);
-      }
-
-      const trip = await Trip.findOne({ tapalId: tapal._id }).session(session);
-      
-      // Update Tapal back to unassigned state
-      tapal.status = 'CREATED';
-      tapal.driver = null;
-      tapal.driverId = null;
-      await tapal.save({ session });
-
-      if (trip) {
-        // If vehicle was assigned, make it available again
-        if (trip.vehicleId) {
-          const vehicle = await Vehicle.findById(trip.vehicleId).session(session);
-          if (vehicle) {
-            vehicle.status = 'AVAILABLE';
-            await vehicle.save({ session });
-          }
-        }
-        
-        // Delete the trip document
-        await Trip.findByIdAndDelete(trip._id).session(session);
-      }
-
-      await session.commitTransaction();
-      session.endSession();
-
-      broadcastEvent('trip:status_change', {
-        tripId: trip ? trip._id : null,
-        tripNumber: trip ? trip.tripNumber : null,
-        status: 'REJECTED',
-        tapalId: tapal._id
-      }, 'dashboard:updates');
-
-      logger.info(`[Driver Flow]: Driver rejected Trip for Tapal ${tapal.tapalNumber}. Reset to CREATED.`);
-      return { tapal };
-
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
-    }
-  }
-
-  /**
    * Safe Transaction: Driver logs cargo pickup
    */
   async pickupCargo(tapalId, driverId, actualPickupQty) {
@@ -387,42 +327,8 @@ class TapalService extends BaseService {
       const expectedTotalQty = trip.expectedQty;
       const scaleRatio = expectedTotalQty > 0 ? deliveredQty / expectedTotalQty : 1;
 
-      // Inventory triggers based on actual delivered qty
-      if (tapal.type === 'Purchase') {
-        // Add actual delivered stock to inventory
-        for (const line of tapal.products) {
-          // Strip commas (Indian formatting) AND non-numeric characters before parsing
-          const numericLineQty = parseFloat(line.qty.replace(/,/g, '').replace(/[^\d.]/g, ''));
-          const actualLineQty = numericLineQty * scaleRatio;
-
-          await Product.findOneAndUpdate(
-            { name: line.name },
-            { $inc: { quantity: actualLineQty } },
-            { session, new: true }
-          );
-          logger.info(`[Inventory Trigger]: Added ${actualLineQty} KG to product stock: ${line.name}`);
-        }
-      } else if (tapal.type === 'Sale') {
-        // Deduct delivered stock from inventory
-        for (const line of tapal.products) {
-          const numericLineQty = parseFloat(line.qty.replace(/,/g, '').replace(/[^\d.]/g, ''));
-          const actualLineQty = numericLineQty * scaleRatio;
-
-          // Check stock before deduction
-          const dbProduct = await Product.findOne({ name: line.name }).session(session);
-          if (dbProduct && dbProduct.quantity < actualLineQty) {
-            // Log warning about negative inventory, but allowed for operational continuity in ERP if required
-            logger.warn(`[Inventory Alarm]: Low stock for product ${line.name}. Attempting to deduct ${actualLineQty} but only ${dbProduct.quantity} remains.`);
-          }
-
-          await Product.findOneAndUpdate(
-            { name: line.name },
-            { $inc: { quantity: -actualLineQty } },
-            { session, new: true }
-          );
-          logger.info(`[Inventory Trigger]: Deducted ${actualLineQty} KG from product stock: ${line.name}`);
-        }
-      }
+      // Inventory update removed from endTrip. 
+      // Stock movements are handled by the Billing module (createInvoice) to ensure single deduction and proper ledger logging.
 
       // Close the Trip
       trip.status = 'CLOSED';

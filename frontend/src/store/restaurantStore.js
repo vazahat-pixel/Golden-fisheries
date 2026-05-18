@@ -179,7 +179,11 @@ export const useRestaurantStore = create(
         try {
           const res = await restaurantService.getMenu();
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ menuItems: list, loading: false });
+          const mapped = list.map(item => ({
+            ...item,
+            id: item._id || item.id
+          }));
+          set({ menuItems: mapped, loading: false });
         } catch (err) {
           console.error('Failed to fetch menu', err);
           set({ menuItems: [], loading: false });
@@ -191,7 +195,11 @@ export const useRestaurantStore = create(
         try {
           const res = await restaurantService.getTables();
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ tables: list, loading: false });
+          const mapped = list.map(item => ({
+            ...item,
+            id: item._id || item.id
+          }));
+          set({ tables: mapped, loading: false });
         } catch (err) {
           console.error('Failed to fetch tables', err);
           set({ tables: [], loading: false });
@@ -207,11 +215,22 @@ export const useRestaurantStore = create(
 
           // 2. Settle the order (payment)
           if (orderId) {
-            await restaurantService.settle(orderId, settleData.paymentBreakdown);
+            await restaurantService.settle(orderId, { paymentMethod: settleData.paymentMethod });
           }
+
+          // Cross-post to Admin Finance
+          useAdminStore.getState().addTransaction({
+            date: new Date().toLocaleDateString('en-GB'),
+            desc: `RESTAURANT POS: #${res?.data?.orderNumber || res?.orderNumber || 'ORD'}`,
+            method: settleData.paymentMethod || 'CASH',
+            type: 'income',
+            amount: settleData.total,
+            source: 'RESTAURANT'
+          });
 
           // 3. Refresh local state
           await get().fetchOrders();
+          await get().fetchMenu();
           set({ loading: false });
           return res;
         } catch (err) {

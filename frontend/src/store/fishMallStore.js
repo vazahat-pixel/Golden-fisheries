@@ -163,8 +163,33 @@ export const useFishMallStore = create(
       createSaleAsync: async (saleData) => {
         set({ loading: true });
         try {
-          await fishmallService.create(saleData);
+          const res = await fishmallService.create(saleData);
+          
+          // Cross-post to Admin Finance
+          useAdminStore.getState().addTransaction({
+            date: new Date().toLocaleDateString('en-GB'),
+            desc: `FISH MALL BILL: #${res?.data?.saleNumber || res?.saleNumber || 'FM'}`,
+            method: saleData.paymentMethod || 'CASH',
+            type: 'income',
+            amount: saleData.total,
+            source: 'FISHMALL'
+          });
+
           await get().fetchStock();
+          set({ loading: false });
+          return res;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+      },
+
+      publishRatesAsync: async () => {
+        set({ loading: true });
+        try {
+          const stock = get().stock;
+          for (const item of stock) {
+            await masterService.products.update(item.id, { basePrice: item.rate });
+          }
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });

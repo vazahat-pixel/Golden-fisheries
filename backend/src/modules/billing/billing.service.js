@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { BaseService } from '../../services/base.service.js';
 import { Billing } from './billing.model.js';
 import { Tapal } from '../tapals/tapal.model.js';
+import { Product } from '../products/product.model.js';
 import { inventoryService } from '../inventory/inventory.service.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
@@ -66,8 +67,19 @@ class BillingService extends BaseService {
       for (const item of invoiceData.items) {
         const lineTotal = item.quantity * item.rate;
         subtotal += lineTotal;
+        
+        let productId = item.productId;
+        if (!productId) {
+          const product = await Product.findOne({ name: item.productName }).session(session);
+          if (product) {
+            productId = product._id;
+          } else {
+            throw new AppError(`Product not found in registry: ${item.productName}`, 404);
+          }
+        }
+
         verifiedItems.push({
-          productId: item.productId,
+          productId,
           productName: item.productName,
           quantity: item.quantity,
           rate: item.rate,

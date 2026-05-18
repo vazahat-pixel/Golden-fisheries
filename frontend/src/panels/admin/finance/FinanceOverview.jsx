@@ -253,7 +253,7 @@ const FinanceOverview = () => {
             <h3 className="font-serif italic font-bold text-lg tracking-tight uppercase">Accounts Payable</h3>
             <p className="text-[7px] font-bold opacity-50 uppercase tracking-widest">Farmer & Supplier Obligations</p>
           </div>
-          <Badge className="bg-accent-olive text-black border-none text-[8px]">₹{(purchaseInvoices?.reduce((acc, inv) => acc + (inv.status === 'unpaid' ? inv.amount : 0), 0) || 0).toLocaleString()} PENDING</Badge>
+          <Badge className="bg-accent-olive text-black border-none text-[8px]">₹{(purchaseInvoices?.reduce((acc, inv) => acc + (inv.status === 'pending' ? inv.numericAmount : 0), 0) || 0).toLocaleString('en-IN')} PENDING</Badge>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -269,16 +269,16 @@ const FinanceOverview = () => {
             <tbody className="divide-y divide-olive-100/50">
               {purchaseInvoices?.length > 0 ? purchaseInvoices.map((inv, i) => (
                 <tr key={i} className="hover:bg-olive-50/30 transition-colors group">
-                  <td className="px-4 py-2.5 text-[10px] font-bold text-black uppercase tracking-tight">{inv.farmer}</td>
-                  <td className="px-4 py-2.5 text-[9px] font-bold text-text-muted">{new Date(inv.date).toLocaleDateString('en-GB')}</td>
-                  <td className="px-4 py-2.5 text-[9px] font-bold text-red-400">{new Date(inv.dueDate).toLocaleDateString('en-GB')}</td>
+                  <td className="px-4 py-2.5 text-[10px] font-bold text-black uppercase tracking-tight">{inv.client}</td>
+                  <td className="px-4 py-2.5 text-[9px] font-bold text-text-muted">{inv.date}</td>
+                  <td className="px-4 py-2.5 text-[9px] font-bold text-red-400">{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('en-GB') : 'N/A'}</td>
                   <td className="px-4 py-2.5 text-center">
                     <Badge variant={inv.status === 'paid' ? 'success' : 'warning'} className="text-[7px] border-none px-1.5 uppercase">
                       {inv.status}
                     </Badge>
                   </td>
                   <td className="px-4 py-2.5 text-[11px] font-bold text-right text-black">
-                    ₹{inv.amount.toLocaleString()}
+                    {inv.amount}
                   </td>
                 </tr>
               )) : (

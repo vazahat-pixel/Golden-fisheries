@@ -53,7 +53,13 @@ export const tapalService = {
 
   // 8. Driver logs trip expenses (Fuel, Toll, etc.)
   logExpense: async (tripId, expenseData) => {
-    return await apiClient.post('/tapals/expense', { tripId, ...expenseData });
+    return await apiClient.post('/tapals/expense', { 
+      tripId, 
+      expenseType: expenseData.type || expenseData.expenseType,  // map frontend 'type' to backend 'expenseType'
+      amount: expenseData.amount,
+      receiptUrl: expenseData.receiptUrl || '',
+      remarks: expenseData.remarks || expenseData.method || ''
+    });
   },
 
   // 9. Fetch active Trip details

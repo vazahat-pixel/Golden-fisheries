@@ -28,7 +28,7 @@ import {
 // Hardcoded data removed - now fetched from API
 
 const AdminDashboard = () => {
-  const { tapals, inventory, invoices, transactions, fetchDashboardStats, dashboardStats, loading } = useAdminStore();
+  const { tapals, inventory, invoices, transactions, fetchDashboardStats, fetchTapals, dashboardStats, loading } = useAdminStore();
   const { user } = useAuthStore();
 
   const chartData = dashboardStats?.revenueChart || [];
@@ -36,7 +36,8 @@ const AdminDashboard = () => {
 
   React.useEffect(() => {
     fetchDashboardStats();
-  }, [fetchDashboardStats]);
+    fetchTapals();
+  }, [fetchDashboardStats, fetchTapals]);
 
   const weeklyRevenue = dashboardStats?.totalCumulativeRevenue || transactions
     .filter(t => t.type === 'income')

@@ -39,16 +39,15 @@ const DriverDashboard = () => {
     myExpenses, 
     fetchMyTrips, 
     fetchMyExpenses,
-    activeTrip 
+    activeTrip,
+    startTripAsync 
   } = useDriverStore();
-  const { driverAcceptTrip, vehicles } = useAdminStore();
+  const { vehicles } = useAdminStore();
 
   useEffect(() => {
-    if (user?.id) {
-      fetchMyTrips(user.id);
-      fetchMyExpenses(user.id);
-    }
-  }, [user?.id, fetchMyTrips, fetchMyExpenses]);
+    fetchMyTrips(); // JWT-scoped — no userId needed, server filters by token
+    fetchMyExpenses();
+  }, [fetchMyTrips, fetchMyExpenses]);
 
   const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
 
@@ -57,39 +56,24 @@ const DriverDashboard = () => {
     safetyScore: 98
   };
 
-  const newAssignment = myTrips.find(t => t.status === 'Assigned' || t.status === 'DRIVER_ASSIGNED');
+  // myTrips contains Trip documents; Trip.status = 'ASSIGNED' when waiting for driver to start
+  const newAssignment = myTrips.find(t => t.status === 'ASSIGNED');
   const liveTrip = activeTrip;
 
   const handleAccept = async () => {
-    if (incomingAssignment) {
-      try {
-        const { apiClient } = await import('../../services/apiClient');
-        await apiClient.patch('/tapals/start-trip', { tapalId: incomingAssignment.tapalId });
-        clearIncomingAssignment();
-        // Fallback for local store
-        driverAcceptTrip(incomingAssignment.tapalId);
-        toast.success('Task Accepted!');
-        navigate('/driver/active-trip');
-      } catch (err) {
-        toast.error('Failed to accept trip');
-      }
-    } else if (newAssignment) {
-      driverAcceptTrip(newAssignment.tapalId);
-      toast.success('Task Accepted!');
+    const tripData = incomingAssignment || newAssignment;
+    if (!tripData) return;
+    try {
+      // Use startTripAsync from driverStore — calls PATCH /tapals/start-trip
+      // Trip.tapalId is populated (has ._id) or is a raw ObjectId string
+      const tapalId = tripData.tapalId?._id || tripData.tapalId || tripData._id;
+      await startTripAsync(tapalId);
+      clearIncomingAssignment();
+      await fetchMyTrips();
+      toast.success('Trip Started! Drive safe.');
       navigate('/driver/active-trip');
-    }
-  };
-
-  const handleReject = async () => {
-    if (incomingAssignment) {
-      try {
-        const { apiClient } = await import('../../services/apiClient');
-        await apiClient.patch('/tapals/reject-trip', { tapalId: incomingAssignment.tapalId });
-        clearIncomingAssignment();
-        toast.success('Task Rejected');
-      } catch (err) {
-        toast.error('Failed to reject trip');
-      }
+    } catch (err) {
+      toast.error(err?.message || 'Failed to start trip');
     }
   };
 

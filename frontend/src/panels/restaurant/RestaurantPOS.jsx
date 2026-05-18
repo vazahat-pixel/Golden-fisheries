@@ -126,10 +126,10 @@ const RestaurantPOS = () => {
       tableLabel: tableLabel || 'COUNTER',
       orderType,
       items: cart.map(item => ({
-        menuId: item.id,
+        productId: item.id,
         name: item.name,
         quantity: item.qty,
-        price: item.price,
+        rate: item.price,
         gstRate: item.gstRate,
         notes: item.notes
       })),
@@ -138,6 +138,7 @@ const RestaurantPOS = () => {
       discount: calculateDiscount(),
       coupon: appliedCoupon ? appliedCoupon.code : null,
       total,
+      paymentMethod: paymentMode.toUpperCase(),
       paymentBreakdown: isMixedPayment ? mixedPayment : { [paymentMode.toLowerCase()]: total },
       staffName: user?.name || 'Staff'
     };
@@ -146,7 +147,7 @@ const RestaurantPOS = () => {
       const res = await settleOrderAsync(orderData);
       setLastOrder({ 
         ...orderData, 
-        invoiceNo: res?.invoiceNo || `ORD-${Date.now()}`, 
+        invoiceNo: res?.data?.orderNumber || res?.orderNumber || res?.invoiceNo || `ORD-${Date.now()}`, 
         timestamp: new Date().toISOString() 
       });
       setShowInvoice(true);
@@ -418,7 +419,7 @@ const RestaurantPOS = () => {
               </div>
 
               <div className="pt-10">
-                <Button onClick={handleSettle} className="w-full py-5 bg-black text-white border-none text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-black/20 active:scale-95 transition-all">
+                <Button onClick={handleSettle} disabled={loading} className="w-full py-5 bg-black text-white border-none text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-black/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                   AUTHORIZE & SETTLE
                 </Button>
                 <p className="text-[7px] text-center text-slate-400 font-black uppercase tracking-widest mt-4 opacity-50">GF_TERM_V4 // SECURE_TRANSACT</p>

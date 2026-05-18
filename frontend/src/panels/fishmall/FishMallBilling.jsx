@@ -67,21 +67,25 @@ const FishMallBilling = () => {
     const billData = {
       items: cart.map(item => ({
         productId: item.id,
-        name: item.name,
-        quantity: item.weight,
+        fishName: item.name,
+        scaleWeight: item.weight,
         rate: item.rate,
         total: item.total
       })),
       subtotal: calculateSubtotal(),
       additional: calculateAdditionalTotal(),
       total: calculateTotal(),
-      paymentMethod,
+      paymentMethod: paymentMethod === 'Cash' ? 'CASH' : 'UPI',
       charges: additionalCharges
     };
 
     try {
-      await createSaleAsync(billData);
-      setLastBill({ ...billData, id: `FM-${Date.now()}`, timestamp: new Date().toISOString() });
+      const res = await createSaleAsync(billData);
+      setLastBill({ 
+        ...billData, 
+        id: res?.data?.saleNumber || res?.saleNumber || `FM-${Date.now()}`, 
+        timestamp: new Date().toISOString() 
+      });
       setShowInvoice(true);
       toast.success('Bill finalized & Stock Adjusted!');
     } catch (err) {
@@ -291,7 +295,7 @@ const FishMallBilling = () => {
             <Button 
               onClick={handleFinish}
               className="w-full py-6 text-[10px] font-black uppercase tracking-[0.2em] gap-3 bg-[#6B7550] text-white hover:bg-black border-none shadow-xl shadow-[#6B7550]/20 active:scale-[0.98] transition-all rounded-xl"
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || loading}
             >
               <Printer size={16} /> Finish & Print
             </Button>
