@@ -12,22 +12,18 @@ class VehicleService extends BaseService {
    * Search and filter vehicles
    */
   async findVehiclesWithFilters(queryParams) {
-    const { page = 1, limit = 10, search, status, ownVehicle } = queryParams;
+    const { page = 1, limit = 10, search, status } = queryParams;
     const filter = {};
 
     if (status) {
       filter.status = status;
     }
 
-    if (ownVehicle !== undefined) {
-      filter.ownVehicle = ownVehicle === 'true';
-    }
-
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       filter.$or = [
         { vehicleNumber: searchRegex },
-        { vehicleType: searchRegex }
+        { type: searchRegex }
       ];
     }
 

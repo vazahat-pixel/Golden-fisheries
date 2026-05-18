@@ -962,12 +962,12 @@ export const useAdminStore = create(
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
           const mapped = list.map(v => ({
             id: v._id,
-            model: v.model || '',
-            plateNumber: v.plateNumber || '',
+            model: v.type || '',
+            plateNumber: v.vehicleNumber || '',
             capacity: v.capacity || '',
             type: v.type || 'REEFER',
-            status: v.status || 'ACTIVE',
-            expiryDate: v.expiryDate ? new Date(v.expiryDate).toISOString().slice(0, 10) : '2028-12-31'
+            status: v.status || 'Active',
+            expiryDate: v.documents?.rc?.expiry ? new Date(v.documents.rc.expiry).toISOString().slice(0, 10) : '2028-12-31'
           }));
           set({ vehicles: mapped, loading: false });
         } catch (err) {

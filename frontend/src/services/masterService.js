@@ -43,7 +43,7 @@ export const masterService = {
       const response = await apiClient.post('/vehicles/upload-document', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      return response.data;
+      return response;
     }
   },
   drivers: {

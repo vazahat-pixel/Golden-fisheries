@@ -10,37 +10,38 @@ const vehicleSchema = new mongoose.Schema(
       uppercase: true,
       index: true
     },
-    vehicleType: {
+    type: {
       type: String,
-      required: true,
-      enum: ['Mini Truck', 'Pickup', 'Tempo', 'Big Truck'],
-      default: 'Mini Truck'
+      required: true
     },
-    ownVehicle: {
-      type: Boolean,
-      required: true,
-      default: true
+    capacity: {
+      type: String
     },
-    rcNumber: {
+    fuelType: {
       type: String,
-      trim: true,
-      uppercase: true
+      default: 'Diesel'
     },
-    rcExpiry: {
-      type: Date
-    },
-    insuranceNumber: {
+    gpsId: {
       type: String,
       trim: true
     },
-    insuranceExpiry: {
-      type: Date
+    assignedDriverId: {
+      type: String
+    },
+    assignedDriverName: {
+      type: String
+    },
+    documents: {
+      rc: { status: String, expiry: Date, url: String },
+      insurance: { status: String, expiry: Date, url: String },
+      permit: { status: String, expiry: Date, url: String },
+      fitness: { status: String, expiry: Date, url: String },
+      pollution: { status: String, expiry: Date, url: String }
     },
     status: {
       type: String,
       required: true,
-      enum: ['AVAILABLE', 'ON_TRIP', 'MAINTENANCE', 'INACTIVE'],
-      default: 'AVAILABLE',
+      default: 'Active',
       index: true
     }
   },
