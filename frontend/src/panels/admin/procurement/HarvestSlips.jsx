@@ -207,7 +207,7 @@ export default function HarvestSlips() {
             </thead>
             <tbody className="divide-y divide-olive-100/50">
               {filtered.map(slip => {
-                const cfg = STATUS_CONFIG[slip.status] || STATUS_CONFIG.pending;
+                const cfg = STATUS_CONFIG[(slip.status || '').toUpperCase()] || STATUS_CONFIG.PENDING;
                 const StatusIcon = cfg.icon;
                 return (
                   <tr key={slip._id || slip.id} className="hover:bg-olive-50/50 transition-colors group">
