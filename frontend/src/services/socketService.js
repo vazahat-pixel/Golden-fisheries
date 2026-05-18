@@ -2,6 +2,8 @@ import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/authStore';
 import { useAdminStore } from '../store/adminStore';
 import { useDriverStore } from '../store/driverStore';
+import { useRestaurantStore } from '../store/restaurantStore';
+import { useFishMallStore } from '../store/fishMallStore';
 
 class SocketService {
   constructor() {
@@ -131,9 +133,30 @@ class SocketService {
       // Integration of toast or badge is naturally reactive via event hooks
     });
 
+    // 5. Restaurant Order Sync
+    this.socket.on('restaurant:order_created', (data) => {
+      console.log('[Socket Received - Restaurant Order]:', data);
+      useRestaurantStore.getState().fetchOrders?.();
+    });
+
+    // 6. Fish Mall Sale Sync
+    this.socket.on('fishmall:sale_created', (data) => {
+      console.log('[Socket Received - Fish Mall Sale]:', data);
+      useFishMallStore.getState().fetchStock?.();
+    });
+
     // 4. Driver Assignment Notification
     this.socket.on('trip:new_assignment', (data) => {
       console.log('[Socket Received - New Trip Assignment]:', data);
+      
+      // Play notification sound
+      try {
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(e => console.warn('[Socket] Audio play blocked by browser:', e.message));
+      } catch (err) {
+        console.warn('[Socket] Failed to play audio:', err.message);
+      }
+
       const driverStore = useDriverStore.getState();
       if (driverStore.setIncomingAssignment) {
         driverStore.setIncomingAssignment(data);

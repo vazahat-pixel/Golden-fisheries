@@ -27,7 +27,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAdminStore } from '../../store/adminStore';
-import driverMockData from '../../data/driverMockData.json';
 
 const DriverProfile = () => {
   const navigate = useNavigate();
@@ -37,7 +36,19 @@ const DriverProfile = () => {
 
   const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
   
-  const pilotData = driverMockData.profile;
+  const pilotData = {
+    name: 'Unknown Driver',
+    phone: 'N/A',
+    email: 'N/A',
+    location: 'N/A',
+    status: 'ACTIVE',
+    rank: 'PILOT',
+    stats: {
+      totalKm: '0',
+      safetyScore: '100'
+    }
+  };
+  
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || pilotData.name,

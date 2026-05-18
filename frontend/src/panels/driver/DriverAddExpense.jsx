@@ -60,21 +60,24 @@ const DriverAddExpense = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!expenseForm.amount) return toast.error('Enter expense amount');
     if (!expenseForm.description.trim()) return toast.error('Add a description');
 
-    submitExpense({
-      driverName: user?.name || 'RAJESH KUMAR',
-      tripId: expenseForm.tripId || null,
-      type: expenseForm.type,
-      amount: Number(expenseForm.amount),
-      description: expenseForm.description.trim(),
-      receiptPhoto: expenseForm.receiptPhoto,
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    });
-
-    setSubmitted(true);
+    try {
+      await submitExpense({
+        driverName: user?.name || 'RAJESH KUMAR',
+        tripId: expenseForm.tripId || null,
+        type: expenseForm.type,
+        amount: Number(expenseForm.amount),
+        description: expenseForm.description.trim(),
+        receiptPhoto: expenseForm.receiptPhoto,
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      });
+      setSubmitted(true);
+    } catch (err) {
+      toast.error('Failed to submit expense');
+    }
   };
 
   const selectedCat = categories.find(c => c.id === expenseForm.type);

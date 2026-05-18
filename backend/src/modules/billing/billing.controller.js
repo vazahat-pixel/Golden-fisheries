@@ -25,5 +25,20 @@ export const billingController = {
   patchPayment: asyncWrapper(async (req, res) => {
     const invoice = await billingService.updatePayment(req.params.id, req.body, req.user.id);
     new ApiResponse(200, { invoice }, 'Payment recorded successfully').send(res);
+  }),
+
+  // Public payment recording
+  patchPaymentPublic: asyncWrapper(async (req, res) => {
+    const invoice = await billingService.findById(req.params.id);
+    if (!invoice) throw new AppError('Invoice not found', 404);
+    
+    const remaining = invoice.totalAmount - (invoice.paidAmount || 0);
+    
+    const updatedInvoice = await billingService.updatePayment(req.params.id, {
+      paymentAmount: remaining,
+      paymentMethod: req.body.paymentMethod || 'UPI'
+    }, null);
+    
+    new ApiResponse(200, { invoice: updatedInvoice }, 'Payment recorded successfully').send(res);
   })
 };

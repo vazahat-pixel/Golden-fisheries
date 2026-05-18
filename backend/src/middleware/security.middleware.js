@@ -14,6 +14,17 @@ export const authRateLimiter = rateLimit({
   }
 });
 
+export const otpRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes window
+  max: 10, // Limit each IP to 10 OTP requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next) => {
+    logger.warn(`[OTP Rate Limiter Alert]: Brute-force threshold hit from IP: ${req.ip} on route: ${req.originalUrl}`);
+    next(new AppError('Too many attempts. Please try again after 15 minutes.', 429));
+  }
+});
+
 export const generalApiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 120, // Limit each IP to 120 API requests per minute

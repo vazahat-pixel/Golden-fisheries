@@ -18,7 +18,12 @@ import { useFishMallStore } from '../../store/fishMallStore';
 import { Button } from '../../design-system/components/Button';
 
 const FishMallStock = () => {
-  const { stock, updateStockQty, stockLogs, addStockItem } = useFishMallStore();
+  const { stock, updateStockQty, stockLogs, addStockItem, fetchStock } = useFishMallStore();
+  
+  React.useEffect(() => {
+    fetchStock();
+  }, [fetchStock]);
+
   const [activeTab, setActiveTab] = useState('inventory');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(stock[0]?.id || '');

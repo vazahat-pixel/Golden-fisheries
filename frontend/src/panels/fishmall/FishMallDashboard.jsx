@@ -5,7 +5,11 @@ import { Button } from '../../design-system/components/Button';
 import { useFishMallStore } from '../../store/fishMallStore';
 
 const FishMallDashboard = () => {
-  const { stock, bills } = useFishMallStore();
+  const { stock, bills, fetchStock } = useFishMallStore();
+
+  React.useEffect(() => {
+    fetchStock();
+  }, [fetchStock]);
 
   const totalVolume = bills.reduce((acc, b) => acc + b.items.reduce((sum, i) => sum + i.weight, 0), 0);
   const totalSales = bills.reduce((acc, b) => acc + b.total, 0);

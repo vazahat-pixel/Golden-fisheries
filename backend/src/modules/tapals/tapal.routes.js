@@ -24,6 +24,13 @@ router.get(
   tapalController.all
 );
 
+// 2.1 Fetch all Trips
+router.get(
+  '/trips/all',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  tapalController.allTrips
+);
+
 // 3. Assign Driver & Vehicle to Tapal (Launches active trip)
 router.patch(
   '/assign-driver',

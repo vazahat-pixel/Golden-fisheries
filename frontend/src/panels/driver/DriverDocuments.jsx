@@ -19,6 +19,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { driverService } from '../../services/driverService';
 
 const DriverDocuments = () => {
   const navigate = useNavigate();
@@ -28,12 +29,28 @@ const DriverDocuments = () => {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [viewingDoc, setViewingDoc] = useState(null);
 
-  const [docs, setDocs] = useState([
-    { id: 'aadhaar', label: 'Aadhaar Card', value: 'XXXX-XXXX-9021', icon: CreditCard, status: 'Verified', image: '/docs/aadhaar_placeholder.png' },
-    { id: 'license', label: 'Driving License', value: 'KA-19-20220011223', expiry: 'Dec 31, 2028', icon: FileText, status: 'Verified', image: '/docs/license_placeholder.png' },
-    { id: 'rc', label: 'Vehicle RC', value: 'KA-19-GF-001', icon: Truck, status: 'Verified', image: '/docs/rc_placeholder.png' },
-    { id: 'insurance', label: 'Insurance Policy', expiry: 'Aug 15, 2026', icon: ShieldCheck, status: 'Active', image: '/docs/insurance_placeholder.png' },
-  ]);
+  const [docs, setDocs] = useState([]);
+
+  React.useEffect(() => {
+    const fetchDocs = async () => {
+      try {
+        const res = await driverService.getMyProfile();
+        const profile = res?.data || res;
+        if (profile) {
+          setDocs([
+            { id: 'aadhaar', label: 'Aadhaar Card', value: profile.aadhaarNumber || 'Not Provided', icon: CreditCard, status: profile.registrationStatus === 'active' ? 'Verified' : 'Pending', image: profile.aadhaarFrontUrl },
+            { id: 'license', label: 'Driving License', value: profile.licenseNumber || 'Not Provided', expiry: profile.licenseExpiry ? new Date(profile.licenseExpiry).toLocaleDateString() : null, icon: FileText, status: profile.registrationStatus === 'active' ? 'Verified' : 'Pending', image: profile.licenseFrontUrl },
+            { id: 'rc', label: 'Vehicle RC', value: profile.vehicleNumber || 'Not Provided', icon: Truck, status: profile.registrationStatus === 'active' ? 'Verified' : 'Pending', image: profile.rcUrl },
+            { id: 'insurance', label: 'Insurance Policy', expiry: profile.insuranceExpiry ? new Date(profile.insuranceExpiry).toLocaleDateString() : null, icon: ShieldCheck, status: profile.registrationStatus === 'active' ? 'Active' : 'Pending', image: profile.insuranceUrl },
+          ]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch driver profile', err);
+        toast.error('Failed to load documents');
+      }
+    };
+    fetchDocs();
+  }, []);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];

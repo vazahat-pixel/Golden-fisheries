@@ -25,26 +25,14 @@ import {
   Cell
 } from 'recharts';
 
-const chartData = [
-  { name: 'Mon', revenue: 45000 },
-  { name: 'Tue', revenue: 52000 },
-  { name: 'Wed', revenue: 48000 },
-  { name: 'Thu', revenue: 61000 },
-  { name: 'Fri', revenue: 55000 },
-  { name: 'Sat', revenue: 67000 },
-  { name: 'Sun', revenue: 72000 },
-];
-
-const topProducts = [
-  { name: 'Rohu', value: 85 },
-  { name: 'Catla', value: 65 },
-  { name: 'Prawns', value: 45 },
-  { name: 'Others', value: 30 },
-];
+// Hardcoded data removed - now fetched from API
 
 const AdminDashboard = () => {
   const { tapals, inventory, invoices, transactions, fetchDashboardStats, dashboardStats, loading } = useAdminStore();
   const { user } = useAuthStore();
+
+  const chartData = dashboardStats?.revenueChart || [];
+  const topProducts = dashboardStats?.topProducts || [];
 
   React.useEffect(() => {
     fetchDashboardStats();
@@ -121,7 +109,7 @@ const AdminDashboard = () => {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
                     <XAxis 
-                      dataKey="name" 
+                      dataKey="month" 
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fill: '#9CA3AF', fontSize: 10, fontWeight: 700 }} 
@@ -144,7 +132,7 @@ const AdminDashboard = () => {
                     />
                     <Area 
                       type="monotone" 
-                      dataKey="revenue" 
+                      dataKey="amount" 
                       stroke="#6B7550" 
                       strokeWidth={2}
                       fillOpacity={1} 

@@ -12,11 +12,18 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import driverMockData from '../../data/driverMockData.json';
 
 const DriverSupport = () => {
   const navigate = useNavigate();
-  const { support } = driverMockData;
+  const support = {
+    emergencyContact: '9876543210',
+    dispatchOffice: '080-1234567',
+    faqs: [
+      { q: 'How do I log fuel expenses?', a: 'Go to the Active Trip console and tap "Add Expense". Take a photo of the receipt and submit.' },
+      { q: 'What if the buyer refuses delivery?', a: 'Do not leave the site. Call the Dispatch Office immediately using the Emergency Line.' },
+      { q: 'How are payouts calculated?', a: 'Payouts are processed weekly based on verified trip distance and approved expenses.' }
+    ]
+  };
 
   const helpChannels = [
     { 

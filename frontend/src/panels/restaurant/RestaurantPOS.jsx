@@ -17,12 +17,14 @@ const RestaurantPOS = () => {
   const { user } = useAuthStore();
   const { 
     menuItems, tables, kots, coupons,
-    createKOT, settleOrderAsync, fetchOrders, updateTableStatus, loading 
+    createKOT, settleOrderAsync, fetchOrders, fetchMenu, fetchTables, updateTableStatus, loading 
   } = useRestaurantStore();
 
   React.useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchMenu();
+    fetchTables();
+  }, [fetchOrders, fetchMenu, fetchTables]);
 
   const [orderType, setOrderType] = useState('Dine In');
   const [tableLabel, setTableLabel] = useState('');

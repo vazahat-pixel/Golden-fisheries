@@ -6,8 +6,6 @@ import { billingService } from '../services/billingService';
 import { harvestService } from '../services/harvestService';
 import { expenseService } from '../services/expenseService';
 import { reportsService } from '../services/reportsService';
-import mockData from '../data/mockData.json';
-import vehicleMockData from '../data/vehicleMockData.json';
 import { useRestaurantStore } from './restaurantStore';
 import { useFishMallStore } from './fishMallStore';
 import { useDriverStore } from './driverStore';
@@ -21,96 +19,23 @@ export const useAdminStore = create(
   persist(
     (set, get) => ({
       // Data
-      tapals: mockData.admin.tapals || [],
-      inventory: [
-        { id: 1, name: 'ROHU FISH', category: 'FRESHWATER', qty: 450, unit: 'KG', price: 85, status: 'in-stock' },
-        { id: 2, name: 'CATLA FISH', category: 'FRESHWATER', qty: 320, unit: 'KG', price: 90, status: 'in-stock' },
-        { id: 3, name: 'TIGER PRAWNS', category: 'SEAFOOD', qty: 15, unit: 'KG', price: 450, status: 'low-stock' },
-        { id: 4, name: 'SQUID', category: 'SEAFOOD', qty: 0, unit: 'KG', price: 280, status: 'out-of-stock' },
-        { id: 5, name: 'MRIGAL', category: 'FRESHWATER', qty: 180, unit: 'KG', price: 75, status: 'in-stock' },
-      ],
-      invoices: [
-        { id: 'INV-1001', client: 'GOLDEN RESTAURANT', type: 'SALES', amount: '₹12,450', numericAmount: 12450, date: '30 APR 2026', status: 'paid' },
-        { id: 'INV-1002', client: 'FISH MALL RETAIL', type: 'SALES', amount: '₹8,900', numericAmount: 8900, date: '30 APR 2026', status: 'pending' },
-        { id: 'INV-1003', client: 'DEEP SEA FARMS', type: 'PROCUREMENT', amount: '₹45,000', numericAmount: 45000, date: '29 APR 2026', status: 'paid' },
-        { id: 'INV-1004', client: 'BLUE WATER HOTEL', type: 'SALES', amount: '₹18,200', numericAmount: 18200, date: '29 APR 2026', status: 'overdue' },
-        { id: 'INV-1005', client: 'COASTAL CUISINES', type: 'SALES', amount: '₹6,750', numericAmount: 6750, date: '28 APR 2026', status: 'paid' },
-      ],
-      drivers: [
-        { id: 1, name: 'Suresh Kumar', phone: '+91 98765 43210', vehicle: 'MH-12-AS-4567', status: 'active', rating: 4.8, trips: 142 },
-        { id: 2, name: 'Ramesh Singh', phone: '+91 98765 43211', vehicle: 'MH-12-BT-8890', status: 'on-trip', rating: 4.5, trips: 98 },
-        { id: 3, name: 'Abdul Khan', phone: '+91 98765 43212', vehicle: 'MH-12-CQ-1122', status: 'inactive', rating: 4.2, trips: 215 },
-      ],
-      users: [
-        { id: 1, name: 'MAHESH KUMAR', email: 'mahesh@mke.com', role: 'ADMIN', status: 'ACTIVE', lastLogin: '10 MINS AGO' },
-        { id: 2, name: 'CHANNAPPA S.', email: 'channappa@mke.com', role: 'MANAGER', status: 'ACTIVE', lastLogin: '2 HRS AGO' },
-        { id: 3, name: 'LOKESH B.', email: 'lokesh@mke.com', role: 'BILLING', status: 'ACTIVE', lastLogin: 'YESTERDAY' },
-        { id: 4, name: 'RAMU K.', email: 'ramu@mke.com', role: 'DRIVER', status: 'INACTIVE', lastLogin: '3 DAYS AGO' },
-      ],
-      transactions: [
-        { date: '30/04/26', desc: 'Diesel KA-01-AX-1234', method: 'Cash', type: 'expense', amount: 1200 },
-        { date: '29/04/26', desc: 'Payment - Golden Rest.', method: 'UPI', type: 'income', amount: 12500 },
-        { date: '29/04/26', desc: 'Ramu Fisheries Purchase', method: 'Bank Transfer', type: 'expense', amount: 40000 },
-        { date: '28/04/26', desc: 'Fish Mall Daily Sales', method: 'Cash', type: 'income', amount: 18400 },
-      ],
-
-      trips: mockData.driver?.trips || [],
+      tapals: [],
+      inventory: [],
+      invoices: [],
+      drivers: [],
+      users: [],
+      transactions: [],
+      trips: [],
       incomingStock: [],
       purchaseInvoices: [],
 
       // Expense Ledger — pending admin approval before hitting accounts
-      expenses: [
-        {
-          id: 'EXP-0001',
-          driverName: 'Suresh Kumar',
-          tripId: 'TRP-0001',
-          type: 'FUEL',
-          amount: 1200,
-          description: 'Diesel fill at HP Pump, NH-48',
-          receiptPhoto: null,
-          date: '10 May 2026',
-          submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'Pending',
-          reviewedBy: null,
-          reviewedAt: null,
-          rejectionReason: null
-        },
-        {
-          id: 'EXP-0002',
-          driverName: 'Ramesh Singh',
-          tripId: 'TRP-0002',
-          type: 'TOLL',
-          amount: 340,
-          description: 'Toll Plaza — Bangalore-Mysore Expressway',
-          receiptPhoto: null,
-          date: '11 May 2026',
-          submittedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'Approved',
-          reviewedBy: 'MAHESH KUMAR',
-          reviewedAt: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
-          rejectionReason: null
-        },
-        {
-          id: 'EXP-0003',
-          driverName: 'Suresh Kumar',
-          tripId: null,
-          type: 'MAINTENANCE',
-          amount: 2800,
-          description: 'Tyre puncture repair — Mangalore highway',
-          receiptPhoto: null,
-          date: '12 May 2026',
-          submittedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          status: 'Rejected',
-          reviewedBy: 'MAHESH KUMAR',
-          reviewedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          rejectionReason: 'Duplicate submission — already covered in TRP-0001 maintenance log'
-        },
-      ],
+      expenses: [],
 
       // Vehicle Fleet State
-      vehicles: vehicleMockData.vehicles || [],
-      maintenanceLogs: vehicleMockData.maintenanceLogs || [],
-      vehiclePerformance: vehicleMockData.performance || [],
+      vehicles: [],
+      maintenanceLogs: [],
+      vehiclePerformance: [],
 
       // Dashboard KPIs
       dashboardStats: null,
@@ -126,42 +51,11 @@ export const useAdminStore = create(
         }
       },
 
-      // Master Lists Async
-      fetchInventory: async (params = {}) => {
-        set({ loading: true });
-        try {
-          const res = await masterService.products.getAll(params);
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ inventory: list, loading: false });
-        } catch (err) {
-          console.warn('Backend fetchInventory failed:', err.message);
-          set({ loading: false });
-        }
-      },
 
-      fetchDrivers: async (params = {}) => {
-        set({ loading: true });
-        try {
-          const res = await masterService.drivers.getAll(params);
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ drivers: list, loading: false });
-        } catch (err) {
-          console.warn('Backend fetchDrivers failed:', err.message);
-          set({ loading: false });
-        }
-      },
 
-      fetchVehicles: async (params = {}) => {
-        set({ loading: true });
-        try {
-          const res = await masterService.vehicles.getAll(params);
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ vehicles: list, loading: false });
-        } catch (err) {
-          console.warn('Backend fetchVehicles failed:', err.message);
-          set({ loading: false });
-        }
-      },
+
+
+
 
       fetchFarmers: async (params = {}) => {
         set({ loading: true });
@@ -175,17 +69,7 @@ export const useAdminStore = create(
         }
       },
 
-      fetchBuyers: async (params = {}) => {
-        set({ loading: true });
-        try {
-          const res = await masterService.buyers.getAll(params);
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ buyers: list, loading: false });
-        } catch (err) {
-          console.warn('Backend fetchBuyers failed:', err.message);
-          set({ loading: false });
-        }
-      },
+
 
       // Tapals Async
       fetchTapals: async (params = {}) => {
@@ -195,7 +79,36 @@ export const useAdminStore = create(
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
           set({ tapals: list, loading: false });
         } catch (err) {
-          console.warn('Backend fetchTapals failed, using mock persistence:', err.message);
+          console.warn('Backend fetchTapals failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      fetchTrips: async () => {
+        set({ loading: true });
+        try {
+          const res = await tapalService.allTrips();
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(t => ({
+            id: t._id,
+            tripNumber: t.tripNumber,
+            tapalId: t.tapalId?._id || t.tapalId,
+            driverId: t.driverId?._id || t.driverId,
+            driverName: t.driverId?.fullName || 'Driver',
+            vehicle: t.vehicleId?.plateNumber || 'Vehicle',
+            status: t.status,
+            pickupLocation: t.pickupLocation,
+            deliveryLocation: t.deliveryLocation,
+            product: 'Cargo',
+            expectedQty: t.expectedQty,
+            actualQty: t.actualDeliveredQty || t.actualPickupQty,
+            createdAt: new Date(t.createdAt).toLocaleTimeString(),
+            expenses: t.expenses || [],
+            timeline: t.timeline || []
+          }));
+          set({ trips: mapped, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchTrips failed:', err.message);
           set({ loading: false });
         }
       },
@@ -353,15 +266,51 @@ export const useAdminStore = create(
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
           set({ expenses: list, loading: false });
         } catch (err) {
-          console.warn('Backend fetchExpenses failed, using mock persistence:', err.message);
+          console.warn('Backend fetchExpenses failed:', err.message);
           set({ loading: false });
         }
       },
 
-      approveExpenseAsync: async (id) => {
+      fetchTransactions: async () => {
         set({ loading: true });
         try {
-          await expenseService.approve(id, 'APPROVED');
+          const [invoicesRes, expensesRes] = await Promise.all([
+            billingService.all(),
+            expenseService.all()
+          ]);
+          
+          const invoices = invoicesRes?.docs || invoicesRes?.data || [];
+          const expenses = expensesRes?.docs || expensesRes?.data || [];
+          
+          const tx1 = invoices.map(inv => ({
+            date: new Date(inv.createdAt).toLocaleDateString(),
+            desc: `Invoice ${inv.invoiceNumber} - ${inv.partyName}`,
+            method: 'Bank Transfer',
+            type: inv.type === 'Sale' ? 'income' : 'expense',
+            amount: inv.numericAmount
+          }));
+          
+          const tx2 = expenses.map(exp => ({
+            date: new Date(exp.expenseCode || 'EXP').toLocaleDateString(), // Fallback if date is missing
+            desc: `Expense ${exp.expenseCode || 'EXP'} - ${exp.payee || 'Payee'}`,
+            method: 'Cash',
+            type: 'expense',
+            amount: exp.amount
+          }));
+          
+          const allTx = [...tx1, ...tx2].sort((a, b) => new Date(b.date) - new Date(a.date));
+          set({ transactions: allTx, loading: false });
+        } catch (err) {
+          console.warn('Backend fetchTransactions failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      reviewExpenseAsync: async (id, status, reason = null) => {
+        set({ loading: true });
+        try {
+          const upperStatus = status.toUpperCase(); // Convert to UPPERCASE for backend enum
+          await expenseService.approve(id, upperStatus);
           await get().fetchExpenses();
           set({ loading: false });
         } catch (err) {
@@ -549,35 +498,18 @@ export const useAdminStore = create(
 
       // --- Expense Lifecycle Actions ---
 
-      // Driver submits an expense — stays Pending until admin reviews
-      submitExpense: (expenseData) => set((state) => {
-        const newExpense = {
-          ...expenseData,
-          id: generateId('EXP', state.expenses),
-          submittedAt: new Date().toISOString(),
-          status: 'Pending',
-          reviewedBy: null,
-          reviewedAt: null,
-          rejectionReason: null
-        };
-
-        // Also mark trip as 'Expense Submitted' if a trip is linked
-        const linkedTrip = expenseData.tripId
-          ? state.trips.find(t => t.id === expenseData.tripId)
-          : null;
-
-        return {
-          expenses: [newExpense, ...state.expenses],
-          trips: linkedTrip
-            ? state.trips.map(t => t.id === linkedTrip.id
-                ? { ...t, status: 'Expense Submitted', expenses: [...(t.expenses || []), newExpense] }
-                : t)
-            : state.trips,
-          tapals: linkedTrip
-            ? state.tapals.map(t => t.id === linkedTrip.tapalId ? { ...t, status: 'Expense Submitted' } : t)
-            : state.tapals
-        };
-      }),
+      // Driver submits an expense
+      submitExpense: async (expenseData) => {
+        set({ loading: true });
+        try {
+          await expenseService.create(expenseData);
+          await get().fetchExpenses();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
       // Admin approves — now posts to accounts/transactions
       approveExpense: (id, reviewerName = 'ADMIN') => set((state) => {
@@ -720,54 +652,63 @@ export const useAdminStore = create(
         transactions: [tx, ...state.transactions]
       })),
 
-      farmers: [
-        { id: 'FRM-001', name: 'RAMU FISHERIES', mobile: '+91 98765 43210', location: 'HASSAN', village: 'Hemavathi', whatsapp: true, active: true, totalSlips: 12 },
-        { id: 'FRM-002', name: 'DEEP SEA FARMS', mobile: '+91 98765 43211', location: 'MANGALORE', village: 'Ullal', whatsapp: true, active: true, totalSlips: 8 },
-        { id: 'FRM-003', name: 'COASTAL HARVEST', mobile: '+91 98765 43212', location: 'UDUPI', village: 'Malpe', whatsapp: false, active: false, totalSlips: 5 },
-      ],
+      farmers: [],
+      harvestSlips: [],
 
-      harvestSlips: [
-        {
-          id: 'HSL-0001', slipNo: 1, status: 'confirmed', createdBy: 'Mahesh', createdAt: '2026-04-29',
-          farmer: { id: 'FRM-001', name: 'RAMU FISHERIES', mobile: '+91 98765 43210', location: 'HASSAN', village: 'Hemavathi' },
-          products: [{ id: 1, fishName: 'Rohu', category: 'Freshwater', quantity: 500, unit: 'KG', qualityType: 'A', estimatedWeight: 510, rate: 85, confirmedQty: 500 }],
-          harvestDate: '2026-05-01', pickupDate: '2026-05-02', pickupTime: '06:00 AM',
-          pickupLocation: 'Hemavathi Pond, Hassan', logisticsNotes: 'Ice required',
-          remarks: '', attachmentUrl: null, rejectedReason: null, convertedToTapalId: 'PUR-1001',
-        },
-        {
-          id: 'HSL-0002', slipNo: 2, status: 'sent', createdBy: 'Mahesh', createdAt: '2026-04-30',
-          farmer: { id: 'FRM-002', name: 'DEEP SEA FARMS', mobile: '+91 98765 43211', location: 'MANGALORE', village: 'Ullal' },
-          products: [
-            { id: 1, fishName: 'Tiger Prawns', category: 'Seafood', quantity: 200, unit: 'KG', qualityType: 'A', estimatedWeight: null, rate: null, confirmedQty: null },
-            { id: 2, fishName: 'Squid', category: 'Seafood', quantity: 100, unit: 'KG', qualityType: 'B', estimatedWeight: null, rate: null, confirmedQty: null },
-          ],
-          harvestDate: '2026-05-03', pickupDate: '2026-05-04', pickupTime: '07:00 AM',
-          pickupLocation: 'Ullal Jetty, Mangalore', logisticsNotes: '',
-          remarks: 'Call before pickup', attachmentUrl: null, rejectedReason: null, convertedToTapalId: null,
-        },
-        {
-          id: 'HSL-0003', slipNo: 3, status: 'pending', createdBy: 'Mahesh', createdAt: '2026-05-01',
-          farmer: { id: 'FRM-001', name: 'RAMU FISHERIES', mobile: '+91 98765 43210', location: 'HASSAN', village: 'Hemavathi' },
-          products: [{ id: 1, fishName: 'Catla', category: 'Freshwater', quantity: 300, unit: 'KG', qualityType: 'Mix', estimatedWeight: null, rate: 90, confirmedQty: null }],
-          harvestDate: '2026-05-06', pickupDate: '2026-05-07', pickupTime: '05:30 AM',
-          pickupLocation: 'Hemavathi Pond, Hassan', logisticsNotes: 'Narrow road — small truck only',
-          remarks: '', attachmentUrl: null, rejectedReason: null, convertedToTapalId: null,
-        },
-      ],
+      fetchHarvestSlips: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await harvestService.all(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ harvestSlips: list, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch harvest slips', err);
+          set({ loading: false });
+        }
+      },
 
-      addHarvestSlip: (slip) => set((state) => ({
-        harvestSlips: [slip, ...state.harvestSlips],
-        farmers: state.farmers.map(f =>
-          f.id === slip.farmer.id ? { ...f, totalSlips: f.totalSlips + 1 } : f
-        ),
-      })),
+      addHarvestSlip: async (slipData) => {
+        set({ loading: true });
+        try {
+          await harvestService.create(slipData);
+          await get().fetchHarvestSlips();
+          await get().fetchFarmers();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
       updateSlipStatus: (id, status, extra = {}) => set((state) => ({
         harvestSlips: state.harvestSlips.map(s =>
           s.id === id ? { ...s, status, ...extra } : s
         ),
       })),
+
+      updateHarvestStatusAsync: async (id, status) => {
+        set({ loading: true });
+        try {
+          await harvestService.updateStatus(id, status);
+          await get().fetchHarvestSlips();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      convertSlipToTapalAsync: async (id) => {
+        set({ loading: true });
+        try {
+          await harvestService.convertToTapal(id);
+          await get().fetchHarvestSlips();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
 
       addFarmer: (farmer) => set((state) => ({
         farmers: [...state.farmers, { ...farmer, id: generateId('FRM', state.farmers), totalSlips: 0, active: true }],
@@ -776,14 +717,22 @@ export const useAdminStore = create(
       // ── API State variables ────────────────────────────────────
       loading: false,
       error: null,
-      vehicles: [
-        { id: 'VEH-0001', model: 'TATA ACE', plateNumber: 'KA-04-A-1234', capacity: '1.2 Tons', type: 'REEFER', status: 'ACTIVE', expiryDate: '2028-12-31' },
-        { id: 'VEH-0002', model: 'MAHINDRA BOLERO', plateNumber: 'KA-04-B-5678', capacity: '1.8 Tons', type: 'REEFER', status: 'ACTIVE', expiryDate: '2027-06-30' }
-      ],
-      buyers: [
-        { id: 'BUY-0001', name: 'GOLDEN RESTAURANT', phone: '+91 99887 76655', email: 'pos@goldenrest.com', address: 'MG Road, Bangalore', creditLimit: 50000, active: true },
-        { id: 'BUY-0002', name: 'FISH MALL RETAIL', phone: '+91 99887 76656', email: 'mall@goldenrest.com', address: 'Ullal, Mangalore', creditLimit: 25000, active: true }
-      ],
+      vehicles: [],
+      buyers: [],
+      dashboardStats: null,
+
+      // ── Async Actions: Dashboard ───────────────────────────────
+      fetchDashboardStats: async () => {
+        set({ loading: true });
+        try {
+          const res = await reportsService.getDashboardStats();
+          const data = res?.data || res;
+          set({ dashboardStats: data, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch dashboard stats', err);
+          set({ loading: false });
+        }
+      },
 
       // ── Async Actions: Farmers CRUD ────────────────────────────
       fetchFarmers: async (search = '') => {
@@ -801,12 +750,9 @@ export const useAdminStore = create(
             active: f.isActive !== false,
             totalSlips: f.totalSlips || 0
           }));
-          if (mapped.length) {
-            set({ farmers: mapped });
-          }
-          set({ loading: false });
+          set({ farmers: mapped, loading: false });
         } catch (err) {
-          console.warn('Backend fetchFarmers failed, using mock persistence:', err.message);
+          console.warn('Backend fetchFarmers failed:', err.message);
           set({ loading: false });
         }
       },
@@ -821,6 +767,7 @@ export const useAdminStore = create(
             village: farmerData.village,
             whatsapp: farmerData.whatsapp
           });
+          await get().fetchFarmers();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -839,6 +786,7 @@ export const useAdminStore = create(
             whatsapp: farmerData.whatsapp,
             isActive: farmerData.active
           });
+          await get().fetchFarmers();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -872,12 +820,9 @@ export const useAdminStore = create(
             price: p.basePrice || 0,
             status: (p.quantity || 0) === 0 ? 'out-of-stock' : (p.quantity || 0) < (p.minStockLimit || 50) ? 'low-stock' : 'in-stock'
           }));
-          if (mapped.length) {
-            set({ inventory: mapped });
-          }
-          set({ loading: false });
+          set({ inventory: mapped, loading: false });
         } catch (err) {
-          console.warn('Backend fetchInventory failed, using mock persistence:', err.message);
+          console.warn('Backend fetchInventory failed:', err.message);
           set({ loading: false });
         }
       },
@@ -893,6 +838,7 @@ export const useAdminStore = create(
             basePrice: itemData.price,
             minStockLimit: 50
           });
+          await get().fetchInventory();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -901,6 +847,18 @@ export const useAdminStore = create(
       },
 
       // ── Async Actions: Drivers CRUD ────────────────────────────
+      fetchExpenses: async (params = {}) => {
+        set({ loading: true });
+        try {
+          const res = await expenseService.all(params);
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          set({ expenses: list, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch expenses', err);
+          set({ loading: false });
+        }
+      },
+
       fetchDrivers: async (search = '') => {
         set({ loading: true, error: null });
         try {
@@ -915,12 +873,9 @@ export const useAdminStore = create(
             rating: d.rating || 4.5,
             trips: d.totalTrips || 0
           }));
-          if (mapped.length) {
-            set({ drivers: mapped });
-          }
-          set({ loading: false });
+          set({ drivers: mapped, loading: false });
         } catch (err) {
-          console.warn('Backend fetchDrivers failed, using mock persistence:', err.message);
+          console.warn('Backend fetchDrivers failed:', err.message);
           set({ loading: false });
         }
       },
@@ -934,6 +889,7 @@ export const useAdminStore = create(
             vehicleNumber: driverData.vehicle,
             status: 'active'
           });
+          await get().fetchDrivers();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -956,12 +912,9 @@ export const useAdminStore = create(
             status: v.status || 'ACTIVE',
             expiryDate: v.expiryDate ? new Date(v.expiryDate).toISOString().slice(0, 10) : '2028-12-31'
           }));
-          if (mapped.length) {
-            set({ vehicles: mapped });
-          }
-          set({ loading: false });
+          set({ vehicles: mapped, loading: false });
         } catch (err) {
-          console.warn('Backend fetchVehicles failed, using mock persistence:', err.message);
+          console.warn('Backend fetchVehicles failed:', err.message);
           set({ loading: false });
         }
       },
@@ -970,6 +923,7 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           await masterService.vehicles.create(vehicleData);
+          await get().fetchVehicles();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -992,12 +946,9 @@ export const useAdminStore = create(
             creditLimit: b.creditLimit || 0,
             active: b.isActive !== false
           }));
-          if (mapped.length) {
-            set({ buyers: mapped });
-          }
-          set({ loading: false });
+          set({ buyers: mapped, loading: false });
         } catch (err) {
-          console.warn('Backend fetchBuyers failed, using mock persistence:', err.message);
+          console.warn('Backend fetchBuyers failed:', err.message);
           set({ loading: false });
         }
       },
@@ -1012,6 +963,7 @@ export const useAdminStore = create(
             address: buyerData.address,
             creditLimit: buyerData.creditLimit
           });
+          await get().fetchBuyers();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });

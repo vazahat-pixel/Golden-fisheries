@@ -18,27 +18,28 @@ import { useAuthStore } from '../../store/authStore';
 import { useDriverStore } from '../../store/driverStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import driverMockData from '../../data/driverMockData.json';
 
 const DriverTasks = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { trips, driverAcceptTrip } = useAdminStore();
+  const { trips, driverAcceptTrip, fetchTrips } = useAdminStore();
+
+  React.useEffect(() => {
+    fetchTrips();
+  }, [fetchTrips]);
   const { 
     incomingAssignment, 
     clearIncomingAssignment 
   } = useDriverStore();
 
-  const driverName = user?.name || driverMockData.profile.name;
+  const driverName = user?.name || 'Unknown Driver';
   const myTrips = trips.filter(t => {
     const matchById = user?.id && t.driverId === user.id;
     const matchByName = t.driverName?.toUpperCase().trim() === driverName?.toUpperCase().trim();
     return (matchById || matchByName) && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status);
   });
   
-  const dummyTasks = driverMockData.trips.filter(t => !['Delivered', 'Closed'].includes(t.status));
-
-  const displayTasks = myTrips.length > 0 ? myTrips : dummyTasks;
+  const displayTasks = myTrips;
 
   const handleAccept = async (tapalIdArg) => {
     const tId = tapalIdArg || incomingAssignment?.tapalId;

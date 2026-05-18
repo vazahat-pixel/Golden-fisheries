@@ -28,7 +28,6 @@ import { useAuthStore } from '../../store/authStore';
 import { useDriverStore } from '../../store/driverStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import driverMockData from '../../data/driverMockData.json';
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
@@ -53,7 +52,10 @@ const DriverDashboard = () => {
 
   const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
 
-  const pilotStats = driverMockData.profile.stats;
+  const pilotStats = {
+    tripsToday: 2,
+    safetyScore: 98
+  };
 
   const newAssignment = myTrips.find(t => t.status === 'Assigned' || t.status === 'DRIVER_ASSIGNED');
   const liveTrip = activeTrip;
@@ -117,7 +119,7 @@ const DriverDashboard = () => {
               )}
             </div>
             <div>
-              <p className="text-[9px] font-black text-slate-900 leading-none tracking-tight">{user?.name || driverMockData.profile.name}</p>
+              <p className="text-[9px] font-black text-slate-900 leading-none tracking-tight">{user?.name || 'Unknown Driver'}</p>
             </div>
           </div>
         </div>

@@ -12,24 +12,44 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import driverMockData from '../../data/driverMockData.json';
 
 const DriverLiveTracking = () => {
   const navigate = useNavigate();
-  const { currentMission } = driverMockData.liveTracking;
+  const currentMission = {
+    status: 'EN ROUTE',
+    signal: 'LTE 4G',
+    battery: '88%',
+    id: 'TRP-7701',
+    eta: '24 MINS',
+    speed: '45 KM/H'
+  };
+
+  React.useEffect(() => {
+    if (typeof window.L === 'undefined') return;
+
+    const map = window.L.map('map').setView([12.8701, 74.8428], 13);
+
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    const marker = window.L.marker([12.8701, 74.8428]).addTo(map);
+    marker.bindPopup('Driver Location').openPopup();
+
+    const mapContainer = document.getElementById('map');
+    if (mapContainer) {
+      mapContainer.style.filter = 'invert(90%) hue-rotate(180deg) brightness(0.6) contrast(1.2)';
+    }
+
+    return () => {
+      map.remove();
+    };
+  }, []);
 
   return (
     <div className="relative h-screen w-full bg-slate-900 overflow-hidden font-sans selection:bg-emerald-500 selection:text-white">
       {/* Dark Tactical Map */}
-      <div className="absolute inset-0 z-0">
-        <iframe 
-          width="100%" 
-          height="100%" 
-          frameBorder="0" 
-          style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) brightness(0.6) contrast(1.2)' }}
-          src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d15551.4682052163!2d74.8427776!3d12.8701056!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sin!4v1714811800000!5m2!1sen!2sin"
-          allowFullScreen
-        ></iframe>
+      <div className="absolute inset-0 z-0" id="map">
       </div>
 
       {/* Top Tactical Bar */}

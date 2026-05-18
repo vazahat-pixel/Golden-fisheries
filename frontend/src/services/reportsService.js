@@ -19,6 +19,11 @@ export const reportsService = {
   // 4. Fetch Profitability (P&L) Summary
   getProfitability: async () => {
     return await apiClient.get('/reports/profitability');
+  },
+
+  // 5. Fetch Dashboard Stats
+  getDashboardStats: async () => {
+    return await apiClient.get('/reports/dashboard/stats');
   }
 };
 

@@ -49,8 +49,12 @@ const expenseCategoryData = [
 
 const FinanceOverview = () => {
   const navigate = useNavigate();
-  const { transactions, addTransaction, purchaseInvoices, expenses } = useAdminStore();
+  const { transactions, addTransaction, purchaseInvoices, expenses, fetchTransactions } = useAdminStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
   const [formData, setFormData] = useState({ desc: '', amount: '', method: 'CASH' });
   const [activeSource, setActiveSource] = useState('ALL');
 

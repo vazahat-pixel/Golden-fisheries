@@ -1,6 +1,7 @@
 import { app } from './app.js';
 import { config } from './config/config.js';
 import { connectDB } from './config/db.js';
+import mongoose from 'mongoose';
 import { logger } from './utils/logger.js';
 import { setupSockets } from './sockets/socket.js';
 
@@ -47,4 +48,25 @@ process.on('unhandledRejection', (err) => {
     process.exit(1);
   });
 });
+
+// ==========================================
+// 6. Graceful Shutdown Handlers
+// ==========================================
+const gracefulShutdown = (signal) => {
+  logger.info(`[Process]: Received ${signal}. Shutting down gracefully...`);
+  server.close(async () => {
+    logger.info('HTTP Server closed.');
+    try {
+      await mongoose.connection.close();
+      logger.info('MongoDB connection closed.');
+      process.exit(0);
+    } catch (err) {
+      logger.error(`Error during DB closure: ${err.message}`);
+      process.exit(1);
+    }
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 

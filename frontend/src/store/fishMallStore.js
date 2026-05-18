@@ -8,14 +8,7 @@ import { expenseService } from '../services/expenseService';
 export const useFishMallStore = create(
   persist(
     (set, get) => ({
-      stock: [
-        { id: 1, name: "King Fish", category: "Premium", qty: 45, unit: "KG", rate: 550, lastSync: "2024-05-05" },
-        { id: 2, name: "Prawns (Medium)", category: "Shellfish", qty: 120, unit: "KG", rate: 420, lastSync: "2024-05-05" },
-        { id: 3, name: "Pomfret (White)", category: "Premium", qty: 25, unit: "KG", rate: 850, lastSync: "2024-05-05" },
-        { id: 4, name: "Mackerel", category: "Regular", qty: 200, unit: "KG", rate: 180, lastSync: "2024-05-05" },
-        { id: 5, name: "Sardines", category: "Regular", qty: 500, unit: "KG", rate: 120, lastSync: "2024-05-05" },
-        { id: 6, name: "Crabs", category: "Shellfish", qty: 60, unit: "KG", rate: 650, lastSync: "2024-05-05" }
-      ],
+      stock: [],
       bills: [],
       expenses: [],
       closings: [],
@@ -176,6 +169,27 @@ export const useFishMallStore = create(
         } catch (err) {
           set({ error: err.message, loading: false });
           throw err;
+        }
+      },
+
+      fetchStockAsync: async () => {
+        set({ loading: true });
+        try {
+          const res = await masterService.products.getAll();
+          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const mapped = list.map(p => ({
+            id: p._id,
+            name: (p.name || '').toUpperCase(),
+            category: (p.category || '').toUpperCase(),
+            qty: p.quantity || 0,
+            unit: p.baseUnit || 'KG',
+            rate: p.basePrice || 0,
+            lastSync: new Date(p.updatedAt).toLocaleDateString()
+          }));
+          set({ stock: mapped, loading: false });
+        } catch (err) {
+          console.error('Failed to fetch fishmall stock', err);
+          set({ loading: false });
         }
       },
 

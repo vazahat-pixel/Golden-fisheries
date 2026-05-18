@@ -3,6 +3,8 @@ import { RestaurantOrder } from '../restaurant/restaurantOrder.model.js';
 import { FishMallSale } from '../fishmall/fishmallSale.model.js';
 import { Expense } from '../expenses/expense.model.js';
 import { Product } from '../products/product.model.js';
+import { Tapal } from '../tapals/tapal.model.js';
+import { User } from '../users/user.model.js';
 
 export const reportsService = {
   /**
@@ -148,6 +150,92 @@ export const reportsService = {
       netProfits: netProfit,
       marginPercentage: sales.totalCumulativeRevenue > 0 ? (netProfit / sales.totalCumulativeRevenue) * 100 : 0
     };
+  },
+
+  /**
+   * Aggregates dashboard stats
+   */
+  getDashboardStats: async () => {
+    try {
+      const sales = await reportsService.getSalesSummary();
+      
+      const totalTapals = await Tapal.countDocuments();
+      const pendingTapals = await Tapal.countDocuments({ status: 'pending' });
+      const activeTapals = await Tapal.countDocuments({ status: 'active' });
+      const completedTapals = await Tapal.countDocuments({ status: 'completed' });
+      
+      const products = await Product.find({});
+      const totalInventoryKg = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      
+      const totalRevenue = sales.totalCumulativeRevenue;
+      
+      const activeDrivers = await User.countDocuments({ role: 'driver', isActive: true });
+      const pendingExpenses = await Expense.countDocuments({ status: 'PENDING' });
+      
+      // Real data for charts
+      const revenueChartData = await Billing.aggregate([
+        {
+          $group: {
+            _id: { $month: "$createdAt" },
+            amount: { $sum: "$totalAmount" }
+          }
+        },
+        { $sort: { "_id": 1 } }
+      ]);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const revenueChart = revenueChartData.map(item => ({
+        month: months[item._id - 1] || 'Unknown',
+        amount: item.amount
+      }));
+      
+      const tapalChartData = await Tapal.aggregate([
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { "_id": 1 } },
+        { $limit: 7 }
+      ]);
+      const tapalChart = tapalChartData.map(item => ({
+        date: item._id,
+        count: item.count
+      }));
+
+      const topProductsData = await Billing.aggregate([
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.productName",
+            value: { $sum: "$items.quantity" }
+          }
+        },
+        { $sort: { "value": -1 } },
+        { $limit: 4 }
+      ]);
+      const topProducts = topProductsData.map(item => ({
+        name: item._id || 'Unknown',
+        value: item.value
+      }));
+
+      return {
+        totalTapals,
+        pendingTapals,
+        activeTapals,
+        completedTapals,
+        totalInventoryKg,
+        totalRevenue,
+        activeDrivers,
+        pendingExpenses,
+        revenueChart,
+        tapalChart,
+        topProducts
+      };
+    } catch (error) {
+      console.error(`[Dashboard Stats Failure]: ${error.message}`);
+      throw error;
+    }
   }
 };
 export default reportsService;

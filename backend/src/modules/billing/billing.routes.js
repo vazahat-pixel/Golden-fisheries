@@ -7,6 +7,10 @@ import { ROLES } from '../../constants/roles.js';
 
 const router = Router();
 
+// Public routes (for Buyers)
+router.get('/public/:id', billingController.getById);
+router.patch('/public/payment/:id', billingController.patchPaymentPublic);
+
 // Secure all endpoints
 router.use(protect);
 

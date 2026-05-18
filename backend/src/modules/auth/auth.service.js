@@ -4,6 +4,7 @@ import { AppError } from '../../utils/appError.js';
 import { userService } from '../users/user.service.js';
 import { User } from '../users/user.model.js';
 import { logger } from '../../utils/logger.js';
+import { smsService } from '../../services/sms.service.js';
 
 /**
  * High-performance Authentication and Access Token service.
@@ -102,16 +103,29 @@ class AuthService {
       throw new AppError('Your registration is pending admin approval. Please wait for verification.', 403);
     }
 
-    // Generate simulated/mock 6-digit OTP for dev ease
-    const otpCode = '123456'; 
+    // Generate random 6-digit OTP (Fixed to 123456 in dev for ease)
+    const otpCode = config.env === 'development' ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // Expiration set to 5 minutes
 
     // Save encrypted or secure details
     user.otp = { code: otpCode, expiresAt };
     await user.save();
 
+    // Send actual SMS via Gateway
+    try {
+      await smsService.sendOtp(phone, otpCode);
+    } catch (err) {
+      logger.error(`[OTP Service Error]: SMS send failed: ${err.message}`);
+      throw new AppError(`Failed to send SMS: ${err.message}`, 500);
+    }
+
     logger.info(`[OTP Service]: Sent OTP: ${otpCode} to ${phone}. Valid for 5 minutes.`);
-    return { success: true, message: 'OTP sent successfully (Simulated Developer OTP: 123456)' };
+    
+    const message = config.env === 'development' 
+      ? `OTP sent successfully (Dev OTP: ${otpCode})` 
+      : 'OTP sent successfully';
+      
+    return { success: true, message };
   }
 
   /**

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authController } from './auth.controller.js';
 import { authValidators, validateBody } from '../../validators/auth.validator.js';
 import { protect } from '../../middleware/auth.middleware.js';
+import { otpRateLimiter } from '../../middleware/security.middleware.js';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.post(
 // Send OTP Route Hook
 router.post(
   '/otp/send',
+  otpRateLimiter,
   validateBody(authValidators.sendOtp),
   authController.sendOtp
 );
@@ -29,6 +31,7 @@ router.post(
 // Verify OTP Route Hook
 router.post(
   '/otp/verify',
+  otpRateLimiter,
   validateBody(authValidators.verifyOtp),
   authController.verifyOtp
 );

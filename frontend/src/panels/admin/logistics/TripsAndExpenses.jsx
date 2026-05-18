@@ -25,7 +25,11 @@ import { useNavigate } from 'react-router-dom';
 
 const TripsAndExpenses = () => {
   const navigate = useNavigate();
-  const { trips, driverAcceptTrip, driverRejectTrip } = useAdminStore();
+  const { trips, driverAcceptTrip, driverRejectTrip, fetchTrips } = useAdminStore();
+
+  React.useEffect(() => {
+    fetchTrips();
+  }, [fetchTrips]);
 
   const totalActiveTrips = trips.filter(t => t.status === 'assigned' || t.status === 'accepted').length;
   const totalCompletedTrips = trips.filter(t => t.status === 'completed').length;

@@ -27,6 +27,12 @@ export const tapalController = {
     new ApiResponse(200, result.docs, 'Tapals fetched successfully', result.meta).send(res);
   }),
 
+  // Fetch all Trips
+  allTrips: asyncWrapper(async (req, res) => {
+    const trips = await Trip.find().populate('tapalId driverId vehicleId').sort({ createdAt: -1 });
+    new ApiResponse(200, trips, 'Trips fetched successfully').send(res);
+  }),
+
   // Get a single Tapal details by database ID
   getById: asyncWrapper(async (req, res) => {
     const tapal = await tapalService.findById(req.params.id, 'harvestId');

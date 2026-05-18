@@ -4,7 +4,7 @@ const restaurantItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
-    required: [true, 'Product reference is required']
+    required: false
   },
   name: {
     type: String,

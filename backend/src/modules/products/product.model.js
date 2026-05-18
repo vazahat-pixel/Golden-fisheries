@@ -13,7 +13,7 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, 'Category is required'],
-      enum: ['FRESHWATER', 'SEAFOOD', 'PRAWNS', 'CRAB', 'OTHER'],
+      enum: ['FRESHWATER', 'SEAFOOD', 'PRAWNS', 'CRAB', 'OTHER', 'RESTAURANT'],
       uppercase: true,
       index: true
     },

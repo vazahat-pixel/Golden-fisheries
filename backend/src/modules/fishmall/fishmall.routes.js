@@ -4,10 +4,15 @@ import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { Router } from 'express';
 import { protect, restrictTo } from '../../middleware/auth.middleware.js';
 import { ROLES } from '../../constants/roles.js';
+import { broadcastEvent } from '../../sockets/socket.js';
 
 export const fishmallController = {
   create: asyncWrapper(async (req, res) => {
     const sale = await fishmallService.createSale(req.body, req.user.id);
+    
+    // Broadcast for real-time dashboard sync
+    broadcastEvent('fishmall:sale_created', { sale }, 'dashboard:updates');
+    
     new ApiResponse(201, { sale }, 'Retail POS sale recorded successfully').send(res);
   }),
 

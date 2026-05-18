@@ -31,4 +31,22 @@ router.patch(
   restaurantController.settle
 );
 
+router.get(
+  '/menu',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
+  restaurantController.getMenu
+);
+
+router.get(
+  '/tables',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
+  restaurantController.getTables
+);
+
+router.post(
+  '/menu',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
+  restaurantController.createMenuItem
+);
+
 export default router;

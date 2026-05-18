@@ -97,18 +97,26 @@ class RestaurantService extends BaseService {
 
       // Trigger automatic stock updates inside transaction session
       for (const item of order.items) {
-        await inventoryService.adjustStock(
-          item.productId,
-          -item.quantity, // Deduct ingredients/fish quantity from central stock
-          'RESTAURANT_CONSUMPTION',
-          {
-            referenceId: order._id,
-            referenceModel: 'Harvest', // Mock mapping model fallback
-            session
-          },
-          userId,
-          `Ingredient stock consumed for Restaurant POS Order ${order.orderNumber}`
-        );
+        if (!item.productId) {
+          logger.info(`[Restaurant POS]: Skipping stock deduction for item without productId: ${item.name}`);
+          continue;
+        }
+        try {
+          await inventoryService.adjustStock(
+            item.productId,
+            -item.quantity, // Deduct ingredients/fish quantity from central stock
+            'RESTAURANT_CONSUMPTION',
+            {
+              referenceId: order._id,
+              referenceModel: 'Harvest', // Mock mapping model fallback
+              session
+            },
+            userId,
+            `Ingredient stock consumed for Restaurant POS Order ${order.orderNumber}`
+          );
+        } catch (err) {
+          logger.warn(`[Restaurant POS]: Failed to adjust stock for item ${item.productId}: ${err.message}`);
+        }
       }
 
       await session.commitTransaction();

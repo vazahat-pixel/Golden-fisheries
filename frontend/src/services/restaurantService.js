@@ -19,6 +19,16 @@ export const restaurantService = {
   // 4. Get Order by ID
   getById: async (id) => {
     return await apiClient.get(`/restaurant/${id}`);
+  },
+
+  // 5. Get Menu
+  getMenu: async () => {
+    return await apiClient.get('/restaurant/menu');
+  },
+
+  // 6. Get Tables
+  getTables: async () => {
+    return await apiClient.get('/restaurant/tables');
   }
 };
 

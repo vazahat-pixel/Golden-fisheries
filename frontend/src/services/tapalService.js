@@ -6,6 +6,11 @@ export const tapalService = {
     return await apiClient.get('/tapals/all', { params });
   },
 
+  // 1.1 Fetch all Trips
+  allTrips: async () => {
+    return await apiClient.get('/tapals/trips/all');
+  },
+
   // 2. Create Tapal from Harvest Slip
   createFromHarvest: async (harvestId, data = {}) => {
     return await apiClient.post('/tapals/create-from-harvest', { harvestId, ...data });

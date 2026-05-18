@@ -28,6 +28,12 @@ export const reportsController = {
   getProfitSummary: asyncWrapper(async (req, res) => {
     const data = await reportsService.getProfitSummary();
     new ApiResponse(200, data, 'Net profit ledger report aggregated successfully').send(res);
+  }),
+
+  // Dashboard stats
+  getDashboardStats: asyncWrapper(async (req, res) => {
+    const data = await reportsService.getDashboardStats();
+    new ApiResponse(200, data, 'Dashboard stats aggregated successfully').send(res);
   })
 };
 
@@ -42,5 +48,6 @@ router.get('/sales', reportsController.getSalesSummary);
 router.get('/expenses', reportsController.getExpenseSummary);
 router.get('/inventory', reportsController.getInventorySummary);
 router.get('/profitability', reportsController.getProfitSummary);
+router.get('/dashboard/stats', reportsController.getDashboardStats);
 
 export default router;

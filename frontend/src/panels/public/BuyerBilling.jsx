@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';
@@ -13,19 +14,57 @@ import {
 } from 'lucide-react';
 
 const BuyerBilling = () => {
+  const { id } = useParams();
   const [paymentMethod, setPaymentMethod] = useState('');
   const [isPaid, setIsPaid] = useState(false);
+  const [billDetails, setBillDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const billDetails = {
-    id: 'INV-2026-089',
-    date: '30 Apr, 2026',
-    items: [
-      { name: 'Rohu (Large)', qty: '120 KG', rate: '₹140', total: 16800 },
-      { name: 'Catla', qty: '80 KG', rate: '₹130', total: 10400 },
-    ],
-    subtotal: 27200,
-    tax: 1360,
-    total: 28560
+  useEffect(() => {
+    const fetchBill = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/billing/public/${id}`);
+        const data = await response.json();
+        setBillDetails(data.data.invoice);
+        setLoading(false);
+      } catch (error) {
+        console.error('Failed to fetch bill', error);
+        setLoading(false);
+      }
+    };
+    if (id) {
+      fetchBill();
+    }
+  }, [id]);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading Bill...</div>;
+  }
+
+  if (!billDetails) {
+    return <div className="min-h-screen flex items-center justify-center">Bill Not Found</div>;
+  }
+
+  const handlePayment = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/billing/public/payment/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ paymentMethod })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setIsPaid(true);
+        toast.success('Payment successful!');
+      } else {
+        toast.error(data.message || 'Payment failed');
+      }
+    } catch (error) {
+      console.error('Payment error', error);
+      toast.error('Payment failed');
+    }
   };
 
   if (isPaid) {
@@ -41,7 +80,7 @@ const BuyerBilling = () => {
         <Card className="w-full max-w-md p-6">
           <div className="flex justify-between items-center mb-4">
             <span className="text-olive-500 font-medium">Amount Paid</span>
-            <span className="text-xl font-black text-primary">₹{billDetails.total.toLocaleString()}</span>
+            <span className="text-xl font-black text-primary">₹{billDetails.totalAmount.toLocaleString()}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-olive-500 font-medium">Transaction ID</span>
@@ -66,9 +105,9 @@ const BuyerBilling = () => {
           </div>
           
           <p className="text-olive-200 text-sm font-medium mb-1">Total Amount Due</p>
-          <h2 className="text-5xl font-black mb-4">₹{billDetails.total.toLocaleString()}</h2>
+          <h2 className="text-5xl font-black mb-4">₹{billDetails.totalAmount.toLocaleString()}</h2>
           <Badge className="bg-white/20 text-white border-none backdrop-blur-sm">
-            Invoice {billDetails.id}
+            Invoice {billDetails.invoiceNumber}
           </Badge>
         </div>
       </div>
@@ -83,10 +122,10 @@ const BuyerBilling = () => {
             {billDetails.items.map((item, i) => (
               <div key={i} className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{item.name}</p>
-                  <p className="text-xs text-olive-500">{item.qty} x {item.rate}</p>
+                  <p className="text-sm font-bold text-gray-900">{item.productName}</p>
+                  <p className="text-xs text-olive-500">{item.quantity} KG x ₹{item.rate}</p>
                 </div>
-                <p className="text-sm font-black text-gray-900">₹{item.total.toLocaleString()}</p>
+                <p className="text-sm font-black text-gray-900">₹{item.amount.toLocaleString()}</p>
               </div>
             ))}
           </div>
@@ -96,8 +135,8 @@ const BuyerBilling = () => {
               <span>₹{billDetails.subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm text-olive-500">
-              <span>Taxes (5%)</span>
-              <span>₹{billDetails.tax.toLocaleString()}</span>
+              <span>Taxes</span>
+              <span>₹{billDetails.taxAmount.toLocaleString()}</span>
             </div>
           </div>
         </Card>
@@ -160,9 +199,9 @@ const BuyerBilling = () => {
         <Button 
           className="w-full py-4 text-lg font-black rounded-none shadow-xl shadow-primary/20 gap-2"
           disabled={!paymentMethod}
-          onClick={() => setIsPaid(true)}
+          onClick={handlePayment}
         >
-          Pay ₹{billDetails.total.toLocaleString()} <ArrowRight size={18} />
+          Pay ₹{billDetails.totalAmount.toLocaleString()} <ArrowRight size={18} />
         </Button>
       </div>
     </div>
