@@ -24,7 +24,7 @@ export const authValidators = {
       'any.required': 'User role is required',
       'any.only': `Role must be one of: ${ROLE_LIST.join(', ')}`
     })
-  }),
+  }).unknown(true),
 
   // Validate OTP dispatch parameters
   sendOtp: Joi.object({

@@ -62,6 +62,16 @@ export const tapalService = {
     });
   },
 
+  // 8.1 Driver submits post-trip expenses form
+  submitPostTripExpense: async (tripId, postTripData) => {
+    return await apiClient.post(`/tapals/trip/${tripId}/post-trip-expense`, postTripData);
+  },
+
+  // 8.2 Admin reviews post-trip expenses
+  reviewPostTripExpense: async (tripId, status, rejectionReason = '') => {
+    return await apiClient.patch(`/tapals/trip/${tripId}/post-trip-expense/review`, { status, rejectionReason });
+  },
+
   // 9. Fetch active Trip details
   getTripById: async (id) => {
     return await apiClient.get(`/tapals/trip/${id}`);

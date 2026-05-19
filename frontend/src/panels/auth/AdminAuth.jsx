@@ -87,8 +87,16 @@ const AdminAuth = () => {
       const res = await authService.verifyOtp(phone, entered);
       if (res && res.user) {
         login(res.user, res.accessToken);
-        toast.success('Admin Access Granted');
-        navigate('/admin/dashboard');
+        toast.success('Access Granted');
+        // Role-aware redirect
+        const role = res.user.role;
+        if (role === 'PROCUREMENT_MANAGER') {
+          navigate('/admin/procurement/harvest');
+        } else if (role === 'VEHICLE_MANAGER') {
+          navigate('/admin/vehicles');
+        } else {
+          navigate('/admin/dashboard');
+        }
       } else {
         toast.error('Invalid response payload structure');
       }

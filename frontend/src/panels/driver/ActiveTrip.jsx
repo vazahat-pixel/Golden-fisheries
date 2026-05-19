@@ -114,6 +114,8 @@ const ActiveTrip = () => {
       setIsDeliveryModalOpen(false);
       toast.success('Delivery Confirmed! Proof of Delivery recorded.');
       await fetchMyTrips();
+      // Redirect driver to post-trip expense form instantly
+      navigate(`/driver/trip-expense/${tapalId}`);
     } catch (err) {
       toast.error(err?.message || 'Failed to confirm delivery');
     }

@@ -82,14 +82,44 @@ const VehicleDashboard = () => {
 
       {/* Alert Strip - Minimalist */}
       {expiringDocs > 0 && (
-        <div className="bg-red-50 border border-red-100 p-2 px-4 rounded-none flex items-center justify-between">
-           <div className="flex items-center gap-2">
-             <AlertTriangle size={14} className="text-red-600" />
-             <p className="text-[8px] font-black text-red-900 uppercase tracking-widest leading-none">
-                Compliance Alert: {expiringDocs} documents require renewal
-             </p>
-           </div>
-           <Button variant="outline" size="sm" className="h-6 px-3 text-[7px] font-black border-red-200 text-red-700 uppercase" onClick={() => navigate('/admin/logistics/vehicles')}>RESOLVE</Button>
+        <div className="space-y-2">
+          <div className="bg-red-50 border border-red-100 p-3 px-4 rounded-none flex items-center justify-between">
+             <div className="flex items-center gap-2">
+               <AlertTriangle size={14} className="text-red-600" />
+               <p className="text-[9px] font-black text-red-900 uppercase tracking-widest leading-none">
+                  Compliance Alert: {expiringDocs} documents require immediate renewal
+               </p>
+             </div>
+          </div>
+          
+          {/* Detailed Document Expiry Breakdown Card */}
+          <div className="bg-white border border-red-100 p-4 rounded-2xl shadow-subtle space-y-3">
+            <h3 className="text-[9px] font-black text-red-700 uppercase tracking-widest flex items-center gap-1.5">
+              <Calendar size={12} /> Compliance Expiry Log
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {vehicles.map(v => {
+                const expiring = Object.entries(v?.documents || {})
+                  .filter(([_, d]) => d?.status === 'EXPIRING' || d?.status === 'EXPIRED');
+                if (expiring.length === 0) return null;
+                return (
+                  <div key={v.id} className="p-3 bg-red-50/30 border border-red-100/50 rounded-xl space-y-2">
+                    <p className="text-[10px] font-black text-black uppercase tracking-tight">{v.vehicleNumber}</p>
+                    <div className="space-y-1">
+                      {expiring.map(([type, doc]) => (
+                        <div key={type} className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
+                          <span className="text-slate-500">{type}</span>
+                          <span className={doc.status === 'EXPIRED' ? 'text-red-600 font-black' : 'text-amber-600 font-black'}>
+                            {doc.expiry} ({doc.status})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

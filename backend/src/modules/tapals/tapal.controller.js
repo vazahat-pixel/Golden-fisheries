@@ -94,6 +94,21 @@ export const tapalController = {
     new ApiResponse(200, { trip: result }, 'Expense logged successfully').send(res);
   }),
 
+  // Driver submits detailed post-trip expenses form
+  submitPostTripExpense: asyncWrapper(async (req, res) => {
+    const { tripId } = req.params;
+    const result = await tapalService.submitPostTripExpense(tripId, req.user.id, req.body);
+    new ApiResponse(200, { trip: result }, 'Post-trip expenses submitted successfully').send(res);
+  }),
+
+  // Admin/Accountant reviews post-trip expenses
+  reviewPostTripExpense: asyncWrapper(async (req, res) => {
+    const { tripId } = req.params;
+    const { status, rejectionReason } = req.body;
+    const result = await tapalService.reviewPostTripExpense(tripId, req.user.id, status, rejectionReason);
+    new ApiResponse(200, { trip: result }, `Post-trip expenses ${status.toLowerCase()} successfully`).send(res);
+  }),
+
   // Get Trip Details by ID
   getTripById: asyncWrapper(async (req, res) => {
     const trip = await Trip.findById(req.params.id).populate('tapalId driverId vehicleId');

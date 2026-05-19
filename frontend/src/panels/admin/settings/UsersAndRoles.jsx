@@ -117,11 +117,13 @@ const UsersAndRoles = () => {
             {[
               { role: 'ADMIN', access: 'FULL ACCESS', color: 'bg-black' },
               { role: 'MANAGER', access: 'OPERATIONS', color: 'bg-black/90' },
-              { role: 'BILLING', access: 'FINANCIALS', color: 'bg-black/70' },
+              { role: 'PROCUREMENT_MANAGER', access: 'HARVEST / PROCUREMENT', color: 'bg-olive-800' },
+              { role: 'VEHICLE_MANAGER', access: 'FLEET COMPLIANCE', color: 'bg-slate-800' },
+              { role: 'BUYER', access: 'TAPALS & INVOICES', color: 'bg-blue-800' },
               { role: 'DRIVER', access: 'LOGISTICS', color: 'bg-black/50' },
             ].map((role, i) => (
               <div key={i} className="p-3 flex items-center gap-3 bg-white border border-card-border hover:bg-olive-50 transition-all cursor-pointer group">
-                  <div className={clsx('w-8 h-8 flex items-center justify-center text-white shrink-0', role.color)}><Lock size={14} /></div>
+                  <div className={clsx('w-8 h-8 flex items-center justify-center text-white shrink-0 font-black text-[9px]', role.color)}><Lock size={14} /></div>
                   <div>
                     <h3 className="font-bold text-black text-[10px] uppercase">{role.role}</h3>
                     <p className="text-[8px] text-text-muted font-bold uppercase">{role.access}</p>
@@ -171,6 +173,9 @@ const UsersAndRoles = () => {
             >
               <option value="ADMIN">ADMINISTRATOR</option>
               <option value="MANAGER">MANAGER</option>
+              <option value="PROCUREMENT_MANAGER">PROCUREMENT MANAGER</option>
+              <option value="VEHICLE_MANAGER">VEHICLE MANAGER</option>
+              <option value="BUYER">BUYER</option>
               <option value="BILLING">BILLING</option>
               <option value="DRIVER">DRIVER</option>
             </select>

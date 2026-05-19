@@ -13,21 +13,21 @@ router.use(protect);
 // 1. Create Tapal from Harvest Slip
 router.post(
   '/create-from-harvest',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER),
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
   tapalController.createFromHarvest
 );
 
 // 2. Fetch all Tapal Contracts
 router.get(
   '/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER, ROLES.BUYER),
   tapalController.all
 );
 
 // 2.1 Fetch all Trips
 router.get(
   '/trips/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER, ROLES.BUYER),
   tapalController.allTrips
 );
 
@@ -84,17 +84,31 @@ router.post(
   tapalController.logExpense
 );
 
+// 8.1 Driver submits post-trip expenses form
+router.post(
+  '/trip/:tripId/post-trip-expense',
+  restrictTo(ROLES.DRIVER),
+  tapalController.submitPostTripExpense
+);
+
+// 8.2 Admin/Accountant reviews post-trip expenses
+router.patch(
+  '/trip/:tripId/post-trip-expense/review',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  tapalController.reviewPostTripExpense
+);
+
 // 9. Fetch active Trip details
 router.get(
   '/trip/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.DRIVER),
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.DRIVER, ROLES.BUYER, ROLES.PROCUREMENT_MANAGER),
   tapalController.getTripById
 );
 
 // 10. Fetch single Tapal details
 router.get(
   '/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER, ROLES.BUYER),
   tapalController.getById
 );
 

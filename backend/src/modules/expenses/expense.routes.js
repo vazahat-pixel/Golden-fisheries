@@ -47,6 +47,21 @@ class ExpenseService extends BaseService {
     expense.approvedBy = approverId;
     await expense.save();
 
+    // Sync trip post-trip expenses status if linked
+    if (expense.linkedTripId) {
+      const TripModel = mongoose.model('Trip');
+      const trip = await TripModel.findById(expense.linkedTripId);
+      if (trip && trip.postTripExpenses) {
+        trip.postTripExpenses.status = status;
+        trip.postTripExpenses.reviewedBy = approverId;
+        trip.postTripExpenses.reviewedAt = new Date();
+        for (const exp of trip.expenses) {
+          exp.status = status;
+        }
+        await trip.save();
+      }
+    }
+
     return expense;
   }
 }

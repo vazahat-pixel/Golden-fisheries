@@ -4,6 +4,34 @@ import { userService } from '../services/userService';
 
 // --- Role Templates ---
 export const ROLE_TEMPLATES = {
+  ADMIN: {
+    id: 'ADMIN',
+    label: 'Administrator',
+    description: 'Full system access and user management',
+    color: '#EF4444',
+    loginPortal: '/admin/auth',
+    permissions: {
+      panels: {
+        restaurant: true,
+        fishmall: true,
+        driver: true,
+        admin: true,
+      },
+      modules: {
+        pos: { read: true, write: true, delete: true },
+        orderHistory: { read: true, write: true, delete: true },
+        inventory: { read: true, write: true, delete: true },
+        restaurantSettings: { read: true, write: true, delete: true },
+        tapals: { read: true, write: true, delete: true },
+        finance: { read: true, write: true, delete: true },
+        procurement: { read: true, write: true, delete: true },
+        logistics: { read: true, write: true, delete: true },
+        billing: { read: true, write: true, delete: true },
+        outlets: { read: true, write: true, delete: true },
+        accessControl: { read: true, write: true, delete: true },
+      },
+    },
+  },
   RESTAURANT_STAFF: {
     id: 'RESTAURANT_STAFF',
     label: 'Restaurant Staff',
@@ -144,6 +172,75 @@ export const ROLE_TEMPLATES = {
       },
     },
   },
+  PROCUREMENT_MANAGER: {
+    id: 'PROCUREMENT_MANAGER',
+    label: 'Procurement Manager',
+    description: 'Harvest slips, tapals, farmer data and net rates only',
+    color: '#6B7550',
+    loginPortal: '/admin/auth',
+    permissions: {
+      panels: { restaurant: false, fishmall: false, driver: false, admin: true },
+      modules: {
+        pos: { read: false, write: false, delete: false },
+        orderHistory: { read: false, write: false, delete: false },
+        inventory: { read: false, write: false, delete: false },
+        restaurantSettings: { read: false, write: false, delete: false },
+        tapals: { read: true, write: true, delete: false },
+        finance: { read: false, write: false, delete: false },
+        procurement: { read: true, write: true, delete: false },
+        logistics: { read: false, write: false, delete: false },
+        billing: { read: false, write: false, delete: false },
+        outlets: { read: false, write: false, delete: false },
+        accessControl: { read: false, write: false, delete: false },
+      },
+    },
+  },
+  BUYER: {
+    id: 'BUYER',
+    label: 'Buyer (Channapa)',
+    description: 'Incoming tapals, buyer bills, sales return, invoice history',
+    color: '#2563EB',
+    loginPortal: '/buyer/auth',
+    permissions: {
+      panels: { restaurant: false, fishmall: false, driver: false, admin: false, buyer: true },
+      modules: {
+        pos: { read: false, write: false, delete: false },
+        orderHistory: { read: false, write: false, delete: false },
+        inventory: { read: false, write: false, delete: false },
+        restaurantSettings: { read: false, write: false, delete: false },
+        tapals: { read: true, write: false, delete: false },
+        finance: { read: false, write: false, delete: false },
+        procurement: { read: false, write: false, delete: false },
+        logistics: { read: false, write: false, delete: false },
+        billing: { read: true, write: false, delete: false },
+        outlets: { read: false, write: false, delete: false },
+        accessControl: { read: false, write: false, delete: false },
+      },
+    },
+  },
+  VEHICLE_MANAGER: {
+    id: 'VEHICLE_MANAGER',
+    label: 'Vehicle Manager',
+    description: 'Vehicles, documents and expiry alerts only',
+    color: '#B45309',
+    loginPortal: '/admin/auth',
+    permissions: {
+      panels: { restaurant: false, fishmall: false, driver: false, admin: true },
+      modules: {
+        pos: { read: false, write: false, delete: false },
+        orderHistory: { read: false, write: false, delete: false },
+        inventory: { read: false, write: false, delete: false },
+        restaurantSettings: { read: false, write: false, delete: false },
+        tapals: { read: false, write: false, delete: false },
+        finance: { read: false, write: false, delete: false },
+        procurement: { read: false, write: false, delete: false },
+        logistics: { read: true, write: true, delete: false },
+        billing: { read: false, write: false, delete: false },
+        outlets: { read: false, write: false, delete: false },
+        accessControl: { read: false, write: false, delete: false },
+      },
+    },
+  },
 };
 
 // Module display config
@@ -168,6 +265,20 @@ const clonePermissions = (templateId) => {
   return JSON.parse(JSON.stringify(t.permissions));
 };
 
+const mapRoleToBackend = (role) => {
+  if (role === 'RESTAURANT_STAFF') return 'RESTAURANT';
+  if (role === 'FISHMALL_BILLING') return 'FISHMALL';
+  // New specialist roles — pass through 1:1
+  if (['PROCUREMENT_MANAGER','BUYER','VEHICLE_MANAGER'].includes(role)) return role;
+  return role;
+};
+
+const mapRoleToFrontend = (role) => {
+  if (role === 'RESTAURANT') return 'RESTAURANT_STAFF';
+  if (role === 'FISHMALL') return 'FISHMALL_BILLING';
+  return role;
+};
+
 export const useRbacStore = create(
   persist(
     (set, get) => ({
@@ -182,7 +293,19 @@ export const useRbacStore = create(
         try {
           const res = await userService.all(params);
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ users: list, loading: false });
+          const mapped = list.map((u) => {
+            const frontendRole = mapRoleToFrontend(u.role);
+            const template = ROLE_TEMPLATES[frontendRole] || {};
+            return {
+              ...u,
+              id: u._id || u.id,
+              name: u.fullName || u.name || '',
+              role: frontendRole,
+              status: u.status || (u.isActive === false ? 'revoked' : 'active'),
+              permissions: u.permissions || template.permissions || { panels: {}, modules: {} }
+            };
+          });
+          set({ users: mapped, loading: false });
         } catch (err) {
           console.error('Failed to fetch users', err);
           set({ loading: false });
@@ -192,7 +315,16 @@ export const useRbacStore = create(
       createUser: async (userData) => {
         set({ loading: true });
         try {
-          const newUser = await userService.register(userData);
+          const backendRole = mapRoleToBackend(userData.role);
+          const payload = {
+            fullName: userData.name || userData.fullName || '',
+            phone: userData.phone || '',
+            role: backendRole,
+            password: userData.password || 'password123',
+            isActive: userData.isActive !== undefined ? userData.isActive : true,
+            status: userData.status || 'active'
+          };
+          const newUser = await userService.register(payload);
           await get().fetchUsers();
           set({ loading: false });
           return newUser;
@@ -205,7 +337,15 @@ export const useRbacStore = create(
       updateUser: async (userId, updates) => {
         set({ loading: true });
         try {
-          await userService.update(userId, updates);
+          const payload = { ...updates };
+          if (payload.role) {
+            payload.role = mapRoleToBackend(payload.role);
+          }
+          if (payload.name) {
+            payload.fullName = payload.name;
+            delete payload.name;
+          }
+          await userService.update(userId, payload);
           await get().fetchUsers();
           set({ loading: false });
         } catch (err) {
@@ -217,7 +357,7 @@ export const useRbacStore = create(
       revokeUser: async (userId) => {
         set({ loading: true });
         try {
-          await userService.update(userId, { status: 'revoked' });
+          await userService.update(userId, { status: 'revoked', isActive: false });
           await get().fetchUsers();
           set({ loading: false });
         } catch (err) {
@@ -233,7 +373,8 @@ export const useRbacStore = create(
         set({ loading: true });
         try {
           const newStatus = user.status === 'paused' ? 'active' : 'paused';
-          await userService.update(userId, { status: newStatus });
+          const newIsActive = newStatus === 'active';
+          await userService.update(userId, { status: newStatus, isActive: newIsActive });
           await get().fetchUsers();
           set({ loading: false });
         } catch (err) {
@@ -287,14 +428,16 @@ export const useRbacStore = create(
       getUserByPhone: (phone) => get().users.find((u) => u.phone === phone),
 
       hasPermission: (userId, module, action) => {
-        const user = get().users.find((u) => u.id === userId);
+        const user = get().users.find((u) => u.id === userId || u._id === userId);
         if (!user) return false;
+        if (user.role === 'ADMIN') return true;
         return user.permissions?.modules?.[module]?.[action] === true;
       },
 
       canAccessPanel: (phone, panel) => {
         const user = get().users.find((u) => u.phone === phone);
         if (!user || user.status !== 'active') return false;
+        if (user.role === 'ADMIN') return true;
         return user.permissions?.panels?.[panel] === true;
       },
     }),

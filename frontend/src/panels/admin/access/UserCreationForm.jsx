@@ -226,6 +226,10 @@ const StepRole = ({ form, setForm, onNext }) => {
     DRIVER: '#D97706',
     ACCOUNTANT: '#7C3AED',
     MANAGER: '#059669',
+    ADMIN: '#EF4444',
+    PROCUREMENT_MANAGER: '#6B7550',
+    BUYER: '#4F46E5',
+    VEHICLE_MANAGER: '#EA580C',
   };
 
   return (
@@ -416,14 +420,18 @@ const UserCreationForm = ({ onClose }) => {
     permissions: {},
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.name || !form.phone || !form.role) {
       toast.error('Complete all required fields');
       return;
     }
-    createUser(form);
-    toast.success(`${form.name} created successfully!`);
-    onClose();
+    try {
+      await createUser(form);
+      toast.success(`${form.name} created successfully!`);
+      onClose();
+    } catch (err) {
+      toast.error(err.message || 'Failed to create user');
+    }
   };
 
   return (

@@ -2,30 +2,22 @@ import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AdminLayout } from '../design-system/layouts/AdminLayout';
 import { PanelLayout } from '../design-system/layouts/PanelLayout';
-import { 
-  LayoutDashboard, 
-  Utensils, 
-  ShoppingCart, 
-  Scale, 
-  Layers, 
-  ClipboardList,
-  Settings,
-  ChefHat,
-  Wallet,
-  BarChart2,
-  ClipboardCheck,
-  AlertTriangle
+import {
+  LayoutDashboard, Utensils, ShoppingCart, Scale, Layers,
+  ClipboardList, Settings, ChefHat, Wallet, BarChart2,
+  ClipboardCheck, AlertTriangle, FileText, Receipt, History
 } from 'lucide-react';
 
-// Auth Imports
+// Auth
 const AdminAuth = React.lazy(() => import('../panels/auth/AdminAuth'));
 const RestaurantAuth = React.lazy(() => import('../panels/auth/RestaurantAuth'));
 const FishMallAuth = React.lazy(() => import('../panels/auth/FishMallAuth'));
 const DriverAuth = React.lazy(() => import('../panels/auth/DriverAuth'));
+const BuyerAuth = React.lazy(() => import('../panels/auth/BuyerAuth'));
 import ProtectedRoute from '../panels/auth/ProtectedRoute';
 import { useAuthStore } from '../store/authStore';
 
-// Admin Imports
+// Admin
 const AdminDashboard = React.lazy(() => import('../panels/admin/Dashboard'));
 const TapalList = React.lazy(() => import('../panels/admin/tapals/TapalList'));
 const CreatePurchaseTapal = React.lazy(() => import('../panels/admin/tapals/CreatePurchaseTapal'));
@@ -40,20 +32,22 @@ const FinanceOverview = React.lazy(() => import('../panels/admin/finance/Finance
 const HarvestSlips = React.lazy(() => import('../panels/admin/procurement/HarvestSlips'));
 const CreateHarvestSlip = React.lazy(() => import('../panels/admin/procurement/CreateHarvestSlipV2'));
 const HarvestSlipDetail = React.lazy(() => import('../panels/admin/procurement/HarvestSlipDetail'));
+const NetRate = React.lazy(() => import('../panels/admin/procurement/NetRate'));
 const UsersAndRoles = React.lazy(() => import('../panels/admin/settings/UsersAndRoles'));
 const AdminBilling = React.lazy(() => import('../panels/admin/billing/AdminBilling'));
 const SalesApprovalList = React.lazy(() => import('../panels/admin/sales/SalesApprovalList'));
 const SalesApprovalDetail = React.lazy(() => import('../panels/admin/sales/SalesApprovalDetail'));
 const OutletManagement = React.lazy(() => import('../panels/admin/outlets/OutletManagement'));
 const AccessControl = React.lazy(() => import('../panels/admin/access/AccessControl'));
+const DriverControlConsole = React.lazy(() => import('../panels/admin/logistics/DriverControlConsole'));
 const ExpenseReviewPage = React.lazy(() => import('../panels/admin/expenses/ExpenseReviewPage'));
 
-// Vehicle Management Imports
+// Vehicles
 const VehicleDashboard = React.lazy(() => import('../panels/admin/vehicles/VehicleDashboard'));
 const AddVehicle = React.lazy(() => import('../panels/admin/vehicles/AddVehicle'));
 const VehicleDetail = React.lazy(() => import('../panels/admin/vehicles/VehicleDetail'));
 
-// Restaurant Imports
+// Restaurant
 const RestaurantDashboard = React.lazy(() => import('../panels/restaurant/RestaurantDashboard'));
 const RestaurantPOS = React.lazy(() => import('../panels/restaurant/RestaurantPOS'));
 const RestaurantOrderHistory = React.lazy(() => import('../panels/restaurant/RestaurantOrderHistory'));
@@ -61,7 +55,7 @@ const RestaurantInventory = React.lazy(() => import('../panels/restaurant/Restau
 const RestaurantKitchen = React.lazy(() => import('../panels/restaurant/RestaurantKitchen'));
 const RestaurantSettings = React.lazy(() => import('../panels/restaurant/RestaurantSettings'));
 
-// Fish Mall Imports
+// Fish Mall
 const FishMallDashboard = React.lazy(() => import('../panels/fishmall/FishMallDashboard'));
 const FishMallBilling = React.lazy(() => import('../panels/fishmall/FishMallBilling'));
 const FishMallRates = React.lazy(() => import('../panels/fishmall/FishMallRates'));
@@ -71,7 +65,7 @@ const FishMallReports = React.lazy(() => import('../panels/fishmall/FishMallRepo
 const FishMallClosing = React.lazy(() => import('../panels/fishmall/FishMallClosing'));
 const FishMallAlerts = React.lazy(() => import('../panels/fishmall/FishMallAlerts'));
 
-// Driver Imports
+// Driver
 import { MobileLayout } from '../design-system/layouts/MobileLayout';
 const DriverDashboard = React.lazy(() => import('../panels/driver/DriverDashboard'));
 const DriverTasks = React.lazy(() => import('../panels/driver/DriverTasks'));
@@ -86,9 +80,18 @@ const DriverAlerts = React.lazy(() => import('../panels/driver/DriverAlerts'));
 const DriverSettings = React.lazy(() => import('../panels/driver/DriverSettings'));
 const DriverSupport = React.lazy(() => import('../panels/driver/DriverSupport'));
 const DriverAddExpense = React.lazy(() => import('../panels/driver/DriverAddExpense'));
+const DriverTripExpenseForm = React.lazy(() => import('../panels/driver/DriverTripExpenseForm'));
+const DriverExpenseBillPrint = React.lazy(() => import('../panels/driver/DriverExpenseBillPrint'));
 
+// Buyer
+const BuyerDashboard = React.lazy(() => import('../panels/buyer/BuyerDashboard'));
+const BuyerIncomingTapals = React.lazy(() => import('../panels/buyer/BuyerIncomingTapals'));
+const BuyerBillView = React.lazy(() => import('../panels/buyer/BuyerBillView'));
+const BuyerSalesReturn = React.lazy(() => import('../panels/buyer/BuyerSalesReturn'));
+const BuyerInvoiceHistory = React.lazy(() => import('../panels/buyer/BuyerInvoiceHistory'));
+import { BuyerLayout } from '../design-system/layouts/BuyerLayout';
 
-// Public Imports
+// Public
 const BuyerBilling = React.lazy(() => import('../panels/public/BuyerBilling'));
 const Launchpad = React.lazy(() => import('../pages/Launchpad'));
 const Unauthorized = React.lazy(() => import('../pages/Unauthorized'));
@@ -113,18 +116,21 @@ const fishMallNav = [
   { icon: ClipboardList, label: 'Stock Inflow', path: '/fishmall/stock' },
 ];
 
+// All roles that can access admin panel routes
+const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER'];
+
 const AppRouter = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/launchpad" replace />} />
       <Route path="/launchpad" element={<Launchpad />} />
-      
-      {/* Admin Panel */}
+
+      {/* ── Admin Panel ── */}
       <Route path="/admin/*" element={
         <Routes>
           <Route path="auth" element={<AdminAuth />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT']}>
+            <ProtectedRoute allowedRoles={ADMIN_ROLES}>
               <AdminLayout><Outlet /></AdminLayout>
             </ProtectedRoute>
           }>
@@ -138,14 +144,17 @@ const AppRouter = () => {
             <Route path="procurement/harvest" element={<HarvestSlips />} />
             <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
             <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
+            <Route path="procurement/net-rate" element={<NetRate />} />
             <Route path="inventory" element={<InventoryOverview />} />
             <Route path="inventory/new" element={<AddInventoryItem />} />
             <Route path="logistics" element={<TripsAndExpenses />} />
             <Route path="logistics/drivers" element={<DriverManagement />} />
+            <Route path="logistics/control" element={<DriverControlConsole />} />
             <Route path="logistics/vehicles" element={<Navigate to="/admin/vehicles" replace />} />
             <Route path="vehicles" element={<VehicleDashboard />} />
             <Route path="vehicles/new" element={<AddVehicle />} />
             <Route path="vehicles/:id" element={<VehicleDetail />} />
+            <Route path="vehicles/alerts" element={<VehicleDashboard />} />
             <Route path="finance" element={<FinanceOverview />} />
             <Route path="expenses" element={<ExpenseReviewPage />} />
             <Route path="billing" element={<AdminBilling />} />
@@ -156,11 +165,11 @@ const AppRouter = () => {
         </Routes>
       } />
 
-      {/* Restaurant Panel */}
+      {/* ── Restaurant Panel ── */}
       <Route path="/restaurant/*" element={
         <Routes>
           <Route path="auth" element={<RestaurantAuth />} />
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'RESTAURANT_STAFF']}><Outlet /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'RESTAURANT_STAFF', 'RESTAURANT']}><Outlet /></ProtectedRoute>}>
             <Route path="pos" element={<RestaurantPOS />} />
             <Route element={<PanelLayout navItems={restaurantNav} panelName="GF Restaurant" userName="Suresh"><Outlet /></PanelLayout>}>
               <Route path="dashboard" element={<RestaurantDashboard />} />
@@ -173,12 +182,12 @@ const AppRouter = () => {
         </Routes>
       } />
 
-      {/* Fish Mall Panel */}
+      {/* ── Fish Mall Panel ── */}
       <Route path="/fishmall/*" element={
         <Routes>
           <Route path="auth" element={<FishMallAuth />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'FISHMALL_BILLING']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'FISHMALL_BILLING', 'FISHMALL']}>
               <PanelLayout navItems={fishMallNav} panelName="GF Fish Mall" userName="Ramesh">
                 <Outlet />
               </PanelLayout>
@@ -196,7 +205,7 @@ const AppRouter = () => {
         </Routes>
       } />
 
-      {/* Driver App Panel */}
+      {/* ── Driver Mobile Panel ── */}
       <Route path="/driver/*" element={
         <Routes>
           <Route path="auth" element={<DriverAuth />} />
@@ -219,16 +228,36 @@ const AppRouter = () => {
               <Route path="alerts" element={<DriverAlerts />} />
               <Route path="settings" element={<DriverSettings />} />
               <Route path="support" element={<DriverSupport />} />
+              {/* Post-trip expense form + bill */}
+              <Route path="trip-expense/:tripId" element={<DriverTripExpenseForm />} />
+              <Route path="trip-expense/:tripId/bill" element={<DriverExpenseBillPrint />} />
             </Route>
           </Route>
         </Routes>
       } />
 
-      {/* Public Routes */}
+      {/* ── Buyer Panel ── */}
+      <Route path="/buyer/*" element={
+        <Routes>
+          <Route path="auth" element={<BuyerAuth />} />
+          <Route element={
+            <ProtectedRoute allowedRoles={['BUYER', 'ADMIN']}>
+              <BuyerLayout><Outlet /></BuyerLayout>
+            </ProtectedRoute>
+          }>
+            <Route path="dashboard" element={<BuyerDashboard />} />
+            <Route path="tapals" element={<BuyerIncomingTapals />} />
+            <Route path="bill/:tapalId" element={<BuyerBillView />} />
+            <Route path="returns" element={<BuyerSalesReturn />} />
+            <Route path="invoices" element={<BuyerInvoiceHistory />} />
+            <Route index element={<Navigate to="/buyer/dashboard" replace />} />
+          </Route>
+        </Routes>
+      } />
+
+      {/* Public */}
       <Route path="/pay/:invoiceId" element={<BuyerBilling />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
-
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

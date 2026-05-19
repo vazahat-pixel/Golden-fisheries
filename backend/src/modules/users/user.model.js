@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    status: {
+      type: String,
+      enum: ['active', 'paused', 'revoked'],
+      default: 'active'
+    },
     phoneVerified: {
       type: Boolean,
       default: false

@@ -44,6 +44,9 @@ export const protect = asyncWrapper(async (req, res, next) => {
 
     next();
   } catch (err) {
+    if (err instanceof AppError || err.statusCode) {
+      throw err;
+    }
     throw new AppError('Authentication failed. Invalid or expired token.', 401);
   }
 });

@@ -4,9 +4,10 @@ import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
 import { useAdminStore } from '../../../store/adminStore';
+import HarvestBillPrint from './HarvestBillPrint';
 import {
   ArrowLeft, MapPin, Phone, Calendar, Truck, MessageCircle,
-  CheckCircle, XCircle, RefreshCw, Send, AlertTriangle, Package, Clock
+  CheckCircle, XCircle, RefreshCw, Send, AlertTriangle, Package, Clock, FileDown
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -33,12 +34,16 @@ export default function HarvestSlipDetail() {
   const navigate = useNavigate();
   const { harvestSlips, updateHarvestStatusAsync, convertSlipToTapalAsync } = useAdminStore();
   const slip = harvestSlips.find(s => s._id === id || s.id === id);
+  const [showBill, setShowBill] = useState(false);
 
   const [partialQtys, setPartialQtys] = useState(() =>
     slip ? Object.fromEntries(slip.products.map(p => [p.id, p.quantity])) : {}
   );
 
   if (!slip) return <div className="p-12 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">Slip not found.</div>;
+
+  // Show print view
+  if (showBill) return <HarvestBillPrint slip={slip} onBack={() => setShowBill(false)} />;
 
   const cfg = STATUS_CONFIG[slip.status] || STATUS_CONFIG.pending;
   const currentStep = STATUS_ORDER.indexOf(slip.status === 'rejected' ? 'pending' : slip.status);
@@ -162,6 +167,14 @@ export default function HarvestSlipDetail() {
           <Card className="border border-card-border shadow-subtle bg-white p-4">
             <h3 className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-3">ACTIONS</h3>
             <div className="space-y-2">
+              {/* Generate Farmer Purchase Bill — always visible */}
+              <Button
+                onClick={() => setShowBill(true)}
+                size="sm"
+                className="w-full text-[9px] font-bold h-9 shadow-md bg-[#6B7550] hover:bg-[#5a6340] text-white flex items-center justify-center gap-2"
+              >
+                <FileDown size={12} /> FARMER PURCHASE BILL
+              </Button>
               {(slip.status === 'PENDING' || slip.status === 'sent' || slip.status === 'pending' || slip.status === 'DRAFT') && (
                 <>
                   <Button onClick={handleConfirm} size="sm" className="w-full text-[9px] font-bold h-9 shadow-md bg-green-600 hover:bg-green-700">CONFIRM SLIP</Button>

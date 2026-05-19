@@ -25,6 +25,10 @@ const ROLE_COLORS = {
   DRIVER: 'bg-amber-50 text-amber-700 border-amber-100',
   ACCOUNTANT: 'bg-purple-50 text-purple-700 border-purple-100',
   MANAGER: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  ADMIN: 'bg-red-50 text-red-700 border-red-100',
+  PROCUREMENT_MANAGER: 'bg-olive-50 text-olive-700 border-olive-100',
+  BUYER: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+  VEHICLE_MANAGER: 'bg-orange-50 text-orange-700 border-orange-100',
   CUSTOM: 'bg-gray-50 text-gray-700 border-gray-100',
 };
 
@@ -61,9 +65,11 @@ const AccessControl = () => {
   }, [fetchUsers]);
 
   const filtered = users.filter((u) => {
+    const name = u.fullName || u.name || '';
+    const phone = u.phone || '';
     const matchSearch =
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.phone.includes(search);
+      name.toLowerCase().includes(search.toLowerCase()) ||
+      phone.includes(search);
     const matchRole = filterRole === 'ALL' || u.role === filterRole;
     return matchSearch && matchRole;
   });
@@ -187,10 +193,10 @@ const AccessControl = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-500 border border-gray-200">
-                            {user.name.charAt(0).toUpperCase()}
+                            {(user.fullName || user.name || 'U').charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">{user.name}</p>
+                            <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">{user.fullName || user.name}</p>
                             <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{user.id}</p>
                           </div>
                         </div>
@@ -234,7 +240,7 @@ const AccessControl = () => {
                             onClick={async () => {
                               try {
                                 await togglePauseUser(user.id || user._id);
-                                toast.success(user.status === 'paused' ? `${user.name} reactivated` : `${user.name} paused`);
+                                toast.success(user.status === 'paused' ? `${user.fullName || user.name} reactivated` : `${user.fullName || user.name} paused`);
                               } catch (err) {
                                 toast.error('Failed to update status');
                               }
@@ -246,10 +252,10 @@ const AccessControl = () => {
                           </button>
                           <button
                             onClick={async () => {
-                              if (window.confirm(`Revoke access for ${user.name}?`)) {
+                              if (window.confirm(`Revoke access for ${user.fullName || user.name}?`)) {
                                 try {
                                   await revokeUser(user.id || user._id);
-                                  toast.error(`${user.name}'s access revoked`);
+                                  toast.error(`${user.fullName || user.name}'s access revoked`);
                                 } catch (err) {
                                   toast.error('Failed to revoke access');
                                 }
@@ -262,10 +268,10 @@ const AccessControl = () => {
                           </button>
                           <button
                             onClick={async () => {
-                              if (window.confirm(`Permanently delete ${user.name}?`)) {
+                              if (window.confirm(`Permanently delete ${user.fullName || user.name}?`)) {
                                 try {
                                   await deleteUser(user.id || user._id);
-                                  toast.error(`${user.name} deleted`);
+                                  toast.error(`${user.fullName || user.name} deleted`);
                                 } catch (err) {
                                   toast.error('Failed to delete user');
                                 }

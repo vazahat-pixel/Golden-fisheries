@@ -12,16 +12,16 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(protect);
 
-router.post('/upload-document', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT), upload.single('file'), asyncWrapper(async (req, res) => {
+router.post('/upload-document', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER), upload.single('file'), asyncWrapper(async (req, res) => {
   if (!req.file) throw new AppError('No file uploaded', 400);
   const result = await cloudinaryService.uploadStream(req.file.buffer, 'vehicles/documents', req.file.originalname);
   res.status(200).json({ success: true, url: result.url });
 }));
 
-router.post('/create', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT), vehicleController.create);
-router.get('/all', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT), vehicleController.all);
-router.get('/:id', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT), vehicleController.getById);
-router.put('/update/:id', restrictTo(ROLES.ADMIN, ROLES.MANAGER), vehicleController.update);
+router.post('/create', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER), vehicleController.create);
+router.get('/all', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER), vehicleController.all);
+router.get('/:id', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER), vehicleController.getById);
+router.put('/update/:id', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.VEHICLE_MANAGER), vehicleController.update);
 router.delete('/:id', restrictTo(ROLES.ADMIN), vehicleController.delete);
 
 export default router;

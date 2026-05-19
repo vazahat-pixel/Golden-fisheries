@@ -130,6 +130,19 @@ export const useDriverStore = create(
           throw err;
         }
       },
+
+      submitPostTripExpenseAsync: async (tripId, postTripData) => {
+        set({ loading: true });
+        try {
+          const res = await tapalService.submitPostTripExpense(tripId, postTripData);
+          await get().fetchMyTrips();
+          set({ loading: false });
+          return res.data;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
     }),
     {
       name: 'golden-fisheries-drivers',

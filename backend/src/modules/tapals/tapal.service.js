@@ -393,6 +393,226 @@ class TapalService extends BaseService {
     logger.info(`[Driver Flow]: Logged ${expenseData.expenseType} expense of ₹${expenseData.amount} on Trip ${trip.tripNumber}`);
     return trip;
   }
+
+  /**
+   * Driver submits detailed post-trip expenses form
+   */
+  async submitPostTripExpense(tripId, driverId, data) {
+    const query = mongoose.Types.ObjectId.isValid(tripId)
+      ? { $or: [{ _id: tripId }, { tapalId: tripId }] }
+      : { tripNumber: tripId };
+
+    const trip = await Trip.findOne(query);
+    if (!trip) throw new AppError('Trip not found', 404);
+
+    if (trip.driverId.toString() !== driverId.toString()) {
+      throw new AppError('Access Denied: You are not the assigned driver', 403);
+    }
+
+    // Map rich fields to standard expenses array
+    const mappedExpenses = [];
+    if (parseFloat(data.driverBatta) > 0) {
+      mappedExpenses.push({
+        expenseType: 'FOOD',
+        amount: parseFloat(data.driverBatta),
+        remarks: 'Post-Trip: Driver Batta',
+        status: 'PENDING'
+      });
+    }
+    if (parseFloat(data.rtoPcRmc) > 0) {
+      mappedExpenses.push({
+        expenseType: 'OTHER',
+        amount: parseFloat(data.rtoPcRmc),
+        remarks: 'Post-Trip: RTO / PC / RMC',
+        status: 'PENDING'
+      });
+    }
+    if (parseFloat(data.maintenance) > 0) {
+      mappedExpenses.push({
+        expenseType: 'REPAIR',
+        amount: parseFloat(data.maintenance),
+        remarks: 'Post-Trip: Maintenance',
+        status: 'PENDING'
+      });
+    }
+    if (parseFloat(data.tollFastag) > 0) {
+      mappedExpenses.push({
+        expenseType: 'TOLL',
+        amount: parseFloat(data.tollFastag),
+        remarks: 'Post-Trip: Toll / Fastag',
+        status: 'PENDING'
+      });
+    }
+    if (parseFloat(data.halting) > 0) {
+      mappedExpenses.push({
+        expenseType: 'OTHER',
+        amount: parseFloat(data.halting),
+        remarks: 'Post-Trip: Halting',
+        status: 'PENDING'
+      });
+    }
+    if (parseFloat(data.diesel) > 0) {
+      mappedExpenses.push({
+        expenseType: 'FUEL',
+        amount: parseFloat(data.diesel),
+        remarks: 'Post-Trip: Diesel',
+        status: 'PENDING'
+      });
+    }
+
+    if (Array.isArray(data.pumps)) {
+      for (const pump of data.pumps) {
+        if (parseFloat(pump.amount) > 0) {
+          mappedExpenses.push({
+            expenseType: 'FUEL',
+            amount: parseFloat(pump.amount),
+            remarks: `Post-Trip Pump: ${pump.name} (${pump.litres}L)`,
+            status: 'PENDING'
+          });
+        }
+      }
+    }
+
+    // Add mapped expenses to trip's expenses list
+    trip.expenses = mappedExpenses;
+
+    // Save the detailed post-trip schema
+    trip.postTripExpenses = {
+      tripStartDate: data.tripStartDate,
+      tripEndDate: data.tripEndDate,
+      vehicleNumber: data.vehicleNumber,
+      driverName: data.driverName,
+      loadingPoint: data.loadingPoint,
+      unloadingPoint: data.unloadingPoint,
+      tapalNo: data.tapalNo,
+      driverBatta: parseFloat(data.driverBatta) || 0,
+      rtoPcRmc: parseFloat(data.rtoPcRmc) || 0,
+      maintenance: parseFloat(data.maintenance) || 0,
+      tollFastag: parseFloat(data.tollFastag) || 0,
+      halting: parseFloat(data.halting) || 0,
+      startingKms: parseFloat(data.startingKms) || 0,
+      endingKms: parseFloat(data.endingKms) || 0,
+      totalKms: parseFloat(data.totalKms) || 0,
+      diesel: parseFloat(data.diesel) || 0,
+      mileage: parseFloat(data.mileage) || 0,
+      lessAdvance: parseFloat(data.lessAdvance) || 0,
+      remarks: data.remarks || '',
+      pumps: (data.pumps || []).map(p => ({
+        name: p.name,
+        litres: parseFloat(p.litres) || 0,
+        amount: parseFloat(p.amount) || 0
+      })),
+      totalExpenses: parseFloat(data.totalExpenses) || 0,
+      pumpTotal: parseFloat(data.pumpTotal) || 0,
+      balancePayable: parseFloat(data.balancePayable) || 0,
+      status: 'PENDING'
+    };
+
+    await trip.save();
+
+    // Create matching consolidated Expense document so it appears in claims panel
+    const ExpenseModel = mongoose.model('Expense');
+    // Clean old ones if any
+    await ExpenseModel.deleteMany({ linkedTripId: trip._id, remarks: { $regex: /Post-Trip/ } });
+
+    const newExpense = new ExpenseModel({
+      expenseType: 'OTHER',
+      amount: parseFloat(data.balancePayable) || parseFloat(data.totalExpenses) || 0.01,
+      status: 'PENDING',
+      payee: data.driverName || 'Driver',
+      linkedTripId: trip._id,
+      createdBy: driverId,
+      remarks: `Post-Trip Settlement for Trip ${trip.tripNumber}`
+    });
+    await newExpense.save();
+
+    broadcastEvent('expense:new', {
+      expenseId: newExpense._id,
+      amount: newExpense.amount,
+      tripNumber: trip.tripNumber,
+      driverName: data.driverName
+    }, 'dashboard:updates');
+
+    logger.info(`[Driver Flow]: Rich post-trip expenses logged for Trip ${trip.tripNumber} with matching Expense entry.`);
+    return trip;
+  }
+
+  /**
+   * Admin/Accountant reviews post-trip expenses
+   */
+  async reviewPostTripExpense(tripId, reviewerId, status, rejectionReason = '') {
+    const query = mongoose.Types.ObjectId.isValid(tripId)
+      ? { $or: [{ _id: tripId }, { tapalId: tripId }] }
+      : { tripNumber: tripId };
+
+    const trip = await Trip.findOne(query);
+    if (!trip) throw new AppError('Trip not found', 404);
+
+    if (!trip.postTripExpenses) {
+      throw new AppError('No post-trip expenses found on this trip', 400);
+    }
+
+    const upperStatus = status.toUpperCase(); // APPROVED or REJECTED
+    trip.postTripExpenses.status = upperStatus;
+    trip.postTripExpenses.reviewedBy = reviewerId;
+    trip.postTripExpenses.reviewedAt = new Date();
+    if (upperStatus === 'REJECTED') {
+      trip.postTripExpenses.rejectionReason = rejectionReason;
+    }
+
+    // Update individual nested expenses status
+    for (const exp of trip.expenses) {
+      exp.status = upperStatus;
+    }
+
+    if (upperStatus === 'APPROVED' && trip.status === 'DELIVERED') {
+      trip.status = 'CLOSED';
+      trip.timeline.push({ status: 'CLOSED', timestamp: new Date() });
+
+      // Lock Tapal into Bill Pending State
+      const TapalModel = mongoose.model('Tapal');
+      const tapal = await TapalModel.findById(trip.tapalId);
+      if (tapal) {
+        tapal.status = 'BILL_PENDING';
+        const deliveredQty = trip.actualDeliveredQty || trip.expectedQty;
+        tapal.qty = `${deliveredQty} KG`;
+        tapal.numericQty = deliveredQty;
+        await tapal.save();
+
+        // Update Harvest State to COMPLETED if linked
+        if (tapal.harvestId) {
+          const HarvestModel = mongoose.model('Harvest');
+          await HarvestModel.findByIdAndUpdate(tapal.harvestId, { status: 'COMPLETED' });
+        }
+      }
+
+      // Release Vehicle back to available fleet
+      const VehicleModel = mongoose.model('Vehicle');
+      const vehicle = await VehicleModel.findById(trip.vehicleId);
+      if (vehicle) {
+        vehicle.status = 'AVAILABLE';
+        await vehicle.save();
+      }
+
+      broadcastEvent('trip:status_change', {
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
+        status: 'CLOSED'
+      }, 'dashboard:updates');
+    }
+
+    await trip.save();
+
+    // Sync status of the linked standalone Expense document
+    const ExpenseModel = mongoose.model('Expense');
+    await ExpenseModel.updateMany(
+      { linkedTripId: trip._id, remarks: { $regex: /Post-Trip/ } },
+      { status: upperStatus, approvedBy: reviewerId }
+    );
+
+    logger.info(`[Admin Flow]: Post-trip expenses for Trip ${trip.tripNumber} marked as ${upperStatus} and trip status updated.`);
+    return trip;
+  }
 }
 
 export const tapalService = new TapalService();
