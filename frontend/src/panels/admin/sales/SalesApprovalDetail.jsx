@@ -16,7 +16,8 @@ import {
   Truck,
   IndianRupee,
   ShieldCheck,
-  Pencil
+  Pencil,
+  Loader
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -26,9 +27,15 @@ const SalesApprovalDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuthStore();
-  const { tapals, inventory, approveSalesTapal, rejectSalesTapal, suggestChangeSalesTapal } = useAdminStore();
+  const { tapals, inventory, fetchTapals, approveSalesTapal, rejectSalesTapal, suggestChangeSalesTapal } = useAdminStore();
   
-  const tapal = tapals.find(t => t.id === id);
+  useEffect(() => {
+    if (tapals.length === 0) {
+      fetchTapals();
+    }
+  }, [tapals.length, fetchTapals]);
+
+  const tapal = tapals.find(t => t.id === id || t._id === id || t.tapalNumber === id);
   const [editedProducts, setEditedProducts] = useState([]);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
@@ -45,7 +52,14 @@ const SalesApprovalDetail = () => {
     }
   }, [tapal]);
 
-  if (!tapal) return <div className="p-12 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">Record not found.</div>;
+  if (!tapal) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-4 p-12 text-center">
+        <Loader className="animate-spin mx-auto text-accent-olive mb-3" size={24} />
+        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Loading Tapal Review Data...</p>
+      </div>
+    );
+  }
 
   const handleProductChange = (idx, field, value) => {
     const newProducts = [...editedProducts];
@@ -112,14 +126,14 @@ const SalesApprovalDetail = () => {
             <div className="p-6 border-b border-card-border flex justify-between items-start">
                <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-xl font-serif italic font-bold text-black uppercase">{tapal.id}</h2>
+                    <h2 className="text-xl font-serif italic font-bold text-black uppercase">{tapal.tapalNumber || tapal.id}</h2>
                     <Badge variant="warning" className="text-[8px] px-2 py-0.5">{tapal.status}</Badge>
                   </div>
                   <p className="text-[9px] text-text-muted font-bold uppercase tracking-[0.2em]">CREATED BY: {tapal.createdBy || 'ADMIN'}</p>
                </div>
                <div className="text-right">
                   <p className="text-[9px] text-text-muted font-bold uppercase tracking-[0.2em]">DATE</p>
-                  <p className="text-[11px] font-bold text-black">{tapal.date}</p>
+                  <p className="text-[11px] font-bold text-black">{tapal.date || new Date(tapal.createdAt).toLocaleDateString()}</p>
                </div>
             </div>
 
@@ -132,7 +146,7 @@ const SalesApprovalDetail = () => {
                         <span className="text-[9px] font-bold uppercase tracking-widest">Buyer Details</span>
                      </div>
                      <div className="bg-olive-50/30 p-3 border border-card-border/50">
-                        <p className="text-[12px] font-bold text-black uppercase">{tapal.party}</p>
+                        <p className="text-[12px] font-bold text-black uppercase">{tapal.partyName || tapal.party}</p>
                         <p className="text-[10px] text-text-muted font-medium mt-1 leading-relaxed uppercase">{tapal.deliveryAddress || 'No Address Provided'}</p>
                      </div>
                   </div>

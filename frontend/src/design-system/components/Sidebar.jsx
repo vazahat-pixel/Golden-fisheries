@@ -12,25 +12,26 @@ import { useAdminStore } from '../../store/adminStore';
 
 const allNavItems = [
   // ─── ADMIN / MANAGER / ACCOUNTANT ──────────────────────────────────
-  { icon: LayoutDashboard, label: 'Dashboard',      path: '/admin/dashboard',             roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT'] },
-  { icon: Sprout,          label: 'Harvest',         path: '/admin/procurement/harvest',   roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER'] },
-  { icon: ClipboardList,   label: 'Tapals',          path: '/admin/tapals',                roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER'] },
-  { icon: ClipboardList,   label: 'Sales Approval',  path: '/admin/sales-approval',        roles: ['ADMIN', 'MANAGER'] },
-  { icon: Package,         label: 'Inventory',       path: '/admin/inventory',             roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT'] },
-  { icon: Truck,           label: 'Logistics',       path: '/admin/logistics',             roles: ['ADMIN', 'MANAGER'] },
-  { icon: UserPlus,        label: 'Drivers',         path: '/admin/logistics/drivers',     roles: ['ADMIN', 'MANAGER'] },
-  { icon: Truck,           label: 'Driver Console',  path: '/admin/logistics/control',     roles: ['ADMIN', 'MANAGER'] },
+  { icon: LayoutDashboard, label: 'Dashboard',      path: '/admin/dashboard',             roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER', 'BUYER', 'RESTAURANT_STAFF', 'RESTAURANT', 'FISHMALL_BILLING', 'FISHMALL', 'DRIVER'] },
+  { icon: Sprout,          label: 'Harvest',         path: '/admin/procurement/harvest',   roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER'], module: 'procurement' },
+  { icon: ClipboardList,   label: 'Tapals',          path: '/admin/tapals',                roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER'], module: 'tapals' },
+  { icon: ClipboardList,   label: 'Sales Approval',  path: '/admin/sales-approval',        roles: ['ADMIN', 'MANAGER'], module: 'tapals' },
+  { icon: Package,         label: 'Inventory',       path: '/admin/inventory',             roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT'], module: 'inventory' },
+  { icon: Truck,           label: 'Logistics',       path: '/admin/logistics',             roles: ['ADMIN', 'MANAGER'], module: 'logistics' },
+  { icon: UserPlus,        label: 'Drivers',         path: '/admin/logistics/drivers',     roles: ['ADMIN', 'MANAGER'], module: 'logistics' },
+  { icon: Truck,           label: 'Driver Console',  path: '/admin/logistics/control',     roles: ['ADMIN', 'MANAGER'], module: 'logistics' },
   // ─── VEHICLE MANAGER ────────────────────────────────────────────────
-  { icon: Truck,           label: 'Vehicle Fleet',   path: '/admin/vehicles',              roles: ['ADMIN', 'MANAGER', 'VEHICLE_MANAGER'] },
-  { icon: AlertTriangle,   label: 'Vehicle Alerts',  path: '/admin/vehicles/alerts',       roles: ['ADMIN', 'MANAGER', 'VEHICLE_MANAGER'] },
+  { icon: Truck,           label: 'Vehicle Fleet',   path: '/admin/vehicles',              roles: ['ADMIN', 'MANAGER', 'VEHICLE_MANAGER'], module: 'logistics' },
+  { icon: AlertTriangle,   label: 'Vehicle Alerts',  path: '/admin/vehicles/alerts',       roles: ['ADMIN', 'MANAGER', 'VEHICLE_MANAGER'], module: 'logistics' },
   // ─── PROCUREMENT MANAGER ────────────────────────────────────────────
-  { icon: FileText,        label: 'Net Rate',        path: '/admin/procurement/net-rate',  roles: ['ADMIN', 'MANAGER', 'PROCUREMENT_MANAGER'] },
+  { icon: FileText,        label: 'Net Rate',        path: '/admin/procurement/net-rate',  roles: ['ADMIN', 'MANAGER', 'PROCUREMENT_MANAGER'], module: 'procurement' },
+  { icon: FileText,        label: 'Farmer Ledger',   path: '/admin/procurement/farmer-ledger', roles: ['ADMIN', 'MANAGER', 'PROCUREMENT_MANAGER', 'ACCOUNTANT'], module: 'procurement' },
   // ─── FINANCE ────────────────────────────────────────────────────────
-  { icon: Store,           label: 'Outlets',         path: '/admin/outlets',               roles: ['ADMIN', 'MANAGER'] },
-  { icon: IndianRupee,     label: 'Finance',         path: '/admin/finance',               roles: ['ADMIN', 'ACCOUNTANT'] },
-  { icon: Receipt,         label: 'Expenses',        path: '/admin/expenses',              roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT'], badge: 'expenses' },
-  { icon: ReceiptText,     label: 'Billing',         path: '/admin/billing',               roles: ['ADMIN', 'ACCOUNTANT'] },
-  { icon: Shield,          label: 'Access Control',  path: '/admin/access',                roles: ['ADMIN'], highlight: true },
+  { icon: Store,           label: 'Outlets',         path: '/admin/outlets',               roles: ['ADMIN', 'MANAGER'], module: 'outlets' },
+  { icon: IndianRupee,     label: 'Finance',         path: '/admin/finance',               roles: ['ADMIN', 'ACCOUNTANT'], module: 'finance' },
+  { icon: Receipt,         label: 'Expenses',        path: '/admin/expenses',              roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT'], badge: 'expenses', module: 'finance' },
+  { icon: ReceiptText,     label: 'Billing',         path: '/admin/billing',               roles: ['ADMIN', 'ACCOUNTANT'], module: 'billing' },
+  { icon: Shield,          label: 'Access Control',  path: '/admin/access',                roles: ['ADMIN'], highlight: true, module: 'accessControl' },
   { icon: Settings,        label: 'Settings',        path: '/admin/settings',              roles: ['ADMIN'] },
 ];
 
@@ -43,7 +44,13 @@ export const Sidebar = ({ onClose }) => {
   const userRole = user?.role || 'ADMIN';
 
   const pendingExpenseCount = expenses.filter(e => e.status === 'Pending').length;
-  const filteredNavItems = allNavItems.filter(item => item.roles.includes(userRole));
+  const filteredNavItems = allNavItems.filter(item => {
+    if (userRole === 'ADMIN') return true;
+    if (item.module) {
+      return user?.permissions?.modules?.[item.module]?.read === true;
+    }
+    return item.roles.includes(userRole);
+  });
 
   // Role-specific home label
   const roleLabel = {

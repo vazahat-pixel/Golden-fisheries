@@ -396,7 +396,7 @@ const StepPermissions = ({ form, setForm, onSubmit }) => {
         onClick={onSubmit}
         className="w-full py-4 bg-[#6B7550] text-white text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2"
       >
-        <Lock size={14} /> Create & Activate User
+        <Lock size={14} /> Save User Access
       </button>
     </div>
   );
@@ -407,10 +407,19 @@ const StepPermissions = ({ form, setForm, onSubmit }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const STEPS = ['Verify Identity', 'Assign Role', 'Set Permissions'];
 
-const UserCreationForm = ({ onClose }) => {
-  const { createUser } = useRbacStore();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState({
+const UserCreationForm = ({ onClose, editingUser = null }) => {
+  const { createUser, updateUser } = useRbacStore();
+  const [step, setStep] = useState(editingUser ? 1 : 0);
+  const [form, setForm] = useState(editingUser ? {
+    id: editingUser.id || editingUser._id,
+    name: editingUser.fullName || editingUser.name,
+    phone: editingUser.phone,
+    email: editingUser.email || '',
+    phoneVerified: true,
+    role: editingUser.role,
+    loginPortal: editingUser.loginPortal || ROLE_TEMPLATES[editingUser.role]?.loginPortal || '',
+    permissions: editingUser.permissions || ROLE_TEMPLATES[editingUser.role]?.permissions || {},
+  } : {
     name: '',
     phone: '',
     email: '',
@@ -426,11 +435,16 @@ const UserCreationForm = ({ onClose }) => {
       return;
     }
     try {
-      await createUser(form);
-      toast.success(`${form.name} created successfully!`);
+      if (editingUser) {
+        await updateUser(form.id, form);
+        toast.success(`${form.name} updated successfully!`);
+      } else {
+        await createUser(form);
+        toast.success(`${form.name} created successfully!`);
+      }
       onClose();
     } catch (err) {
-      toast.error(err.message || 'Failed to create user');
+      toast.error(err.message || 'Failed to process user');
     }
   };
 
@@ -442,7 +456,9 @@ const UserCreationForm = ({ onClose }) => {
           <div className="flex justify-between items-start mb-6">
             <div>
               <p className="text-[9px] font-bold text-[#6B7550] uppercase tracking-widest">Step {step + 1} of {STEPS.length}</p>
-              <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight mt-0.5">{STEPS[step]}</h2>
+              <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight mt-0.5">
+                {editingUser && step === 1 ? 'Edit Role' : STEPS[step]}
+              </h2>
             </div>
             <button onClick={onClose} className="text-gray-300 hover:text-gray-900 transition-colors">
               <X size={20} />

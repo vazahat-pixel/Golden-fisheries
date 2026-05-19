@@ -39,6 +39,23 @@ const userSchema = new mongoose.Schema(
       enum: ['active', 'paused', 'revoked'],
       default: 'active'
     },
+    permissions: {
+      panels: {
+        restaurant: { type: Boolean, default: false },
+        fishmall: { type: Boolean, default: false },
+        driver: { type: Boolean, default: false },
+        admin: { type: Boolean, default: false }
+      },
+      modules: {
+        type: Map,
+        of: new mongoose.Schema({
+          read: { type: Boolean, default: false },
+          write: { type: Boolean, default: false },
+          delete: { type: Boolean, default: false }
+        }, { _id: false }),
+        default: {}
+      }
+    },
     phoneVerified: {
       type: Boolean,
       default: false

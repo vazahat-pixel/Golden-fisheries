@@ -19,8 +19,8 @@ router.post('/upload-document', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACC
 }));
 
 router.post('/create', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER), vehicleController.create);
-router.get('/all', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER), vehicleController.all);
-router.get('/:id', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER), vehicleController.getById);
+router.get('/all', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER, ROLES.PROCUREMENT_MANAGER), vehicleController.all);
+router.get('/:id', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.VEHICLE_MANAGER, ROLES.PROCUREMENT_MANAGER), vehicleController.getById);
 router.put('/update/:id', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.VEHICLE_MANAGER), vehicleController.update);
 router.delete('/:id', restrictTo(ROLES.ADMIN), vehicleController.delete);
 

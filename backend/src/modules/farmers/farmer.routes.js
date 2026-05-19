@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { farmerController } from './farmer.service.js'; // Note: Controller is exported alongside service
+import { farmerController } from './farmer.service.js';
 import { protect, restrictTo } from '../../middleware/auth.middleware.js';
 import { ROLES } from '../../constants/roles.js';
 

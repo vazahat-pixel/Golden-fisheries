@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../../design-system/components/Card';
 import { Badge } from '../../../design-system/components/Badge';
 import { Button } from '../../../design-system/components/Button';
@@ -11,36 +11,48 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Loader
 } from 'lucide-react';
 
 function clsx(...c) { return c.filter(Boolean).join(' '); }
 
 const SalesApprovalList = () => {
   const navigate = useNavigate();
-  const { tapals } = useAdminStore();
+  const { tapals, fetchTapals, loading } = useAdminStore();
   const [filter, setFilter] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchTapals();
+  }, [fetchTapals]);
 
   // Filter for Sales tapals that require Channappa's approval
   const salesTapals = tapals.filter(t => t.type === 'Sale');
   
   const filteredTapals = salesTapals.filter(tapal => {
-    const matchesFilter = filter === 'all' || tapal.status.toLowerCase().includes(filter.toLowerCase());
+    const status = tapal.status || '';
+    const matchesFilter = filter === 'all' || 
+      (filter === 'pending' && (status.toLowerCase().includes('pending') || status.toLowerCase().includes('created'))) ||
+      (filter === 'approved' && (status.toLowerCase().includes('completed') || status.toLowerCase().includes('approved'))) ||
+      (filter === 'rejected' && status.toLowerCase().includes('rejected')) ||
+      status.toLowerCase().includes(filter.toLowerCase());
+
+    const party = tapal.partyName || tapal.party || '';
+    const number = tapal.tapalNumber || tapal._id || tapal.id || '';
     const matchesSearch = 
-      tapal.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tapal.party.toLowerCase().includes(searchQuery.toLowerCase());
+      number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      party.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
-  const getStatusVariant = (status) => {
-    switch (status.toLowerCase()) {
-      case 'pending approval': return 'warning';
-      case 'approved': return 'success';
-      case 'rejected': return 'danger';
-      case 'changes requested': return 'info';
-      default: return 'secondary';
-    }
+  const getStatusVariant = (status = '') => {
+    const s = status.toLowerCase();
+    if (s.includes('pending') || s.includes('created')) return 'warning';
+    if (s.includes('approved') || s.includes('completed')) return 'success';
+    if (s.includes('rejected')) return 'danger';
+    if (s.includes('requested')) return 'info';
+    return 'secondary';
   };
 
   return (
@@ -100,14 +112,23 @@ const SalesApprovalList = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-olive-100/50">
-              {filteredTapals.length > 0 ? filteredTapals.map((tapal) => (
-                <tr key={tapal.id} className="hover:bg-olive-50/50 transition-colors group">
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <Loader size={24} className="text-accent-olive animate-spin" />
+                      <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Loading Sales Approval Queue...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredTapals.length > 0 ? filteredTapals.map((tapal) => (
+                <tr key={tapal._id || tapal.id} className="hover:bg-olive-50/50 transition-colors group">
                   <td className="px-4 py-2.5">
-                    <p className="text-[11px] font-bold text-black uppercase">{tapal.id}</p>
-                    <p className="text-[8px] text-text-muted font-bold uppercase">{tapal.date}</p>
+                    <p className="text-[11px] font-bold text-black uppercase">{tapal.tapalNumber || tapal.id}</p>
+                    <p className="text-[8px] text-text-muted font-bold uppercase">{tapal.date || new Date(tapal.createdAt).toLocaleDateString()}</p>
                   </td>
                   <td className="px-4 py-2.5">
-                    <p className="text-[10px] font-bold text-black uppercase">{tapal.party}</p>
+                    <p className="text-[10px] font-bold text-black uppercase">{tapal.partyName || tapal.party}</p>
                     <p className="text-[8px] text-text-muted font-bold uppercase truncate max-w-[150px]">{tapal.deliveryAddress || 'NO ADDRESS'}</p>
                   </td>
                   <td className="px-4 py-2.5">
@@ -116,7 +137,7 @@ const SalesApprovalList = () => {
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge variant={getStatusVariant(tapal.status)} className="px-2 py-0.5 text-[8px] font-bold border border-card-border shadow-none">
-                      {tapal.status.toUpperCase()}
+                      {(tapal.status || 'CREATED').toUpperCase()}
                     </Badge>
                   </td>
                   <td className="px-4 py-2.5 text-right">
@@ -124,7 +145,7 @@ const SalesApprovalList = () => {
                       size="sm" 
                       variant="outline" 
                       className="text-[9px] font-bold h-7 px-3 gap-1.5"
-                      onClick={() => navigate(`/admin/sales-approval/${tapal.id}`)}
+                      onClick={() => navigate(`/admin/sales-approval/${tapal._id || tapal.id}`)}
                     >
                       <Eye size={12} /> VIEW & REVIEW
                     </Button>

@@ -20,7 +20,6 @@ import { useAuthStore } from '../store/authStore';
 // Admin
 const AdminDashboard = React.lazy(() => import('../panels/admin/Dashboard'));
 const TapalList = React.lazy(() => import('../panels/admin/tapals/TapalList'));
-const CreatePurchaseTapal = React.lazy(() => import('../panels/admin/tapals/CreatePurchaseTapal'));
 const CreateSalesTapal = React.lazy(() => import('../panels/admin/tapals/CreateSalesTapal'));
 const TapalDetail = React.lazy(() => import('../panels/admin/tapals/TapalDetail'));
 const InventoryOverview = React.lazy(() => import('../panels/admin/inventory/InventoryOverview'));
@@ -33,6 +32,7 @@ const HarvestSlips = React.lazy(() => import('../panels/admin/procurement/Harves
 const CreateHarvestSlip = React.lazy(() => import('../panels/admin/procurement/CreateHarvestSlipV2'));
 const HarvestSlipDetail = React.lazy(() => import('../panels/admin/procurement/HarvestSlipDetail'));
 const NetRate = React.lazy(() => import('../panels/admin/procurement/NetRate'));
+const FarmerLedger = React.lazy(() => import('../panels/admin/procurement/FarmerLedger'));
 const UsersAndRoles = React.lazy(() => import('../panels/admin/settings/UsersAndRoles'));
 const AdminBilling = React.lazy(() => import('../panels/admin/billing/AdminBilling'));
 const SalesApprovalList = React.lazy(() => import('../panels/admin/sales/SalesApprovalList'));
@@ -117,7 +117,7 @@ const fishMallNav = [
 ];
 
 // All roles that can access admin panel routes
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER'];
+const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER', 'BUYER', 'RESTAURANT_STAFF', 'RESTAURANT', 'FISHMALL_BILLING', 'FISHMALL', 'DRIVER'];
 
 const AppRouter = () => {
   return (
@@ -135,32 +135,63 @@ const AppRouter = () => {
             </ProtectedRoute>
           }>
             <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="tapals" element={<TapalList />} />
-            <Route path="tapals/purchase/new" element={<CreatePurchaseTapal />} />
-            <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
-            <Route path="tapals/:id" element={<TapalDetail />} />
-            <Route path="sales-approval" element={<SalesApprovalList />} />
-            <Route path="sales-approval/:id" element={<SalesApprovalDetail />} />
-            <Route path="procurement/harvest" element={<HarvestSlips />} />
-            <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
-            <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
-            <Route path="procurement/net-rate" element={<NetRate />} />
-            <Route path="inventory" element={<InventoryOverview />} />
-            <Route path="inventory/new" element={<AddInventoryItem />} />
-            <Route path="logistics" element={<TripsAndExpenses />} />
-            <Route path="logistics/drivers" element={<DriverManagement />} />
-            <Route path="logistics/control" element={<DriverControlConsole />} />
-            <Route path="logistics/vehicles" element={<Navigate to="/admin/vehicles" replace />} />
-            <Route path="vehicles" element={<VehicleDashboard />} />
-            <Route path="vehicles/new" element={<AddVehicle />} />
-            <Route path="vehicles/:id" element={<VehicleDetail />} />
-            <Route path="vehicles/alerts" element={<VehicleDashboard />} />
-            <Route path="finance" element={<FinanceOverview />} />
-            <Route path="expenses" element={<ExpenseReviewPage />} />
-            <Route path="billing" element={<AdminBilling />} />
-            <Route path="outlets" element={<OutletManagement />} />
+
+            {/* Tapal Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="tapals"><Outlet /></ProtectedRoute>}>
+              <Route path="tapals" element={<TapalList />} />
+              <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
+              <Route path="tapals/:id" element={<TapalDetail />} />
+              <Route path="sales-approval" element={<SalesApprovalList />} />
+              <Route path="sales-approval/:id" element={<SalesApprovalDetail />} />
+            </Route>
+
+            {/* Procurement Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="procurement"><Outlet /></ProtectedRoute>}>
+              <Route path="procurement/harvest" element={<HarvestSlips />} />
+              <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
+              <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
+              <Route path="procurement/net-rate" element={<NetRate />} />
+              <Route path="procurement/farmer-ledger" element={<FarmerLedger />} />
+            </Route>
+
+            {/* Inventory Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT']} module="inventory"><Outlet /></ProtectedRoute>}>
+              <Route path="inventory" element={<InventoryOverview />} />
+              <Route path="inventory/new" element={<AddInventoryItem />} />
+            </Route>
+
+            {/* Logistics Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VEHICLE_MANAGER']} module="logistics"><Outlet /></ProtectedRoute>}>
+              <Route path="logistics" element={<TripsAndExpenses />} />
+              <Route path="logistics/drivers" element={<DriverManagement />} />
+              <Route path="logistics/control" element={<DriverControlConsole />} />
+              <Route path="logistics/vehicles" element={<Navigate to="/admin/vehicles" replace />} />
+              <Route path="vehicles" element={<VehicleDashboard />} />
+              <Route path="vehicles/new" element={<AddVehicle />} />
+              <Route path="vehicles/:id" element={<VehicleDetail />} />
+              <Route path="vehicles/alerts" element={<VehicleDashboard />} />
+            </Route>
+
+            {/* Finance & Billing Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'ACCOUNTANT']} module="finance"><Outlet /></ProtectedRoute>}>
+              <Route path="finance" element={<FinanceOverview />} />
+              <Route path="expenses" element={<ExpenseReviewPage />} />
+            </Route>
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'ACCOUNTANT']} module="billing"><Outlet /></ProtectedRoute>}>
+              <Route path="billing" element={<AdminBilling />} />
+            </Route>
+
+            {/* Outlets Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']} module="outlets"><Outlet /></ProtectedRoute>}>
+              <Route path="outlets" element={<OutletManagement />} />
+            </Route>
+
+            {/* Access Control & Settings */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} module="accessControl"><Outlet /></ProtectedRoute>}>
+              <Route path="access" element={<AccessControl />} />
+            </Route>
+
             <Route path="settings" element={<UsersAndRoles />} />
-            <Route path="access" element={<AccessControl />} />
           </Route>
         </Routes>
       } />

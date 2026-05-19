@@ -129,11 +129,6 @@ const TapalList = () => {
             <Download size={12} /> EXPORT
           </Button>
           <div className="flex gap-2">
-            <Link to="/admin/tapals/purchase/new">
-              <Button size="sm" className="gap-2 text-[9px] font-bold uppercase tracking-widest px-4 h-9 shadow-md bg-amber-600 border-amber-600">
-                <Plus size={12} /> PURCHASE
-              </Button>
-            </Link>
             <Link to="/admin/tapals/sales/new">
               <Button size="sm" className="gap-2 text-[9px] font-bold uppercase tracking-widest px-4 h-9 shadow-md">
                 <Plus size={12} /> SALES

@@ -20,12 +20,16 @@ export const harvestValidators = {
     }),
     logisticsNotes: Joi.string().allow('', null),
     remarks: Joi.string().allow('', null),
+    tds: Joi.number().min(0).allow(null),
+    commission: Joi.number().min(0).allow(null),
+    soft: Joi.number().min(0).allow(null),
     products: Joi.array().required().min(1).items(
       Joi.object({
         productId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/).messages({
           'any.required': 'Product ID is required',
           'string.pattern.base': 'Product ID must be a valid 24-char MongoDB ObjectId'
         }),
+        hsnCode: Joi.string().allow('', null),
         fishName: Joi.string().required().messages({
           'any.required': 'Fish display name is required'
         }),
@@ -51,6 +55,9 @@ export const harvestValidators = {
     pickupLocation: Joi.string().trim(),
     logisticsNotes: Joi.string().allow('', null),
     remarks: Joi.string().allow('', null),
+    tds: Joi.number().min(0).allow(null),
+    commission: Joi.number().min(0).allow(null),
+    soft: Joi.number().min(0).allow(null),
     products: Joi.array().min(1).items(
       Joi.object({
         productId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/),

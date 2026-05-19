@@ -239,6 +239,19 @@ export const useAdminStore = create(
         }
       },
 
+      saveNetRateAsync: async (id, data) => {
+        set({ loading: true });
+        try {
+          const res = await harvestService.saveNetRate(id, data);
+          await get().fetchHarvestSlips();
+          set({ loading: false });
+          return res?.data?.harvest || res?.harvest || res;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
 
       // Invoices Async
       fetchInvoices: async (params = {}) => {
@@ -811,24 +824,6 @@ export const useAdminStore = create(
         } catch (err) {
           console.warn('Backend fetchFarmers failed:', err.message);
           set({ loading: false });
-        }
-      },
-
-      addFarmerAsync: async (farmerData) => {
-        set({ loading: true });
-        try {
-          await masterService.farmers.create({
-            fullName: farmerData.name,
-            phone: farmerData.mobile,
-            location: farmerData.location,
-            village: farmerData.village,
-            whatsapp: farmerData.whatsapp
-          });
-          await get().fetchFarmers();
-          set({ loading: false });
-        } catch (err) {
-          set({ error: err.message, loading: false });
-          throw err;
         }
       },
 

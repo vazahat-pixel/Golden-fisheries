@@ -7,6 +7,10 @@ const harvestItemSchema = new mongoose.Schema({
     ref: 'Product',
     required: [true, 'Product reference is required']
   },
+  hsnCode: {
+    type: String,
+    trim: true
+  },
   fishName: {
     type: String,
     required: [true, 'Fish name cache is required']
@@ -92,6 +96,37 @@ const harvestSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    tds: {
+      type: Number,
+      min: [0, 'TDS cannot be negative'],
+      default: 0
+    },
+    commission: {
+      type: Number,
+      min: [0, 'Commission cannot be negative'],
+      default: 0
+    },
+    soft: {
+      type: Number,
+      min: [0, 'Soft cannot be negative'],
+      default: 0
+    },
+    // Payment & Net Rate Tracking
+    netRateCalculated: { type: Number, default: null },
+    totalPayableAmount: { type: Number, default: null },
+    totalDeductions: { type: Number, default: 0 },
+    paidAmount: { type: Number, default: 0 },
+    pendingAmount: { type: Number, default: null },
+    paymentStatus: {
+      type: String,
+      enum: ['UNPAID', 'PARTIAL', 'PAID'],
+      default: 'UNPAID'
+    },
+    deductionTransport: { type: Number, default: 0 },
+    deductionCommission: { type: Number, default: 0 },
+    deductionSoft: { type: Number, default: 0 },
+    deductionOther: { type: Number, default: 0 },
+    finalNetRate: { type: Number, default: null },
     products: {
       type: [harvestItemSchema],
       validate: {

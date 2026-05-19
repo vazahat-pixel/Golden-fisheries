@@ -144,6 +144,90 @@ class HarvestService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Save Net Rate calculations and finalize purchase bill.
+   * Auto-posts supply transactions to Farmer Ledger for double-entry tracking.
+   */
+  async saveNetRate(harvestId, netRateData, creatorUser) {
+    const {
+      netRateCalculated,
+      totalPayableAmount,
+      totalDeductions,
+      deductionTransport = 0,
+      deductionCommission = 0,
+      deductionSoft = 0,
+      deductionOther = 0,
+      finalNetRate,
+      productRates
+    } = netRateData;
+
+    const harvest = await this.model.findById(harvestId);
+    if (!harvest) {
+      throw new AppError(`Harvest Slip ${harvestId} not found`, 404);
+    }
+
+    // Update individual product rates if provided
+    if (productRates) {
+      for (const item of harvest.products) {
+        const itemKey = item._id ? item._id.toString() : item.id;
+        if (productRates[itemKey] !== undefined) {
+          item.rate = parseFloat(productRates[itemKey]) || 0;
+        }
+      }
+    }
+
+    // Save calculations to Harvest Slip
+    harvest.netRateCalculated = netRateCalculated;
+    harvest.totalPayableAmount = totalPayableAmount;
+    harvest.totalDeductions = totalDeductions;
+    harvest.deductionTransport = deductionTransport;
+    harvest.deductionCommission = deductionCommission;
+    harvest.deductionSoft = deductionSoft;
+    harvest.deductionOther = deductionOther;
+    harvest.finalNetRate = finalNetRate;
+
+    // Recalculate pending amount based on paid amount
+    harvest.pendingAmount = Math.max(0, totalPayableAmount - (harvest.paidAmount || 0));
+    if (harvest.pendingAmount === 0) {
+      harvest.paymentStatus = 'PAID';
+    } else if ((harvest.paidAmount || 0) > 0) {
+      harvest.paymentStatus = 'PARTIAL';
+    } else {
+      harvest.paymentStatus = 'UNPAID';
+    }
+
+    await harvest.save();
+
+    // Auto-update or post to Farmer Ledger
+    const { FarmerLedger } = await import('../farmer-ledger/farmerLedger.model.js');
+    const { farmerLedgerService } = await import('../farmer-ledger/farmerLedger.service.js');
+
+    const existingLedger = await FarmerLedger.findOne({ harvestId: harvest._id });
+    if (existingLedger) {
+      existingLedger.debitAmount = totalPayableAmount;
+      const prev = await FarmerLedger.findOne({
+        farmerId: harvest.farmerId,
+        _id: { $ne: existingLedger._id },
+        createdAt: { $lt: existingLedger.createdAt }
+      }).sort({ createdAt: -1 });
+      const prevBal = prev ? prev.balanceAfter : 0;
+      existingLedger.balanceAfter = prevBal + totalPayableAmount - existingLedger.creditAmount;
+      await existingLedger.save();
+    } else {
+      await farmerLedgerService.addEntry({
+        farmerId: harvest.farmerId,
+        harvestId: harvest._id,
+        entryType: 'SUPPLY',
+        description: `Finalized Harvest Supply ${harvest.harvestNumber}`,
+        debitAmount: totalPayableAmount,
+        creditAmount: 0,
+        createdBy: creatorUser.phone
+      });
+    }
+
+    return harvest;
+  }
 }
 
 export const harvestService = new HarvestService();

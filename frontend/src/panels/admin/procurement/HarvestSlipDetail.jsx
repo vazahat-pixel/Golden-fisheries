@@ -7,7 +7,8 @@ import { useAdminStore } from '../../../store/adminStore';
 import HarvestBillPrint from './HarvestBillPrint';
 import {
   ArrowLeft, MapPin, Phone, Calendar, Truck, MessageCircle,
-  CheckCircle, XCircle, RefreshCw, Send, AlertTriangle, Package, Clock, FileDown
+  CheckCircle, XCircle, RefreshCw, Send, AlertTriangle, Package, Clock, FileDown,
+  IndianRupee, X
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -32,13 +33,22 @@ const STATUS_ORDER = ['pending', 'sent', 'confirmed', 'converted'];
 export default function HarvestSlipDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { harvestSlips, updateHarvestStatusAsync, convertSlipToTapalAsync } = useAdminStore();
+  const { harvestSlips, updateHarvestStatusAsync, convertSlipToTapalAsync, saveNetRateAsync } = useAdminStore();
   const slip = harvestSlips.find(s => s._id === id || s.id === id);
   const [showBill, setShowBill] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const [partialQtys, setPartialQtys] = useState(() =>
-    slip ? Object.fromEntries(slip.products.map(p => [p.id, p.quantity])) : {}
+    slip ? Object.fromEntries(slip.products.map(p => [p.id || p._id, p.confirmedQty ?? p.estimatedQty ?? p.quantity])) : {}
   );
+
+  const [rates, setRates] = useState(() =>
+    slip ? Object.fromEntries(slip.products.map(p => [p._id || p.id, p.rate || 0])) : {}
+  );
+  const [transport, setTransport] = useState(() => slip?.deductionTransport || 0);
+  const [commission, setCommission] = useState(() => slip?.deductionCommission || 0);
+  const [soft, setSoft] = useState(() => slip?.deductionSoft || 0);
+  const [other, setOther] = useState(() => slip?.deductionOther || 0);
 
   if (!slip) return <div className="p-12 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest">Slip not found.</div>;
 
@@ -56,6 +66,32 @@ export default function HarvestSlipDetail() {
       toast.success('Slip Confirmed Successfully');
     } catch (err) {
       toast.error('Failed to confirm slip');
+    }
+  };
+
+  const handleSaveNetRate = async () => {
+    const grossTotal = slip.products.reduce((a, p) => a + ((p.confirmedQty ?? p.estimatedQty ?? p.quantity) * (rates[p._id || p.id] || 0)), 0);
+    const deductions = parseFloat(transport || 0) + parseFloat(commission || 0) + parseFloat(soft || 0) + parseFloat(other || 0);
+    const netPayable = grossTotal - deductions;
+    const netRate = totalQty > 0 ? (netPayable / totalQty) : 0;
+
+    try {
+      toast.loading('Saving settlement details...', { id: 'save-settlement' });
+      await saveNetRateAsync(slip._id || slip.id, {
+        netRateCalculated: parseFloat(netRate.toFixed(2)),
+        totalPayableAmount: parseFloat(netPayable.toFixed(2)),
+        totalDeductions: parseFloat(deductions.toFixed(2)),
+        deductionTransport: parseFloat(transport || 0),
+        deductionCommission: parseFloat(commission || 0),
+        deductionSoft: parseFloat(soft || 0),
+        deductionOther: parseFloat(other || 0),
+        finalNetRate: parseFloat(netRate.toFixed(2)),
+        productRates: rates
+      });
+      toast.success('Net rate settlement saved successfully!', { id: 'save-settlement' });
+      setShowCalculator(false);
+    } catch (err) {
+      toast.error(err.message || 'Failed to save settlement', { id: 'save-settlement' });
     }
   };
 
@@ -175,6 +211,16 @@ export default function HarvestSlipDetail() {
               >
                 <FileDown size={12} /> FARMER PURCHASE BILL
               </Button>
+              {/* Net Rate Calculation trigger */}
+              {slip.status === 'CONFIRMED' && (
+                <Button
+                  onClick={() => setShowCalculator(true)}
+                  size="sm"
+                  className="w-full text-[9px] font-bold h-9 shadow-md bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2"
+                >
+                  <IndianRupee size={12} /> CALCULATE NET RATE
+                </Button>
+              )}
               {(slip.status === 'PENDING' || slip.status === 'sent' || slip.status === 'pending' || slip.status === 'DRAFT') && (
                 <>
                   <Button onClick={handleConfirm} size="sm" className="w-full text-[9px] font-bold h-9 shadow-md bg-green-600 hover:bg-green-700">CONFIRM SLIP</Button>
@@ -185,8 +231,144 @@ export default function HarvestSlipDetail() {
               {['CONVERTED_TO_TAPAL', 'REJECTED', 'COMPLETED'].includes(slip.status) && <p className="text-[8px] text-text-muted font-bold text-center py-2 uppercase tracking-widest">RECORD LOCKED</p>}
             </div>
           </Card>
+
+          {/* Dynamic Final Settlement Summary card */}
+          {slip.netRateCalculated !== undefined && slip.netRateCalculated !== null && (
+            <Card className="border border-card-border shadow-subtle bg-white p-4 space-y-3">
+              <h3 className="text-[9px] font-bold uppercase tracking-widest text-[#6B7550] border-b pb-1 font-black">FINAL SETTLEMENT SUMMARY</h3>
+              <div className="grid grid-cols-2 gap-y-2 text-[10px] font-bold">
+                <div className="text-text-muted uppercase">Final Net Rate:</div>
+                <div className="font-serif italic font-black text-black text-right">₹{(slip.finalNetRate || slip.netRateCalculated).toFixed(2)} / KG</div>
+                
+                <div className="text-text-muted uppercase">Gross Amount:</div>
+                <div className="text-black text-right">₹{((slip.totalPayableAmount || 0) + (slip.totalDeductions || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                
+                <div className="text-text-muted uppercase">Total Deductions:</div>
+                <div className="text-red-500 text-right">₹{(slip.totalDeductions || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                
+                <div className="text-text-muted uppercase">Net Payable Amount:</div>
+                <div className="text-emerald-600 text-right font-black text-[11px]">₹{(slip.totalPayableAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                
+                <div className="text-text-muted uppercase">Paid Amount:</div>
+                <div className="text-black text-right">₹{(slip.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+
+                <div className="text-text-muted uppercase">Pending Balance:</div>
+                <div className="text-red-600 text-right font-black">₹{(slip.pendingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
+
+      {/* Net Rate Calculator Overlay Modal */}
+      {showCalculator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-card-border shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-card-border flex justify-between items-center bg-olive-50/10">
+              <div>
+                <h3 className="text-sm font-serif italic font-bold text-black flex items-center gap-1.5">
+                  <IndianRupee size={16} className="text-accent-olive" /> Net Rate &amp; Final Settlement
+                </h3>
+                <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest mt-0.5">Finalize calculations for {slip.harvestNumber || slip.id}</p>
+              </div>
+              <button onClick={() => setShowCalculator(false)} className="p-1.5 text-text-muted hover:text-black rounded-lg hover:bg-slate-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="px-6 py-5 overflow-y-auto space-y-4 text-[10px]">
+              {/* Product Rate Inputs */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-black uppercase tracking-widest text-[8px] text-text-muted border-b pb-1">1. Fish Purchase Rates</h4>
+                {slip.products.map(p => (
+                  <div key={p.id || p._id} className="flex justify-between items-center gap-4 bg-slate-50/50 p-2.5 border border-card-border/60">
+                    <div>
+                      <p className="font-bold text-black uppercase text-[10px]">{p.fishName}</p>
+                      <p className="text-[8px] text-text-muted font-bold">Qty: {p.confirmedQty ?? p.estimatedQty ?? p.quantity} {p.unit}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-text-muted">₹</span>
+                      <input
+                        type="number"
+                        placeholder="0.00"
+                        value={rates[p._id || p.id] !== undefined ? rates[p._id || p.id] : (p.rate || '')}
+                        onChange={e => setRates(prev => ({ ...prev, [p._id || p.id]: e.target.value }))}
+                        className="w-24 border border-card-border px-2.5 py-1 text-[10px] font-bold outline-none focus:ring-1 focus:ring-accent-olive text-right bg-white rounded-none"
+                      />
+                      <span className="font-bold text-text-muted">/ KG</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Deductions Inputs */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-black uppercase tracking-widest text-[8px] text-text-muted border-b pb-1">2. Deductions</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Transport Deduction (₹)', state: transport, setState: setTransport },
+                    { label: 'Commission Deduction (₹)', state: commission, setState: setCommission },
+                    { label: 'Soft Deduction (₹)', state: soft, setState: setSoft },
+                    { label: 'Other/Wastage (₹)', state: other, setState: setOther },
+                  ].map(d => (
+                    <div key={d.label} className="space-y-1">
+                      <label className="font-bold text-text-muted uppercase text-[8px]">{d.label}</label>
+                      <input
+                        type="number"
+                        placeholder="0.00"
+                        value={d.state}
+                        onChange={e => d.setState(e.target.value)}
+                        className="w-full border border-card-border px-2.5 py-1.5 text-[10px] font-bold outline-none focus:ring-1 focus:ring-accent-olive bg-white rounded-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Calculation Summary Preview */}
+              {(() => {
+                const grossVal = slip.products.reduce((a, p) => a + ((p.confirmedQty ?? p.estimatedQty ?? p.quantity) * (parseFloat(rates[p._id || p.id] !== undefined ? rates[p._id || p.id] : p.rate) || 0)), 0);
+                const totalDeds = parseFloat(transport || 0) + parseFloat(commission || 0) + parseFloat(soft || 0) + parseFloat(other || 0);
+                const netPay = grossVal - totalDeds;
+                const netRt = totalQty > 0 ? (netPay / totalQty) : 0;
+                return (
+                  <div className="bg-[#6B7550]/5 border border-[#6B7550]/15 p-4 space-y-2">
+                    <div className="flex justify-between font-bold text-text-muted">
+                      <span>GROSS VALUE:</span>
+                      <span>₹{grossVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-red-500">
+                      <span>TOTAL DEDUCTIONS:</span>
+                      <span>- ₹{totalDeds.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="h-px bg-[#6B7550]/15 my-1" />
+                    <div className="flex justify-between text-[11px] font-bold text-black">
+                      <span>NET PAYABLE AMOUNT:</span>
+                      <span className="text-[#6B7550]">₹{netPay.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] font-bold text-black border-t border-dashed border-[#6B7550]/30 pt-1.5">
+                      <span>FINAL COMPUTED NET RATE:</span>
+                      <span>₹{netRt.toFixed(2)} / KG</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-card-border bg-slate-50 flex justify-end gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setShowCalculator(false)} className="text-[9px] font-bold uppercase tracking-widest border-card-border h-9">
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveNetRate} className="text-[9px] font-bold uppercase tracking-widest bg-[#6B7550] hover:bg-[#5a6340] h-9 text-white">
+                Save &amp; Finalize Settlement
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

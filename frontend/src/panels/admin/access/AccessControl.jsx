@@ -14,8 +14,10 @@ import {
   ShoppingCart,
   Truck,
   Search,
+  Pencil,
 } from 'lucide-react';
 import { useRbacStore, ROLE_TEMPLATES } from '../../../store/rbacStore';
+import { useAuthStore } from '../../../store/authStore';
 import { toast } from 'react-hot-toast';
 import UserCreationForm from './UserCreationForm';
 
@@ -56,7 +58,9 @@ const StatusBadge = ({ status }) => {
 
 const AccessControl = () => {
   const { users, revokeUser, togglePauseUser, deleteUser, fetchUsers, loading } = useRbacStore();
+  const { user: currentUser } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('ALL');
 
@@ -102,7 +106,10 @@ const AccessControl = () => {
             </p>
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setEditingUser(null);
+              setShowForm(true);
+            }}
             className="flex items-center gap-2 bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-[#6B7550] transition-all shadow-sm"
           >
             <UserPlus size={14} /> Create User
@@ -236,52 +243,105 @@ const AccessControl = () => {
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={async () => {
-                              try {
-                                await togglePauseUser(user.id || user._id);
-                                toast.success(user.status === 'paused' ? `${user.fullName || user.name} reactivated` : `${user.fullName || user.name} paused`);
-                              } catch (err) {
-                                toast.error('Failed to update status');
-                              }
-                            }}
-                            title={user.status === 'paused' ? 'Reactivate' : 'Pause'}
-                            className="w-8 h-8 flex items-center justify-center bg-amber-50 text-amber-500 hover:bg-amber-100 border border-amber-100 transition-all"
-                          >
-                            <PauseCircle size={13} />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (window.confirm(`Revoke access for ${user.fullName || user.name}?`)) {
-                                try {
-                                  await revokeUser(user.id || user._id);
-                                  toast.error(`${user.fullName || user.name}'s access revoked`);
-                                } catch (err) {
-                                  toast.error('Failed to revoke access');
-                                }
-                              }
-                            }}
-                            title="Revoke"
-                            className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 transition-all"
-                          >
-                            <XCircle size={13} />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (window.confirm(`Permanently delete ${user.fullName || user.name}?`)) {
-                                try {
-                                  await deleteUser(user.id || user._id);
-                                  toast.error(`${user.fullName || user.name} deleted`);
-                                } catch (err) {
-                                  toast.error('Failed to delete user');
-                                }
-                              }
-                            }}
-                            title="Delete"
-                            className="w-8 h-8 flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 border border-gray-100 transition-all"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          {(() => {
+                            const isSelf = user.id === currentUser?.id || user._id === currentUser?._id || user.phone === currentUser?.phone;
+                            return (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    if (isSelf) {
+                                      toast.error('You cannot edit or downgrade your own role/permissions to prevent accidental lockout.');
+                                      return;
+                                    }
+                                    setEditingUser(user);
+                                    setShowForm(true);
+                                  }}
+                                  disabled={isSelf}
+                                  title={isSelf ? "Cannot edit your own role" : "Edit Role & Permissions"}
+                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
+                                    isSelf
+                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
+                                      : 'bg-blue-50 text-blue-500 hover:bg-blue-100 border-blue-100'
+                                  }`}
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (isSelf) {
+                                      toast.error('You cannot pause your own account.');
+                                      return;
+                                    }
+                                    try {
+                                      await togglePauseUser(user.id || user._id);
+                                      toast.success(user.status === 'paused' ? `${user.fullName || user.name} reactivated` : `${user.fullName || user.name} paused`);
+                                    } catch (err) {
+                                      toast.error('Failed to update status');
+                                    }
+                                  }}
+                                  disabled={isSelf}
+                                  title={isSelf ? "Cannot pause your own account" : (user.status === 'paused' ? 'Reactivate' : 'Pause')}
+                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
+                                    isSelf
+                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
+                                      : 'bg-amber-50 text-amber-500 hover:bg-amber-100 border-amber-100'
+                                  }`}
+                                >
+                                  <PauseCircle size={13} />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (isSelf) {
+                                      toast.error('You cannot revoke your own account.');
+                                      return;
+                                    }
+                                    if (window.confirm(`Revoke access for ${user.fullName || user.name}?`)) {
+                                      try {
+                                        await revokeUser(user.id || user._id);
+                                        toast.error(`${user.fullName || user.name}'s access revoked`);
+                                      } catch (err) {
+                                        toast.error('Failed to revoke access');
+                                      }
+                                    }
+                                  }}
+                                  disabled={isSelf}
+                                  title={isSelf ? "Cannot revoke your own access" : "Revoke"}
+                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
+                                    isSelf
+                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
+                                      : 'bg-red-50 text-red-500 hover:bg-red-100 border-red-100'
+                                  }`}
+                                >
+                                  <XCircle size={13} />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (isSelf) {
+                                      toast.error('You cannot delete your own account.');
+                                      return;
+                                    }
+                                    if (window.confirm(`Permanently delete ${user.fullName || user.name}?`)) {
+                                      try {
+                                        await deleteUser(user.id || user._id);
+                                        toast.error(`${user.fullName || user.name} deleted`);
+                                      } catch (err) {
+                                        toast.error('Failed to delete user');
+                                      }
+                                    }
+                                  }}
+                                  disabled={isSelf}
+                                  title={isSelf ? "Cannot delete your own account" : "Delete"}
+                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
+                                    isSelf
+                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
+                                      : 'bg-rose-50 text-rose-500 hover:bg-rose-100 border-rose-100'
+                                  }`}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -309,7 +369,15 @@ const AccessControl = () => {
       </div>
 
       {/* User Creation Form Modal */}
-      {showForm && <UserCreationForm onClose={() => setShowForm(false)} />}
+      {showForm && (
+        <UserCreationForm
+          onClose={() => {
+            setShowForm(false);
+            setEditingUser(null);
+          }}
+          editingUser={editingUser}
+        />
+      )}
     </div>
   );
 };

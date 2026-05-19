@@ -106,44 +106,95 @@ const HarvestBillPrint = ({ slip, onBack }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f0f0f0' }}>
-              {['SI No', 'Hsn Code', 'Particulars', 'Count', 'NO OF BOXES', 'Box Weight', 'Total Weight'].map(h => (
-                <th key={h} style={{ border: '1px solid #888', padding: '6px 6px', textAlign: 'center', fontWeight: 700, fontSize: '10px' }}>{h}</th>
+              {['SI No', 'Hsn Code', 'Particulars', 'Count', 'NO OF BOXES', 'Box Weight', 'Total Weight', 'Rate', 'Total Amount'].map(h => (
+                <th key={h} style={{ border: '1px solid #888', padding: '6px 4px', textAlign: 'center', fontWeight: 700, fontSize: '10px' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {products.map((p, i) => (
-              <tr key={i}>
-                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{i + 1}</td>
-                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.hsn || p.hsnCode || ''}</td>
-                <td style={{ border: '1px solid #ccc', padding: '6px', fontWeight: 700 }}>{p.name || p.fishName || ''}</td>
-                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.count || p.rate || ''}</td>
-                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.boxes || p.confirmedQty || ''}</td>
-                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.boxWeight || ''}</td>
-                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center', fontWeight: 700 }}>{p.totalWeight || p.quantity || ''}</td>
-              </tr>
-            ))}
+            {products.map((p, i) => {
+              const qty = parseFloat(p.totalWeight || p.quantity || p.estimatedQty) || 0;
+              const rate = parseFloat(p.rate) || 0;
+              const lineTotal = qty * rate;
+              return (
+                <tr key={i}>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{i + 1}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.hsn || p.hsnCode || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', fontWeight: 700 }}>{p.name || p.fishName || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.count || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.boxes || p.boxCount || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.boxWeight || p.weightPerBox || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center', fontWeight: 700 }}>{qty || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{rate || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>{lineTotal ? lineTotal.toFixed(2) : ''}</td>
+                </tr>
+              );
+            })}
             {/* Extra blank rows */}
             {Array.from({ length: Math.max(0, 5 - products.length) }).map((_, i) => (
               <tr key={`e-${i}`} style={{ height: '26px' }}>
-                {Array(7).fill(0).map((_, j) => <td key={j} style={{ border: '1px solid #ddd' }}></td>)}
+                {Array(9).fill(0).map((_, j) => <td key={j} style={{ border: '1px solid #ddd' }}></td>)}
               </tr>
             ))}
+            {/* Total Row */}
             <tr style={{ fontWeight: 700, background: '#f5f5f5' }}>
-              <td colSpan={4} style={{ border: '1px solid #888', padding: '6px 8px', textAlign: 'center', fontWeight: 900 }}>TOTAL</td>
-              <td style={{ border: '1px solid #888', padding: '6px', textAlign: 'center' }}>0</td>
+              <td colSpan={4} style={{ border: '1px solid #888', padding: '6px 8px', textAlign: 'right', fontWeight: 900 }}></td>
+              <td style={{ border: '1px solid #888', padding: '6px', textAlign: 'center' }}>
+                {products.reduce((sum, p) => sum + (parseInt(p.boxes || p.boxCount) || 0), 0) || '0'}
+              </td>
               <td style={{ border: '1px solid #888', padding: '6px' }}></td>
-              <td style={{ border: '1px solid #888', padding: '6px', textAlign: 'center', fontWeight: 900 }}>{totalWeight || 0}</td>
+              <td style={{ border: '1px solid #888', padding: '6px', textAlign: 'center', fontWeight: 900 }}>
+                {products.reduce((sum, p) => sum + (parseFloat(p.totalWeight || p.quantity || p.estimatedQty) || 0), 0) || '0'}
+              </td>
+              <td style={{ border: '1px solid #888', padding: '6px' }}></td>
+              <td style={{ border: '1px solid #888', padding: '6px', textAlign: 'right', fontWeight: 900 }}>
+                {products.reduce((sum, p) => sum + ((parseFloat(p.totalWeight || p.quantity || p.estimatedQty) || 0) * (parseFloat(p.rate) || 0)), 0).toFixed(2) || '-'}
+              </td>
             </tr>
           </tbody>
         </table>
 
-        {/* Notes */}
-        <div style={{ padding: '6px 12px', borderTop: '1px solid #bbb', background: '#fafafa', fontSize: '10px' }}>
-          <div>NOTES ( BLACK GILL SECOND QUALITY ) ( EXP )</div>
-          <div style={{ marginTop: '4px' }}>THIRD QUALITY DAMAGE METERIALS &amp; DIO COMPLAINT</div>
-          <div style={{ marginTop: '4px', color: '#c00', fontWeight: 700 }}>ICE &amp; VEHICLE RENT NOT DEDUCTED</div>
-          <div style={{ marginTop: '8px' }}>&nbsp;</div>
+        {/* Notes & Deductions */}
+        <div style={{ display: 'grid', gridTemplateColumns: '60% 40%', borderBottom: '1px solid #bbb', fontSize: '10px' }}>
+          {/* Left: Notes */}
+          <div style={{ background: '#eef2e6', padding: '0', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '6px', borderBottom: '1px solid #bbb', borderRight: '1px solid #bbb', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+              NOTES ( BLACK GILL SECOND QUALITY ) ( EXP )
+            </div>
+            <div style={{ padding: '6px', borderBottom: '1px solid #bbb', borderRight: '1px solid #bbb', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+              THIRD QUALITY DAMAGE METERIALS &amp; DIO COMPLAINT
+            </div>
+            <div style={{ padding: '6px', borderRight: '1px solid #bbb', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c00', fontWeight: 700 }}>
+              ICE &amp; VEHICLE RENT NOT DEDUCTED
+            </div>
+          </div>
+          {/* Right: Deductions */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
+              <div style={{ padding: '6px', borderBottom: '1px solid #bbb', borderRight: '1px solid #bbb', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>TDS @ 194Q</div>
+              <div style={{ padding: '6px', borderBottom: '1px solid #bbb' }}>{slip?.tds || ''}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
+              <div style={{ padding: '6px', borderBottom: '1px solid #bbb', borderRight: '1px solid #bbb', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>COMISSION</div>
+              <div style={{ padding: '6px', borderBottom: '1px solid #bbb' }}>{slip?.commission || ''}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1 }}>
+              <div style={{ padding: '6px', borderBottom: '1px solid #bbb', borderRight: '1px solid #bbb', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>SOFT</div>
+              <div style={{ padding: '6px', borderBottom: '1px solid #bbb' }}>{slip?.soft || ''}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1, background: '#f5f5f5' }}>
+              <div style={{ padding: '6px', borderRight: '1px solid #bbb', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>Grand Total</div>
+              <div style={{ padding: '6px', fontWeight: 900, textAlign: 'right' }}>
+                {(() => {
+                  const subTotal = products.reduce((sum, p) => sum + ((parseFloat(p.totalWeight || p.quantity || p.estimatedQty) || 0) * (parseFloat(p.rate) || 0)), 0);
+                  const tds = parseFloat(slip?.tds) || 0;
+                  const comm = parseFloat(slip?.commission) || 0;
+                  const soft = parseFloat(slip?.soft) || 0;
+                  return (subTotal - tds - comm - soft).toFixed(2);
+                })()}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* In Words + Auth */}

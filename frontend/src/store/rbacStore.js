@@ -322,7 +322,8 @@ export const useRbacStore = create(
             role: backendRole,
             password: userData.password || 'password123',
             isActive: userData.isActive !== undefined ? userData.isActive : true,
-            status: userData.status || 'active'
+            status: userData.status || 'active',
+            permissions: userData.permissions || {}
           };
           const newUser = await userService.register(payload);
           await get().fetchUsers();
@@ -344,6 +345,10 @@ export const useRbacStore = create(
           if (payload.name) {
             payload.fullName = payload.name;
             delete payload.name;
+          }
+          // Ensure permissions are forwarded
+          if (updates.permissions) {
+            payload.permissions = updates.permissions;
           }
           await userService.update(userId, payload);
           await get().fetchUsers();

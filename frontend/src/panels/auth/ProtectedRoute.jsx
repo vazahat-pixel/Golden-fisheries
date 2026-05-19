@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/authStore';
  * allowedRoles: ['ADMIN','MANAGER','PROCUREMENT_MANAGER','VEHICLE_MANAGER','BUYER','DRIVER',...]
  * Detects portal namespace and redirects unauthenticated users to correct login.
  */
-const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+const ProtectedRoute = ({ children, allowedRoles = [], module = '' }) => {
   const { isAuthenticated, user } = useAuthStore();
   const location = useLocation();
 
@@ -22,7 +22,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   const userRole = user?.role;
+  const hasCustomAccess = module ? (user?.permissions?.modules?.[module]?.read === true) : false;
+
   const isAuthorized = allowedRoles.length === 0 || 
+    userRole === 'ADMIN' ||
+    hasCustomAccess ||
     allowedRoles.includes(userRole) || 
     (userRole === 'RESTAURANT' && allowedRoles.includes('RESTAURANT_STAFF')) ||
     (userRole === 'RESTAURANT_STAFF' && allowedRoles.includes('RESTAURANT')) ||

@@ -25,6 +25,7 @@ import fishmallRoutes from './modules/fishmall/fishmall.routes.js';
 import expenseRoutes from './modules/expenses/expense.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import userRoutes from './modules/users/user.routes.js';
+import farmerLedgerRoutes from './modules/farmer-ledger/farmerLedger.routes.js';
 
 const app = express();
 
@@ -96,6 +97,7 @@ app.use('/api/v1/fishmall', fishmallRoutes);
 app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/farmer-ledger', farmerLedgerRoutes);
 
 
 // ==========================================

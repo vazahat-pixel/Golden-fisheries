@@ -29,6 +29,11 @@ export const harvestService = {
   // 6. Convert Harvest Slip to Tapal
   convertToTapal: async (id) => {
     return await apiClient.post(`/harvests/convert-to-tapal/${id}`);
+  },
+
+  // 7. Save Net Rate calculation
+  saveNetRate: async (id, data) => {
+    return await apiClient.post(`/harvests/net-rate/${id}`, data);
   }
 };
 

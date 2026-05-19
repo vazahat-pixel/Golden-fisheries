@@ -55,4 +55,11 @@ router.post(
   harvestController.convertToTapal
 );
 
+// 7. Save Net Rate calculation to a Harvest Slip
+router.post(
+  '/net-rate/:id',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  harvestController.saveNetRate
+);
+
 export default router;

@@ -66,5 +66,11 @@ export const harvestController = {
     }, 'dashboard:updates');
 
     new ApiResponse(201, { tapal }, 'Harvest slip converted to Purchase Tapal successfully').send(res);
+  }),
+
+  // Save Net Rate calculations and finalize purchase bill
+  saveNetRate: asyncWrapper(async (req, res) => {
+    const harvest = await harvestService.saveNetRate(req.params.id, req.body, req.user);
+    new ApiResponse(200, { harvest }, 'Net rate and finalized purchase bill saved successfully').send(res);
   })
 };
