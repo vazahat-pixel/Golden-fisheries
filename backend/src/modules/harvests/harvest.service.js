@@ -96,10 +96,7 @@ class HarvestService extends BaseService {
         let activeRate = parseFloat(item.rate);
         if (isNaN(activeRate)) {
           const product = await Product.findById(item.productId);
-          if (!product) {
-            throw new AppError(`Product lookup failed for ID: ${item.productId}`, 404);
-          }
-          activeRate = product.basePrice || 0;
+          activeRate = product ? (product.basePrice || 0) : 0;
         }
 
         const lineTotal = qty * activeRate;
