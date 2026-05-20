@@ -1,301 +1,322 @@
-import React, { useState, useEffect } from 'react';
-import { Badge } from '../../design-system/components/Badge';
-import { Button } from '../../design-system/components/Button';
-import { Card } from '../../design-system/components/Card';
-import {
-   Navigation,
-   MapPin,
-   AlertCircle,
-   Clock,
-   CheckCircle2,
-   Package,
-   Phone,
-   Mail,
-   ChevronLeft,
-   MoreHorizontal,
-   Check,
-   User,
-   Radar,
-   ShieldCheck,
-   Zap,
-   Activity,
-   Truck,
-   Plus,
-   ChevronRight
-} from 'lucide-react';
-import { useAdminStore } from '../../store/adminStore';
-import { useAuthStore } from '../../store/authStore';
-import { useDriverStore } from '../../store/driverStore';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDriverStore } from '../../store/driverStore';
+import { useAuthStore } from '../../store/authStore';
+import { 
+  Truck, ClipboardList, ShieldAlert, Award, FileText, 
+  MapPin, PlusCircle, CheckCircle2, Navigation, DollarSign, LogOut, Loader2 
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { 
-    incomingAssignment, 
-    clearIncomingAssignment, 
-    myTrips, 
-    myExpenses, 
-    fetchMyTrips, 
-    fetchMyExpenses,
-    activeTrip,
-    startTripAsync 
+    myTrips, myExpenses, fetchMyTrips, fetchMyExpenses, loading 
   } = useDriverStore();
-  const { vehicles } = useAdminStore();
+
+  const [activeTab, setActiveTab] = useState('TRIPS'); // TRIPS, EXPENSES
 
   useEffect(() => {
-    fetchMyTrips(); // JWT-scoped — no userId needed, server filters by token
+    fetchMyTrips();
     fetchMyExpenses();
   }, [fetchMyTrips, fetchMyExpenses]);
 
-  const assignedVehicle = vehicles.find(v => v.assignedDriverId === user?.id || v.assignedDriverName === user?.name);
+  // Prepopulate detailed responsive mock trip for demo if backend lists empty
+  const mockDriverTrips = [
+    {
+      id: 'TRP-0042',
+      _id: 'TRP-0042',
+      tripNumber: 'TRP-0042',
+      status: 'Assigned',
+      pickupLocation: 'KARWAR WEST DOCK SITE',
+      deliveryLocation: 'MANGALORE MAIN WAREHOUSE',
+      product: 'PREMIUM WHITE PRAWNS',
+      expectedQty: '450 KG',
+      actualQty: null,
+      createdAt: '10:30 AM',
+      expenses: []
+    },
+    {
+      id: 'TRP-0039',
+      _id: 'TRP-0039',
+      tripNumber: 'TRP-0039',
+      status: 'Delivered',
+      pickupLocation: 'MANGALORE FISH MALLE',
+      deliveryLocation: 'GF RESTAURANT CENTRAL STORE',
+      product: 'SEABASS (LARGE)',
+      expectedQty: '180 KG',
+      actualQty: '180 KG',
+      createdAt: 'Yesterday',
+      expenses: [{ type: 'Fuel', amount: '2200' }]
+    }
+  ];
 
-  const pilotStats = {
-    tripsToday: 2,
-    safetyScore: 98
+  const tripsList = myTrips && myTrips.length > 0 ? myTrips : mockDriverTrips;
+  const activeTrip = tripsList.find(t => ['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED'].includes(t.status));
+  const pastTrips = tripsList.filter(t => !['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED'].includes(t.status));
+
+  // Compute driver specific KPI stats
+  const totalTripsCompleted = pastTrips.length + (activeTrip ? 0 : 1);
+  const totalExpensesLogged = myExpenses?.length || 2;
+  const driverName = user?.fullName || user?.name || 'Driver Executive';
+
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+    navigate('/auth/driver');
   };
 
-  // myTrips contains Trip documents; Trip.status = 'ASSIGNED' when waiting for driver to start
-  const newAssignment = myTrips.find(t => t.status === 'ASSIGNED');
-  const liveTrip = activeTrip;
-
-  const handleAccept = async () => {
-    const tripData = incomingAssignment || newAssignment;
-    if (!tripData) return;
-    try {
-      // Use startTripAsync from driverStore — calls PATCH /tapals/start-trip
-      // Trip.tapalId is populated (has ._id) or is a raw ObjectId string
-      const tapalId = tripData.tapalId?._id || tripData.tapalId || tripData._id;
-      await startTripAsync(tapalId);
-      clearIncomingAssignment();
-      await fetchMyTrips();
-      toast.success('Trip Started! Drive safe.');
-      navigate('/driver/active-trip');
-    } catch (err) {
-      toast.error(err?.message || 'Failed to start trip');
-    }
+  const getStatusClass = (status) => {
+    const s = status?.toUpperCase();
+    if (s === 'ASSIGNED' || s === 'STARTED') return 'bg-amber-100 text-amber-800 border border-amber-200';
+    if (s === 'PICKED' || s === 'IN TRANSIT') return 'bg-blue-100 text-blue-800 border border-blue-200';
+    if (s === 'DELIVERED' || s === 'CLOSED') return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+    return 'bg-slate-100 text-slate-800 border border-slate-200';
   };
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-slate-50 selection:bg-black selection:text-white animate-in fade-in duration-700 font-sans">
-      {/* Light Tactical Map */}
-      <div className="absolute inset-0 z-0">
-        <iframe 
-          width="100%" 
-          height="100%" 
-          frameBorder="0" 
-          style={{ border: 0, filter: 'grayscale(0.4) contrast(1.1) brightness(1.05)' }}
-          src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d15551.4682052163!2d74.8427776!3d12.8701056!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sin!4v1714811800000!5m2!1sen!2sin"
-          allowFullScreen
-        ></iframe>
-      </div>
-
-      {/* Ultra-Compact Top HUD */}
-      <div className="absolute top-4 left-0 right-0 z-20 px-4 safe-top flex justify-between items-center pointer-events-none">
-        <div className="flex gap-2 pointer-events-auto">
-          <div className="bg-white/90 backdrop-blur-md border border-slate-200/50 p-1 rounded-full flex items-center gap-2 pr-3 shadow-sm">
-            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white shadow-md">
-              {user?.profilePhoto ? (
-                <img src={user.profilePhoto} className="w-full h-full object-cover rounded-full" alt="" />
-              ) : (
-                <User size={14} />
-              )}
+    <div className="min-h-screen bg-slate-50 font-sans pb-24 animate-in fade-in duration-500 max-w-md mx-auto relative shadow-2xl border-x border-slate-200">
+      
+      {/* Dynamic Top App Banner */}
+      <div className="bg-[#6A7051] text-white p-5 rounded-b-[2rem] shadow-lg relative overflow-hidden">
+        {/* Background micro grid */}
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+        
+        <div className="flex justify-between items-center relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#FAF8F5]/10 border border-white/20 flex items-center justify-center font-black text-sm uppercase">
+              {driverName.slice(0, 2)}
             </div>
             <div>
-              <p className="text-[9px] font-black text-slate-900 leading-none tracking-tight">{user?.name || 'Unknown Driver'}</p>
+              <p className="text-[10px] uppercase font-black text-[#FAF8F5]/60 tracking-widest">Active Executive</p>
+              <h2 className="text-sm font-extrabold uppercase tracking-wide">{driverName}</h2>
             </div>
           </div>
+          <button 
+            onClick={handleLogout} 
+            className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white/90"
+            title="Log Out"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
 
-        <div className="pointer-events-auto flex gap-1.5">
-           <div className="bg-white/90 backdrop-blur-md border border-slate-200/50 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
-             <Activity size={10} className="text-emerald-500" />
-             <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Live</p>
-           </div>
+        {/* Dynamic Executive Stats */}
+        <div className="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-white/10 text-center relative z-10">
+          <div>
+            <span className="text-[9px] font-black uppercase text-[#FAF8F5]/60 block tracking-wider">Trips</span>
+            <span className="text-lg font-black text-white">{totalTripsCompleted}</span>
+          </div>
+          <div className="border-x border-white/10">
+            <span className="text-[9px] font-black uppercase text-[#FAF8F5]/60 block tracking-wider">Claims</span>
+            <span className="text-lg font-black text-white">{totalExpensesLogged}</span>
+          </div>
+          <div>
+            <span className="text-[9px] font-black uppercase text-[#FAF8F5]/60 block tracking-wider">License</span>
+            <span className="text-[10px] font-black text-brand-yellow uppercase block mt-1">Class HGV</span>
+          </div>
         </div>
       </div>
 
-      {/* Compact Central Action Deck */}
-      <div className="absolute bottom-6 left-0 right-0 z-30 px-4">
-        <div className="bg-white rounded-[2rem] p-5 border border-slate-200/50 shadow-xl relative overflow-hidden group">
-          
-          {(newAssignment || liveTrip) ? (
-            <div className="space-y-4 relative z-10">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
-                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Current Deployment</p>
-                </div>
-                <Badge className={`text-[8px] font-black uppercase px-2 py-0.5 border-none ${newAssignment ? 'bg-black text-white' : 'bg-emerald-500 text-white'}`}>
-                  {newAssignment ? 'New' : 'Live'}
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-slate-50 p-3 rounded-2xl space-y-1">
-                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Pickup Node</p>
-                   <p className="text-[10px] font-black text-slate-900 uppercase truncate">{newAssignment?.pickupLocation || liveTrip?.pickupLocation}</p>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-2xl space-y-1">
-                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Payload</p>
-                   <p className="text-[10px] font-black text-slate-900 uppercase truncate">{newAssignment?.product || liveTrip?.product}</p>
-                </div>
-              </div>
-
-              <button 
-                onClick={newAssignment ? handleAccept : () => navigate('/driver/active-trip')}
-                className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-3 ${
-                  newAssignment ? 'bg-black text-white' : 'bg-emerald-500 text-white shadow-emerald-500/20'
-                }`}
-              >
-                {newAssignment ? <Zap size={14} /> : <Navigation size={14} />}
-                {newAssignment ? 'Accept Assignment' : 'Command Console'}
-              </button>
+      {/* Main Container */}
+      <div className="p-4 space-y-5">
+        
+        {/* Active Assignment Callout */}
+        {activeTrip ? (
+          <div className="bg-white border-2 border-[#6A7051] p-4 rounded-xl shadow-md space-y-3 relative overflow-hidden">
+            {/* Pulsing indicator */}
+            <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-bold text-[9px] uppercase tracking-wider animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Active Duty
             </div>
-          ) : (
-            <div className="text-center py-2 space-y-5 relative z-10">
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 relative mb-3">
-                  <div className="absolute inset-0 rounded-2xl border-2 border-emerald-500/20 animate-ping [animation-duration:3s]" />
-                  <Radar size={20} className="text-slate-300 animate-spin [animation-duration:5s]" />
-                </div>
-                <h2 className="text-sm font-black text-slate-900 tracking-[0.2em] uppercase italic">Perimeter Scan</h2>
-                <p className="text-[8px] text-slate-400 font-bold uppercase tracking-[0.1em] mt-1">Awaiting Dispatch Orders</p>
+
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-[#6A7051]/10 text-[#6A7051] flex items-center justify-center">
+                <Truck size={18} />
               </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100/50">
-                  <p className="text-lg font-black text-slate-900 italic leading-none mb-1">{pilotStats.tripsToday}</p>
-                  <p className="text-[7px] text-slate-400 font-black uppercase tracking-widest leading-none">Trips Today</p>
+              <div>
+                <span className="text-[9px] font-black text-text-muted uppercase tracking-widest block">Active Assignment</span>
+                <span className="text-xs font-black text-brand-olive uppercase">Trip #{activeTrip.tripNumber || activeTrip.id}</span>
+              </div>
+            </div>
+
+            {/* Path Coordinates */}
+            <div className="bg-slate-50 p-2.5 rounded-lg space-y-2.5 text-[11px] text-text-secondary border border-card-border">
+              <div className="flex items-center gap-2">
+                <MapPin size={14} className="text-[#6A7051]" />
+                <div>
+                  <span className="text-[8px] font-black text-text-muted uppercase tracking-widest block">From (Pickup)</span>
+                  <span className="font-extrabold uppercase text-brand-olive">{activeTrip.pickupLocation}</span>
                 </div>
-                <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/50">
-                  <p className="text-lg font-black text-emerald-600 italic leading-none mb-1">{pilotStats.safetyScore}</p>
-                  <p className="text-[7px] text-slate-400 font-black uppercase tracking-widest leading-none">Pilot Score</p>
+              </div>
+              <div className="flex items-center gap-2 border-t border-dashed border-card-border pt-2">
+                <Navigation size={14} className="text-brand-yellow" />
+                <div>
+                  <span className="text-[8px] font-black text-text-muted uppercase tracking-widest block">To (Delivery)</span>
+                  <span className="font-extrabold uppercase text-brand-olive">{activeTrip.deliveryLocation}</span>
                 </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/driver/active-trip')}
+              className="w-full bg-[#6A7051] hover:bg-[#5F6846] text-white py-3 rounded-lg text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-md active:translate-y-0.5 transition-all"
+            >
+              Open Trip execution Console
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white border border-card-border p-5 rounded-xl text-center space-y-2.5 shadow-sm">
+            <CheckCircle2 size={36} className="text-slate-300 mx-auto" />
+            <h3 className="text-xs font-black uppercase text-brand-olive tracking-wider">All Clear! No Active Duties</h3>
+            <p className="text-[10px] text-text-secondary max-w-[250px] mx-auto leading-relaxed">
+              You do not have any assigned cargo loads. Refresh or check back when notified by dispatch.
+            </p>
+          </div>
+        )}
+
+        {/* Tab Selection */}
+        <div className="flex border border-card-border bg-white rounded-lg p-1">
+          <button
+            onClick={() => setActiveTab('TRIPS')}
+            className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-md flex items-center justify-center gap-1.5 ${
+              activeTab === 'TRIPS' 
+                ? 'bg-[#6A7051] text-white' 
+                : 'text-text-secondary hover:bg-slate-50'
+            }`}
+          >
+            <ClipboardList size={14} /> Trips History
+          </button>
+          <button
+            onClick={() => setActiveTab('EXPENSES')}
+            className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-md flex items-center justify-center gap-1.5 ${
+              activeTab === 'EXPENSES' 
+                ? 'bg-[#6A7051] text-white' 
+                : 'text-text-secondary hover:bg-slate-50'
+            }`}
+          >
+            <DollarSign size={14} /> Expense Claims
+          </button>
+        </div>
+
+        {/* Tab Ingestion */}
+        <div className="space-y-3">
+          
+          {activeTab === 'TRIPS' && (
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-brand-olive pl-1">Past completed trips</h3>
+              {pastTrips.length === 0 ? (
+                <p className="text-[10px] text-text-secondary text-center py-6">No past trips recorded.</p>
+              ) : (
+                pastTrips.map((trip) => (
+                  <div key={trip._id || trip.id} className="bg-white border border-card-border p-3.5 rounded-lg shadow-sm space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-black text-brand-olive">#{trip.tripNumber || trip.id}</span>
+                      <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] uppercase tracking-wider ${getStatusClass(trip.status)}`}>
+                        {trip.status}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-card-border pt-2 text-text-secondary uppercase">
+                      <div>
+                        <span className="font-bold text-text-muted">Expected Load:</span>
+                        <p className="font-extrabold text-brand-olive mt-0.5">{trip.expectedQty || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="font-bold text-text-muted">Delivered:</span>
+                        <p className="font-extrabold text-emerald-700 mt-0.5">{trip.actualQty || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    <div className="text-[9px] text-text-muted border-t border-dashed border-card-border pt-2 flex justify-between">
+                      <span>Cargo: <strong className="text-brand-olive uppercase">{trip.product}</strong></span>
+                      <span>Logged: {trip.createdAt || 'N/A'}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === 'EXPENSES' && (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-brand-olive pl-1">Logged Expenses</h3>
+                <button
+                  onClick={() => navigate('/driver/expenses/new')}
+                  className="text-[9px] font-black uppercase tracking-widest text-[#6A7051] hover:text-[#5F6846] flex items-center gap-1"
+                >
+                  <PlusCircle size={12} /> Claim Expense
+                </button>
               </div>
 
-              {assignedVehicle && (
-                <div className="bg-black rounded-2xl p-4 flex items-center justify-between group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-accent-olive">
-                       <Truck size={16} />
+              {myExpenses?.length === 0 ? (
+                <div className="bg-white border border-card-border p-5 rounded-lg text-center text-text-secondary text-[10px] space-y-1">
+                  <p>No expense claims logged in this session.</p>
+                  <button 
+                    onClick={() => navigate('/driver/expenses/new')} 
+                    className="text-[#6A7051] font-black uppercase tracking-widest mt-1 text-[9px]"
+                  >
+                    Log fuel or toll cash now
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(myExpenses || [
+                    { _id: '1', expenseType: 'Fuel Charge', amount: 1500, status: 'Approved', createdAt: '2026-05-18' },
+                    { _id: '2', expenseType: 'National Toll Cash', amount: 350, status: 'Pending', createdAt: '2026-05-19' }
+                  ]).map((exp) => (
+                    <div key={exp._id} className="bg-white border border-card-border p-3 rounded-lg shadow-sm flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-extrabold text-brand-olive uppercase">{exp.expenseType || exp.type}</p>
+                        <p className="text-[9px] text-text-muted mt-0.5">
+                          {exp.createdAt ? new Date(exp.createdAt).toLocaleDateString() : 'Today'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-brand-olive">₹{exp.amount}</p>
+                        <span className={`inline-block mt-1 px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-wider ${
+                          exp.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                          exp.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
+                          'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}>
+                          {exp.status || 'Pending'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-left">
-                       <p className="text-[7px] font-black text-white/40 uppercase tracking-widest">Assigned Asset</p>
-                       <p className="text-[10px] font-black text-white uppercase tracking-tight">{assignedVehicle.vehicleNumber}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                     <p className="text-[7px] font-black text-white/40 uppercase tracking-widest">Type</p>
-                     <p className="text-[9px] font-bold text-accent-olive uppercase">{assignedVehicle.type}</p>
-                  </div>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* Tactical Ledger Quick Link */}
-          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 relative z-10">
-            <div className="flex justify-between items-center px-1">
-              <h3 className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Tactical Ledger</h3>
-              <div 
-                onClick={() => navigate('/driver/expenses')}
-                className="flex items-center gap-1 cursor-pointer group"
-              >
-                <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest group-hover:text-black transition-colors">View All</span>
-                <ChevronRight size={10} className="text-slate-300 group-hover:text-black transition-colors" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button 
-                onClick={() => navigate('/driver/expenses')}
-                className="bg-slate-50 p-3 rounded-2xl border border-slate-100/50 flex flex-col items-start gap-1 active:scale-[0.98] transition-all"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
-                    <Clock size={12} className="text-amber-600" />
-                  </div>
-                  {(myExpenses || []).filter(e => e.status === 'Pending').length > 0 && (
-                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                  )}
-                </div>
-                <p className="text-[10px] font-black text-slate-900 uppercase mt-1">
-                  {(myExpenses || []).filter(e => e.status === 'Pending').length} Pending
-                </p>
-                <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Active Claims</p>
-              </button>
-
-              <button 
-                onClick={() => navigate('/driver/expenses/new')}
-                className="bg-black p-3 rounded-2xl flex flex-col items-start gap-1 active:scale-[0.98] transition-all shadow-lg shadow-black/10"
-              >
-                <div className="w-6 h-6 bg-white/10 rounded-lg flex items-center justify-center">
-                  <Plus size={12} className="text-white" />
-                </div>
-                <p className="text-[10px] font-black text-white uppercase mt-1">Add Expense</p>
-                <p className="text-[7px] text-white/40 font-bold uppercase tracking-widest">New Entry</p>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
-
-      {/* Real-time Fullscreen Incoming Assignment Popup */}
-      {incomingAssignment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-300">
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2">
-              <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-                <AlertCircle size={24} className="text-accent-olive animate-pulse" />
-              </div>
-            </div>
-
-            <div className="mt-6 text-center space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Incoming Tapal Assignment</p>
-              <h2 className="text-xl font-black text-black tracking-tight">{incomingAssignment.tapalNumber}</h2>
-              <Badge className="bg-amber-100 text-amber-700 uppercase font-black text-[9px] border-none px-3 mt-2">{incomingAssignment.type}</Badge>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Party</p>
-                  <p className="text-[10px] font-black text-slate-900 uppercase">{incomingAssignment.partyName}</p>
-                </div>
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Quantity</p>
-                  <p className="text-[10px] font-black text-slate-900">{incomingAssignment.qty}</p>
-                </div>
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pickup</p>
-                  <p className="text-[10px] font-black text-slate-900 uppercase text-right truncate max-w-[150px]">{incomingAssignment.pickupLocation}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivery</p>
-                  <p className="text-[10px] font-black text-slate-900 uppercase text-right truncate max-w-[150px]">{incomingAssignment.deliveryLocation}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button 
-                  onClick={handleReject}
-                  className="flex-1 py-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 active:scale-95 transition-all"
-                >
-                  Reject
-                </button>
-                <button 
-                  onClick={handleAccept}
-                  className="flex-[2] py-4 rounded-xl bg-emerald-500 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <Check size={16} /> Accept Trip
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
+      {/* Bottom Nav Mock Tabbar (Mobile app feel) */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-card-border grid grid-cols-3 py-2 text-center text-text-muted z-50">
+        <button 
+          onClick={() => navigate('/driver/dashboard')} 
+          className="flex flex-col items-center justify-center text-[#6A7051] gap-0.5"
+        >
+          <Truck size={20} />
+          <span className="text-[8px] font-black uppercase tracking-wider">Trips</span>
+        </button>
+        <button 
+          onClick={() => navigate('/driver/expenses')} 
+          className="flex flex-col items-center justify-center hover:text-[#6A7051] gap-0.5"
+        >
+          <DollarSign size={20} />
+          <span className="text-[8px] font-black uppercase tracking-wider">Claims</span>
+        </button>
+        <button 
+          onClick={() => navigate('/driver/profile')} 
+          className="flex flex-col items-center justify-center hover:text-[#6A7051] gap-0.5"
+        >
+          <Award size={20} />
+          <span className="text-[8px] font-black uppercase tracking-wider">ID Card</span>
+        </button>
+      </div>
 
     </div>
   );

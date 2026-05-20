@@ -1,383 +1,457 @@
-import React, { useState } from 'react';
-import {
-  Users,
-  UserPlus,
-  Shield,
-  Phone,
-  CheckCircle2,
-  XCircle,
-  PauseCircle,
-  Trash2,
-  ChevronRight,
-  LayoutDashboard,
-  Utensils,
-  ShoppingCart,
-  Truck,
-  Search,
-  Pencil,
-} from 'lucide-react';
-import { useRbacStore, ROLE_TEMPLATES } from '../../../store/rbacStore';
-import { useAuthStore } from '../../../store/authStore';
+import React, { useState, useEffect } from 'react';
+import { useRbacStore, ROLE_TEMPLATES, MODULE_META } from '../../../store/rbacStore';
+import { Shield, Users, Save, CheckCircle, XCircle, Info, UserCheck, Key } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import UserCreationForm from './UserCreationForm';
-
-const ROLE_COLORS = {
-  RESTAURANT_STAFF: 'bg-green-50 text-green-700 border-green-100',
-  FISHMALL_BILLING: 'bg-blue-50 text-blue-700 border-blue-100',
-  DRIVER: 'bg-amber-50 text-amber-700 border-amber-100',
-  ACCOUNTANT: 'bg-purple-50 text-purple-700 border-purple-100',
-  MANAGER: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  ADMIN: 'bg-red-50 text-red-700 border-red-100',
-  PROCUREMENT_MANAGER: 'bg-olive-50 text-olive-700 border-olive-100',
-  BUYER: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-  VEHICLE_MANAGER: 'bg-orange-50 text-orange-700 border-orange-100',
-  CUSTOM: 'bg-gray-50 text-gray-700 border-gray-100',
-};
-
-const PANEL_ICONS = {
-  restaurant: Utensils,
-  fishmall: ShoppingCart,
-  driver: Truck,
-  admin: LayoutDashboard,
-  buyer: ShoppingCart,
-};
-
-const StatusBadge = ({ status }) => {
-  const map = {
-    active: { cls: 'bg-green-50 text-green-600 border-green-100', dot: 'bg-green-400', label: 'Active' },
-    paused: { cls: 'bg-amber-50 text-amber-600 border-amber-100', dot: 'bg-amber-400', label: 'Paused' },
-    revoked: { cls: 'bg-red-50 text-red-600 border-red-100', dot: 'bg-red-400', label: 'Revoked' },
-  };
-  const s = map[status] || map.revoked;
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest border ${s.cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {s.label}
-    </span>
-  );
-};
 
 const AccessControl = () => {
-  const { users, revokeUser, togglePauseUser, deleteUser, fetchUsers, loading } = useRbacStore();
-  const { user: currentUser } = useAuthStore();
-  const [showForm, setShowForm] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState('ALL');
+  const { users, fetchUsers, updateUser, loading } = useRbacStore();
+  const [activeTab, setActiveTab] = useState('roles'); // 'roles' | 'users'
+  
+  // Role permissions editing state
+  const [selectedRole, setSelectedRole] = useState('MANAGER');
+  const [rolePermissions, setRolePermissions] = useState({});
 
-  React.useEffect(() => {
+  // User permissions editing state
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [userPermissions, setUserPermissions] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Load active template permissions when selected role changes
+  useEffect(() => {
+    if (ROLE_TEMPLATES[selectedRole]) {
+      // Create a deep copy of permissions
+      setRolePermissions(JSON.parse(JSON.stringify(ROLE_TEMPLATES[selectedRole].permissions)));
+    }
+  }, [selectedRole]);
+
+  // Load active user permissions when selected user changes
+  useEffect(() => {
+    const userObj = users.find(u => u.id === selectedUserId || u._id === selectedUserId);
+    if (userObj) {
+      setUserPermissions(JSON.parse(JSON.stringify(userObj.permissions || { panels: {}, modules: {} })));
+    }
+  }, [selectedUserId, users]);
+
+  useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+  }, []);
 
-  const filtered = users.filter((u) => {
-    const name = u.fullName || u.name || '';
-    const phone = u.phone || '';
-    const matchSearch =
-      name.toLowerCase().includes(search.toLowerCase()) ||
-      phone.includes(search);
-    const matchRole = filterRole === 'ALL' || u.role === filterRole;
-    return matchSearch && matchRole;
-  });
+  // Sync selected user when users load if none is selected
+  useEffect(() => {
+    if (users.length > 0 && !selectedUserId) {
+      setSelectedUserId(users[0].id || users[0]._id);
+    }
+  }, [users, selectedUserId]);
 
-  const activeCount = users.filter((u) => u.status === 'active').length;
+  const handleRolePermissionToggle = (moduleKey, action) => {
+    setRolePermissions(prev => {
+      const copy = { ...prev };
+      if (!copy.modules) copy.modules = {};
+      if (!copy.modules[moduleKey]) {
+        copy.modules[moduleKey] = { read: false, write: false, delete: false };
+      }
+      
+      // Toggle
+      const val = !copy.modules[moduleKey][action];
+      copy.modules[moduleKey][action] = val;
+      
+      // Auto-toggle read if write or delete is toggled
+      if ((action === 'write' || action === 'delete') && val) {
+        copy.modules[moduleKey].read = true;
+      }
+      
+      // Auto-enable panel access
+      if (!copy.panels) copy.panels = {};
+      copy.panels.admin = true;
 
-  // Role summary cards
-  const roleSummary = Object.values(ROLE_TEMPLATES).map((t) => ({
-    ...t,
-    count: users.filter((u) => u.role === t.id).length,
-  }));
+      return copy;
+    });
+  };
 
-  const activePanels = (user) =>
-    Object.entries(user.permissions?.panels || {})
-      .filter(([, v]) => v)
-      .map(([k]) => k);
+  const handleUserPermissionToggle = (moduleKey, action) => {
+    setUserPermissions(prev => {
+      const copy = { ...prev };
+      if (!copy.modules) copy.modules = {};
+      if (!copy.modules[moduleKey]) {
+        copy.modules[moduleKey] = { read: false, write: false, delete: false };
+      }
+      
+      const val = !copy.modules[moduleKey][action];
+      copy.modules[moduleKey][action] = val;
+      
+      if ((action === 'write' || action === 'delete') && val) {
+        copy.modules[moduleKey].read = true;
+      }
+      
+      if (!copy.panels) copy.panels = {};
+      copy.panels.admin = true;
+      
+      return copy;
+    });
+  };
+
+  const saveRolePermissions = () => {
+    // Save to the in-memory static template object
+    if (ROLE_TEMPLATES[selectedRole]) {
+      ROLE_TEMPLATES[selectedRole].permissions = JSON.parse(JSON.stringify(rolePermissions));
+      
+      // Update all users who have this role to inherit new permissions immediately
+      const matchingUsers = users.filter(u => u.role === selectedRole);
+      
+      toast.promise(
+        Promise.all(matchingUsers.map(u => 
+          updateUser(u.id || u._id, { permissions: rolePermissions })
+        )),
+        {
+          loading: `Updating all ${ROLE_TEMPLATES[selectedRole].label} accounts...`,
+          success: `Successfully updated permissions for all ${ROLE_TEMPLATES[selectedRole].label}s!`,
+          error: 'Failed to update some user accounts.'
+        }
+      );
+    }
+  };
+
+  const saveUserPermissions = () => {
+    const userObj = users.find(u => u.id === selectedUserId || u._id === selectedUserId);
+    if (!userObj) return;
+
+    toast.promise(
+      updateUser(selectedUserId, { permissions: userPermissions }),
+      {
+        loading: `Updating permissions for ${userObj.name}...`,
+        success: `Successfully saved custom permissions for ${userObj.name}!`,
+        error: 'Failed to update user permissions.'
+      }
+    );
+  };
+
+  const filteredUsers = users.filter(u => 
+    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.phone?.includes(searchQuery) ||
+    u.role?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getRoleLabel = (roleId) => {
+    return ROLE_TEMPLATES[roleId]?.label || roleId;
+  };
 
   return (
-    <div className="bg-[#F9FAFB] min-h-screen selection:bg-[#6B7550] selection:text-white animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-6 md:p-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight uppercase flex items-center gap-3">
-              <Shield size={20} className="text-[#6B7550]" />
-              Access Control
-            </h1>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-              Role-Based Access Management • {activeCount} Active Users
-            </p>
-          </div>
+    <div className="space-y-6 animate-in fade-in duration-500 font-sans">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-card-border pb-5">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase flex items-center gap-3">
+            <Shield className="text-brand-yellow" size={26} /> Access Control Dashboard
+          </h1>
+          <p className="text-text-secondary text-sm mt-1">
+            Configure dynamic Role-Based Access Control (RBAC) permissions across administrative departments.
+          </p>
+        </div>
+
+        {/* Tab Controls */}
+        <div className="flex bg-[#F5F5EC] p-1 border border-card-border">
           <button
-            onClick={() => {
-              setEditingUser(null);
-              setShowForm(true);
-            }}
-            className="flex items-center gap-2 bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-[#6B7550] transition-all shadow-sm"
+            onClick={() => setActiveTab('roles')}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'roles'
+                ? 'bg-[#6A7051] text-white'
+                : 'text-text-secondary hover:text-brand-olive'
+            }`}
           >
-            <UserPlus size={14} /> Create User
+            <Key size={14} /> Role Templates
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'users'
+                ? 'bg-[#6A7051] text-white'
+                : 'text-text-secondary hover:text-brand-olive'
+            }`}
+          >
+            <Users size={14} /> User Accounts
           </button>
         </div>
       </div>
 
-      <div className="p-6 md:p-8 space-y-8">
-
-        {/* Role Template Summary Cards */}
-        <div>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Role Templates</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {roleSummary.map((role) => (
-              <button
-                key={role.id}
-                onClick={() => setFilterRole(filterRole === role.id ? 'ALL' : role.id)}
-                className={`p-4 bg-white border text-left transition-all hover:border-[#6B7550] ${
-                  filterRole === role.id ? 'border-[#6B7550] ring-1 ring-[#6B7550]/20' : 'border-gray-200'
-                }`}
-              >
-                <div
-                  className="w-6 h-6 rounded-full mb-3 flex items-center justify-center text-white text-[8px] font-black"
-                  style={{ backgroundColor: role.color }}
-                >
-                  {role.label.charAt(0)}
-                </div>
-                <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">{role.label}</p>
-                <p className="text-[8px] text-gray-400 font-bold mt-0.5">{role.count} users</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Search & Filter Bar */}
-        <div className="flex flex-col md:flex-row gap-3 items-center">
-          <div className="relative flex-1 group">
-            <Search size={12} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#6B7550] transition-colors" />
-            <input
-              type="text"
-              placeholder="Search by name or phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-white border border-gray-200 py-3 pl-10 pr-4 text-[10px] font-bold uppercase tracking-widest focus:border-[#6B7550] outline-none transition-all shadow-sm"
-            />
-          </div>
-          {filterRole !== 'ALL' && (
-            <button
-              onClick={() => setFilterRole('ALL')}
-              className="text-[9px] font-bold text-gray-400 hover:text-black uppercase tracking-widest flex items-center gap-2"
-            >
-              <XCircle size={12} /> Clear Filter
-            </button>
-          )}
-        </div>
-
-        {/* Users Table */}
-        <div className="bg-white border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/30 flex justify-between items-center">
-            <h3 className="font-bold text-gray-900 text-[11px] uppercase tracking-widest flex items-center gap-2">
-              <Users size={14} className="text-[#6B7550]" /> User Registry
-            </h3>
-            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{filtered.length} records</span>
-          </div>
-
-          {filtered.length === 0 ? (
-            <div className="py-20 text-center">
-              <Users size={40} className="mx-auto text-gray-100 mb-4" />
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No Users Found</p>
-              <p className="text-[9px] text-gray-300 mt-1 uppercase tracking-widest">Create your first user to get started</p>
+      {activeTab === 'roles' ? (
+        /* ROLE TEMPLATES TAB */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left panel: Role list */}
+          <div className="lg:col-span-4 space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-[#6A7051] mb-2">Administrative Roles</h3>
+            <div className="space-y-2.5">
+              {Object.keys(ROLE_TEMPLATES)
+                .filter(key => ROLE_TEMPLATES[key].permissions.panels.admin) // Only show admin panel roles
+                .map(key => {
+                  const role = ROLE_TEMPLATES[key];
+                  const isSelected = selectedRole === key;
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => setSelectedRole(key)}
+                      className={`p-4 border transition-all cursor-pointer flex items-center justify-between group ${
+                        isSelected 
+                          ? 'border-[#6A7051] bg-[#6A7051]/5 border-l-4 border-l-brand-yellow' 
+                          : 'border-card-border bg-white hover:border-[#6A7051]/40'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                          isSelected ? 'text-[#6A7051]' : 'text-text-primary group-hover:text-[#6A7051]'
+                        }`}>
+                          {role.label}
+                        </p>
+                        <p className="text-[10px] text-text-muted mt-1 truncate max-w-xs">{role.description}</p>
+                      </div>
+                      <div className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: role.color }}></div>
+                    </div>
+                  );
+                })}
             </div>
-          ) : (
+            
+            <div className="bg-[#F9FAFB] p-4 border border-card-border flex items-start gap-3">
+              <Info size={16} className="text-brand-olive shrink-0 mt-0.5" />
+              <p className="text-[10px] text-text-secondary leading-normal">
+                Modifying role templates instantly propagates to all users assigned to that role. Users inherit updated layouts upon saving.
+              </p>
+            </div>
+          </div>
+
+          {/* Right panel: Module checklist */}
+          <div className="lg:col-span-8 bg-white border border-card-border p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-card-border pb-4 mb-6 gap-4">
+              <div>
+                <h3 className="text-base font-black text-brand-olive uppercase tracking-tight">
+                  Permissions Grid: {ROLE_TEMPLATES[selectedRole]?.label}
+                </h3>
+                <p className="text-[11px] text-text-secondary">Toggle read, write, and delete rights per functional ERP module.</p>
+              </div>
+              <button
+                onClick={saveRolePermissions}
+                disabled={loading}
+                className="bg-[#C5A021] text-brand-dark px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-yellow-500 active:scale-[0.98] transition-all flex items-center gap-2 self-start sm:self-center"
+              >
+                <Save size={14} /> Save Template
+              </button>
+            </div>
+
+            {/* Grid checklist */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-3 text-[8px] font-black uppercase tracking-widest text-gray-400">User</th>
-                    <th className="px-6 py-3 text-[8px] font-black uppercase tracking-widest text-gray-400">Phone</th>
-                    <th className="px-6 py-3 text-[8px] font-black uppercase tracking-widest text-gray-400">Role</th>
-                    <th className="px-6 py-3 text-[8px] font-black uppercase tracking-widest text-gray-400">Panel Access</th>
-                    <th className="px-6 py-3 text-[8px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                    <th className="px-6 py-3 text-[8px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
+                  <tr className="border-b-2 border-card-border bg-[#F5F5EC]/50">
+                    <th className="py-3 px-4 text-xs font-black uppercase tracking-wider text-text-primary">Module</th>
+                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Read</th>
+                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Write</th>
+                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Delete</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filtered.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50/50 transition-all group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-500 border border-gray-200">
-                            {(user.fullName || user.name || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">{user.fullName || user.name}</p>
-                            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{user.id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-gray-700">{user.phone}</span>
-                          {user.phoneVerified ? (
-                            <CheckCircle2 size={12} className="text-green-500" />
-                          ) : (
-                            <XCircle size={12} className="text-red-400" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 border ${ROLE_COLORS[user.role] || ROLE_COLORS.CUSTOM}`}>
-                          {ROLE_TEMPLATES[user.role]?.label || user.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          {activePanels(user).map((panel) => {
-                            const Icon = PANEL_ICONS[panel];
-                            return Icon ? (
-                              <div key={panel} title={panel} className="w-6 h-6 bg-gray-100 flex items-center justify-center border border-gray-200">
-                                <Icon size={10} className="text-gray-500" />
-                              </div>
-                            ) : null;
-                          })}
-                          {activePanels(user).length === 0 && (
-                            <span className="text-[8px] text-gray-300 font-bold uppercase">None</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={user.status} />
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {(() => {
-                            const isSelf = user.id === currentUser?.id || user._id === currentUser?._id || user.phone === currentUser?.phone;
-                            return (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    if (isSelf) {
-                                      toast.error('You cannot edit or downgrade your own role/permissions to prevent accidental lockout.');
-                                      return;
-                                    }
-                                    setEditingUser(user);
-                                    setShowForm(true);
-                                  }}
-                                  disabled={isSelf}
-                                  title={isSelf ? "Cannot edit your own role" : "Edit Role & Permissions"}
-                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
-                                    isSelf
-                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
-                                      : 'bg-blue-50 text-blue-500 hover:bg-blue-100 border-blue-100'
-                                  }`}
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    if (isSelf) {
-                                      toast.error('You cannot pause your own account.');
-                                      return;
-                                    }
-                                    try {
-                                      await togglePauseUser(user.id || user._id);
-                                      toast.success(user.status === 'paused' ? `${user.fullName || user.name} reactivated` : `${user.fullName || user.name} paused`);
-                                    } catch (err) {
-                                      toast.error('Failed to update status');
-                                    }
-                                  }}
-                                  disabled={isSelf}
-                                  title={isSelf ? "Cannot pause your own account" : (user.status === 'paused' ? 'Reactivate' : 'Pause')}
-                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
-                                    isSelf
-                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
-                                      : 'bg-amber-50 text-amber-500 hover:bg-amber-100 border-amber-100'
-                                  }`}
-                                >
-                                  <PauseCircle size={13} />
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    if (isSelf) {
-                                      toast.error('You cannot revoke your own account.');
-                                      return;
-                                    }
-                                    if (window.confirm(`Revoke access for ${user.fullName || user.name}?`)) {
-                                      try {
-                                        await revokeUser(user.id || user._id);
-                                        toast.error(`${user.fullName || user.name}'s access revoked`);
-                                      } catch (err) {
-                                        toast.error('Failed to revoke access');
-                                      }
-                                    }
-                                  }}
-                                  disabled={isSelf}
-                                  title={isSelf ? "Cannot revoke your own access" : "Revoke"}
-                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
-                                    isSelf
-                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
-                                      : 'bg-red-50 text-red-500 hover:bg-red-100 border-red-100'
-                                  }`}
-                                >
-                                  <XCircle size={13} />
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    if (isSelf) {
-                                      toast.error('You cannot delete your own account.');
-                                      return;
-                                    }
-                                    if (window.confirm(`Permanently delete ${user.fullName || user.name}?`)) {
-                                      try {
-                                        await deleteUser(user.id || user._id);
-                                        toast.error(`${user.fullName || user.name} deleted`);
-                                      } catch (err) {
-                                        toast.error('Failed to delete user');
-                                      }
-                                    }
-                                  }}
-                                  disabled={isSelf}
-                                  title={isSelf ? "Cannot delete your own account" : "Delete"}
-                                  className={`w-8 h-8 flex items-center justify-center border transition-all ${
-                                    isSelf
-                                      ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
-                                      : 'bg-rose-50 text-rose-500 hover:bg-rose-100 border-rose-100'
-                                  }`}
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-card-border text-sm">
+                  {MODULE_META
+                    .filter(m => m.panel === 'Admin') // Show admin modules
+                    .map(m => {
+                      const modPerms = rolePermissions.modules?.[m.key] || { read: false, write: false, delete: false };
+                      return (
+                        <tr key={m.key} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-4 px-4">
+                            <p className="text-xs font-black text-brand-olive uppercase tracking-wider">{m.label}</p>
+                            <p className="text-[9px] text-text-muted mt-0.5">Key ID: {m.key}</p>
+                          </td>
+                          {/* Read Checkbox */}
+                          <td className="py-4 px-4 text-center">
+                            <label className="inline-flex items-center justify-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={modPerms.read}
+                                onChange={() => handleRolePermissionToggle(m.key, 'read')}
+                                className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
+                              />
+                            </label>
+                          </td>
+                          {/* Write Checkbox */}
+                          <td className="py-4 px-4 text-center">
+                            <label className="inline-flex items-center justify-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={modPerms.write}
+                                onChange={() => handleRolePermissionToggle(m.key, 'write')}
+                                className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
+                              />
+                            </label>
+                          </td>
+                          {/* Delete Checkbox */}
+                          <td className="py-4 px-4 text-center">
+                            <label className="inline-flex items-center justify-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={modPerms.delete}
+                                onChange={() => handleRolePermissionToggle(m.key, 'delete')}
+                                className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
+                              />
+                            </label>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
-          )}
+          </div>
         </div>
-
-        {/* Stats Footer */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Users', value: users.length },
-            { label: 'Active Now', value: users.filter((u) => u.status === 'active').length },
-            { label: 'Paused', value: users.filter((u) => u.status === 'paused').length },
-            { label: 'Revoked', value: users.filter((u) => u.status === 'revoked').length },
-          ].map((s, i) => (
-            <div key={i} className="bg-white border border-gray-200 p-4 shadow-sm">
-              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1">{s.label}</p>
-              <p className="text-2xl font-black text-gray-900">{s.value}</p>
+      ) : (
+        /* USER ACCOUNTS TAB */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left panel: User List */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-[#6A7051]">Admin Users</h3>
+              
+              {/* Search user */}
+              <input
+                type="text"
+                placeholder="Search name, phone or role..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-white border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              />
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* User Creation Form Modal */}
-      {showForm && (
-        <UserCreationForm
-          onClose={() => {
-            setShowForm(false);
-            setEditingUser(null);
-          }}
-          editingUser={editingUser}
-        />
+            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map(u => {
+                  const isSelected = selectedUserId === u.id || selectedUserId === u._id;
+                  const isSuspended = u.status === 'revoked' || u.status === 'paused';
+                  return (
+                    <div
+                      key={u.id || u._id}
+                      onClick={() => setSelectedUserId(u.id || u._id)}
+                      className={`p-3.5 border transition-all cursor-pointer flex items-center gap-3 relative overflow-hidden ${
+                        isSelected 
+                          ? 'border-[#6A7051] bg-[#6A7051]/5 border-l-4 border-l-brand-yellow' 
+                          : 'border-card-border bg-white hover:border-[#6A7051]/40'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-none bg-brand-olive/10 text-brand-olive flex items-center justify-center font-black text-xs shrink-0">
+                        {u.name?.substring(0, 2).toUpperCase() || 'US'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-black uppercase tracking-tight leading-tight truncate ${
+                          isSelected ? 'text-[#6A7051]' : 'text-text-primary'
+                        }`}>
+                          {u.name}
+                        </p>
+                        <p className="text-[9px] text-text-muted uppercase tracking-wider font-bold mt-0.5">{getRoleLabel(u.role)}</p>
+                      </div>
+                      
+                      {/* Suspended/Active indicator */}
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase shrink-0 ${
+                        isSuspended ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {u.status}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-xs text-text-muted bg-white border border-card-border">
+                  No admin users found matching your search.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right panel: User permissions customize */}
+          <div className="lg:col-span-8 bg-white border border-card-border p-6 shadow-sm">
+            {selectedUserId && users.find(u => u.id === selectedUserId || u._id === selectedUserId) ? (
+              (() => {
+                const userObj = users.find(u => u.id === selectedUserId || u._id === selectedUserId);
+                return (
+                  <>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-card-border pb-4 mb-6 gap-4">
+                      <div>
+                        <h3 className="text-base font-black text-brand-olive uppercase tracking-tight flex items-center gap-2">
+                          <UserCheck size={18} className="text-brand-yellow" /> Customize Permissions: {userObj.name}
+                        </h3>
+                        <p className="text-[11px] text-text-secondary">
+                          Customize access specifically for this account. Inherits default role values if unchanged.
+                        </p>
+                      </div>
+                      <button
+                        onClick={saveUserPermissions}
+                        disabled={loading}
+                        className="bg-[#C5A021] text-brand-dark px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-yellow-500 active:scale-[0.98] transition-all flex items-center gap-2 self-start sm:self-center"
+                      >
+                        <Save size={14} /> Save User Access
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b-2 border-card-border bg-[#F5F5EC]/50">
+                            <th className="py-3 px-4 text-xs font-black uppercase tracking-wider text-text-primary">Module</th>
+                            <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Read</th>
+                            <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Write</th>
+                            <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Delete</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-card-border text-sm">
+                          {MODULE_META
+                            .filter(m => m.panel === 'Admin')
+                            .map(m => {
+                              const modPerms = userPermissions.modules?.[m.key] || { read: false, write: false, delete: false };
+                              return (
+                                <tr key={m.key} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="py-4 px-4">
+                                    <p className="text-xs font-black text-brand-olive uppercase tracking-wider">{m.label}</p>
+                                    <p className="text-[9px] text-text-muted mt-0.5">Key ID: {m.key}</p>
+                                  </td>
+                                  <td className="py-4 px-4 text-center">
+                                    <label className="inline-flex items-center justify-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={modPerms.read}
+                                        onChange={() => handleUserPermissionToggle(m.key, 'read')}
+                                        className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
+                                      />
+                                    </label>
+                                  </td>
+                                  <td className="py-4 px-4 text-center">
+                                    <label className="inline-flex items-center justify-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={modPerms.write}
+                                        onChange={() => handleUserPermissionToggle(m.key, 'write')}
+                                        className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
+                                      />
+                                    </label>
+                                  </td>
+                                  <td className="py-4 px-4 text-center">
+                                    <label className="inline-flex items-center justify-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={modPerms.delete}
+                                        onChange={() => handleUserPermissionToggle(m.key, 'delete')}
+                                        className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
+                                      />
+                                    </label>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()
+            ) : (
+              <div className="p-12 text-center text-xs text-text-muted">
+                Select a user from the list to manage custom permissions.
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

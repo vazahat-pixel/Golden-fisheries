@@ -9,11 +9,19 @@ import {
 } from 'lucide-react';
 
 // Auth
-const AdminAuth = React.lazy(() => import('../panels/auth/AdminAuth'));
+// const AdminAuth = React.lazy(() => import('../panels/auth/AdminAuth'));
 const RestaurantAuth = React.lazy(() => import('../panels/auth/RestaurantAuth'));
 const FishMallAuth = React.lazy(() => import('../panels/auth/FishMallAuth'));
-const DriverAuth = React.lazy(() => import('../panels/auth/DriverAuth'));
-const BuyerAuth = React.lazy(() => import('../panels/auth/BuyerAuth'));
+// const DriverAuth = React.lazy(() => import('../panels/auth/DriverAuth'));
+// const BuyerAuth = React.lazy(() => import('../panels/auth/BuyerAuth'));
+
+// New Unified Auth Flow
+const InitPage = React.lazy(() => import('../pages/auth/InitPage'));
+const NewAdminLogin = React.lazy(() => import('../pages/auth/AdminLogin'));
+const NewDriverLogin = React.lazy(() => import('../pages/auth/DriverLogin'));
+const Signup = React.lazy(() => import('../pages/auth/Signup'));
+const ForgotPassword = React.lazy(() => import('../pages/auth/ForgotPassword'));
+
 import ProtectedRoute from '../panels/auth/ProtectedRoute';
 import { useAuthStore } from '../store/authStore';
 
@@ -30,6 +38,7 @@ const VehicleDocuments = React.lazy(() => import('../panels/admin/logistics/Vehi
 const FinanceOverview = React.lazy(() => import('../panels/admin/finance/FinanceOverview'));
 const HarvestSlips = React.lazy(() => import('../panels/admin/procurement/HarvestSlips'));
 const CreateHarvestSlip = React.lazy(() => import('../panels/admin/procurement/CreateHarvestSlipV2'));
+const HarvestSlipPreview = React.lazy(() => import('../panels/admin/procurement/HarvestSlipPreview'));
 const HarvestSlipDetail = React.lazy(() => import('../panels/admin/procurement/HarvestSlipDetail'));
 const NetRate = React.lazy(() => import('../panels/admin/procurement/NetRate'));
 const FarmerLedger = React.lazy(() => import('../panels/admin/procurement/FarmerLedger'));
@@ -95,7 +104,6 @@ import { BuyerLayout } from '../design-system/layouts/BuyerLayout';
 
 // Public
 const BuyerBilling = React.lazy(() => import('../panels/public/BuyerBilling'));
-const Launchpad = React.lazy(() => import('../pages/Launchpad'));
 const Unauthorized = React.lazy(() => import('../pages/Unauthorized'));
 
 const restaurantNav = [
@@ -124,13 +132,24 @@ const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'V
 const AppRouter = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/launchpad" replace />} />
-      <Route path="/launchpad" element={<Launchpad />} />
+      <Route path="/" element={<Navigate to="/auth/init" replace />} />
+
+      {/* ── Unified Auth Flow ── */}
+      <Route path="/auth/*" element={
+        <Routes>
+          <Route path="init" element={<InitPage />} />
+          <Route path="admin" element={<NewAdminLogin />} />
+          <Route path="driver" element={<NewDriverLogin />} />
+          <Route path="signup" element={<Signup />} />
+          <Route path="forgot-password" element={<ForgotPassword />} />
+          <Route index element={<Navigate to="/auth/init" replace />} />
+        </Routes>
+      } />
 
       {/* ── Admin Panel ── */}
       <Route path="/admin/*" element={
         <Routes>
-          <Route path="auth" element={<AdminAuth />} />
+          <Route path="auth" element={<Navigate to="/auth/admin" replace />} />
           <Route element={
             <ProtectedRoute allowedRoles={ADMIN_ROLES}>
               <AdminLayout><Outlet /></AdminLayout>
@@ -153,6 +172,7 @@ const AppRouter = () => {
             <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="procurement"><Outlet /></ProtectedRoute>}>
               <Route path="procurement/harvest" element={<HarvestSlips />} />
               <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
+              <Route path="procurement/harvest/preview" element={<HarvestSlipPreview />} />
               <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
               <Route path="procurement/net-rate" element={<NetRate />} />
               <Route path="procurement/farmer-ledger" element={<FarmerLedger />} />
@@ -245,7 +265,7 @@ const AppRouter = () => {
       {/* ── Driver Mobile Panel ── */}
       <Route path="/driver/*" element={
         <Routes>
-          <Route path="auth" element={<DriverAuth />} />
+          <Route path="auth" element={<Navigate to="/auth/driver" replace />} />
           <Route element={
             <ProtectedRoute allowedRoles={['ADMIN', 'DRIVER']}>
               <Outlet />
@@ -276,7 +296,7 @@ const AppRouter = () => {
       {/* ── Buyer Panel ── */}
       <Route path="/buyer/*" element={
         <Routes>
-          <Route path="auth" element={<BuyerAuth />} />
+          <Route path="auth" element={<Navigate to="/auth/init" replace />} />
           <Route element={
             <ProtectedRoute allowedRoles={['BUYER', 'ADMIN']}>
               <BuyerLayout><Outlet /></BuyerLayout>
