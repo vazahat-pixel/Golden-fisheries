@@ -30,6 +30,7 @@ const AdminDashboard = React.lazy(() => import('../panels/admin/Dashboard'));
 const TapalList = React.lazy(() => import('../panels/admin/tapals/TapalList'));
 const CreateSalesTapal = React.lazy(() => import('../panels/admin/tapals/CreateSalesTapal'));
 const TapalDetail = React.lazy(() => import('../panels/admin/tapals/TapalDetail'));
+const TapalPreview = React.lazy(() => import('../panels/admin/tapals/TapalPreview'));
 const InventoryOverview = React.lazy(() => import('../panels/admin/inventory/InventoryOverview'));
 const AddInventoryItem = React.lazy(() => import('../panels/admin/inventory/AddInventoryItem'));
 const DriverManagement = React.lazy(() => import('../panels/admin/logistics/DriverManagement'));
@@ -79,7 +80,7 @@ import { MobileLayout } from '../design-system/layouts/MobileLayout';
 const DriverDashboard = React.lazy(() => import('../panels/driver/DriverDashboard'));
 const DriverTasks = React.lazy(() => import('../panels/driver/DriverTasks'));
 const ActiveTrip = React.lazy(() => import('../panels/driver/ActiveTrip'));
-const DriverHistory = React.lazy(() => import('../panels/driver/DriverHistory'));
+const TripHistory = React.lazy(() => import('../panels/driver/TripHistory'));
 const DriverProfile = React.lazy(() => import('../panels/driver/DriverProfile'));
 const DriverExpenses = React.lazy(() => import('../panels/driver/DriverExpenses'));
 const DriverDocuments = React.lazy(() => import('../panels/driver/DriverDocuments'));
@@ -94,10 +95,12 @@ const DriverExpenseBillPrint = React.lazy(() => import('../panels/driver/DriverE
 
 // Buyer
 const BuyerDashboard = React.lazy(() => import('../panels/buyer/BuyerDashboard'));
-const BuyerIncomingTapals = React.lazy(() => import('../panels/buyer/BuyerIncomingTapals'));
+const BuyerTapals = React.lazy(() => import('../panels/buyer/BuyerTapals'));
+const BuyerTapalVerify = React.lazy(() => import('../panels/buyer/BuyerTapalVerify'));
 const BuyerBillView = React.lazy(() => import('../panels/buyer/BuyerBillView'));
 const BuyerSalesReturn = React.lazy(() => import('../panels/buyer/BuyerSalesReturn'));
 const BuyerInvoiceHistory = React.lazy(() => import('../panels/buyer/BuyerInvoiceHistory'));
+const BuyerLedger = React.lazy(() => import('../panels/buyer/BuyerLedger'));
 import { BuyerLayout } from '../design-system/layouts/BuyerLayout';
 
 // Public
@@ -125,7 +128,7 @@ const fishMallNav = [
 ];
 
 // Roles that can access the Admin Panel container (module-level permissions handle the rest)
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER'];
+const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER', 'HARVEST_OPERATOR'];
 
 const AppRouter = () => {
   return (
@@ -160,14 +163,17 @@ const AppRouter = () => {
             {/* Tapal Routes */}
             <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="tapals"><Outlet /></ProtectedRoute>}>
               <Route path="tapals" element={<TapalList />} />
+              <Route path="tapals/new" element={<CreateSalesTapal />} />
               <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
               <Route path="tapals/:id" element={<TapalDetail />} />
+              <Route path="tapals/preview" element={<TapalPreview />} />
+              <Route path="tapals/:id/preview" element={<TapalPreview />} />
               <Route path="sales-approval" element={<SalesApprovalList />} />
               <Route path="sales-approval/:id" element={<SalesApprovalDetail />} />
             </Route>
 
             {/* Procurement Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="procurement"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'HARVEST_OPERATOR']} module="procurement"><Outlet /></ProtectedRoute>}>
               <Route path="procurement/harvest" element={<HarvestSlips />} />
               <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
               <Route path="procurement/harvest/preview" element={<HarvestSlipPreview />} />
@@ -273,7 +279,7 @@ const AppRouter = () => {
               <Route path="dashboard" element={<DriverDashboard />} />
               <Route path="tasks" element={<DriverTasks />} />
               <Route path="active-trip" element={<ActiveTrip />} />
-              <Route path="history" element={<DriverHistory />} />
+              <Route path="history" element={<TripHistory />} />
               <Route path="profile" element={<DriverProfile />} />
               <Route path="expenses" element={<DriverExpenses />} />
               <Route path="expenses/new" element={<DriverAddExpense />} />
@@ -284,8 +290,8 @@ const AppRouter = () => {
               <Route path="settings" element={<DriverSettings />} />
               <Route path="support" element={<DriverSupport />} />
               {/* Post-trip expense form + bill */}
-              <Route path="trip-expense/:tripId" element={<DriverTripExpenseForm />} />
-              <Route path="trip-expense/:tripId/bill" element={<DriverExpenseBillPrint />} />
+              <Route path="expense/:tripId" element={<DriverTripExpenseForm />} />
+              <Route path="expense/:tripId/bill" element={<DriverExpenseBillPrint />} />
             </Route>
           </Route>
         </Routes>
@@ -301,10 +307,12 @@ const AppRouter = () => {
             </ProtectedRoute>
           }>
             <Route path="dashboard" element={<BuyerDashboard />} />
-            <Route path="tapals" element={<BuyerIncomingTapals />} />
+            <Route path="tapals" element={<BuyerTapals />} />
+            <Route path="verify/:tapalId" element={<BuyerTapalVerify />} />
             <Route path="bill/:tapalId" element={<BuyerBillView />} />
             <Route path="returns" element={<BuyerSalesReturn />} />
             <Route path="invoices" element={<BuyerInvoiceHistory />} />
+            <Route path="ledger" element={<BuyerLedger />} />
             <Route index element={<Navigate to="/buyer/dashboard" replace />} />
           </Route>
         </Routes>

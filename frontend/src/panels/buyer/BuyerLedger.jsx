@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { FileText, IndianRupee } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useAdminStore } from '../../store/adminStore';
-import { FileText, IndianRupee, Printer } from 'lucide-react';
 
-const BuyerInvoiceHistory = () => {
-  const navigate = useNavigate();
+const BuyerLedger = () => {
   const { invoices, fetchInvoices } = useAdminStore();
   const [loading, setLoading] = useState(true);
 
@@ -12,25 +11,35 @@ const BuyerInvoiceHistory = () => {
     fetchInvoices().finally(() => setLoading(false));
   }, [fetchInvoices]);
 
-  const salesInvoices = invoices.filter(inv => inv.type === 'SALES');
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500 font-sans pb-12">
       <div className="border-b border-card-border pb-5">
         <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase flex items-center gap-3">
-          <FileText className="text-brand-yellow" size={24} /> Invoice History
+          <IndianRupee className="text-brand-yellow" size={24} /> Financial Ledger
         </h1>
-        <p className="text-text-secondary text-sm mt-1">View and print past sales invoices.</p>
+        <p className="text-text-secondary text-sm mt-1">View your outstanding balance and past invoices.</p>
+      </div>
+
+      <div className="bg-white border border-card-border p-8 shadow-sm flex items-center justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-text-muted mb-1">Total Outstanding Balance</p>
+          <h2 className="text-3xl font-extrabold text-brand-olive">₹ 0.00</h2>
+        </div>
+        <button className="bg-brand-olive text-white px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#5F6846] transition-all shadow-sm">
+          Pay Now
+        </button>
       </div>
 
       <div className="bg-white border border-card-border shadow-sm overflow-hidden mt-6">
+        <div className="p-4 border-b border-card-border">
+          <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive">Invoice History</h3>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
                 <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Invoice No</th>
                 <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Date</th>
-                <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Associated TP</th>
                 <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Amount</th>
                 <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Status</th>
                 <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive text-right">Actions</th>
@@ -39,18 +48,17 @@ const BuyerInvoiceHistory = () => {
             <tbody className="divide-y divide-card-border text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-text-muted">Loading Invoices...</td>
+                  <td colSpan="5" className="py-8 text-center text-text-muted">Loading Invoices...</td>
                 </tr>
-              ) : salesInvoices.length === 0 ? (
+              ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-text-muted italic">No invoices found.</td>
+                  <td colSpan="5" className="py-8 text-center text-text-muted italic">No invoices found.</td>
                 </tr>
               ) : (
-                salesInvoices.map((inv) => (
+                invoices.map((inv) => (
                   <tr key={inv.id || inv._id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-4 font-black text-brand-olive">#{inv.id || inv.invoiceNumber}</td>
                     <td className="py-4 px-4 font-medium text-text-secondary">{inv.date || 'N/A'}</td>
-                    <td className="py-4 px-4 font-medium text-text-secondary">TP #{inv.tapalId || 'N/A'}</td>
                     <td className="py-4 px-4 font-extrabold">{inv.amount}</td>
                     <td className="py-4 px-4">
                       <span className={`px-2 py-1 text-[10px] font-black uppercase tracking-wider rounded-sm ${
@@ -61,10 +69,10 @@ const BuyerInvoiceHistory = () => {
                     </td>
                     <td className="py-4 px-4 text-right">
                       <button
-                        onClick={() => navigate(`/buyer/invoice/${inv.id || inv._id}`)}
-                        className="text-[10px] font-black uppercase tracking-widest text-brand-olive hover:text-brand-yellow transition-colors flex items-center justify-end gap-1 ml-auto"
+                        onClick={() => toast.success('Invoice preview opened')}
+                        className="text-[10px] font-black uppercase tracking-widest text-brand-olive hover:text-brand-yellow transition-colors"
                       >
-                        <Printer size={12} /> View & Print
+                        View Invoice
                       </button>
                     </td>
                   </tr>
@@ -78,4 +86,4 @@ const BuyerInvoiceHistory = () => {
   );
 };
 
-export default BuyerInvoiceHistory;
+export default BuyerLedger;

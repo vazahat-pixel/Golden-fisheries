@@ -119,6 +119,30 @@ const HarvestSlips = () => {
             <Clock size={12} /> Pending Approval
           </span>
         );
+      case 'Draft':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-300">
+            <FileText size={12} /> Draft
+          </span>
+        );
+      case 'Sent to Farmer':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200 animate-pulse">
+            <Inbox size={12} /> Sent to Farmer
+          </span>
+        );
+      case 'Farmer Approved':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-green-50 text-green-700 border border-green-200">
+            <CheckCircle size={12} /> Farmer Approved
+          </span>
+        );
+      case 'Tapal Created':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+            <FileCheck size={12} /> Tapal Created
+          </span>
+        );
       case 'Rejected':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">

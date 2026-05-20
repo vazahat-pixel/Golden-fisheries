@@ -215,6 +215,31 @@ export const ROLE_TEMPLATES = {
       },
     },
   },
+  HARVEST_OPERATOR: {
+    id: 'HARVEST_OPERATOR',
+    label: 'Harvest Operator',
+    description: 'Procurement harvest slips, farmer details, net rate (read/write, no finance)',
+    color: '#6B7550',
+    loginPortal: '/auth/admin',
+    permissions: {
+      panels: { restaurant: false, fishmall: false, driver: false, admin: true, buyer: false },
+      modules: {
+        pos: { read: false, write: false, delete: false },
+        orderHistory: { read: false, write: false, delete: false },
+        inventory: { read: false, write: false, delete: false },
+        restaurantSettings: { read: false, write: false, delete: false },
+        dashboard: { read: true, write: false, delete: false },
+        tapals: { read: false, write: false, delete: false },
+        finance: { read: false, write: false, delete: false },
+        procurement: { read: true, write: true, delete: false },
+        logistics: { read: false, write: false, delete: false },
+        billing: { read: false, write: false, delete: false },
+        outlets: { read: false, write: false, delete: false },
+        accessControl: { read: false, write: false, delete: false },
+        settings: { read: false, write: false, delete: false },
+      },
+    },
+  },
   BUYER: {
     id: 'BUYER',
     label: 'Buyer (Channapa)',
@@ -295,13 +320,14 @@ const mapRoleToBackend = (role) => {
   if (role === 'RESTAURANT_STAFF') return 'RESTAURANT';
   if (role === 'FISHMALL_BILLING') return 'FISHMALL';
   // New specialist roles — pass through 1:1
-  if (['PROCUREMENT_MANAGER','BUYER','VEHICLE_MANAGER'].includes(role)) return role;
+  if (['PROCUREMENT_MANAGER','BUYER','VEHICLE_MANAGER','HARVEST_OPERATOR'].includes(role)) return role;
   return role;
 };
 
 const mapRoleToFrontend = (role) => {
   if (role === 'RESTAURANT') return 'RESTAURANT_STAFF';
   if (role === 'FISHMALL') return 'FISHMALL_BILLING';
+  if (role === 'HARVEST_OPERATOR') return 'HARVEST_OPERATOR';
   return role;
 };
 

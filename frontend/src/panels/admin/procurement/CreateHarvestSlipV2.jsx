@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
+import { useAuthStore } from '../../../store/authStore';
 import { Sprout, Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const CreateHarvestSlipV2 = () => {
   const navigate = useNavigate();
   const { addHarvestSlip, harvestSlips } = useAdminStore();
+  const { user } = useAuthStore();
+  const isOperator = user?.role === 'HARVEST_OPERATOR';
 
   // Mock list of vehicles and drivers for the dropdowns
   const mockVehicles = ['KA-30-M-4321', 'KA-19-F-9876', 'MH-09-E-5544', 'KA-20-C-1122'];
@@ -24,6 +27,9 @@ const CreateHarvestSlipV2 = () => {
 
   // Form Fields
   const [farmerName, setFarmerName] = useState('');
+  const [city, setCity] = useState('');
+  const [mobNumber, setMobNumber] = useState('');
+  
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [vehicleNo, setVehicleNo] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -31,14 +37,17 @@ const CreateHarvestSlipV2 = () => {
 
   // Table items
   const [items, setItems] = useState([
-    { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' },
-    { id: '2', hsnCode: '03028400', particulars: 'SEABASS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }
+    { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '', rate: '', totalAmount: '' },
+    { id: '2', hsnCode: '03069500', particulars: 'PRAWNS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '', rate: '', totalAmount: '' }
   ]);
 
   // Bottom notes & settings
-  const [notes, setNotes] = useState('BLACK GILL SECOND QUALITY ( EXP )');
-  const [damageNotes, setDamageNotes] = useState('THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT');
+  const [notes, setNotes] = useState('');
+  const [damageNotes, setDamageNotes] = useState('');
   const [iceRentDeducted, setIceRentDeducted] = useState(false);
+  const [tds, setTds] = useState('');
+  const [commission, setCommission] = useState('');
+  const [soft, setSoft] = useState('');
   const [inWords, setInWords] = useState('');
 
   // Recalculate row total weight and totals automatically
@@ -48,12 +57,24 @@ const CreateHarvestSlipV2 = () => {
         if (item.id === id) {
           const updatedItem = { ...item, [field]: value };
           
-          // Auto calculate totalWeight if boxes and weight exist
-          if (field === 'noOfBoxes' || field === 'boxWeight') {
-            const boxes = parseFloat(field === 'noOfBoxes' ? value : item.noOfBoxes) || 0;
-            const weight = parseFloat(field === 'boxWeight' ? value : item.boxWeight) || 0;
-            updatedItem.totalWeight = boxes && weight ? String(boxes * weight) : '';
+          // Auto calculate totalWeight and totalAmount
+          const boxes = parseFloat(field === 'noOfBoxes' ? value : item.noOfBoxes) || 0;
+          const weight = parseFloat(field === 'boxWeight' ? value : item.boxWeight) || 0;
+          const rate = parseFloat(field === 'rate' ? value : item.rate) || 0;
+          
+          if (boxes && weight) {
+            updatedItem.totalWeight = (boxes * weight).toFixed(2);
+          } else {
+            updatedItem.totalWeight = (parseFloat(field === 'totalWeight' ? value : item.totalWeight) || 0).toFixed(2) || '';
           }
+          
+          const finalTotalWeight = parseFloat(updatedItem.totalWeight) || 0;
+          if (finalTotalWeight && rate) {
+            updatedItem.totalAmount = (finalTotalWeight * rate).toFixed(2);
+          } else if (!rate) {
+            updatedItem.totalAmount = '';
+          }
+
           return updatedItem;
         }
         return item;
@@ -63,7 +84,7 @@ const CreateHarvestSlipV2 = () => {
 
   const addItemRow = () => {
     const newId = String(items.length + 1);
-    setItems([...items, { id: newId, hsnCode: '', particulars: '', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }]);
+    setItems([...items, { id: newId, hsnCode: '', particulars: '', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '', rate: '', totalAmount: '' }]);
   };
 
   const removeItemRow = (id) => {
@@ -73,15 +94,12 @@ const CreateHarvestSlipV2 = () => {
   // Calculate totals
   const totalBoxes = items.reduce((sum, item) => sum + (parseInt(item.noOfBoxes) || 0), 0);
   const totalWeight = items.reduce((sum, item) => sum + (parseFloat(item.totalWeight) || 0), 0);
-
-  // Generate numbers to words helper for total weight/boxes
-  useEffect(() => {
-    if (totalWeight > 0) {
-      setInWords(`${totalWeight} KILOGRAMS ONLY`);
-    } else {
-      setInWords('');
-    }
-  }, [totalWeight]);
+  const totalItemsAmount = items.reduce((sum, item) => sum + (parseFloat(item.totalAmount) || 0), 0);
+  
+  const parsedTds = parseFloat(tds) || 0;
+  const parsedCommission = parseFloat(commission) || 0;
+  const parsedSoft = parseFloat(soft) || 0;
+  const grandTotal = totalItemsAmount - parsedTds - parsedCommission - parsedSoft;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -90,6 +108,9 @@ const CreateHarvestSlipV2 = () => {
     const slipData = {
       tpNo,
       farmerName,
+      city,
+      mobNumber,
+      farmerPhone: mobNumber,
       date,
       vehicleNo,
       driverName,
@@ -97,11 +118,16 @@ const CreateHarvestSlipV2 = () => {
       items: items.filter(item => item.particulars || item.hsnCode), // Filter out completely empty items
       totalBoxes,
       totalWeight,
+      totalItemsAmount,
+      tds,
+      commission,
+      soft,
+      grandTotal,
       notes,
       damageNotes,
       iceRentDeducted,
       inWords,
-      status: 'Pending Approval'
+      status: 'Draft' // Start as draft per Phase 1.3 requirements
     };
 
     // Store in session storage so preview page can load it
@@ -120,16 +146,16 @@ const CreateHarvestSlipV2 = () => {
           <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase flex items-center gap-3">
             <Sprout className="text-brand-yellow" size={24} /> Create Harvest Slip
           </h1>
-          <p className="text-text-secondary text-sm mt-1">Receive new shipment loads from farmers. All inputs are completely optional.</p>
+          <p className="text-text-secondary text-sm mt-1">Receive new shipment loads from farmers.</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white border border-card-border p-6 md:p-8 space-y-8 shadow-sm">
         {/* Form Inputs Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Slip Number */}
           <div className="flex flex-col">
-            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">TP Slip No</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Invoice No / TP No</label>
             <input 
               type="text" 
               value={tpNo}
@@ -165,6 +191,28 @@ const CreateHarvestSlipV2 = () => {
                 {mockFarmers.map(f => <option key={f} value={f} />)}
               </datalist>
             </div>
+          </div>
+          
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">City</label>
+            <input 
+              type="text" 
+              value={city}
+              onChange={e => setCity(e.target.value)}
+              placeholder="City"
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+            />
+          </div>
+          
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Mob Number</label>
+            <input 
+              type="text" 
+              value={mobNumber}
+              onChange={e => setMobNumber(e.target.value)}
+              placeholder="Mob Number"
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+            />
           </div>
 
           {/* Vehicle No */}
@@ -226,102 +274,107 @@ const CreateHarvestSlipV2 = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
+            <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
                 <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
                   <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-12 text-center">Sl No</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-36">HSN Code</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-48">Particulars</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Count</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Boxes</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Box Wt (kg)</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Total Wt (kg)</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">HSN Code</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-36">Particulars</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-20">Count</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-20">NO OF BOXES</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-20">Box Weight</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Total Weight</th>
+                  {!isOperator && <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-20">Rate</th>}
+                  {!isOperator && <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Total Amount</th>}
                   <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-12 text-center"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-card-border">
                 {items.map((item, index) => (
                   <tr key={item.id} className="hover:bg-slate-50/40">
-                    <td className="py-3 px-3 text-xs font-black text-center text-text-secondary">{index + 1}</td>
+                    <td className="py-2 px-2 text-xs font-black text-center text-text-secondary">{index + 1}</td>
                     
-                    {/* HSN CODE */}
-                    <td className="py-3 px-3">
+                    <td className="py-2 px-2">
                       <input 
                         type="text" 
                         value={item.hsnCode} 
                         onChange={e => handleItemChange(item.id, 'hsnCode', e.target.value)}
-                        placeholder="HSN"
-                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
                       />
                     </td>
 
-                    {/* Particulars */}
-                    <td className="py-3 px-3">
+                    <td className="py-2 px-2">
                       <input 
                         type="text" 
                         value={item.particulars} 
                         onChange={e => handleItemChange(item.id, 'particulars', e.target.value)}
-                        placeholder="Particulars"
-                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
-                        list="particulars-presets"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
                       />
-                      <datalist id="particulars-presets">
-                        <option value="PRAWNS" />
-                        <option value="SEABASS" />
-                        <option value="TUNA" />
-                        <option value="CRABS" />
-                        <option value="MACKEREL" />
-                      </datalist>
                     </td>
 
-                    {/* Count */}
-                    <td className="py-3 px-3">
+                    <td className="py-2 px-2">
                       <input 
-                        type="number" 
+                        type="text" 
                         value={item.count} 
                         onChange={e => handleItemChange(item.id, 'count', e.target.value)}
-                        placeholder="Count"
-                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
                       />
                     </td>
 
-                    {/* No of boxes */}
-                    <td className="py-3 px-3">
+                    <td className="py-2 px-2">
                       <input 
                         type="number" 
                         value={item.noOfBoxes} 
                         onChange={e => handleItemChange(item.id, 'noOfBoxes', e.target.value)}
-                        placeholder="Boxes"
-                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
                       />
                     </td>
 
-                    {/* Box Weight */}
-                    <td className="py-3 px-3">
+                    <td className="py-2 px-2">
                       <input 
                         type="number" 
                         step="any"
                         value={item.boxWeight} 
                         onChange={e => handleItemChange(item.id, 'boxWeight', e.target.value)}
-                        placeholder="Box Wt"
-                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
                       />
                     </td>
 
-                    {/* Total Weight */}
-                    <td className="py-3 px-3">
+                    <td className="py-2 px-2">
                       <input 
                         type="number" 
                         step="any"
                         value={item.totalWeight} 
                         onChange={e => handleItemChange(item.id, 'totalWeight', e.target.value)}
-                        placeholder="Total Wt"
-                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
                       />
                     </td>
+                    
+                    {!isOperator && (
+                      <td className="py-2 px-2">
+                        <input 
+                          type="number" 
+                          step="any"
+                          value={item.rate} 
+                          onChange={e => handleItemChange(item.id, 'rate', e.target.value)}
+                          className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                        />
+                      </td>
+                    )}
+                    
+                    {!isOperator && (
+                      <td className="py-2 px-2">
+                        <input 
+                          type="number" 
+                          step="any"
+                          value={item.totalAmount} 
+                          onChange={e => handleItemChange(item.id, 'totalAmount', e.target.value)}
+                          className="w-full bg-[#F5F5EC]/20 border border-card-border px-2 py-1.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold text-brand-olive"
+                        />
+                      </td>
+                    )}
 
-                    {/* Remove Action */}
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-2 px-2 text-center">
                       {items.length > 1 && (
                         <button
                           type="button"
@@ -339,16 +392,35 @@ const CreateHarvestSlipV2 = () => {
           </div>
         </div>
 
-        {/* Notes & Bottom Section */}
+        {/* Deductions & Bottom Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-card-border pt-6">
           <div className="space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-1">Deduction & Notes</h3>
             
-            {/* Ice and Vehicle Deduction */}
-            <div className="flex items-center justify-between p-3 bg-[#F5F5EC]/30 border border-card-border">
+            {/* Notes Section matching UI */}
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">NOTES ( BLACK GILL SECOND QUALITY ) ( EXP )</label>
+              <input 
+                type="text" 
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              />
+            </div>
+            
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT</label>
+              <input 
+                type="text" 
+                value={damageNotes}
+                onChange={e => setDamageNotes(e.target.value)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-red-50/50 border border-red-200">
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase text-brand-olive tracking-wider">Ice & Vehicle Rent Deduction</p>
-                <p className="text-[9px] text-text-muted mt-0.5">Toggle rent and ice cost adjustments.</p>
+                <p className="text-[10px] font-black uppercase text-red-600 tracking-wider">ICE & VEHICLE RENT DEDUCTED</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input 
@@ -357,58 +429,86 @@ const CreateHarvestSlipV2 = () => {
                   onChange={e => setIceRentDeducted(e.target.checked)}
                   className="sr-only peer" 
                 />
-                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500"></div>
               </label>
             </div>
-
-            {/* Note 1 */}
-            <div className="flex flex-col">
-              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Receipt Quality Notes</label>
-              <input 
-                type="text" 
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
-              />
-            </div>
-
-            {/* Note 2 */}
-            <div className="flex flex-col">
-              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Materials Quality Notes</label>
-              <input 
-                type="text" 
-                value={damageNotes}
-                onChange={e => setDamageNotes(e.target.value)}
-                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
-              />
-            </div>
+            
+            {/* In Words */}
+            {!isOperator && (
+              <div className="flex flex-col pt-4">
+                <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">(in words)</label>
+                <input 
+                  type="text" 
+                  value={inWords}
+                  onChange={e => setInWords(e.target.value)}
+                  placeholder="Amount in words"
+                  className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-1">Load Totals</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50 border border-card-border text-center">
-                <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Boxes</p>
-                <p className="text-2xl font-black text-brand-olive mt-1">{totalBoxes}</p>
-              </div>
-              <div className="p-4 bg-slate-50 border border-card-border text-center">
-                <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Weight</p>
-                <p className="text-2xl font-black text-brand-olive mt-1">{totalWeight.toFixed(2)} kg</p>
-              </div>
-            </div>
+            {isOperator ? (
+              <>
+                <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-1">Load Totals</h3>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="p-4 bg-slate-50 border border-card-border text-center">
+                    <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Boxes</p>
+                    <p className="text-2xl font-black text-brand-olive mt-1">{totalBoxes}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 border border-card-border text-center">
+                    <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Weight</p>
+                    <p className="text-2xl font-black text-brand-olive mt-1">{totalWeight.toFixed(2)} KG</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-1">Load Totals & Calculations</h3>
+                
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">TDS @ 194Q</label>
+                  <input 
+                    type="number" 
+                    value={tds}
+                    onChange={e => setTds(e.target.value)}
+                    className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                  />
+                </div>
+                
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">COMISSION</label>
+                  <input 
+                    type="number" 
+                    value={commission}
+                    onChange={e => setCommission(e.target.value)}
+                    className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                  />
+                </div>
+                
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">SOFT</label>
+                  <input 
+                    type="number" 
+                    value={soft}
+                    onChange={e => setSoft(e.target.value)}
+                    className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                  />
+                </div>
 
-            {/* In Words */}
-            <div className="flex flex-col">
-              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Total Weight (In Words)</label>
-              <input 
-                type="text" 
-                value={inWords}
-                onChange={e => setInWords(e.target.value)}
-                placeholder="Calculated Weight in words"
-                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
-              />
-            </div>
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-card-border">
+                  <div className="p-4 bg-slate-50 border border-card-border text-center">
+                    <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Boxes</p>
+                    <p className="text-2xl font-black text-brand-olive mt-1">{totalBoxes}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 border border-card-border text-center">
+                    <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Grand Total</p>
+                    <p className="text-2xl font-black text-brand-olive mt-1">₹{grandTotal.toFixed(2)}</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
