@@ -22,21 +22,23 @@ import { toast } from 'react-hot-toast';
 const DriverTasks = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { trips, driverAcceptTrip, fetchTrips } = useAdminStore();
+  const { trips, fetchTrips } = useAdminStore();
+  const {
+    incomingAssignment,
+    clearIncomingAssignment,
+    acceptTripAsync,
+    rejectTripAsync
+  } = useDriverStore();
 
   React.useEffect(() => {
     fetchTrips();
   }, [fetchTrips]);
-  const {
-    incomingAssignment,
-    clearIncomingAssignment
-  } = useDriverStore();
 
-  const driverName = user?.name || 'Unknown Driver';
+  const driverName = user?.fullName || user?.name || 'Unknown Driver';
   const myTrips = trips.filter(t => {
     const matchById = user?.id && t.driverId === user.id;
     const matchByName = t.driverName?.toUpperCase().trim() === driverName?.toUpperCase().trim();
-    return (matchById || matchByName) && !['Delivered', 'Expense Submitted', 'Closed'].includes(t.status);
+    return (matchById || matchByName) && !['Delivered', 'Expense Submitted', 'Closed', 'REJECTED'].includes(t.status);
   });
 
   const displayTasks = myTrips;
@@ -46,30 +48,25 @@ const DriverTasks = () => {
     if (!tId) return;
 
     try {
-      const { apiClient } = await import('../../services/apiClient');
-      await apiClient.patch('/tapals/start-trip', { tapalId: tId });
-
+      await acceptTripAsync(tId);
       if (incomingAssignment) clearIncomingAssignment();
-
-      // Fallback for local store
-      driverAcceptTrip(tId);
-      toast.success('Task Accepted!');
+      toast.success('Trip Accepted! You can now start the trip.');
       navigate('/driver/active-trip');
     } catch (err) {
-      toast.error('Failed to accept trip');
+      toast.error(err?.response?.data?.message || 'Failed to accept trip');
     }
   };
 
-  const handleReject = async () => {
-    if (incomingAssignment) {
-      try {
-        const { apiClient } = await import('../../services/apiClient');
-        await apiClient.patch('/tapals/reject-trip', { tapalId: incomingAssignment.tapalId });
-        clearIncomingAssignment();
-        toast.success('Task Rejected');
-      } catch (err) {
-        toast.error('Failed to reject trip');
-      }
+  const handleReject = async (tapalIdArg) => {
+    const tId = tapalIdArg || incomingAssignment?.tapalId;
+    if (!tId) return;
+
+    try {
+      await rejectTripAsync(tId, 'Driver rejected');
+      if (incomingAssignment) clearIncomingAssignment();
+      toast.success('Trip Rejected');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to reject trip');
     }
   };
 
@@ -97,7 +94,7 @@ const DriverTasks = () => {
                 </div>
                 <h3 className="text-sm font-black text-black uppercase tracking-tight leading-none">{task.product}</h3>
               </div>
-              <Badge className={`text-[7px] font-black uppercase px-2 py-0.5 border-none ${task.status === 'Assigned' ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-500 text-white'}`}>
+              <Badge className={`text-[7px] font-black uppercase px-2 py-0.5 border-none ${task.status === 'ASSIGNED' ? 'bg-red-500 text-white animate-pulse' : task.status === 'ACCEPTED' ? 'bg-blue-500 text-white' : 'bg-emerald-500 text-white'}`}>
                 {task.status}
               </Badge>
             </div>
@@ -141,13 +138,36 @@ const DriverTasks = () => {
             </div>
 
             <div className="flex gap-2 pt-1 relative z-10">
-              {task.status === 'Assigned' ? (
-                <button
-                  onClick={() => handleAccept(task.tapalId)}
-                  className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
-                >
-                  Accept Mission
-                </button>
+              {task.status === 'ASSIGNED' ? (
+                <>
+                  <button
+                    onClick={() => handleReject(task.tapalId)}
+                    className="py-3 px-4 bg-rose-50 text-rose-600 rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] border border-rose-200 active:scale-95 transition-all"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => handleAccept(task.tapalId)}
+                    className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
+                  >
+                    Accept Trip
+                  </button>
+                </>
+              ) : task.status === 'ACCEPTED' ? (
+                <>
+                  <button
+                    onClick={() => navigate('/driver/tracking')}
+                    className="flex-1 py-3 bg-white border border-black text-black rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                  >
+                    Route
+                  </button>
+                  <button
+                    onClick={() => navigate('/driver/active-trip')}
+                    className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                  >
+                    Start Trip
+                  </button>
+                </>
               ) : (
                 <>
                   <button

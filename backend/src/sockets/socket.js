@@ -75,6 +75,10 @@ export const setupSockets = (httpServer) => {
       socket.join('drivers:updates');
     }
 
+    if (socket.user.role === 'BUYER') {
+      socket.join('buyer:updates');
+    }
+
     // Driver location tracking broadcast
     socket.on('driver:location_ping', (data) => {
       // Validate tracking data parameters

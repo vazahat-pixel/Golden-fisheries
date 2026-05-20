@@ -1,6 +1,7 @@
 import { tapalService } from './tapal.service.js';
 import { harvestService } from '../harvests/harvest.service.js';
 import { Trip } from '../trips/trip.model.js';
+import { Tapal } from './tapal.model.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { broadcastEvent } from '../../sockets/socket.js';
@@ -67,6 +68,40 @@ export const tapalController = {
     const { tapalId, driverId, vehicleId } = req.body;
     const result = await tapalService.assignDriver(tapalId, driverId, vehicleId);
     new ApiResponse(200, result, 'Driver and Vehicle assigned. Trip spawned.').send(res);
+  }),
+
+  // Driver accepts an assigned trip
+  acceptTrip: asyncWrapper(async (req, res) => {
+    const { tapalId } = req.body;
+    const result = await tapalService.acceptTrip(tapalId, req.user.id);
+    new ApiResponse(200, result, 'Trip accepted successfully').send(res);
+  }),
+
+  // Driver rejects an assigned trip
+  rejectTrip: asyncWrapper(async (req, res) => {
+    const { tapalId, reason } = req.body;
+    const result = await tapalService.rejectTrip(tapalId, req.user.id, reason);
+    new ApiResponse(200, result, 'Trip rejected').send(res);
+  }),
+
+  // Buyer fetches only their own trips (scoped by JWT identity)
+  myBuyerTrips: asyncWrapper(async (req, res) => {
+    // Find tapals belonging to this buyer
+    const tapals = await Tapal.find({
+      $or: [
+        { buyerPhone: req.user.phone },
+        { buyerId: req.user.id }
+      ]
+    }).select('_id');
+
+    const tapalIds = tapals.map(t => t._id);
+
+    // Find trips linked to those tapals
+    const trips = await Trip.find({ tapalId: { $in: tapalIds } })
+      .populate('tapalId driverId vehicleId')
+      .sort({ createdAt: -1 });
+
+    new ApiResponse(200, trips, 'Your trips fetched successfully').send(res);
   }),
 
   // Driver starts the trip journey

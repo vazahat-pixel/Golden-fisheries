@@ -89,6 +89,8 @@ const BuyerIncomingTapals = React.lazy(() => import('../panels/buyer/BuyerIncomi
 const BuyerBillView = React.lazy(() => import('../panels/buyer/BuyerBillView'));
 const BuyerSalesReturn = React.lazy(() => import('../panels/buyer/BuyerSalesReturn'));
 const BuyerInvoiceHistory = React.lazy(() => import('../panels/buyer/BuyerInvoiceHistory'));
+const BuyerAssignDriver = React.lazy(() => import('../panels/buyer/BuyerAssignDriver'));
+const BuyerTripTracker = React.lazy(() => import('../panels/buyer/BuyerTripTracker'));
 import { BuyerLayout } from '../design-system/layouts/BuyerLayout';
 
 // Public
@@ -281,6 +283,8 @@ const AppRouter = () => {
             </ProtectedRoute>
           }>
             <Route path="dashboard" element={<BuyerDashboard />} />
+            <Route path="assign" element={<BuyerAssignDriver />} />
+            <Route path="trips" element={<BuyerTripTracker />} />
             <Route path="tapals" element={<BuyerIncomingTapals />} />
             <Route path="bill/:tapalId" element={<BuyerBillView />} />
             <Route path="returns" element={<BuyerSalesReturn />} />

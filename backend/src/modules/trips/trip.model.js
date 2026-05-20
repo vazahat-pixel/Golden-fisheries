@@ -108,7 +108,7 @@ const tripSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED', 'CLOSED'],
+      enum: ['ASSIGNED', 'ACCEPTED', 'REJECTED', 'STARTED', 'PICKED', 'DELIVERED', 'CLOSED'],
       default: 'ASSIGNED',
       index: true
     },

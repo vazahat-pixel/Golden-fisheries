@@ -41,9 +41,30 @@ router.get(
 // 3. Assign Driver & Vehicle to Tapal (Launches active trip)
 router.patch(
   '/assign-driver',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER),
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.BUYER),
   validateBody(tapalValidators.assignDriver),
   tapalController.assignDriver
+);
+
+// 3.1 Driver accepts an assigned trip
+router.patch(
+  '/accept-trip',
+  restrictTo(ROLES.DRIVER),
+  tapalController.acceptTrip
+);
+
+// 3.2 Driver rejects an assigned trip
+router.patch(
+  '/reject-trip',
+  restrictTo(ROLES.DRIVER),
+  tapalController.rejectTrip
+);
+
+// 3.3 Buyer fetches only their own trips
+router.get(
+  '/my-buyer-trips',
+  restrictTo(ROLES.BUYER),
+  tapalController.myBuyerTrips
 );
 
 // 4. Driver starts the trip

@@ -5,6 +5,7 @@ import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
+import { useAdminLayout } from '../../design-system/layouts/AdminLayout';
 import { 
   IndianRupee, 
   ClipboardList, 
@@ -30,6 +31,7 @@ import {
 const AdminDashboard = () => {
   const { tapals, inventory, invoices, transactions, fetchDashboardStats, fetchTapals, dashboardStats, loading } = useAdminStore();
   const { user } = useAuthStore();
+  const { isMobile } = useAdminLayout();
 
   const chartData = dashboardStats?.revenueChart || [];
   const topProducts = dashboardStats?.topProducts || [];
@@ -56,11 +58,13 @@ const AdminDashboard = () => {
           </h1>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Operator: {user?.name || 'ADMIN-HQ'} • Role: {user?.role || 'SUPER-USER'}</p>
         </div>
-        <div className="flex gap-2">
-          <Button className="text-[10px] font-black uppercase tracking-widest px-6 py-4 bg-black text-white hover:bg-[#6B7550] border-none shadow-sm active:scale-95 transition-all">
-            Generate Report
-          </Button>
-        </div>
+        {!isMobile && (
+          <div className="flex gap-2">
+            <Button className="text-[10px] font-black uppercase tracking-widest px-6 py-4 bg-black text-white hover:bg-[#6B7550] border-none shadow-sm active:scale-95 transition-all">
+              Generate Report
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -97,7 +101,7 @@ const AdminDashboard = () => {
             <div className="bg-white border border-gray-200 shadow-sm">
               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
                 <h3 className="font-bold text-gray-900 text-[11px] uppercase tracking-widest">Revenue Analytics</h3>
-                <button className="text-[10px] font-bold uppercase text-[#6B7550] hover:underline">Full Report</button>
+                {!isMobile && <button className="text-[10px] font-bold uppercase text-[#6B7550] hover:underline">Full Report</button>}
               </div>
               <div className="p-6 h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">

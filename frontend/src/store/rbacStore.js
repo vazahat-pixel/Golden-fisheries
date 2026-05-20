@@ -218,7 +218,10 @@ export const ROLE_TEMPLATES = {
   BUYER: {
     id: 'BUYER',
     label: 'Buyer (Channapa)',
-    description: 'Incoming tapals, buyer bills, sales return, invoice history',
+
+
+
+    description: 'Incoming tapals, buyer bills, sales return, invoice history, driver assignment, trip tracking',
     color: '#2563EB',
     loginPortal: '/buyer/auth',
     permissions: {
@@ -228,11 +231,11 @@ export const ROLE_TEMPLATES = {
         orderHistory: { read: false, write: false, delete: false },
         inventory: { read: false, write: false, delete: false },
         restaurantSettings: { read: false, write: false, delete: false },
-        dashboard: { read: false, write: false, delete: false },
-        tapals: { read: true, write: false, delete: false },
+        dashboard: { read: true, write: false, delete: false },
+        tapals: { read: true, write: true, delete: false },
         finance: { read: false, write: false, delete: false },
         procurement: { read: false, write: false, delete: false },
-        logistics: { read: false, write: false, delete: false },
+        logistics: { read: true, write: true, delete: false },
         billing: { read: true, write: false, delete: false },
         outlets: { read: false, write: false, delete: false },
         accessControl: { read: false, write: false, delete: false },

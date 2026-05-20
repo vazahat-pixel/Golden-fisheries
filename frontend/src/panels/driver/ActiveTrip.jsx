@@ -181,8 +181,15 @@ const ActiveTrip = () => {
         </div>
 
         <div className="pt-1">
-          {/* ASSIGNED — driver can start trip */}
+          {/* ASSIGNED — driver must accept first (handled in Tasks) */}
           {trip.status === 'ASSIGNED' && (
+            <div className="w-full py-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+              <AlertCircle size={14} /> Awaiting Your Acceptance — Go to Tasks
+            </div>
+          )}
+
+          {/* ACCEPTED — driver can start trip */}
+          {trip.status === 'ACCEPTED' && (
             <button onClick={handleStartTrip} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
               <Navigation size={14} className="animate-pulse" /> Start Trip
             </button>
