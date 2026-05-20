@@ -112,4 +112,18 @@ router.get(
   tapalController.getById
 );
 
+// 11. Update Tapal
+router.patch(
+  '/:id',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  tapalController.update
+);
+
+// 12. Return Tapal
+router.post(
+  '/return',
+  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  tapalController.returnTapal
+);
+
 export default router;

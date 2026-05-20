@@ -25,6 +25,10 @@ const harvestItemSchema = new mongoose.Schema({
     min: [0, 'Rate cannot be negative'],
     default: null
   },
+  count: {
+    type: String,
+    trim: true
+  },
   boxCount: {
     type: Number,
     min: [0, 'Box count cannot be negative'],
@@ -39,6 +43,21 @@ const harvestItemSchema = new mongoose.Schema({
     type: String,
     enum: ['A', 'B', 'Mix'],
     default: 'Mix'
+  },
+  totalWeight: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  totalAmount: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  usedQty: {
+    type: Number,
+    min: [0, 'Used quantity cannot be negative'],
+    default: 0
   }
 });
 
@@ -60,7 +79,7 @@ const harvestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['DRAFT', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'CONVERTED_TO_TAPAL', 'COMPLETED'],
+      enum: ['DRAFT', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'PARTIALLY_CONVERTED', 'CONVERTED_TO_TAPAL', 'COMPLETED'],
       default: 'PENDING',
       index: true
     },
@@ -93,6 +112,29 @@ const harvestSchema = new mongoose.Schema(
       trim: true
     },
     remarks: {
+      type: String,
+      trim: true
+    },
+    vehicleNo: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    driverName: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    graderName: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    damageComplaint: {
+      type: String,
+      trim: true
+    },
+    deductionsNotes: {
       type: String,
       trim: true
     },

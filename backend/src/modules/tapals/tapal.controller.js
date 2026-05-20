@@ -8,8 +8,8 @@ import { broadcastEvent } from '../../sockets/socket.js';
 export const tapalController = {
   // Convert Harvest slip to active purchase Tapal contract
   createFromHarvest: asyncWrapper(async (req, res) => {
-    const { harvestId } = req.body;
-    const tapal = await harvestService.convertToTapal(harvestId, req.user);
+    const { harvestId, assignedTo } = req.body;
+    const tapal = await harvestService.convertToTapal(harvestId, assignedTo, req.user);
     
     // Broadcast for real-time dashboard sync
     broadcastEvent('tapal:created', { tapal }, 'dashboard:updates');
@@ -43,8 +43,23 @@ export const tapalController = {
 
   // Get a single Tapal details by database ID
   getById: asyncWrapper(async (req, res) => {
-    const tapal = await tapalService.findById(req.params.id, 'harvestId farmerId');
+    const tapal = await tapalService.findById(req.params.id, 'harvestId farmerId assignedTo');
     new ApiResponse(200, { tapal }, 'Tapal retrieved successfully').send(res);
+  }),
+
+  // Update a Tapal (Channpa filling out the Tapal)
+  update: asyncWrapper(async (req, res) => {
+    const tapal = await tapalService.updateById(req.params.id, req.body);
+    new ApiResponse(200, { tapal }, 'Tapal updated successfully').send(res);
+  }),
+
+  // Return Tapal
+  returnTapal: asyncWrapper(async (req, res) => {
+    const { tapalId, reason } = req.body;
+    // Assuming updateById can handle status change, or we make a service method.
+    // Let's just use updateById.
+    const tapal = await tapalService.updateById(tapalId, { status: 'RETURNED', damageComplaint: reason });
+    new ApiResponse(200, { tapal }, 'Tapal returned successfully').send(res);
   }),
 
   // Admin assigns a Driver and Vehicle, creating a Trip

@@ -59,7 +59,7 @@ class HarvestService extends BaseService {
    * Safe transaction-controlled conversion from Harvest Slip to Purchase Tapal contract.
    * Leverages MongoDB Multi-Document ACID Transactions to guarantee data integrity.
    */
-  async convertToTapal(harvestId, creatorUser) {
+  async convertToTapal(harvestId, assignedTo, creatorUser, selectedItems = null) {
     try {
       // 1. Fetch Harvest
       const harvest = await this.model.findById(harvestId);
@@ -87,10 +87,45 @@ class HarvestService extends BaseService {
       let totalQty = 0;
       let totalAmount = 0;
       const tapalProducts = [];
+      let fullyConverted = true;
 
       for (const item of harvest.products) {
-        const qty = parseFloat(item.estimatedQty) || 0;
-        totalQty += qty;
+        // Find if this item is selected for partial conversion
+        let qtyToConvert = 0;
+        let boxQtyToConvert = 0;
+
+        if (selectedItems && Array.isArray(selectedItems)) {
+          const selected = selectedItems.find(si => si.productId === item.productId.toString() || si._id === item._id.toString());
+          if (selected) {
+            qtyToConvert = parseFloat(selected.qty) || 0;
+            boxQtyToConvert = parseInt(selected.boxes) || 0;
+          }
+        } else {
+          // Default: convert remaining available qty
+          qtyToConvert = Math.max(0, (parseFloat(item.estimatedQty) || 0) - (item.usedQty || 0));
+          boxQtyToConvert = Math.max(0, (parseInt(item.boxCount) || 0) - (parseInt(item.usedBoxes) || 0)); // if usedBoxes existed
+        }
+
+        if (qtyToConvert <= 0) {
+          if ((item.usedQty || 0) < (parseFloat(item.estimatedQty) || 0)) {
+            fullyConverted = false;
+          }
+          continue;
+        }
+
+        // Validate available stock
+        const availableQty = (parseFloat(item.estimatedQty) || 0) - (item.usedQty || 0);
+        if (qtyToConvert > availableQty) {
+          throw new AppError(`Cannot convert ${qtyToConvert} KG of ${item.fishName}. Only ${availableQty} KG available.`, 400);
+        }
+
+        // Update used quantities
+        item.usedQty = (item.usedQty || 0) + qtyToConvert;
+        if ((item.usedQty || 0) < (parseFloat(item.estimatedQty) || 0)) {
+          fullyConverted = false;
+        }
+
+        totalQty += qtyToConvert;
 
         // If no rate is defined on slip, use base pricing
         let activeRate = parseFloat(item.rate);
@@ -99,19 +134,23 @@ class HarvestService extends BaseService {
           activeRate = product ? (product.basePrice || 0) : 0;
         }
 
-        const lineTotal = qty * activeRate;
+        const lineTotal = qtyToConvert * activeRate;
         totalAmount += lineTotal;
 
         // Map line item details to standard Tapal string representations
-        // Carry through optional box fields from Harvest slip
         tapalProducts.push({
           name: item.fishName.toUpperCase(),
-          qty: `${qty} KG`,
+          qty: `${qtyToConvert} KG`,
+          numericQty: qtyToConvert,
           rate: `₹${activeRate}`,
           total: `₹${lineTotal.toLocaleString('en-IN')}`,
-          boxQty: item.boxCount || null,          // Optional: number of boxes
-          weightPerBox: item.weightPerBox || null  // Optional: KG per box
+          boxQty: boxQtyToConvert || item.boxCount || null,
+          weightPerBox: item.weightPerBox || null
         });
+      }
+
+      if (tapalProducts.length === 0) {
+        throw new AppError('No products selected for Tapal conversion or no available quantity left.', 400);
       }
 
       // 4. Instantiate the Purchase Tapal Record
@@ -124,7 +163,8 @@ class HarvestService extends BaseService {
         numericQty: totalQty,
         amount: `₹${totalAmount.toLocaleString('en-IN')}`,
         numericAmount: totalAmount,
-        status: 'CREATED', 
+        status: assignedTo ? 'ASSIGNED' : 'CREATED', 
+        assignedTo: assignedTo || null,
         driver: 'Unassigned',
         createdBy: creatorUser.phone, // Track auditing details
         products: tapalProducts
@@ -134,7 +174,7 @@ class HarvestService extends BaseService {
       await newTapal.save();
 
       // 5. Update Harvest Slip state representation
-      harvest.status = 'CONVERTED_TO_TAPAL';
+      harvest.status = fullyConverted ? 'CONVERTED_TO_TAPAL' : 'PARTIALLY_CONVERTED';
       await harvest.save();
 
       logger.info(`[Harvest Engine]: Successfully converted Slip ${harvest.harvestNumber} to Tapal ${newTapal.tapalNumber}`);

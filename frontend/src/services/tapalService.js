@@ -80,6 +80,16 @@ export const tapalService = {
   // 10. Fetch single Tapal details
   getById: async (id) => {
     return await apiClient.get(`/tapals/${id}`);
+  },
+
+  // 11. Update Tapal
+  update: async (id, data) => {
+    return await apiClient.patch(`/tapals/${id}`, data);
+  },
+
+  // 12. Return Tapal
+  returnTapal: async (tapalId, reason) => {
+    return await apiClient.post('/tapals/return', { tapalId, reason });
   }
 };
 

@@ -86,10 +86,16 @@ const AdminAuth = () => {
     try {
       const res = await authService.verifyOtp(phone, entered);
       if (res && res.user) {
+        const role = res.user.role;
+        const hasAdminPanelAccess = role === 'ADMIN' || res.user.permissions?.panels?.admin === true;
+        if (!hasAdminPanelAccess) {
+          toast.error('This account does not have Admin Panel access');
+          navigate('/unauthorized', { replace: true });
+          return;
+        }
         login(res.user, res.accessToken);
         toast.success('Access Granted');
         // Role-aware redirect
-        const role = res.user.role;
         if (role === 'PROCUREMENT_MANAGER') {
           navigate('/admin/procurement/harvest');
         } else if (role === 'VEHICLE_MANAGER') {

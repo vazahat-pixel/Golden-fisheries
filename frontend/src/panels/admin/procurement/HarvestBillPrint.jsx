@@ -95,9 +95,9 @@ const HarvestBillPrint = ({ slip, onBack }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', lineHeight: '1.8' }}>
               <div><strong>H NO :</strong></div><div style={{ color: '#555', fontStyle: 'italic' }}>NUMERICS</div>
               <div><strong>Date :</strong></div><div><strong>{today}</strong></div>
-              <div><strong>Vehicle No :</strong></div><div><strong>{slip?.vehicleNumber || 'DROP DOWN'}</strong></div>
+              <div><strong>Vehicle No :</strong></div><div><strong>{slip?.vehicleNo || slip?.vehicleNumber || 'DROP DOWN'}</strong></div>
               <div><strong>Driver Name :</strong></div><div><strong>{slip?.driverName || 'DROP DOWN'}</strong></div>
-              <div><strong>Grader Name :</strong></div><div style={{ color: '#555', fontStyle: 'italic' }}>DROP DOWN</div>
+              <div><strong>Grader Name :</strong></div><div><strong>{slip?.graderName || 'DROP DOWN'}</strong></div>
             </div>
           </div>
         </div>
@@ -159,10 +159,10 @@ const HarvestBillPrint = ({ slip, onBack }) => {
           {/* Left: Notes */}
           <div style={{ background: '#eef2e6', padding: '0', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '6px', borderBottom: '1px solid #bbb', borderRight: '1px solid #bbb', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-              NOTES ( BLACK GILL SECOND QUALITY ) ( EXP )
+              NOTES ( BLACK GILL SECOND QUALITY ) ( EXP ): {slip?.deductionsNotes || ''}
             </div>
             <div style={{ padding: '6px', borderBottom: '1px solid #bbb', borderRight: '1px solid #bbb', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-              THIRD QUALITY DAMAGE METERIALS &amp; DIO COMPLAINT
+              THIRD QUALITY DAMAGE METERIALS &amp; DIO COMPLAINT: {slip?.damageComplaint || ''}
             </div>
             <div style={{ padding: '6px', borderRight: '1px solid #bbb', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c00', fontWeight: 700 }}>
               ICE &amp; VEHICLE RENT NOT DEDUCTED

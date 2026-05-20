@@ -45,7 +45,8 @@ const TapalDetail = () => {
     endTripAsync,
     trips,
     markStockReceived,
-    addTripExpense
+    addTripExpense,
+    returnTapalAsync
   } = useAdminStore();
 
   const [availableDrivers, setAvailableDrivers] = useState([]);
@@ -55,6 +56,8 @@ const TapalDetail = () => {
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
 
   const [editFormData, setEditFormData] = useState({ party: '', qty: '', amount: '', type: 'Purchase', driver: '', date: '' });
   const [receiveQty, setReceiveQty] = useState('');
@@ -199,6 +202,18 @@ const TapalDetail = () => {
       await fetchTapals(); 
     } catch (err) {
       toast.error(err?.message || 'Failed to generate invoice', { id: 'gen-inv' });
+    }
+  };
+
+  const handleReturnTapal = async () => {
+    if (!returnReason) return toast.error('Please enter a reason for returning');
+    try {
+      toast.loading('Returning Tapal...', { id: 'return-tapal' });
+      await returnTapalAsync(tapal._id || tapal.id, returnReason);
+      setIsReturnModalOpen(false);
+      toast.success('Tapal Returned successfully!', { id: 'return-tapal' });
+    } catch (err) {
+      toast.error(err?.message || 'Failed to return Tapal', { id: 'return-tapal' });
     }
   };
 
@@ -382,13 +397,21 @@ const TapalDetail = () => {
               </Button>
             )}
 
-            {/* Admin: Close trip after delivery */}
             {isDelivered && (
               <div className="space-y-2">
                 <Button className="w-full bg-green-600 text-white hover:bg-green-700 text-[10px] font-bold uppercase gap-2 h-11" onClick={handleCloseTrip}>
                   <CheckCircle2 size={16} /> CLOSE TRIP &amp; UPDATE STOCK
                 </Button>
                 <p className="text-[8px] text-white/50 text-center font-bold uppercase tracking-widest">Inventory will update with actual delivered qty</p>
+              </div>
+            )}
+
+            {tapal.status !== 'RETURNED' && tapal.status !== 'COMPLETED' && (
+              <div className="space-y-2 mt-4">
+                <Button className="w-full bg-red-600 text-white hover:bg-red-700 text-[10px] font-bold uppercase gap-2 h-11" onClick={() => setIsReturnModalOpen(true)}>
+                  <Trash2 size={16} /> RETURN TAPAL
+                </Button>
+                <p className="text-[8px] text-white/50 text-center font-bold uppercase tracking-widest">Send Tapal back to origin</p>
               </div>
             )}
 
@@ -553,6 +576,23 @@ const TapalDetail = () => {
           <div className="flex gap-2"><Button variant="outline" className="flex-1 text-[9px] font-bold h-10" onClick={() => setIsExpenseModalOpen(false)}>CANCEL</Button><Button className="flex-1 text-[9px] font-bold h-10" onClick={handleAddExpense}>LOG EXPENSE</Button></div>
         </div>
       </Modal>
+
+      {/* Return Modal */}
+      <Modal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} title="Return Tapal">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-bold text-text-muted uppercase tracking-widest">REASON FOR RETURN</label>
+            <textarea value={returnReason} onChange={(e) => setReturnReason(e.target.value)} className="w-full border border-card-border px-3 py-2 text-[10px] font-bold outline-none h-20 resize-none bg-white" placeholder="Enter reason..." />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1 text-[9px] font-bold h-9" onClick={() => setIsReturnModalOpen(false)}>CANCEL</Button>
+            <Button className="flex-1 text-[9px] font-bold h-9 bg-red-600 hover:bg-red-700 text-white gap-2" onClick={handleReturnTapal}>
+              CONFIRM RETURN
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Hidden Printable Component */}
       <div className="hidden print:block">
         <div className="printable-content">

@@ -140,6 +140,18 @@ export const useAdminStore = create(
         }
       },
 
+      returnTapalAsync: async (tapalId, reason) => {
+        set({ loading: true });
+        try {
+          await tapalService.returnTapal(tapalId, reason);
+          await get().fetchTapals();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
       endTripAsync: async (tapalId) => {
         set({ loading: true });
         try {
@@ -168,12 +180,12 @@ export const useAdminStore = create(
         }
       },
 
-      convertSlipToTapalAsync: async (slipId) => {
+      convertSlipToTapalAsync: async (slipId, assignedTo = null, selectedItems = null) => {
         try {
           // POST /harvests/convert-to-tapal/:id
           // Returns ApiResponse(201, { tapal }, ...)
           // After interceptor: res = { success, data: { tapal } }
-          const res = await harvestService.convertToTapal(slipId);
+          const res = await harvestService.convertToTapal(slipId, { assignedTo, selectedItems });
           const tapal = res?.data?.tapal || res?.tapal || res;
           await get().fetchHarvestSlips();
           await get().fetchTapals();
@@ -768,10 +780,10 @@ export const useAdminStore = create(
         }
       },
 
-      convertSlipToTapalAsync: async (id) => {
+      convertSlipToTapalAsync: async (id, assignedTo, selectedItems) => {
         set({ loading: true });
         try {
-          await harvestService.convertToTapal(id);
+          await harvestService.convertToTapal(id, { assignedTo, selectedItems });
           await get().fetchHarvestSlips();
           set({ loading: false });
         } catch (err) {

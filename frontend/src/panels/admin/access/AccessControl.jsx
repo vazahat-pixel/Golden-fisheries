@@ -39,6 +39,7 @@ const PANEL_ICONS = {
   fishmall: ShoppingCart,
   driver: Truck,
   admin: LayoutDashboard,
+  buyer: ShoppingCart,
 };
 
 const StatusBadge = ({ status }) => {

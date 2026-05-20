@@ -12,7 +12,7 @@ import { useAdminStore } from '../../store/adminStore';
 
 const allNavItems = [
   // ─── ADMIN / MANAGER / ACCOUNTANT ──────────────────────────────────
-  { icon: LayoutDashboard, label: 'Dashboard',      path: '/admin/dashboard',             roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER', 'BUYER', 'RESTAURANT_STAFF', 'RESTAURANT', 'FISHMALL_BILLING', 'FISHMALL', 'DRIVER'] },
+  { icon: LayoutDashboard, label: 'Dashboard',      path: '/admin/dashboard',             roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER'], module: 'dashboard' },
   { icon: Sprout,          label: 'Harvest',         path: '/admin/procurement/harvest',   roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER'], module: 'procurement' },
   { icon: ClipboardList,   label: 'Tapals',          path: '/admin/tapals',                roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER'], module: 'tapals' },
   { icon: ClipboardList,   label: 'Sales Approval',  path: '/admin/sales-approval',        roles: ['ADMIN', 'MANAGER'], module: 'tapals' },
@@ -32,7 +32,7 @@ const allNavItems = [
   { icon: Receipt,         label: 'Expenses',        path: '/admin/expenses',              roles: ['ADMIN', 'MANAGER', 'ACCOUNTANT'], badge: 'expenses', module: 'finance' },
   { icon: ReceiptText,     label: 'Billing',         path: '/admin/billing',               roles: ['ADMIN', 'ACCOUNTANT'], module: 'billing' },
   { icon: Shield,          label: 'Access Control',  path: '/admin/access',                roles: ['ADMIN'], highlight: true, module: 'accessControl' },
-  { icon: Settings,        label: 'Settings',        path: '/admin/settings',              roles: ['ADMIN'] },
+  { icon: Settings,        label: 'Settings',        path: '/admin/settings',              roles: ['ADMIN'], module: 'settings' },
 ];
 
 export const Sidebar = ({ onClose }) => {

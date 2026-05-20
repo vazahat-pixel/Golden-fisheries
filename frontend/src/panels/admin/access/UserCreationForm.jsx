@@ -278,6 +278,34 @@ const StepRole = ({ form, setForm, onNext }) => {
 // Step 3: Permission Matrix
 // ─────────────────────────────────────────────────────────────────────────────
 const StepPermissions = ({ form, setForm, onSubmit }) => {
+  const portal = form.loginPortal || '';
+  const portalPanel = (() => {
+    if (portal.startsWith('/admin')) return 'admin';
+    if (portal.startsWith('/restaurant')) return 'restaurant';
+    if (portal.startsWith('/fishmall')) return 'fishmall';
+    if (portal.startsWith('/driver')) return 'driver';
+    if (portal.startsWith('/buyer')) return 'buyer';
+    return null;
+  })();
+
+  React.useEffect(() => {
+    // Lock the Panel access to the selected portal, and prevent accidental cross-panel grants.
+    if (!portalPanel) return;
+    setForm((f) => ({
+      ...f,
+      permissions: {
+        ...f.permissions,
+        panels: {
+          restaurant: portalPanel === 'restaurant',
+          fishmall: portalPanel === 'fishmall',
+          driver: portalPanel === 'driver',
+          admin: portalPanel === 'admin',
+          buyer: portalPanel === 'buyer',
+        },
+      },
+    }));
+  }, [portalPanel, setForm]);
+
   const togglePanel = (panel) => {
     setForm((f) => ({
       ...f,
@@ -307,51 +335,45 @@ const StepPermissions = ({ form, setForm, onSubmit }) => {
     }));
   };
 
-  const PANELS = ['restaurant', 'fishmall', 'driver', 'admin'];
+  const PANELS = ['restaurant', 'fishmall', 'driver', 'admin', 'buyer'];
   const PANEL_LABELS = {
     restaurant: 'Restaurant Panel',
     fishmall: 'Fish Mall Panel',
     driver: 'Driver App',
     admin: 'Admin Panel',
+    buyer: 'Buyer Panel',
   };
 
-  // Group modules by panel
-  const groupedModules = MODULE_META.reduce((acc, m) => {
-    if (!acc[m.panel]) acc[m.panel] = [];
-    acc[m.panel].push(m);
-    return acc;
-  }, {});
+  const visiblePanels = portalPanel ? [portalPanel] : PANELS;
+  const visibleModules = (() => {
+    if (!portalPanel) return MODULE_META;
+    if (portalPanel === 'admin') return MODULE_META.filter((m) => m.panel === 'Admin');
+    if (portalPanel === 'restaurant') return MODULE_META.filter((m) => m.panel === 'Restaurant');
+    if (portalPanel === 'fishmall') return MODULE_META.filter((m) => m.panel === 'Fish Mall');
+    // Driver & Buyer currently don't have module-level RBAC in this UI
+    return [];
+  })();
 
   return (
     <div className="space-y-6">
-      {/* Panel Access Toggles */}
-      <div>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Panel Access</p>
-        <div className="grid grid-cols-2 gap-2">
-          {PANELS.map((panel) => (
-            <button
-              key={panel}
-              onClick={() => togglePanel(panel)}
-              className={`p-3 border text-left transition-all ${
-                form.permissions?.panels?.[panel]
-                  ? 'border-[#6B7550] bg-[#6B7550]/5 text-[#6B7550]'
-                  : 'border-gray-100 bg-gray-50 text-gray-400'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-[9px] font-bold uppercase tracking-widest">{PANEL_LABELS[panel]}</p>
-                <div className={`w-4 h-4 border flex items-center justify-center ${form.permissions?.panels?.[panel] ? 'border-[#6B7550] bg-[#6B7550]' : 'border-gray-200 bg-white'}`}>
-                  {form.permissions?.panels?.[panel] && <CheckCircle2 size={10} className="text-white" />}
-                </div>
-              </div>
-            </button>
-          ))}
+      {/* Panel info */}
+      {portalPanel && (
+        <div className="border border-gray-100 bg-gray-50 px-4 py-3">
+          <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest">
+            Portal: {PANEL_LABELS[portalPanel]} (locked)
+          </p>
+          <p className="text-[8px] text-gray-400 font-bold mt-1">
+            Role-based permissions below only apply to sections inside this portal.
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Module Permission Matrix */}
+      {visibleModules.length > 0 && (
       <div>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Module Permissions</p>
+        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+          {portalPanel === 'admin' ? 'Admin Panel Sections' : 'Module Permissions'}
+        </p>
         <div className="border border-gray-100 overflow-hidden">
           <table className="w-full text-left">
             <thead>
@@ -363,7 +385,7 @@ const StepPermissions = ({ form, setForm, onSubmit }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {MODULE_META.map((mod) => (
+              {visibleModules.map((mod) => (
                 <tr key={mod.key} className="hover:bg-gray-50/50">
                   <td className="px-4 py-2">
                     <p className="text-[9px] font-bold text-gray-700 uppercase tracking-tight">{mod.label}</p>
@@ -391,6 +413,7 @@ const StepPermissions = ({ form, setForm, onSubmit }) => {
           </table>
         </div>
       </div>
+      )}
 
       <button
         onClick={onSubmit}

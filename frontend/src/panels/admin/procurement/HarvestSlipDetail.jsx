@@ -37,6 +37,8 @@ export default function HarvestSlipDetail() {
   const slip = harvestSlips.find(s => s._id === id || s.id === id);
   const [showBill, setShowBill] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showTapalModal, setShowTapalModal] = useState(false);
+  const [tapalConversionData, setTapalConversionData] = useState({});
 
   const [partialQtys, setPartialQtys] = useState(() =>
     slip ? Object.fromEntries(slip.products.map(p => [p.id || p._id, p.confirmedQty ?? p.estimatedQty ?? p.quantity])) : {}
@@ -95,6 +97,36 @@ export default function HarvestSlipDetail() {
     }
   };
 
+  const handleGenerateTapal = async () => {
+    try {
+      toast.loading('Generating Tapal...', { id: 'gen-tapal' });
+      // Build selectedItems array
+      const selectedItems = [];
+      for (const p of slip.products) {
+        const data = tapalConversionData[p.id || p._id];
+        if (data && parseFloat(data.qty) > 0) {
+          selectedItems.push({
+            productId: p.productId,
+            _id: p._id || p.id,
+            qty: data.qty,
+            boxes: data.boxes || 0
+          });
+        }
+      }
+      
+      if (selectedItems.length === 0) {
+        return toast.error('Please enter quantity for at least one product', { id: 'gen-tapal' });
+      }
+
+      await convertSlipToTapalAsync(slip._id || slip.id, null, selectedItems);
+      toast.success('Tapal generated successfully!', { id: 'gen-tapal' });
+      setShowTapalModal(false);
+      setTapalConversionData({});
+    } catch (err) {
+      toast.error(err.message || 'Failed to generate tapal', { id: 'gen-tapal' });
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-3">
       <button onClick={() => navigate('/admin/procurement/harvest')} className="flex items-center gap-1.5 text-text-muted hover:text-black text-[9px] font-bold uppercase tracking-widest group">
@@ -139,26 +171,25 @@ export default function HarvestSlipDetail() {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-olive-100/10">
-                  {['Fish', 'Planned', 'Confirmed', 'Rate', 'Total'].map(h => (
+                  {['Fish', 'Confirmed', 'Used Qty', 'Avail', 'Total'].map(h => (
                     <th key={h} className="px-4 py-2.5 text-[8px] font-bold text-text-muted uppercase tracking-widest">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-olive-100/30">
-                {slip.products.map(p => (
+                {slip.products.map(p => {
+                  const qty = p.confirmedQty ?? p.estimatedQty ?? p.quantity;
+                  const used = p.usedQty || 0;
+                  const avail = qty - used;
+                  return (
                   <tr key={p.id} className="hover:bg-olive-50/30 transition-colors">
                     <td className="px-4 py-2.5 text-[10px] font-bold text-black uppercase">{p.fishName}</td>
-                    <td className="px-4 py-2.5 text-[10px] font-bold text-black">{p.quantity} {p.unit}</td>
-                    <td className="px-4 py-2.5">
-                      {slip.status === 'sent' ? (
-                        <input type="number" value={partialQtys[p.id]} onChange={e => setPartialQtys(q => ({ ...q, [p.id]: e.target.value }))}
-                          className="w-16 border border-card-border px-1.5 py-0.5 text-[10px] font-bold outline-none focus:ring-1 focus:ring-accent-olive" />
-                      ) : <span className="text-[10px] font-bold text-black">{p.confirmedQty ?? '—'}</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-[10px] font-bold text-text-muted">{p.rate ? `₹${p.rate}` : 'TBD'}</td>
-                    <td className="px-4 py-2.5 text-[10px] font-bold text-black">{p.rate && p.confirmedQty ? `₹${(p.confirmedQty * p.rate).toLocaleString()}` : '—'}</td>
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-black">{qty} {p.unit}</td>
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-amber-600">{used}</td>
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-emerald-600">{avail}</td>
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-black">{p.rate && qty ? `₹${(qty * p.rate).toLocaleString()}` : '—'}</td>
                   </tr>
-                ))}
+                )})}
               </tbody>
               {totalAmt > 0 && (
                 <tfoot>
@@ -227,7 +258,11 @@ export default function HarvestSlipDetail() {
                   <Button onClick={() => updateHarvestStatusAsync(slip._id || slip.id, 'REJECTED')} size="sm" className="w-full text-[9px] font-bold h-9 shadow-md bg-red-600 hover:bg-red-700">REJECT SLIP</Button>
                 </>
               )}
-              {slip.status === 'CONFIRMED' && <Button onClick={() => convertSlipToTapalAsync(slip._id || slip.id)} size="sm" className="w-full text-[9px] font-bold h-9 shadow-md bg-black text-white">GENERATE TAPAL</Button>}
+              {['CONFIRMED', 'PARTIALLY_CONVERTED'].includes(slip.status) && (
+                <Button onClick={() => setShowTapalModal(true)} size="sm" className="w-full text-[9px] font-bold h-9 shadow-md bg-black text-white">
+                  GENERATE TAPAL
+                </Button>
+              )}
               {['CONVERTED_TO_TAPAL', 'REJECTED', 'COMPLETED'].includes(slip.status) && <p className="text-[8px] text-text-muted font-bold text-center py-2 uppercase tracking-widest">RECORD LOCKED</p>}
             </div>
           </Card>
@@ -364,6 +399,68 @@ export default function HarvestSlipDetail() {
               </Button>
               <Button size="sm" onClick={handleSaveNetRate} className="text-[9px] font-bold uppercase tracking-widest bg-[#6B7550] hover:bg-[#5a6340] h-9 text-white">
                 Save &amp; Finalize Settlement
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tapal Generation Modal */}
+      {showTapalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-card-border shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-card-border flex justify-between items-center bg-olive-50/10">
+              <div>
+                <h3 className="text-sm font-serif italic font-bold text-black flex items-center gap-1.5">
+                  <RefreshCw size={16} className="text-accent-olive" /> Generate Tapal
+                </h3>
+                <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest mt-0.5">Select quantities to convert to Tapal</p>
+              </div>
+              <button onClick={() => setShowTapalModal(false)} className="p-1.5 text-text-muted hover:text-black rounded-lg hover:bg-slate-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 overflow-y-auto space-y-4 text-[10px]">
+              {slip.products.map(p => {
+                const qty = p.confirmedQty ?? p.estimatedQty ?? p.quantity;
+                const used = p.usedQty || 0;
+                const avail = qty - used;
+                if (avail <= 0) return null;
+                
+                const data = tapalConversionData[p.id || p._id] || { qty: '', boxes: '' };
+                
+                return (
+                  <div key={p.id || p._id} className="bg-slate-50 border border-card-border p-3 space-y-2">
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <p className="font-bold text-black uppercase text-[10px]">{p.fishName}</p>
+                      <p className="text-[8px] text-text-muted font-bold">Avail: {avail} KG</p>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[8px] font-bold text-text-muted uppercase">Qty (KG)</label>
+                        <input type="number" placeholder="0" max={avail} value={data.qty}
+                          onChange={(e) => setTapalConversionData(prev => ({...prev, [p.id || p._id]: { ...prev[p.id || p._id], qty: e.target.value }}))}
+                          className="w-full border border-card-border px-2 py-1 text-[10px] font-bold outline-none focus:ring-1 focus:ring-accent-olive" />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[8px] font-bold text-text-muted uppercase">Boxes (Opt)</label>
+                        <input type="number" placeholder="0" value={data.boxes}
+                          onChange={(e) => setTapalConversionData(prev => ({...prev, [p.id || p._id]: { ...prev[p.id || p._id], boxes: e.target.value }}))}
+                          className="w-full border border-card-border px-2 py-1 text-[10px] font-bold outline-none focus:ring-1 focus:ring-accent-olive" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="px-6 py-4 border-t border-card-border bg-slate-50 flex justify-end gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setShowTapalModal(false)} className="text-[9px] font-bold uppercase tracking-widest border-card-border h-9">
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleGenerateTapal} className="text-[9px] font-bold uppercase tracking-widest bg-black hover:bg-slate-800 h-9 text-white">
+                Generate Tapal
               </Button>
             </div>
           </div>

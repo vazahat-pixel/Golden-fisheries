@@ -37,9 +37,10 @@ export default function CreateHarvestSlip() {
 
   const [farmer, setFarmer] = useState({ id: '', _id: '', name: '', mobile: '', location: '', village: '' });
   const [isNewFarmer, setIsNewFarmer] = useState(false);
-  const [products, setProducts] = useState([{ id: 1, productId: '', fishName: '', category: 'Freshwater', quantity: '', unit: 'KG', qualityType: 'Mix', estimatedWeight: '', rate: '' }]);
-  const [harvest, setHarvest] = useState({ harvestDate: '', pickupDate: '', pickupTime: '', pickupLocation: '', logisticsNotes: '' });
+  const [products, setProducts] = useState([{ id: 1, productId: '', fishName: '', category: 'Freshwater', quantity: '', unit: 'KG', qualityType: 'Mix', estimatedWeight: '', rate: '', count: '', boxes: '', boxWeight: '' }]);
+  const [harvest, setHarvest] = useState({ harvestDate: '', pickupDate: '', pickupTime: '', pickupLocation: '', logisticsNotes: '', vehicleNo: '', driverName: '', graderName: '', tds: '', commission: '', soft: '' });
   const [remarks, setRemarks] = useState('');
+  const [notes, setNotes] = useState({ damageComplaint: '', deductionsNotes: '' });
   const [errors, setErrors] = useState({});
 
   const validateStep = (s) => {
@@ -114,6 +115,7 @@ export default function CreateHarvestSlip() {
           return { 
             productId: pId || '66421455e2e9c15910000002',
             fishName: p.fishName.toUpperCase(), 
+            count: p.count || '',
             estimatedQty: Number(p.quantity), 
             qualityType: p.qualityType || 'Mix',
             rate: p.rate ? Number(p.rate) : null,
@@ -124,8 +126,14 @@ export default function CreateHarvestSlip() {
         harvestDate: harvest.harvestDate,
         pickupDate: harvest.pickupDate,
         pickupTime: harvest.pickupTime || '00:00',
+        pickupLocation: harvest.pickupLocation || finalFarmer?.location || 'FARM GATE',
         logisticsNotes: harvest.logisticsNotes || '',
+        vehicleNo: harvest.vehicleNo || null,
+        driverName: harvest.driverName || null,
+        graderName: harvest.graderName || null,
         remarks: remarks || '',
+        damageComplaint: notes.damageComplaint || '',
+        deductionsNotes: notes.deductionsNotes || '',
         tds: harvest.tds ? Number(harvest.tds) : 0,
         commission: harvest.commission ? Number(harvest.commission) : 0,
         soft: harvest.soft ? Number(harvest.soft) : 0,
@@ -220,10 +228,14 @@ export default function CreateHarvestSlip() {
             <div className="space-y-2">
               {products.map((p, idx) => (
                 <div key={p.id} className="p-3 border border-card-border bg-olive-50/20 grid grid-cols-2 md:grid-cols-12 gap-3 relative group">
-                  <div className="md:col-span-4 space-y-1">
+                  <div className="md:col-span-3 space-y-1">
                     <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">FISH NAME</label>
                     <input value={p.fishName} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, fishName: e.target.value } : x))} className={clsx("w-full border px-2 py-1.5 text-[10px] font-bold uppercase outline-none", errors[`fishName_${idx}`] ? "border-red-500 bg-red-50" : "border-card-border")} />
                     {errors[`fishName_${idx}`] && <p className="text-[7px] font-bold text-red-500 uppercase">{errors[`fishName_${idx}`]}</p>}
+                  </div>
+                  <div className="md:col-span-1 space-y-1">
+                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">COUNT</label>
+                    <input value={p.count || ''} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, count: e.target.value } : x))} className="w-full border px-2 py-1.5 text-[10px] font-bold uppercase outline-none border-card-border" />
                   </div>
                   <div className="md:col-span-2 space-y-1">
                     <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">QTY (KG)</label>
@@ -249,7 +261,7 @@ export default function CreateHarvestSlip() {
                 + ADD PRODUCT
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="space-y-1">
                 <label className="text-[8px] font-bold uppercase text-text-muted">HARVEST DATE</label>
                 <input type="date" value={harvest.harvestDate} onChange={e => setHarvest(h => ({ ...h, harvestDate: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold outline-none", errors.harvestDate ? "border-red-500 bg-red-50" : "border-card-border")} />
@@ -259,6 +271,32 @@ export default function CreateHarvestSlip() {
                 <label className="text-[8px] font-bold uppercase text-text-muted">PICKUP DATE</label>
                 <input type="date" value={harvest.pickupDate} onChange={e => setHarvest(h => ({ ...h, pickupDate: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold outline-none", errors.pickupDate ? "border-red-500 bg-red-50" : "border-card-border")} />
                 {errors.pickupDate && <p className="text-[7px] font-bold text-red-500 uppercase">{errors.pickupDate}</p>}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-card-border">
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold uppercase text-text-muted">VEHICLE NO</label>
+                <input type="text" value={harvest.vehicleNo || ''} onChange={e => setHarvest(h => ({ ...h, vehicleNo: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none border-card-border bg-white" placeholder="e.g. KA-20-D-1234" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold uppercase text-text-muted">DRIVER NAME</label>
+                <input type="text" value={harvest.driverName || ''} onChange={e => setHarvest(h => ({ ...h, driverName: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none border-card-border bg-white" placeholder="Driver Name" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold uppercase text-text-muted">GRADER NAME</label>
+                <input type="text" value={harvest.graderName || ''} onChange={e => setHarvest(h => ({ ...h, graderName: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none border-card-border bg-white" placeholder="Grader Name" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-card-border">
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold uppercase text-text-muted">DAMAGE MATERIALS & DIO COMPLAINT</label>
+                <textarea value={notes.damageComplaint || ''} onChange={e => setNotes(h => ({ ...h, damageComplaint: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold outline-none border-card-border bg-white h-16 resize-none" placeholder="Third quality damage materials..." />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold uppercase text-text-muted">NOTES (EXP)</label>
+                <textarea value={notes.deductionsNotes || ''} onChange={e => setNotes(h => ({ ...h, deductionsNotes: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold outline-none border-card-border bg-white h-16 resize-none" placeholder="Black gill second quality..." />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-card-border">

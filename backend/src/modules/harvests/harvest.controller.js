@@ -56,7 +56,8 @@ export const harvestController = {
 
   // Convert a Confirmed Harvest Slip into a Purchase Tapal Contract
   convertToTapal: asyncWrapper(async (req, res) => {
-    const tapal = await harvestService.convertToTapal(req.params.id, req.user);
+    const { assignedTo, selectedItems } = req.body || {};
+    const tapal = await harvestService.convertToTapal(req.params.id, assignedTo, req.user, selectedItems);
     
     // Broadcast Tapal creation and Harvest conversion
     broadcastEvent('tapal:created', { tapal }, 'dashboard:updates');

@@ -2,12 +2,15 @@ import mongoose from 'mongoose';
 
 const tapalLineItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  qty: { type: String, required: true }, // e.g. "300 KG" — total weight display string
-  rate: { type: String, required: true }, // e.g. "₹95"
-  total: { type: String, required: true }, // e.g. "₹28,500"
+  hsnCode: { type: String, trim: true },
+  count: { type: String, trim: true },
+  qty: { type: String }, // e.g. "300 KG" — total weight display string
+  rate: { type: String }, // e.g. "₹95"
+  total: { type: String }, // e.g. "₹28,500"
   // Optional box-based weight fields (matches real Tapal slip format)
   boxQty: { type: Number, default: null }, // Number of boxes (optional)
-  weightPerBox: { type: Number, default: null } // KG per box (optional)
+  weightPerBox: { type: Number, default: null }, // KG per box (optional)
+  totalWeight: { type: Number, default: null }
 });
 
 const tapalSchema = new mongoose.Schema(
@@ -50,24 +53,20 @@ const tapalSchema = new mongoose.Schema(
     },
     qty: {
       type: String, // Cached display string e.g. "500 KG"
-      required: true
     },
     numericQty: {
       type: Number,
-      required: true
     },
     amount: {
       type: String, // Cached display string e.g. "₹40,000"
-      required: true
     },
     numericAmount: {
       type: Number,
-      required: true
     },
     status: {
       type: String,
       required: true,
-      enum: ['CREATED', 'DRIVER_ASSIGNED', 'TRIP_STARTED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'BILL_PENDING', 'COMPLETED'],
+      enum: ['CREATED', 'ASSIGNED', 'DRIVER_ASSIGNED', 'TRIP_STARTED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'BILL_PENDING', 'RETURNED', 'COMPLETED'],
       default: 'CREATED',
       index: true
     },
@@ -87,6 +86,24 @@ const tapalSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null
+    },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    graderName: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    damageComplaint: {
+      type: String,
+      trim: true
+    },
+    deductionsNotes: {
+      type: String,
+      trim: true
     },
     createdBy: {
       type: String,

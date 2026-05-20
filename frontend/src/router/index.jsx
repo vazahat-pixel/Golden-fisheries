@@ -116,8 +116,8 @@ const fishMallNav = [
   { icon: ClipboardList, label: 'Stock Inflow', path: '/fishmall/stock' },
 ];
 
-// All roles that can access admin panel routes
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER', 'BUYER', 'RESTAURANT_STAFF', 'RESTAURANT', 'FISHMALL_BILLING', 'FISHMALL', 'DRIVER'];
+// Roles that can access the Admin Panel container (module-level permissions handle the rest)
+const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER'];
 
 const AppRouter = () => {
   return (
@@ -134,7 +134,9 @@ const AppRouter = () => {
               <AdminLayout><Outlet /></AdminLayout>
             </ProtectedRoute>
           }>
-            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route element={<ProtectedRoute module="dashboard"><Outlet /></ProtectedRoute>}>
+              <Route path="dashboard" element={<AdminDashboard />} />
+            </Route>
 
             {/* Tapal Routes */}
             <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="tapals"><Outlet /></ProtectedRoute>}>
@@ -191,7 +193,9 @@ const AppRouter = () => {
               <Route path="access" element={<AccessControl />} />
             </Route>
 
-            <Route path="settings" element={<UsersAndRoles />} />
+            <Route element={<ProtectedRoute module="settings"><Outlet /></ProtectedRoute>}>
+              <Route path="settings" element={<UsersAndRoles />} />
+            </Route>
           </Route>
         </Routes>
       } />
