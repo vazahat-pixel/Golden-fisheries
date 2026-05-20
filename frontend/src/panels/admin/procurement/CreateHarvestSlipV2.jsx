@@ -1,377 +1,436 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../../../design-system/components/Card';
-import { Button } from '../../../design-system/components/Button';
-import { Badge } from '../../../design-system/components/Badge';
 import { useAdminStore } from '../../../store/adminStore';
-import { ArrowLeft, ChevronRight, Check, User, Sprout, Eye, Plus, Minus, Send, RefreshCw } from 'lucide-react';
+import { Sprout, Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-function clsx(...c) { return c.filter(Boolean).join(' '); }
-
-const CATEGORIES = ['Freshwater', 'Seafood', 'Prawns', 'Crab', 'Other'];
-const QUALITY = ['A', 'B', 'Mix'];
-
-export default function CreateHarvestSlip() {
+const CreateHarvestSlipV2 = () => {
   const navigate = useNavigate();
-  const { 
-    farmers, 
-    fetchFarmers, 
-    createHarvestSlipAsync, 
-    addFarmerAsync, 
-    inventory, 
-    fetchInventory, 
-    updateHarvestStatusAsync, 
-    convertSlipToTapalAsync 
-  } = useAdminStore();
+  const { addHarvestSlip, harvestSlips } = useAdminStore();
 
+  // Mock list of vehicles and drivers for the dropdowns
+  const mockVehicles = ['KA-30-M-4321', 'KA-19-F-9876', 'MH-09-E-5544', 'KA-20-C-1122'];
+  const mockDrivers = ['Ramesh Patil', 'Suresh Gowda', 'Anil Fernandez', 'Sunil Mendonca'];
+  const mockFarmers = ['Appanna Gowda', 'Subhash Naik', 'Shekhar Karwar', 'Mohammad Ali', 'Devendra Kharvi'];
+
+  // Automatically compute next TP Slip No
+  const [tpNo, setTpNo] = useState('');
   useEffect(() => {
-    fetchFarmers();
-    fetchInventory();
-  }, [fetchFarmers, fetchInventory]);
-  
-  const [step, setStep] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [isAutoTapalEnabled, setIsAutoTapalEnabled] = useState(false);
-  const [sendNow, setSendNow] = useState(false);
+    const lastNo = harvestSlips.length > 0 
+      ? Math.max(...harvestSlips.map(s => parseInt(s.tpNo) || 0)) 
+      : 1000;
+    setTpNo(String(lastNo + 1));
+  }, [harvestSlips]);
 
-  const [farmer, setFarmer] = useState({ id: '', _id: '', name: '', mobile: '', location: '', village: '' });
-  const [isNewFarmer, setIsNewFarmer] = useState(false);
-  const [products, setProducts] = useState([{ id: 1, productId: '', fishName: '', category: 'Freshwater', quantity: '', unit: 'KG', qualityType: 'Mix', estimatedWeight: '', rate: '', count: '', boxes: '', boxWeight: '' }]);
-  const [harvest, setHarvest] = useState({ harvestDate: '', pickupDate: '', pickupTime: '', pickupLocation: '', logisticsNotes: '', vehicleNo: '', driverName: '', graderName: '', tds: '', commission: '', soft: '' });
-  const [remarks, setRemarks] = useState('');
-  const [notes, setNotes] = useState({ damageComplaint: '', deductionsNotes: '' });
-  const [errors, setErrors] = useState({});
+  // Form Fields
+  const [farmerName, setFarmerName] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [driverName, setDriverName] = useState('');
+  const [graderName, setGraderName] = useState('');
 
-  const validateStep = (s) => {
-    const newErrors = {};
+  // Table items
+  const [items, setItems] = useState([
+    { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' },
+    { id: '2', hsnCode: '03028400', particulars: 'SEABASS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }
+  ]);
 
-    if (s === 1) {
-      if (isNewFarmer) {
-        if (!farmer.name || farmer.name.trim().length < 3) newErrors.name = 'Name must be at least 3 chars';
-        if (!/^[6-9]\d{9}$/.test(farmer.mobile)) newErrors.mobile = 'Enter valid 10-digit mobile';
-        if (!farmer.location) newErrors.location = 'Location is required';
-      } else {
-        if (!farmer.id && !farmer._id) newErrors.farmer = 'Please select a farmer';
-      }
-    }
+  // Bottom notes & settings
+  const [notes, setNotes] = useState('BLACK GILL SECOND QUALITY ( EXP )');
+  const [damageNotes, setDamageNotes] = useState('THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT');
+  const [iceRentDeducted, setIceRentDeducted] = useState(false);
+  const [inWords, setInWords] = useState('');
 
-    if (s === 2) {
-      products.forEach((p, i) => {
-        if (!p.fishName) newErrors[`fishName_${i}`] = 'Required';
-        if (!p.quantity || isNaN(p.quantity) || Number(p.quantity) <= 0) newErrors[`qty_${i}`] = 'Invalid Qty';
-      });
-
-      if (!harvest.harvestDate) newErrors.harvestDate = 'Required';
-      if (!harvest.pickupDate) newErrors.pickupDate = 'Required';
-
-      if (harvest.harvestDate && harvest.pickupDate) {
-        if (new Date(harvest.pickupDate) < new Date(harvest.harvestDate)) {
-          newErrors.pickupDate = 'Pickup cannot be before harvest';
+  // Recalculate row total weight and totals automatically
+  const handleItemChange = (id, field, value) => {
+    setItems(prevItems => 
+      prevItems.map(item => {
+        if (item.id === id) {
+          const updatedItem = { ...item, [field]: value };
+          
+          // Auto calculate totalWeight if boxes and weight exist
+          if (field === 'noOfBoxes' || field === 'boxWeight') {
+            const boxes = parseFloat(field === 'noOfBoxes' ? value : item.noOfBoxes) || 0;
+            const weight = parseFloat(field === 'boxWeight' ? value : item.boxWeight) || 0;
+            updatedItem.totalWeight = boxes && weight ? String(boxes * weight) : '';
+          }
+          return updatedItem;
         }
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+        return item;
+      })
+    );
   };
 
-  const nextStep = () => {
-    if (validateStep(step)) {
-      setStep(s => s + 1);
+  const addItemRow = () => {
+    const newId = String(items.length + 1);
+    setItems([...items, { id: newId, hsnCode: '', particulars: '', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }]);
+  };
+
+  const removeItemRow = (id) => {
+    setItems(items.filter(item => item.id !== id));
+  };
+
+  // Calculate totals
+  const totalBoxes = items.reduce((sum, item) => sum + (parseInt(item.noOfBoxes) || 0), 0);
+  const totalWeight = items.reduce((sum, item) => sum + (parseFloat(item.totalWeight) || 0), 0);
+
+  // Generate numbers to words helper for total weight/boxes
+  useEffect(() => {
+    if (totalWeight > 0) {
+      setInWords(`${totalWeight} KILOGRAMS ONLY`);
     } else {
-      toast.error('Please fix the errors before proceeding');
+      setInWords('');
     }
-  };
+  }, [totalWeight]);
 
-  const handleSubmit = async () => {
-    if (!validateStep(step)) return;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Save details to temporary state & pass to preview page
+    const slipData = {
+      tpNo,
+      farmerName,
+      date,
+      vehicleNo,
+      driverName,
+      graderName,
+      items: items.filter(item => item.particulars || item.hsnCode), // Filter out completely empty items
+      totalBoxes,
+      totalWeight,
+      notes,
+      damageNotes,
+      iceRentDeducted,
+      inWords,
+      status: 'Pending Approval'
+    };
 
-    setSubmitting(true);
-    try {
-      let finalFarmer = { ...farmer };
-      if (isNewFarmer && farmer.name) {
-        finalFarmer = await addFarmerAsync({ 
-          fullName: farmer.name.toUpperCase(), 
-          phone: farmer.mobile,
-          location: farmer.location.toUpperCase(),
-          village: farmer.village || '',
-          hasWhatsapp: true 
-        });
-      }
-
-      if (!finalFarmer) {
-        toast.error('Farmer selection failed. Please try again.');
-        setSubmitting(false);
-        return;
-      }
-
-      const newSlip = {
-        farmerId: (finalFarmer?._id || finalFarmer?.id) || '66421455e2e9c15910000001', 
-        pickupLocation: harvest.pickupLocation || finalFarmer?.location || 'FARM GATE', 
-        products: products.map((p, i) => {
-          const invItem = inventory.find(inv => inv.name?.toUpperCase() === p.fishName?.toUpperCase());
-          const pId = invItem?._id || invItem?.id;
-          return { 
-            productId: pId || '66421455e2e9c15910000002',
-            fishName: p.fishName.toUpperCase(), 
-            count: p.count || '',
-            estimatedQty: Number(p.quantity), 
-            qualityType: p.qualityType || 'Mix',
-            rate: p.rate ? Number(p.rate) : null,
-            boxCount: p.boxes ? Number(p.boxes) : null,
-            weightPerBox: p.boxWeight ? Number(p.boxWeight) : null
-          };
-        }),
-        harvestDate: harvest.harvestDate,
-        pickupDate: harvest.pickupDate,
-        pickupTime: harvest.pickupTime || '00:00',
-        pickupLocation: harvest.pickupLocation || finalFarmer?.location || 'FARM GATE',
-        logisticsNotes: harvest.logisticsNotes || '',
-        vehicleNo: harvest.vehicleNo || null,
-        driverName: harvest.driverName || null,
-        graderName: harvest.graderName || null,
-        remarks: remarks || '',
-        damageComplaint: notes.damageComplaint || '',
-        deductionsNotes: notes.deductionsNotes || '',
-        tds: harvest.tds ? Number(harvest.tds) : 0,
-        commission: harvest.commission ? Number(harvest.commission) : 0,
-        soft: harvest.soft ? Number(harvest.soft) : 0,
-      };
-
-      const createdSlip = await createHarvestSlipAsync(newSlip);
-      const slipId = createdSlip?._id || createdSlip?.id;
-
-      if (isAutoTapalEnabled && slipId) {
-        toast.loading('Processing Tapal generation...', { id: 'tapal-gen' });
-        
-        // Auto-confirm the slip using the corrected status action
-        await updateHarvestStatusAsync(slipId, 'CONFIRMED');
-
-        await convertSlipToTapalAsync(slipId);
-        
-        toast.success('Harvest Slip created & Tapal generated!', { id: 'tapal-gen' });
-        navigate('/admin/tapals');
-      } else {
-        toast.success('Harvest Slip Created Successfully');
-        navigate('/admin/procurement/harvest');
-      }
-    } catch (err) {
-      console.error('Creation error full:', err);
-      toast.error(err.response?.data?.message || 'Failed to create harvest slip');
-    } finally {
-      setSubmitting(false);
-    }
+    // Store in session storage so preview page can load it
+    sessionStorage.setItem('current_harvest_slip_creation', JSON.stringify(slipData));
+    navigate('/admin/procurement/harvest/preview');
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
-      <button onClick={() => navigate('/admin/procurement/harvest')} className="flex items-center gap-1.5 text-text-muted hover:text-black text-[9px] font-bold uppercase tracking-widest group">
-        <ArrowLeft size={14} /> BACK TO LIST
-      </button>
-
-      <div className="flex justify-between px-12 relative before:absolute before:top-4 before:left-24 before:right-24 before:h-px before:bg-olive-100 before:-z-10">
-        {[1, 2, 3].map(s => (
-          <div key={s} className="flex flex-col items-center gap-1.5">
-            <div className={clsx('w-8 h-8 flex items-center justify-center border text-xs transition-all', step >= s ? 'bg-black border-black text-white shadow-sm' : 'bg-white border-card-border text-text-muted')}>{step > s ? <Check size={14} /> : s}</div>
-            <span className={clsx('text-[8px] font-bold uppercase tracking-widest', step === s ? 'text-black' : 'text-text-muted')}>{['Farmer', 'Details', 'Review'][s - 1]}</span>
-          </div>
-        ))}
+    <div className="space-y-6 animate-in fade-in duration-500 font-sans pb-12">
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b border-card-border pb-5">
+        <button onClick={() => navigate('/admin/procurement/harvest')} className="text-text-muted hover:text-[#6A7051] transition-all">
+          <ArrowLeft size={20} />
+        </button>
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase flex items-center gap-3">
+            <Sprout className="text-brand-yellow" size={24} /> Create Harvest Slip
+          </h1>
+          <p className="text-text-secondary text-sm mt-1">Receive new shipment loads from farmers. All inputs are completely optional.</p>
+        </div>
       </div>
 
-      <Card padding="none" className="border border-card-border shadow-subtle bg-white overflow-hidden p-6">
-        {step === 1 && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <h2 className="text-lg font-serif italic font-bold text-black">Farmer <span className="text-accent-olive">Selection.</span></h2>
-            <div className="flex gap-2 bg-olive-50/50 p-0.5 border border-card-border/50 w-fit">
-              {['EXISTING', 'NEW'].map(t => (
-                <button key={t} onClick={() => setIsNewFarmer(t === 'NEW')} className={clsx('px-4 py-1.5 text-[9px] font-bold uppercase tracking-widest transition-all', (t === 'NEW') === isNewFarmer ? 'bg-black text-white shadow-sm' : 'text-text-muted hover:text-black')}>
-                  {t}
-                </button>
-              ))}
-            </div>
-            {!isNewFarmer ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {farmers.map(f => (
-                    <button key={f._id || f.id} onClick={() => setFarmer({
-                      id: f.id || f._id,
-                      _id: f._id || f.id,
-                      name: f.fullName || f.name,
-                      mobile: f.phone || f.mobile,
-                      location: f.location
-                    })} className={clsx('p-3 border text-left transition-all', (farmer._id === f._id || farmer.id === f.id) ? 'border-black bg-black text-white' : 'border-card-border bg-white hover:border-black')}>
-                      <p className="text-[10px] font-bold uppercase">{f.fullName || f.name}</p>
-                      <p className="text-[8px] opacity-60 font-bold uppercase tracking-widest">{f.location}</p>
-                    </button>
-                  ))}
-                </div>
-                {errors.farmer && <p className="text-[9px] font-bold text-red-500 uppercase tracking-widest">{errors.farmer}</p>}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {[['NAME', 'name'], ['MOBILE', 'mobile'], ['LOCATION', 'location'], ['VILLAGE', 'village']].map(([l, k]) => (
-                  <div key={k} className="space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">{l}</label>
-                    <input value={farmer[k]} onChange={e => setFarmer(f => ({ ...f, [k]: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-accent-olive shadow-none", errors[k] ? "border-red-500 bg-red-50" : "border-card-border")} />
-                    {errors[k] && <p className="text-[7px] font-bold text-red-500 uppercase">{errors[k]}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
+      <form onSubmit={handleSubmit} className="bg-white border border-card-border p-6 md:p-8 space-y-8 shadow-sm">
+        {/* Form Inputs Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Slip Number */}
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">TP Slip No</label>
+            <input 
+              type="text" 
+              value={tpNo}
+              onChange={e => setTpNo(e.target.value)}
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
+            />
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <h2 className="text-lg font-serif italic font-bold text-black">Product <span className="text-accent-olive">Logistics.</span></h2>
-            <div className="space-y-2">
-              {products.map((p, idx) => (
-                <div key={p.id} className="p-3 border border-card-border bg-olive-50/20 grid grid-cols-2 md:grid-cols-12 gap-3 relative group">
-                  <div className="md:col-span-3 space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">FISH NAME</label>
-                    <input value={p.fishName} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, fishName: e.target.value } : x))} className={clsx("w-full border px-2 py-1.5 text-[10px] font-bold uppercase outline-none", errors[`fishName_${idx}`] ? "border-red-500 bg-red-50" : "border-card-border")} />
-                    {errors[`fishName_${idx}`] && <p className="text-[7px] font-bold text-red-500 uppercase">{errors[`fishName_${idx}`]}</p>}
-                  </div>
-                  <div className="md:col-span-1 space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">COUNT</label>
-                    <input value={p.count || ''} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, count: e.target.value } : x))} className="w-full border px-2 py-1.5 text-[10px] font-bold uppercase outline-none border-card-border" />
-                  </div>
-                  <div className="md:col-span-2 space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">QTY (KG)</label>
-                    <input type="number" value={p.quantity} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, quantity: e.target.value } : x))} className={clsx("w-full border px-2 py-1.5 text-[10px] font-bold outline-none", errors[`qty_${idx}`] ? "border-red-500 bg-red-50" : "border-card-border")} />
-                    {errors[`qty_${idx}`] && <p className="text-[7px] font-bold text-red-500 uppercase">{errors[`qty_${idx}`]}</p>}
-                  </div>
-                  <div className="md:col-span-2 space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">RATE (₹)</label>
-                    <input type="number" value={p.rate || ''} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, rate: e.target.value } : x))} className="w-full border px-2 py-1.5 text-[10px] font-bold outline-none border-card-border" />
-                  </div>
-                  <div className="md:col-span-2 space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">BOXES</label>
-                    <input type="number" value={p.boxes || ''} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, boxes: e.target.value } : x))} className="w-full border px-2 py-1.5 text-[10px] font-bold outline-none border-card-border" />
-                  </div>
-                  <div className="md:col-span-2 space-y-1 relative">
-                    <label className="text-[8px] font-bold uppercase tracking-widest text-text-muted">BOX WT</label>
-                    <input type="number" value={p.boxWeight || ''} onChange={e => setProducts(prev => prev.map(x => x.id === p.id ? { ...x, boxWeight: e.target.value } : x))} className="w-full border px-2 py-1.5 text-[10px] font-bold outline-none border-card-border" />
-                    <button onClick={() => setProducts(prev => prev.filter(x => x.id !== p.id))} className="absolute -right-2 top-5 p-1 bg-white border border-red-200 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm"><Minus size={12} /></button>
-                  </div>
-                </div>
-              ))}
-              <button onClick={() => setProducts(p => [...p, { id: Date.now(), fishName: '', category: 'Freshwater', quantity: '', unit: 'KG' }])} className="w-full py-2 border border-dashed border-card-border text-[9px] font-bold uppercase tracking-widest text-text-muted hover:text-black">
-                + ADD PRODUCT
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">HARVEST DATE</label>
-                <input type="date" value={harvest.harvestDate} onChange={e => setHarvest(h => ({ ...h, harvestDate: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold outline-none", errors.harvestDate ? "border-red-500 bg-red-50" : "border-card-border")} />
-                {errors.harvestDate && <p className="text-[7px] font-bold text-red-500 uppercase">{errors.harvestDate}</p>}
-              </div>
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">PICKUP DATE</label>
-                <input type="date" value={harvest.pickupDate} onChange={e => setHarvest(h => ({ ...h, pickupDate: e.target.value }))} className={clsx("w-full border px-3 py-2 text-[10px] font-bold outline-none", errors.pickupDate ? "border-red-500 bg-red-50" : "border-card-border")} />
-                {errors.pickupDate && <p className="text-[7px] font-bold text-red-500 uppercase">{errors.pickupDate}</p>}
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-card-border">
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">VEHICLE NO</label>
-                <input type="text" value={harvest.vehicleNo || ''} onChange={e => setHarvest(h => ({ ...h, vehicleNo: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none border-card-border bg-white" placeholder="e.g. KA-20-D-1234" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">DRIVER NAME</label>
-                <input type="text" value={harvest.driverName || ''} onChange={e => setHarvest(h => ({ ...h, driverName: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none border-card-border bg-white" placeholder="Driver Name" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">GRADER NAME</label>
-                <input type="text" value={harvest.graderName || ''} onChange={e => setHarvest(h => ({ ...h, graderName: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold uppercase outline-none border-card-border bg-white" placeholder="Grader Name" />
-              </div>
-            </div>
+          {/* Date */}
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Date</label>
+            <input 
+              type="date" 
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+            />
+          </div>
 
-            <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-card-border">
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">DAMAGE MATERIALS & DIO COMPLAINT</label>
-                <textarea value={notes.damageComplaint || ''} onChange={e => setNotes(h => ({ ...h, damageComplaint: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold outline-none border-card-border bg-white h-16 resize-none" placeholder="Third quality damage materials..." />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">NOTES (EXP)</label>
-                <textarea value={notes.deductionsNotes || ''} onChange={e => setNotes(h => ({ ...h, deductionsNotes: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold outline-none border-card-border bg-white h-16 resize-none" placeholder="Black gill second quality..." />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-card-border">
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">TDS (@ 194Q)</label>
-                <input type="number" value={harvest.tds || ''} onChange={e => setHarvest(h => ({ ...h, tds: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold outline-none border-card-border bg-white" placeholder="0.00" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">COMMISSION</label>
-                <input type="number" value={harvest.commission || ''} onChange={e => setHarvest(h => ({ ...h, commission: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold outline-none border-card-border bg-white" placeholder="0.00" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold uppercase text-text-muted">SOFT</label>
-                <input type="number" value={harvest.soft || ''} onChange={e => setHarvest(h => ({ ...h, soft: e.target.value }))} className="w-full border px-3 py-2 text-[10px] font-bold outline-none border-card-border bg-white" placeholder="0.00" />
-              </div>
+          {/* Farmer Selection */}
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Farmer Name</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                value={farmerName}
+                onChange={e => setFarmerName(e.target.value)}
+                placeholder="Type or select farmer"
+                className="w-full bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                list="farmers-list"
+              />
+              <datalist id="farmers-list">
+                {mockFarmers.map(f => <option key={f} value={f} />)}
+              </datalist>
             </div>
           </div>
-        )}
 
-        {step === 3 && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <h2 className="text-lg font-serif italic font-bold text-black">Final <span className="text-accent-olive">Review.</span></h2>
-            <div className="p-4 bg-olive-50 border border-card-border space-y-2">
-              <p className="text-[8px] font-bold uppercase text-text-muted">DISPATCHING TO:</p>
-              <p className="text-sm font-bold text-black uppercase">{farmer.name}</p>
-              <p className="text-[9px] text-text-muted font-bold">{farmer.mobile} · {farmer.location}</p>
-            </div>
-            <div className="border border-card-border divide-y divide-card-border">
-              {products.map((p, i) => (
-                <div key={i} className="p-3 flex justify-between text-[10px] font-bold uppercase">
-                  <span>{p.fishName}</span>
-                  <span className="text-accent-olive">{p.quantity} KG</span>
-                </div>
-              ))}
-            </div>
-            {/* Auto-Generate Tapal Toggle */}
-            <div className="flex items-center justify-between p-4 bg-olive-50/30 border border-card-border mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isAutoTapalEnabled ? 'bg-black' : 'bg-gray-300'}`} onClick={() => setIsAutoTapalEnabled(!isAutoTapalEnabled)}>
-                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isAutoTapalEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-black uppercase tracking-tight">Generate Tapal Immediately</p>
-                  <p className="text-[8px] text-text-muted font-bold uppercase">SKIP APPROVAL & SPAWN LOGISTICS CONTRACT</p>
-                </div>
-              </div>
-              {isAutoTapalEnabled && (
-                <Badge variant="primary" className="text-[7px] font-bold animate-pulse">FAST TRACK MODE</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-white border border-card-border cursor-pointer hover:bg-olive-50 transition-all" onClick={() => setSendNow(!sendNow)}>
-              <div className={clsx('w-5 h-5 border flex items-center justify-center', sendNow ? 'bg-black border-black text-white' : 'border-card-border')}>{sendNow && <Check size={12} />}</div>
-              <p className="text-[9px] font-bold uppercase tracking-widest">SEND WHATSAPP IMMEDIATELY</p>
-            </div>
+          {/* Vehicle No */}
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Vehicle Number</label>
+            <input 
+              type="text" 
+              value={vehicleNo}
+              onChange={e => setVehicleNo(e.target.value)}
+              placeholder="Type or select vehicle"
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              list="vehicles-list"
+            />
+            <datalist id="vehicles-list">
+              {mockVehicles.map(v => <option key={v} value={v} />)}
+            </datalist>
           </div>
-        )}
 
-        <div className="mt-6 pt-4 border-t border-card-border flex justify-between">
-          <Button variant="outline" size="sm" onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/admin/procurement/harvest')} className="text-[9px] font-bold border-card-border px-6 h-9">
-            {step === 1 ? 'CANCEL' : 'BACK'}
-          </Button>
-          <Button 
-            onClick={step < 3 ? nextStep : handleSubmit} 
-            size="sm" 
-            className="text-[9px] font-bold px-8 h-9 shadow-md"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={12} /> SAVING...</span>
-            ) : (
-              step === 3 ? (sendNow ? 'CREATE & SEND' : 'CREATE SLIP') : 'NEXT STEP'
-            )}
-          </Button>
+          {/* Driver Name */}
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Driver Name</label>
+            <input 
+              type="text" 
+              value={driverName}
+              onChange={e => setDriverName(e.target.value)}
+              placeholder="Type or select driver"
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              list="drivers-list"
+            />
+            <datalist id="drivers-list">
+              {mockDrivers.map(d => <option key={d} value={d} />)}
+            </datalist>
+          </div>
+
+          {/* Grader Name */}
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Grader Name</label>
+            <input 
+              type="text" 
+              value={graderName}
+              onChange={e => setGraderName(e.target.value)}
+              placeholder="Name of Grader"
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+            />
+          </div>
         </div>
-      </Card>
+
+        {/* Dynamic Products Grid */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-card-border pb-2">
+            <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive">Harvest Load Particulars</h3>
+            <button
+              type="button"
+              onClick={addItemRow}
+              className="text-[10px] font-black uppercase tracking-widest text-brand-yellow hover:text-brand-olive transition-colors flex items-center gap-1.5"
+            >
+              <Plus size={14} /> Add Row
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-12 text-center">Sl No</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-36">HSN Code</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-48">Particulars</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Count</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Boxes</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Box Wt (kg)</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Total Wt (kg)</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-12 text-center"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-card-border">
+                {items.map((item, index) => (
+                  <tr key={item.id} className="hover:bg-slate-50/40">
+                    <td className="py-3 px-3 text-xs font-black text-center text-text-secondary">{index + 1}</td>
+                    
+                    {/* HSN CODE */}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="text" 
+                        value={item.hsnCode} 
+                        onChange={e => handleItemChange(item.id, 'hsnCode', e.target.value)}
+                        placeholder="HSN"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                      />
+                    </td>
+
+                    {/* Particulars */}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="text" 
+                        value={item.particulars} 
+                        onChange={e => handleItemChange(item.id, 'particulars', e.target.value)}
+                        placeholder="Particulars"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                        list="particulars-presets"
+                      />
+                      <datalist id="particulars-presets">
+                        <option value="PRAWNS" />
+                        <option value="SEABASS" />
+                        <option value="TUNA" />
+                        <option value="CRABS" />
+                        <option value="MACKEREL" />
+                      </datalist>
+                    </td>
+
+                    {/* Count */}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="number" 
+                        value={item.count} 
+                        onChange={e => handleItemChange(item.id, 'count', e.target.value)}
+                        placeholder="Count"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                      />
+                    </td>
+
+                    {/* No of boxes */}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="number" 
+                        value={item.noOfBoxes} 
+                        onChange={e => handleItemChange(item.id, 'noOfBoxes', e.target.value)}
+                        placeholder="Boxes"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                      />
+                    </td>
+
+                    {/* Box Weight */}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="number" 
+                        step="any"
+                        value={item.boxWeight} 
+                        onChange={e => handleItemChange(item.id, 'boxWeight', e.target.value)}
+                        placeholder="Box Wt"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                      />
+                    </td>
+
+                    {/* Total Weight */}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="number" 
+                        step="any"
+                        value={item.totalWeight} 
+                        onChange={e => handleItemChange(item.id, 'totalWeight', e.target.value)}
+                        placeholder="Total Wt"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
+                      />
+                    </td>
+
+                    {/* Remove Action */}
+                    <td className="py-3 px-3 text-center">
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItemRow(item.id)}
+                          className="text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Notes & Bottom Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-card-border pt-6">
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-1">Deduction & Notes</h3>
+            
+            {/* Ice and Vehicle Deduction */}
+            <div className="flex items-center justify-between p-3 bg-[#F5F5EC]/30 border border-card-border">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase text-brand-olive tracking-wider">Ice & Vehicle Rent Deduction</p>
+                <p className="text-[9px] text-text-muted mt-0.5">Toggle rent and ice cost adjustments.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={iceRentDeducted} 
+                  onChange={e => setIceRentDeducted(e.target.checked)}
+                  className="sr-only peer" 
+                />
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+              </label>
+            </div>
+
+            {/* Note 1 */}
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Receipt Quality Notes</label>
+              <input 
+                type="text" 
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              />
+            </div>
+
+            {/* Note 2 */}
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Materials Quality Notes</label>
+              <input 
+                type="text" 
+                value={damageNotes}
+                onChange={e => setDamageNotes(e.target.value)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-1">Load Totals</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 border border-card-border text-center">
+                <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Boxes</p>
+                <p className="text-2xl font-black text-brand-olive mt-1">{totalBoxes}</p>
+              </div>
+              <div className="p-4 bg-slate-50 border border-card-border text-center">
+                <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Weight</p>
+                <p className="text-2xl font-black text-brand-olive mt-1">{totalWeight.toFixed(2)} kg</p>
+              </div>
+            </div>
+
+            {/* In Words */}
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Total Weight (In Words)</label>
+              <input 
+                type="text" 
+                value={inWords}
+                onChange={e => setInWords(e.target.value)}
+                placeholder="Calculated Weight in words"
+                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Form Actions */}
+        <div className="flex justify-end gap-3 border-t border-card-border pt-6">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/procurement/harvest')}
+            className="border border-card-border text-text-secondary px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="bg-[#6A7051] text-white px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#5F6846] transition-all flex items-center gap-2 shadow-md active:translate-y-0.5"
+          >
+            Generate Slip <ArrowRight size={14} />
+          </button>
+        </div>
+      </form>
     </div>
   );
-}
+};
+
+export default CreateHarvestSlipV2;
