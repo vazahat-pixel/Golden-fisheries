@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
 import { useRbacStore } from '../../store/rbacStore';
+import { IS_DEV, isWebErpRole } from '../../constants/rbac';
 
 const allNavItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard', module: 'dashboard' },
@@ -41,7 +42,7 @@ export const Sidebar = ({ onClose }) => {
   const userId = user?.id || user?._id;
   
   const filteredNavItems = allNavItems.filter(item => {
-    if (userRole === 'ADMIN') return true;
+    if (IS_DEV || isWebErpRole(userRole)) return true;
     if (item.module && userId) {
       return hasPermission(userId, item.module, 'read');
     }

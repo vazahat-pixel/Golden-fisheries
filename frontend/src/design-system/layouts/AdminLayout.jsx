@@ -4,6 +4,7 @@ import { Search, Bell, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '../../store/authStore';
 import { LoadingFallback } from '../components/LoadingFallback';
+import { IS_DEV } from '../../constants/rbac';
 
 // Context for mobile detection — child components can use this to hide action buttons
 const AdminLayoutContext = createContext({ isMobile: false });
@@ -61,9 +62,14 @@ export const AdminLayout = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            {isMobile && (
+            {isMobile && !IS_DEV && (
               <span className="text-[8px] font-black bg-amber-50 text-amber-700 px-2 py-1 rounded-lg border border-amber-200 uppercase tracking-widest">
                 Read Only
+              </span>
+            )}
+            {IS_DEV && (
+              <span className="text-[8px] font-black bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 uppercase tracking-widest">
+                Dev Mode
               </span>
             )}
             <div className="flex flex-col text-right hidden md:block">
