@@ -66,7 +66,7 @@ const FishMallBilling = () => {
     
     const billData = {
       items: cart.map(item => ({
-        productId: item.id,
+        inventoryItemId: item.id,
         fishName: item.name,
         scaleWeight: item.weight,
         rate: item.rate,

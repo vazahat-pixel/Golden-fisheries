@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useAdminStore } from './adminStore';
 import { fishmallService } from '../services/fishmallService';
-import { masterService } from '../services/masterService';
 import { expenseService } from '../services/expenseService';
 
 export const useFishMallStore = create(
@@ -142,20 +141,21 @@ export const useFishMallStore = create(
       fetchStock: async () => {
         set({ loading: true });
         try {
-          const res = await masterService.products.getAll();
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          const mapped = list.map(p => ({
-            id: p._id,
+          const res = await fishmallService.getInventory({ limit: 500 });
+          const list = res?.data || res?.docs || (Array.isArray(res) ? res : []);
+          const mapped = list.map((p) => ({
+            id: p._id || p.id,
             name: p.name,
-            category: p.category,
-            qty: p.quantity,
-            unit: p.baseUnit,
-            rate: p.basePrice,
-            lastSync: new Date().toISOString().split('T')[0]
+            category: 'RETAIL',
+            qty: p.quantity ?? 0,
+            unit: p.unit || 'KG',
+            rate: p.rate ?? 0,
+            openingStock: p.openingStock ?? 0,
+            lastSync: new Date(p.recordDate || p.updatedAt).toISOString().split('T')[0],
           }));
           set({ stock: mapped, loading: false });
         } catch (err) {
-          console.error('Failed to fetch stock', err);
+          console.error('Failed to fetch Fish Mall stock', err);
           set({ loading: false });
         }
       },
@@ -189,7 +189,7 @@ export const useFishMallStore = create(
         try {
           const stock = get().stock;
           for (const item of stock) {
-            await masterService.products.update(item.id, { basePrice: item.rate });
+            await fishmallService.updateInventoryItem(item.id, { rate: item.rate });
           }
           set({ loading: false });
         } catch (err) {
@@ -199,24 +199,7 @@ export const useFishMallStore = create(
       },
 
       fetchStockAsync: async () => {
-        set({ loading: true });
-        try {
-          const res = await masterService.products.getAll();
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          const mapped = list.map(p => ({
-            id: p._id,
-            name: (p.name || '').toUpperCase(),
-            category: (p.category || '').toUpperCase(),
-            qty: p.quantity || 0,
-            unit: p.baseUnit || 'KG',
-            rate: p.basePrice || 0,
-            lastSync: new Date(p.updatedAt).toLocaleDateString()
-          }));
-          set({ stock: mapped, loading: false });
-        } catch (err) {
-          console.error('Failed to fetch fishmall stock', err);
-          set({ loading: false });
-        }
+        await get().fetchStock();
       },
 
       fetchExpensesAsync: async () => {

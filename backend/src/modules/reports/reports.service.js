@@ -128,10 +128,11 @@ export const reportsService = {
     }
 
     return {
+      inventoryScope: 'PROCUREMENT',
       totalProductSKUs: products.length,
       criticalItemsCount: criticalReorderList.length,
       stockLevels,
-      criticalReorderList
+      criticalReorderList,
     };
   },
 

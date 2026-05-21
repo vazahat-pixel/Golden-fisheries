@@ -126,7 +126,7 @@ const RestaurantPOS = () => {
       tableLabel: tableLabel || 'COUNTER',
       orderType,
       items: cart.map(item => ({
-        productId: item.id,
+        inventoryItemId: item.id,
         name: item.name,
         quantity: item.qty,
         rate: item.price,

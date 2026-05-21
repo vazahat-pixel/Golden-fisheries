@@ -84,7 +84,8 @@ class SocketService {
 
     // 1. Real-Time Inventory Synchronizer
     this.socket.on('inventory:level_update', (data) => {
-      console.log('[Socket Received - Inventory Sync]:', data);
+      if (data?.scope && data.scope !== 'PROCUREMENT') return;
+      console.log('[Socket Received - Procurement Inventory Sync]:', data);
       const { name, quantity } = data;
       
       const adminStore = useAdminStore.getState();

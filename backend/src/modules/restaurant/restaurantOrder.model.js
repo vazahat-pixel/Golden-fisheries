@@ -4,7 +4,12 @@ const restaurantItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
-    required: false
+    required: false,
+  },
+  inventoryItemId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RestaurantInventoryItem',
+    required: false,
   },
   name: {
     type: String,

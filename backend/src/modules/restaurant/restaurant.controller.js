@@ -2,7 +2,7 @@ import { restaurantService } from './restaurant.service.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { broadcastEvent } from '../../sockets/socket.js';
-import { Product } from '../products/product.model.js';
+import { restaurantInventoryService } from './restaurantInventory.service.js';
 
 export const restaurantController = {
   create: asyncWrapper(async (req, res) => {
@@ -34,13 +34,51 @@ export const restaurantController = {
   }),
 
   getMenu: asyncWrapper(async (req, res) => {
-    const menu = await Product.find({ category: 'RESTAURANT' });
-    new ApiResponse(200, menu, 'Menu fetched successfully').send(res);
+    const result = await restaurantInventoryService.list({ limit: 500 });
+    const menu = result.docs.map((item) => ({
+      _id: item._id,
+      id: item._id,
+      name: item.name,
+      quantity: item.quantity,
+      stock: item.quantity,
+      rate: item.rate,
+      basePrice: item.rate,
+      category: item.category,
+      unit: item.unit,
+      recordDate: item.recordDate,
+    }));
+    new ApiResponse(200, menu, 'Restaurant menu & kitchen stock fetched successfully').send(res);
   }),
 
   createMenuItem: asyncWrapper(async (req, res) => {
-    const product = await Product.create({ ...req.body, category: 'RESTAURANT' });
-    new ApiResponse(201, product, 'Menu item created successfully').send(res);
+    const item = await restaurantInventoryService.createItem(req.body, req.user.id);
+    new ApiResponse(201, item, 'Restaurant inventory item created successfully').send(res);
+  }),
+
+  listInventory: asyncWrapper(async (req, res) => {
+    const result = await restaurantInventoryService.list(req.query);
+    new ApiResponse(200, result.docs, 'Restaurant inventory fetched', result.meta).send(res);
+  }),
+
+  adjustInventory: asyncWrapper(async (req, res) => {
+    const { quantityChange, remarks } = req.body;
+    const item = await restaurantInventoryService.adjustItem(
+      req.params.id,
+      quantityChange,
+      req.user.id,
+      remarks
+    );
+    new ApiResponse(200, item, 'Restaurant stock adjusted').send(res);
+  }),
+
+  inventorySummary: asyncWrapper(async (req, res) => {
+    const summary = await restaurantInventoryService.getSummary();
+    new ApiResponse(200, summary, 'Restaurant inventory summary').send(res);
+  }),
+
+  inventoryLogs: asyncWrapper(async (req, res) => {
+    const logs = await restaurantInventoryService.getLogs(req.query);
+    new ApiResponse(200, logs, 'Restaurant inventory logs').send(res);
   }),
 
   getTables: asyncWrapper(async (req, res) => {

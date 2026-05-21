@@ -29,7 +29,23 @@ export const restaurantService = {
   // 6. Get Tables
   getTables: async () => {
     return await apiClient.get('/restaurant/tables');
-  }
+  },
+
+  getInventory: async (params = {}) => {
+    return await apiClient.get('/restaurant/inventory', { params });
+  },
+
+  createInventoryItem: async (data) => {
+    return await apiClient.post('/restaurant/menu', data);
+  },
+
+  adjustInventory: async (id, body) => {
+    return await apiClient.patch(`/restaurant/inventory/${id}/adjust`, body);
+  },
+
+  getInventorySummary: async () => {
+    return await apiClient.get('/restaurant/inventory/summary');
+  },
 };
 
 export default restaurantService;
