@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverStore } from '../../store/driverStore';
 import { 
-  ArrowLeft, Truck, MapPin, Navigation, Box, Scale, Camera, 
-  PenTool, Check, CheckCircle2, AlertTriangle, Play, FileInput 
+  ArrowLeft, MapPin, Navigation, Scale, Camera, 
+  PenTool, Check, CheckCircle2, AlertTriangle, PackageCheck
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { socketService } from '../../services/socketService';
@@ -197,10 +197,13 @@ const ActiveTrip = () => {
 
   // Stage flags
   const status = trip.status?.toUpperCase();
-  const isAssigned = status === 'ASSIGNED';
-  const isInTransit = status === 'STARTED' || status === 'IN TRANSIT';
-  const isPicked = status === 'PICKED' || status === 'DELIVERED'; // Delivered from API perspective, picked up from route perspective
-  const isDelivered = status === 'CLOSED' || status === 'COMPLETED';
+  const isAssigned = status === 'ASSIGNED' || trip.status === 'Assigned';
+  const isInTransit =
+    status === 'STARTED' ||
+    status === 'IN TRANSIT' ||
+    trip.status === 'In Transit';
+  const isPicked = status === 'PICKED';
+  const isDelivered = status === 'DELIVERED' || status === 'CLOSED' || status === 'COMPLETED';
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 animate-in fade-in duration-500 max-w-md mx-auto relative shadow-2xl border-x border-slate-200">
@@ -275,30 +278,38 @@ const ActiveTrip = () => {
           </div>
         </div>
 
-        <div className="pt-1">
-          {/* ASSIGNED — driver can start trip */}
-          {trip.status === 'ASSIGNED' && (
-            <button onClick={handleStartTrip} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+        <div className="pt-1 space-y-3">
+          {isAssigned && (
+            <button
+              type="button"
+              onClick={handleStartTrip}
+              className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+            >
               <Navigation size={14} className="animate-pulse" /> Start Trip
             </button>
           )}
 
-          {/* STARTED — driver can log pickup weight */}
-          {trip.status === 'STARTED' && (
-            <button onClick={() => setIsPickupModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+          {isInTransit && (
+            <button
+              type="button"
+              onClick={handleOpenPickup}
+              className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+            >
               <PackageCheck size={14} /> Log Pickup Weight
             </button>
           )}
 
-          {/* PICKED — driver can confirm delivery */}
-          {trip.status === 'PICKED' && (
-            <button onClick={() => setIsDeliveryModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+          {isPicked && !isDelivered && (
+            <button
+              type="button"
+              onClick={handleOpenDelivery}
+              className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+            >
               <CheckCircle2 size={14} /> Confirm Delivery
             </button>
           )}
 
-          {/* DELIVERED / CLOSED — await admin trip closure */}
-          {trip.status === 'DELIVERED' && (
+          {status === 'DELIVERED' && (
             <button
               type="button"
               onClick={() => navigate(`/driver/trip-expense/${trip._id || trip.id}`)}
@@ -307,35 +318,35 @@ const ActiveTrip = () => {
               <CheckCircle2 size={14} /> End Trip Sheet
             </button>
           )}
-          {trip.status === 'CLOSED' && (
+
+          {status === 'CLOSED' && (
             <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
               <CheckCircle2 size={14} /> Trip Closed
             </div>
           )}
         </div>
-      </div>
 
-        {/* Location Routing Coordinates */}
         <div className="bg-white border border-card-border p-4 rounded-xl shadow-sm space-y-3 text-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-brand-olive block border-b border-card-border pb-1">Route Waypoints</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-brand-olive block border-b border-card-border pb-1">
+            Route Waypoints
+          </span>
           <div className="space-y-2.5 pl-1.5 pt-1 text-[11px] text-text-secondary uppercase">
             <div className="flex items-center gap-2">
               <MapPin size={14} className="text-[#6A7051]" />
               <div>
                 <span className="text-[8px] font-black text-text-muted tracking-widest block">Dock Location</span>
-                <span className="font-extrabold text-brand-olive">{trip.pickupLocation}</span>
+                <span className="font-extrabold text-brand-olive">{trip.pickupLocation || '—'}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 border-t border-dashed border-card-border pt-2">
               <Navigation size={14} className="text-brand-yellow animate-pulse" />
               <div>
                 <span className="text-[8px] font-black text-text-muted tracking-widest block">Delivery Site</span>
-                <span className="font-extrabold text-brand-olive">{trip.deliveryLocation}</span>
+                <span className="font-extrabold text-brand-olive">{trip.deliveryLocation || '—'}</span>
               </div>
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Cargo Loading Modal */}

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { userService } from '../services/userService';
 import { useAuthStore } from './authStore';
+import { IS_DEV, isWebErpRole } from '../constants/rbac';
 
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
@@ -558,7 +559,8 @@ export const useRbacStore = create(
       hasPermission: (userId, module, action) => {
         const user = get().resolveUserForAccess(userId);
         if (!user) return false;
-        if (user.role === 'ADMIN') return true;
+        if (IS_DEV) return true;
+        if (isWebErpRole(user.role)) return true;
         return user.permissions?.modules?.[module]?.[action] === true;
       },
 
@@ -571,7 +573,8 @@ export const useRbacStore = create(
           }
         }
         if (!user || user.status !== 'active') return false;
-        if (user.role === 'ADMIN') return true;
+        if (IS_DEV) return true;
+        if (isWebErpRole(user.role)) return true;
         return user.permissions?.panels?.[panel] === true;
       },
     }),

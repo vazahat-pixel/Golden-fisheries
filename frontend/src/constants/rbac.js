@@ -65,3 +65,17 @@ export const detectClientPlatform = (pathname = '') => {
   }
   return PLATFORM_ACCESS.WEB;
 };
+
+/** Vite dev server — grant full admin ERP access while developing locally */
+export const IS_DEV = import.meta.env.DEV;
+
+export const isWebErpRole = (role) => {
+  const normalized = normalizeRole(role);
+  return WEB_ERP_ROLES.some((r) => r === role || normalizeRole(r) === normalized);
+};
+
+/** Super Admin + legacy admin roles, or any authenticated user on /admin in dev */
+export const hasFullAdminAccess = (role, pathname = '') => {
+  if (IS_DEV && pathname.startsWith('/admin')) return true;
+  return isWebErpRole(role);
+};

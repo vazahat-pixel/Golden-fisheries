@@ -8,6 +8,8 @@ import {
   ROLES,
   detectClientPlatform,
   PLATFORM_ACCESS,
+  IS_DEV,
+  hasFullAdminAccess,
 } from '../../constants/rbac';
 
 const ProtectedRoute = ({ children, allowedRoles, module, requirePlatform }) => {
@@ -24,6 +26,12 @@ const ProtectedRoute = ({ children, allowedRoles, module, requirePlatform }) => 
 
   if (allowedRoles?.length && role && !roleAllowed(role, allowedRoles)) {
     return <Navigate to="/unauthorized" replace />;
+  }
+
+  const isAdminWeb = location.pathname.startsWith('/admin');
+
+  if (IS_DEV && isAdminWeb) {
+    return <>{children}</>;
   }
 
   const clientPlatform = requirePlatform || detectClientPlatform(location.pathname);
@@ -47,7 +55,7 @@ const ProtectedRoute = ({ children, allowedRoles, module, requirePlatform }) => 
   }
 
   if (module && user) {
-    if (normalized === ROLES.SUPER_ADMIN || role === 'ADMIN') {
+    if (hasFullAdminAccess(role, location.pathname)) {
       return <>{children}</>;
     }
     const userId = user.id || user._id;
