@@ -36,14 +36,20 @@ const CreateTapalFromHarvest = () => {
   }, [harvest]);
 
   const eligible = harvestSlips.filter(
-    (h) =>
-      ['CONFIRMED', 'PARTIALLY_CONVERTED'].includes(h.status) &&
-      h.netRateCalculated != null
+    (h) => !['CONVERTED_TO_TAPAL', 'COMPLETED', 'REJECTED'].includes(h.status)
   );
+
+  const isConfirmed = harvest && ['CONFIRMED', 'PARTIALLY_CONVERTED'].includes(harvest.status);
+  const hasNetRate = harvest && harvest.netRateCalculated != null;
+  const showWarning = harvest && (!isConfirmed || !hasNetRate);
 
   const handleCreate = async () => {
     if (!harvestId) {
       toast.error('Select harvest reference');
+      return;
+    }
+    if (showWarning) {
+      toast.error('This harvest slip is not yet eligible for Tapal generation.');
       return;
     }
     setLoading(true);
@@ -78,13 +84,49 @@ const CreateTapalFromHarvest = () => {
         <PaperFieldRow label="Harvest Ref (H No)">
           <select className={paperInputClass} value={harvestId} onChange={(e) => setHarvestId(e.target.value)}>
             <option value="">— Select —</option>
-            {eligible.map((h) => (
-              <option key={h._id || h.id} value={h._id || h.id}>
-                {h.hNo || h.harvestNumber || h.tpNo} — {h.farmerName}
-              </option>
-            ))}
+            {eligible.map((h) => {
+              const statusText = h.status || 'PENDING';
+              const hasNetVal = h.netRateCalculated != null;
+              const suffix = ` (${statusText}${hasNetVal ? ', Net Rate Saved' : ', No Net Rate'})`;
+              return (
+                <option key={h._id || h.id} value={h._id || h.id}>
+                  {h.hNo || h.harvestNumber || h.tpNo} — {h.farmerName}{suffix}
+                </option>
+              );
+            })}
           </select>
         </PaperFieldRow>
+
+        {showWarning && (
+          <div className="bg-amber-50 border border-amber-300 text-amber-900 p-3 text-xs mt-2 space-y-1.5 font-sans">
+            <div className="font-bold uppercase tracking-wider text-[10px] text-amber-800">⚠️ Ineligible Harvest Slip</div>
+            {!isConfirmed && (
+              <p>
+                Harvest status is <strong>{harvest.status || 'PENDING'}</strong>. Farmer confirmation is required.
+                <button
+                  type="button"
+                  onClick={() => navigate(`/admin/procurement/harvest/${harvest._id || harvest.id}`)}
+                  className="underline font-bold text-amber-700 ml-1 hover:text-amber-950"
+                >
+                  Confirm / Approve Slip
+                </button>
+              </p>
+            )}
+            {!hasNetRate && (
+              <p>
+                Purchase invoice (net rate) is not saved yet. Please calculate and save the net rate.
+                <button
+                  type="button"
+                  onClick={() => navigate(`/admin/procurement/net-rate?harvestId=${harvest._id || harvest.id}`)}
+                  className="underline font-bold text-amber-700 ml-1 hover:text-amber-950"
+                >
+                  Save Net Rate / Purchase Invoice
+                </button>
+              </p>
+            )}
+          </div>
+        )}
+
         <PaperFieldRow label="Destination">
           <input className={paperInputClass} value={destination} onChange={(e) => setDestination(e.target.value)} />
         </PaperFieldRow>
@@ -123,11 +165,11 @@ const CreateTapalFromHarvest = () => {
 
         <button
           type="button"
-          disabled={loading || !harvestId}
+          disabled={loading || !harvestId || showWarning}
           onClick={handleCreate}
-          className="w-full mt-4 bg-[#6A7051] text-white py-3 font-bold uppercase text-sm disabled:opacity-50"
+          className="w-full mt-4 bg-[#6A7051] text-white py-3 font-bold uppercase text-sm disabled:opacity-50 transition-all"
         >
-          {loading ? 'Creating...' : 'Generate Tapal'}
+          {loading ? 'Creating...' : showWarning ? 'Ineligible Slip (Fix warnings above)' : 'Generate Tapal'}
         </button>
       </PaperFormFrame>
     </div>
