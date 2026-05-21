@@ -9,8 +9,12 @@ export const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  // Log all errors to the console/files via Winston
-  logger.error(`[Error Trace]: ${err.message}\nStack: ${err.stack}`);
+  // Log 500+ errors as errors with full stack traces, and 4xx errors as simple warnings to keep console clean
+  if (err.statusCode >= 500) {
+    logger.error(`[Error Trace]: ${err.message}\nStack: ${err.stack}`);
+  } else {
+    logger.warn(`[Client Error]: ${err.statusCode} - ${err.message}`);
+  }
 
   // Handle MongoDB duplicate key errors (11000)
   if (err.code === 11000) {

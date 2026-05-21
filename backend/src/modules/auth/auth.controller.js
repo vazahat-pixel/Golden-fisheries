@@ -1,3 +1,5 @@
+import jwt from 'jsonwebtoken';
+import { config } from '../../config/config.js';
 import { authService } from './auth.service.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
@@ -48,22 +50,47 @@ export const authController = {
 
   // Rotate Refresh Tokens
   refresh: asyncWrapper(async (req, res) => {
-    // Look in cookies first, fall back to body
-    const tokenValue = req.cookies.refreshToken || req.body.refreshToken;
-    
-    const { accessToken, refreshToken } = await authService.refreshTokens(tokenValue);
+    try {
+      // Look in cookies first, fall back to body
+      const tokenValue = req.cookies.refreshToken || req.body.refreshToken;
+      
+      const { accessToken, refreshToken } = await authService.refreshTokens(tokenValue);
 
-    res.cookie('refreshToken', refreshToken, getCookieOptions());
+      res.cookie('refreshToken', refreshToken, getCookieOptions());
 
-    new ApiResponse(200, { accessToken }, 'Access token refreshed').send(res);
+      new ApiResponse(200, { accessToken }, 'Access token refreshed').send(res);
+    } catch (err) {
+      // Clear refresh token cookies instantly on refresh failure
+      res.clearCookie('refreshToken', getCookieOptions());
+      throw err;
+    }
   }),
 
   // Settle user sessions cleanly
   logout: asyncWrapper(async (req, res) => {
-    const userId = req.user.id;
-    await authService.logout(userId);
+    // If authenticated, we have user.id
+    let userId = req.user?.id;
+    
+    // If not authenticated (e.g. expired access token), try to extract from refresh token
+    if (!userId) {
+      const tokenValue = req.cookies.refreshToken || req.body.refreshToken;
+      if (tokenValue) {
+        try {
+          const decoded = jwt.verify(tokenValue, config.jwt.refreshSecret);
+          if (decoded && decoded.id) {
+            userId = decoded.id;
+          }
+        } catch (err) {
+          // Ignore token decoding errors for logout
+        }
+      }
+    }
 
-    // Clear refresh token cookies instantly
+    if (userId) {
+      await authService.logout(userId);
+    }
+
+    // Always clear refresh token cookies instantly
     res.clearCookie('refreshToken', getCookieOptions());
 
     new ApiResponse(200, null, 'Logged out successfully').send(res);
