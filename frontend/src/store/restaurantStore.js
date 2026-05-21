@@ -215,7 +215,15 @@ export const useRestaurantStore = create(
 
           // 2. Settle the order (payment)
           if (orderId) {
-            await restaurantService.settle(orderId, { paymentMethod: settleData.paymentMethod });
+            const breakdown = settleData.paymentBreakdown || {};
+            const cash = parseFloat(breakdown.cash) || 0;
+            const upi = parseFloat(breakdown.upi) || 0;
+            const isSplit = settleData.paymentMethod?.toUpperCase() === 'SPLIT' || (cash > 0 && upi > 0);
+            await restaurantService.settle(orderId, {
+              paymentMethod: isSplit ? 'SPLIT' : (settleData.paymentMethod || 'CASH').toUpperCase(),
+              cashAmount: isSplit ? cash : undefined,
+              upiAmount: isSplit ? upi : undefined,
+            });
           }
 
           // Cross-post to Admin Finance

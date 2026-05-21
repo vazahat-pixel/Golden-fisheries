@@ -4,6 +4,7 @@ import { Truck, MapPin, Clock, CheckCircle2, Package, ArrowRight, Phone, Refresh
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
 import { socketService } from '../../services/socketService';
+import { mapsService } from '../../services/mapsService';
 
 const STATUS_STEPS = ['ASSIGNED', 'ACCEPTED', 'STARTED', 'PICKED', 'DELIVERED', 'CLOSED'];
 
@@ -41,12 +42,12 @@ const BuyerTripTracker = () => {
 
   const filteredTrips = buyerTrips.filter(t => {
     if (filter === 'all') return true;
-    if (filter === 'active') return !['DELIVERED', 'CLOSED', 'REJECTED'].includes(t.status);
+    if (filter === 'active') return !['DELIVERED', 'CLOSED'].includes(t.status);
     if (filter === 'completed') return ['DELIVERED', 'CLOSED'].includes(t.status);
     return true;
   });
 
-  const activeCount = buyerTrips.filter(t => !['DELIVERED', 'CLOSED', 'REJECTED'].includes(t.status)).length;
+  const activeCount = buyerTrips.filter((t) => !['DELIVERED', 'CLOSED'].includes(t.status)).length;
   const completedCount = buyerTrips.filter(t => ['DELIVERED', 'CLOSED'].includes(t.status)).length;
 
   const TripTimeline = ({ trip }) => {
@@ -184,6 +185,22 @@ const BuyerTripTracker = () => {
               </div>
 
               <TripTimeline trip={trip} />
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await mapsService.getTripTrack(trip.id);
+                    const url = res?.data?.navigationUrl;
+                    if (url) window.open(url, '_blank');
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+                className="w-full py-2 border border-blue-200 text-blue-700 rounded-xl text-[10px] font-bold uppercase"
+              >
+                Open route in Maps
+              </button>
             </div>
           );
         })}

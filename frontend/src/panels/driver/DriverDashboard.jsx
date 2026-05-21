@@ -22,43 +22,13 @@ const DriverDashboard = () => {
     fetchMyExpenses();
   }, [fetchMyTrips, fetchMyExpenses]);
 
-  // Prepopulate detailed responsive mock trip for demo if backend lists empty
-  const mockDriverTrips = [
-    {
-      id: 'TRP-0042',
-      _id: 'TRP-0042',
-      tripNumber: 'TRP-0042',
-      status: 'Assigned',
-      pickupLocation: 'KARWAR WEST DOCK SITE',
-      deliveryLocation: 'MANGALORE MAIN WAREHOUSE',
-      product: 'PREMIUM WHITE PRAWNS',
-      expectedQty: '450 KG',
-      actualQty: null,
-      createdAt: '10:30 AM',
-      expenses: []
-    },
-    {
-      id: 'TRP-0039',
-      _id: 'TRP-0039',
-      tripNumber: 'TRP-0039',
-      status: 'Delivered',
-      pickupLocation: 'MANGALORE FISH MALLE',
-      deliveryLocation: 'GF RESTAURANT CENTRAL STORE',
-      product: 'SEABASS (LARGE)',
-      expectedQty: '180 KG',
-      actualQty: '180 KG',
-      createdAt: 'Yesterday',
-      expenses: [{ type: 'Fuel', amount: '2200' }]
-    }
-  ];
-
-  const tripsList = myTrips && myTrips.length > 0 ? myTrips : mockDriverTrips;
+  const tripsList = myTrips || [];
   const activeTrip = tripsList.find(t => ['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED'].includes(t.status));
   const pastTrips = tripsList.filter(t => !['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED'].includes(t.status));
 
   // Compute driver specific KPI stats
   const totalTripsCompleted = pastTrips.length + (activeTrip ? 0 : 1);
-  const totalExpensesLogged = myExpenses?.length || 2;
+  const totalExpensesLogged = myExpenses?.length || 0;
   const driverName = user?.fullName || user?.name || 'Driver Executive';
 
   const handleLogout = () => {

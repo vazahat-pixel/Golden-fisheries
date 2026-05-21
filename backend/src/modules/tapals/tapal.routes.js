@@ -2,148 +2,125 @@ import { Router } from 'express';
 import { tapalController } from './tapal.controller.js';
 import { tapalValidators } from '../../validators/tapal.validator.js';
 import { validateBody } from '../../validators/auth.validator.js';
-import { protect, restrictTo } from '../../middleware/auth.middleware.js';
-import { ROLES } from '../../constants/roles.js';
+import {
+  protect,
+  restrictTo,
+  requireWeb,
+  requireMobile,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+} from '../../middleware/auth.middleware.js';
+import {
+  WEB_ERP,
+  PROCUREMENT,
+  BUYER_ROLES,
+  DRIVER_ROLES,
+} from '../../constants/roleGroups.js';
 
 const router = Router();
+const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
+const mobile = [protect, requireMobile, enforcePlatformPolicy, blockMobileWrite];
 
-// Gated behind authentication
 router.use(protect);
 
-// 1. Create Tapal from Harvest Slip
+/** Removed from client workflow — explicit block (do not use as /:id) */
+router.patch('/reject-trip', (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message: 'Trip reject has been removed from the driver workflow.',
+    data: null,
+  });
+});
+
+// Procurement: Tapal from Harvest only
 router.post(
   '/create-from-harvest',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...mobile,
+  restrictTo(...PROCUREMENT),
   tapalController.createFromHarvest
 );
 
-// 2. Fetch all Tapal Contracts
-router.get(
-  '/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER, ROLES.BUYER),
-  tapalController.all
-);
+// Web ERP monitoring
+router.get('/all', ...web, restrictTo(...WEB_ERP), tapalController.all);
+router.get('/trips/all', ...web, restrictTo(...WEB_ERP), tapalController.allTrips);
 
-// 2.1 Fetch all Trips
-router.get(
-  '/trips/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER, ROLES.BUYER),
-  tapalController.allTrips
-);
-
-// 2.2 Driver fetches ONLY their own assigned trips (scoped by JWT identity)
-router.get(
-  '/my-trips',
-  restrictTo(ROLES.DRIVER),
-  tapalController.myTrips
-);
-
-// 3. Assign Driver & Vehicle to Tapal (Launches active trip)
-router.patch(
-  '/assign-driver',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.BUYER),
-  validateBody(tapalValidators.assignDriver),
-  tapalController.assignDriver
-);
-
-// 3.1 Driver accepts an assigned trip
-router.patch(
-  '/accept-trip',
-  restrictTo(ROLES.DRIVER),
-  tapalController.acceptTrip
-);
-
-// 3.2 Driver rejects an assigned trip
-router.patch(
-  '/reject-trip',
-  restrictTo(ROLES.DRIVER),
-  tapalController.rejectTrip
-);
-
-// 3.3 Buyer fetches only their own trips
-router.get(
-  '/my-buyer-trips',
-  restrictTo(ROLES.BUYER),
-  tapalController.myBuyerTrips
-);
-
-// 4. Driver starts the trip
-router.patch(
-  '/start-trip',
-  restrictTo(ROLES.DRIVER),
-  tapalController.startTrip
-);
-
-// 5. Driver records scale weight at pickup
+// Driver lifecycle (mobile only) — Assigned → Start → Pickup → Deliver → Expense → End
+router.get('/my-trips', ...mobile, restrictTo(...DRIVER_ROLES), tapalController.myTrips);
+router.patch('/start-trip', ...mobile, restrictTo(...DRIVER_ROLES), tapalController.startTrip);
 router.patch(
   '/pickup',
-  restrictTo(ROLES.DRIVER),
+  ...mobile,
+  restrictTo(...DRIVER_ROLES),
   validateBody(tapalValidators.pickup),
   tapalController.pickup
 );
-
-// 6. Driver records scale weight at delivery with proof
 router.patch(
   '/deliver',
-  restrictTo(ROLES.DRIVER),
+  ...mobile,
+  restrictTo(...DRIVER_ROLES),
   validateBody(tapalValidators.deliver),
   tapalController.deliver
 );
-
-// 7. Admin/Accountant verifies cargo weights, closes trip, and triggers inventory reconciliation
-router.patch(
-  '/end-trip',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER),
-  tapalController.endTrip
-);
-
-// 8. Driver logs trip expenses (Fuel, Toll, etc.)
 router.post(
   '/expense',
-  restrictTo(ROLES.DRIVER),
+  ...mobile,
+  restrictTo(...DRIVER_ROLES),
   validateBody(tapalValidators.logExpense),
   tapalController.logExpense
 );
-
-// 8.1 Driver submits post-trip expenses form
 router.post(
   '/trip/:tripId/post-trip-expense',
-  restrictTo(ROLES.DRIVER),
+  ...mobile,
+  restrictTo(...DRIVER_ROLES),
   tapalController.submitPostTripExpense
 );
 
-// 8.2 Admin/Accountant reviews post-trip expenses
+// Web: assign driver, end trip, expense review
+router.patch(
+  '/assign-driver',
+  ...web,
+  restrictTo(...WEB_ERP),
+  validateBody(tapalValidators.assignDriver),
+  tapalController.assignDriver
+);
+router.patch('/end-trip', ...web, restrictTo(...WEB_ERP), tapalController.endTrip);
 router.patch(
   '/trip/:tripId/post-trip-expense/review',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  ...web,
+  restrictTo(...WEB_ERP),
   tapalController.reviewPostTripExpense
 );
 
-// 9. Fetch active Trip details
+// Buyer read (mobile)
+router.get('/my-buyer-trips', ...mobile, restrictTo(...BUYER_ROLES), tapalController.myBuyerTrips);
+
 router.get(
   '/trip/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.DRIVER, ROLES.BUYER, ROLES.PROCUREMENT_MANAGER),
+  protect,
+  enforcePlatformPolicy,
+  restrictTo(...WEB_ERP, ...PROCUREMENT, ...BUYER_ROLES, ...DRIVER_ROLES),
   tapalController.getTripById
 );
 
-// 10. Fetch single Tapal details
 router.get(
   '/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER, ROLES.BUYER),
+  protect,
+  enforcePlatformPolicy,
+  restrictTo(...WEB_ERP, ...PROCUREMENT, ...BUYER_ROLES),
   tapalController.getById
 );
 
-// 11. Update Tapal
 router.patch(
   '/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...web,
+  restrictTo(...WEB_ERP, ...PROCUREMENT),
   tapalController.update
 );
 
-// 12. Return Tapal
 router.post(
   '/return',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...web,
+  restrictTo(...WEB_ERP, ...PROCUREMENT),
   tapalController.returnTapal
 );
 

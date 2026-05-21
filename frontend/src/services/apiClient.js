@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { detectClientPlatform } from '../constants/rbac';
 
 // Create a configured Axios instance
 export const apiClient = axios.create({
@@ -31,6 +32,10 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    const platform =
+      config.headers['X-Client-Platform'] ||
+      detectClientPlatform(typeof window !== 'undefined' ? window.location.pathname : '');
+    config.headers['X-Client-Platform'] = platform;
     return config;
   },
   (error) => Promise.reject(error)

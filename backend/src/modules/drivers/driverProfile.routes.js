@@ -1,15 +1,21 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { driverController } from './driverProfile.controller.js';
-import { protect, restrictTo } from '../../middleware/auth.middleware.js';
-import { ROLES } from '../../constants/roles.js';
+import {
+  protect,
+  restrictTo,
+  requireWeb,
+  requireMobile,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+} from '../../middleware/auth.middleware.js';
+import { WEB_ERP, DRIVER_ROLES } from '../../constants/roleGroups.js';
 
 const router = Router();
 
-// ── Multer: memory storage (no disk writes — stream directly to Cloudinary)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per file
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
     if (allowed.includes(file.mimetype)) {
@@ -17,43 +23,32 @@ const upload = multer({
     } else {
       cb(new Error('Only JPG, PNG, WebP, and PDF files are allowed.'), false);
     }
-  }
+  },
 });
 
-// Document fields for driver registration
 const driverDocFields = upload.fields([
-  { name: 'profilePhoto',    maxCount: 1 },
-  { name: 'aadhaarFront',    maxCount: 1 },
-  { name: 'aadhaarBack',     maxCount: 1 },
-  { name: 'panImage',        maxCount: 1 },
-  { name: 'licenseFront',    maxCount: 1 },
-  { name: 'licenseBack',     maxCount: 1 },
-  { name: 'rcImage',         maxCount: 1 },
-  { name: 'insuranceImage',  maxCount: 1 },
-  { name: 'permitImage',     maxCount: 1 },
-  { name: 'pucImage',        maxCount: 1 },
+  { name: 'profilePhoto', maxCount: 1 },
+  { name: 'aadhaarFront', maxCount: 1 },
+  { name: 'aadhaarBack', maxCount: 1 },
+  { name: 'panImage', maxCount: 1 },
+  { name: 'licenseFront', maxCount: 1 },
+  { name: 'licenseBack', maxCount: 1 },
+  { name: 'rcImage', maxCount: 1 },
+  { name: 'insuranceImage', maxCount: 1 },
+  { name: 'permitImage', maxCount: 1 },
+  { name: 'pucImage', maxCount: 1 },
 ]);
 
-// ─────────────────────────────────────────────
-// PUBLIC ROUTE — No auth needed for registration
-// ─────────────────────────────────────────────
+const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
+const mobile = [protect, requireMobile, enforcePlatformPolicy];
+
 router.post('/register', driverDocFields, driverController.register);
 
-// ─────────────────────────────────────────────
-// PROTECTED ROUTES
-// ─────────────────────────────────────────────
-router.use(protect);
-
-// Driver can read their own profile
-router.get('/my-profile', restrictTo(ROLES.DRIVER, ROLES.ADMIN), driverController.myProfile);
-
-// Admin routes
-router.get('/all',    restrictTo(ROLES.ADMIN, ROLES.MANAGER), driverController.all);
-router.get('/active', restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT), driverController.active);
-router.get('/:id',    restrictTo(ROLES.ADMIN, ROLES.MANAGER), driverController.getById);
-
-// Admin approval / rejection
-router.patch('/:id/approve', restrictTo(ROLES.ADMIN, ROLES.MANAGER), driverController.approve);
-router.patch('/:id/reject',  restrictTo(ROLES.ADMIN, ROLES.MANAGER), driverController.reject);
+router.get('/my-profile', ...mobile, restrictTo(...DRIVER_ROLES, ...WEB_ERP), driverController.myProfile);
+router.get('/all', ...web, restrictTo(...WEB_ERP), driverController.all);
+router.get('/active', ...web, restrictTo(...WEB_ERP), driverController.active);
+router.get('/:id', ...web, restrictTo(...WEB_ERP), driverController.getById);
+router.patch('/:id/approve', ...web, restrictTo(...WEB_ERP), driverController.approve);
+router.patch('/:id/reject', ...web, restrictTo(...WEB_ERP), driverController.reject);
 
 export default router;

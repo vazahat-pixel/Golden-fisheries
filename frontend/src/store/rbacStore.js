@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { userService } from '../services/userService';
+import { useAuthStore } from './authStore';
+
+const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
 // --- Role Templates ---
 export const ROLE_TEMPLATES = {
-  ADMIN: {
-    id: 'ADMIN',
-    label: 'Administrator',
+  SUPER_ADMIN: {
+    id: 'SUPER_ADMIN',
+    label: 'Super Admin',
     description: 'Full system access and user management',
     color: '#EF4444',
     loginPortal: '/admin/auth',
@@ -35,9 +38,9 @@ export const ROLE_TEMPLATES = {
       },
     },
   },
-  RESTAURANT_STAFF: {
-    id: 'RESTAURANT_STAFF',
-    label: 'Restaurant Staff',
+  REST_MANAGER: {
+    id: 'REST_MANAGER',
+    label: 'Restaurant Manager',
     description: 'POS, order history, and inventory access',
     color: '#6B7550',
     loginPortal: '/restaurant/auth',
@@ -66,9 +69,34 @@ export const ROLE_TEMPLATES = {
       },
     },
   },
-  FISHMALL_BILLING: {
-    id: 'FISHMALL_BILLING',
-    label: 'Fish Mall Billing',
+  REST_CASHIER: {
+    id: 'REST_CASHIER',
+    label: 'Restaurant Cashier',
+    description: 'POS billing only',
+    color: '#6B7550',
+    loginPortal: '/restaurant/auth',
+    permissions: {
+      panels: { restaurant: true, fishmall: false, driver: false, admin: false, buyer: false },
+      modules: {
+        pos: { read: true, write: true, delete: false },
+        orderHistory: { read: false, write: false, delete: false },
+        inventory: { read: false, write: false, delete: false },
+        restaurantSettings: { read: false, write: false, delete: false },
+        dashboard: { read: false, write: false, delete: false },
+        tapals: { read: false, write: false, delete: false },
+        finance: { read: false, write: false, delete: false },
+        procurement: { read: false, write: false, delete: false },
+        logistics: { read: false, write: false, delete: false },
+        billing: { read: false, write: false, delete: false },
+        outlets: { read: false, write: false, delete: false },
+        accessControl: { read: false, write: false, delete: false },
+        settings: { read: false, write: false, delete: false },
+      },
+    },
+  },
+  FISHMALL_MANAGER: {
+    id: 'FISHMALL_MANAGER',
+    label: 'Fish Mall Manager',
     description: 'Weight billing, rates, and stock inflow',
     color: '#2563EB',
     loginPortal: '/fishmall/auth',
@@ -80,6 +108,31 @@ export const ROLE_TEMPLATES = {
         admin: false,
         buyer: false,
       },
+      modules: {
+        pos: { read: false, write: false, delete: false },
+        orderHistory: { read: false, write: false, delete: false },
+        inventory: { read: false, write: false, delete: false },
+        restaurantSettings: { read: false, write: false, delete: false },
+        dashboard: { read: false, write: false, delete: false },
+        tapals: { read: false, write: false, delete: false },
+        finance: { read: false, write: false, delete: false },
+        procurement: { read: false, write: false, delete: false },
+        logistics: { read: false, write: false, delete: false },
+        billing: { read: true, write: true, delete: false },
+        outlets: { read: false, write: false, delete: false },
+        accessControl: { read: false, write: false, delete: false },
+        settings: { read: false, write: false, delete: false },
+      },
+    },
+  },
+  FISHMALL_CASHIER: {
+    id: 'FISHMALL_CASHIER',
+    label: 'Fish Mall Cashier',
+    description: 'Retail POS billing only',
+    color: '#2563EB',
+    loginPortal: '/fishmall/auth',
+    permissions: {
+      panels: { restaurant: false, fishmall: true, driver: false, admin: false, buyer: false },
       modules: {
         pos: { read: false, write: false, delete: false },
         orderHistory: { read: false, write: false, delete: false },
@@ -295,17 +348,31 @@ const clonePermissions = (templateId) => {
 };
 
 const mapRoleToBackend = (role) => {
-  if (role === 'RESTAURANT_STAFF') return 'RESTAURANT';
-  if (role === 'FISHMALL_BILLING') return 'FISHMALL';
-  // New specialist roles — pass through 1:1
-  if (['PROCUREMENT_MANAGER','BUYER','VEHICLE_MANAGER'].includes(role)) return role;
-  return role;
+  const map = {
+    ADMIN: 'SUPER_ADMIN',
+    MANAGER: 'SUPER_ADMIN',
+    ACCOUNTANT: 'SUPER_ADMIN',
+    RESTAURANT_STAFF: 'REST_MANAGER',
+    RESTAURANT: 'REST_MANAGER',
+    FISHMALL_BILLING: 'FISHMALL_MANAGER',
+    FISHMALL: 'FISHMALL_MANAGER',
+    BILLING: 'FISHMALL_CASHIER',
+  };
+  return map[role] || role;
 };
 
 const mapRoleToFrontend = (role) => {
-  if (role === 'RESTAURANT') return 'RESTAURANT_STAFF';
-  if (role === 'FISHMALL') return 'FISHMALL_BILLING';
-  return role;
+  const map = {
+    SUPER_ADMIN: 'SUPER_ADMIN',
+    REST_MANAGER: 'REST_MANAGER',
+    REST_CASHIER: 'REST_CASHIER',
+    FISHMALL_MANAGER: 'FISHMALL_MANAGER',
+    FISHMALL_CASHIER: 'FISHMALL_CASHIER',
+    RESTAURANT: 'REST_MANAGER',
+    FISHMALL: 'FISHMALL_MANAGER',
+    ADMIN: 'SUPER_ADMIN',
+  };
+  return map[role] || role;
 };
 
 export const useRbacStore = create(
@@ -461,15 +528,48 @@ export const useRbacStore = create(
       // ---- Lookup Helpers ----
       getUserByPhone: (phone) => get().users.find((u) => u.phone === phone),
 
+      /** Resolve RBAC user from cached list or the active login session. */
+      resolveUserForAccess: (userId) => {
+        const fromList = get().users.find(
+          (u) => sameId(u.id, userId) || sameId(u._id, userId)
+        );
+        if (fromList) return fromList;
+
+        const sessionUser = useAuthStore.getState().user;
+        if (!sessionUser) return null;
+        if (!sameId(sessionUser.id, userId) && !sameId(sessionUser._id, userId)) {
+          return null;
+        }
+
+        const frontendRole = mapRoleToFrontend(sessionUser.role);
+        const template = ROLE_TEMPLATES[frontendRole];
+        const hasModulePerms = sessionUser.permissions?.modules != null;
+
+        return {
+          ...sessionUser,
+          role: frontendRole,
+          status: sessionUser.status || 'active',
+          permissions: hasModulePerms
+            ? sessionUser.permissions
+            : template?.permissions || { panels: {}, modules: {} },
+        };
+      },
+
       hasPermission: (userId, module, action) => {
-        const user = get().users.find((u) => u.id === userId || u._id === userId);
+        const user = get().resolveUserForAccess(userId);
         if (!user) return false;
         if (user.role === 'ADMIN') return true;
         return user.permissions?.modules?.[module]?.[action] === true;
       },
 
       canAccessPanel: (phone, panel) => {
-        const user = get().users.find((u) => u.phone === phone);
+        let user = get().users.find((u) => u.phone === phone);
+        if (!user) {
+          const sessionUser = useAuthStore.getState().user;
+          if (sessionUser?.phone === phone) {
+            user = get().resolveUserForAccess(sessionUser.id || sessionUser._id);
+          }
+        }
         if (!user || user.status !== 'active') return false;
         if (user.role === 'ADMIN') return true;
         return user.permissions?.panels?.[panel] === true;

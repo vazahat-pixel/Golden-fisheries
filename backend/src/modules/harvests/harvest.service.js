@@ -6,6 +6,9 @@ import { Farmer } from '../farmers/farmer.model.js';
 import { Product } from '../products/product.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
+import { flowGuard } from '../../services/flowGuard.service.js';
+import { recalculateHarvestNetRate } from '../../services/netRate.service.js';
+import { notificationService } from '../notifications/notification.service.js';
 
 class HarvestService extends BaseService {
   constructor() {
@@ -61,6 +64,8 @@ class HarvestService extends BaseService {
    */
   async convertToTapal(harvestId, assignedTo, creatorUser, selectedItems = null) {
     try {
+      await flowGuard.assertHarvestReadyForTapalConversion(harvestId);
+
       // 1. Fetch Harvest
       const harvest = await this.model.findById(harvestId);
       if (!harvest) {
@@ -70,11 +75,6 @@ class HarvestService extends BaseService {
       // Business rule: Check if harvest slip has already been converted
       if (harvest.status === 'CONVERTED_TO_TAPAL') {
         throw new AppError(`This harvest slip has already been converted (Tapal already issued).`, 400);
-      }
-
-      // Business rule: Harvest slip must be in 'CONFIRMED' state to trigger downstream logistics Tapals
-      if (harvest.status.toUpperCase() !== 'CONFIRMED') {
-        throw new AppError(`Procurement workflow block: Harvest slip status must be CONFIRMED before generating a Tapal. Current status: ${harvest.status}`, 400);
       }
 
       // 2. Fetch Farmer details to cache party info
@@ -178,6 +178,19 @@ class HarvestService extends BaseService {
       await harvest.save();
 
       logger.info(`[Harvest Engine]: Successfully converted Slip ${harvest.harvestNumber} to Tapal ${newTapal.tapalNumber}`);
+
+      try {
+        if (farmer?.phone) {
+          await notificationService.sendHarvestConfirmation(
+            farmer.phone,
+            harvest.harvestNumber,
+            harvest.harvestDate
+          );
+        }
+      } catch (notifyErr) {
+        logger.warn(`[Harvest Engine]: Farmer notify skipped: ${notifyErr.message}`);
+      }
+
       return newTapal;
     } catch (error) {
       logger.error(`[Harvest Engine Error]: Transition failure. ${error.message}`);
@@ -190,45 +203,54 @@ class HarvestService extends BaseService {
    * Auto-posts supply transactions to Farmer Ledger for double-entry tracking.
    */
   async saveNetRate(harvestId, netRateData, creatorUser) {
-    const {
-      netRateCalculated,
-      totalPayableAmount,
-      totalDeductions,
-      deductionTransport = 0,
-      deductionCommission = 0,
-      deductionSoft = 0,
-      deductionOther = 0,
-      finalNetRate,
-      productRates
-    } = netRateData;
+    const { productRates, ...deductionOverrides } = netRateData;
 
     const harvest = await this.model.findById(harvestId);
     if (!harvest) {
       throw new AppError(`Harvest Slip ${harvestId} not found`, 404);
     }
 
-    // Update individual product rates if provided
+    // Update individual product rates if provided (map by id or array from UI)
     if (productRates) {
-      for (const item of harvest.products) {
-        const itemKey = item._id ? item._id.toString() : item.id;
-        if (productRates[itemKey] !== undefined) {
-          item.rate = parseFloat(productRates[itemKey]) || 0;
+      if (Array.isArray(productRates)) {
+        for (const pr of productRates) {
+          const item = harvest.products.find(
+            (p) =>
+              (pr.productId && String(p.productId) === String(pr.productId)) ||
+              (pr.fishName && String(p.fishName).toUpperCase() === String(pr.fishName).toUpperCase())
+          );
+          if (item) {
+            if (pr.rate != null) item.rate = parseFloat(pr.rate) || 0;
+            if (pr.estimatedQty != null) item.estimatedQty = parseFloat(pr.estimatedQty) || item.estimatedQty;
+          }
+        }
+      } else if (typeof productRates === 'object') {
+        for (const item of harvest.products) {
+          const itemKey = item._id ? item._id.toString() : item.id;
+          if (productRates[itemKey] !== undefined) {
+            item.rate = parseFloat(productRates[itemKey]) || 0;
+          }
         }
       }
     }
 
-    // Save calculations to Harvest Slip
-    harvest.netRateCalculated = netRateCalculated;
-    harvest.totalPayableAmount = totalPayableAmount;
-    harvest.totalDeductions = totalDeductions;
-    harvest.deductionTransport = deductionTransport;
-    harvest.deductionCommission = deductionCommission;
-    harvest.deductionSoft = deductionSoft;
-    harvest.deductionOther = deductionOther;
-    harvest.finalNetRate = finalNetRate;
+    const computed = recalculateHarvestNetRate(harvest, deductionOverrides);
+
+    // Save calculations to Harvest Slip (server-side totals — do not trust client alone)
+    harvest.netRateCalculated = computed.netRateCalculated;
+    harvest.totalPayableAmount = computed.totalPayableAmount;
+    harvest.totalDeductions = computed.totalDeductions;
+    harvest.deductionTransport = computed.deductionTransport;
+    harvest.deductionCommission = computed.deductionCommission;
+    harvest.deductionSoft = computed.deductionSoft;
+    harvest.deductionOther = computed.deductionOther;
+    harvest.tds = computed.tds;
+    harvest.commission = computed.commission;
+    harvest.soft = computed.soft;
+    harvest.finalNetRate = computed.finalNetRate;
 
     // Recalculate pending amount based on paid amount
-    harvest.pendingAmount = Math.max(0, totalPayableAmount - (harvest.paidAmount || 0));
+    harvest.pendingAmount = Math.max(0, harvest.totalPayableAmount - (harvest.paidAmount || 0));
     if (harvest.pendingAmount === 0) {
       harvest.paymentStatus = 'PAID';
     } else if ((harvest.paidAmount || 0) > 0) {
@@ -245,14 +267,14 @@ class HarvestService extends BaseService {
 
     const existingLedger = await FarmerLedger.findOne({ harvestId: harvest._id });
     if (existingLedger) {
-      existingLedger.debitAmount = totalPayableAmount;
+      existingLedger.debitAmount = harvest.totalPayableAmount;
       const prev = await FarmerLedger.findOne({
         farmerId: harvest.farmerId,
         _id: { $ne: existingLedger._id },
         createdAt: { $lt: existingLedger.createdAt }
       }).sort({ createdAt: -1 });
       const prevBal = prev ? prev.balanceAfter : 0;
-      existingLedger.balanceAfter = prevBal + totalPayableAmount - existingLedger.creditAmount;
+      existingLedger.balanceAfter = prevBal + harvest.totalPayableAmount - existingLedger.creditAmount;
       await existingLedger.save();
     } else {
       await farmerLedgerService.addEntry({
@@ -260,7 +282,7 @@ class HarvestService extends BaseService {
         harvestId: harvest._id,
         entryType: 'SUPPLY',
         description: `Finalized Harvest Supply ${harvest.harvestNumber}`,
-        debitAmount: totalPayableAmount,
+        debitAmount: harvest.totalPayableAmount,
         creditAmount: 0,
         createdBy: creatorUser.phone
       });

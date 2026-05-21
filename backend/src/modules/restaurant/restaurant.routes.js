@@ -1,52 +1,28 @@
 import { Router } from 'express';
 import { restaurantController } from './restaurant.controller.js';
-import { protect, restrictTo } from '../../middleware/auth.middleware.js';
-import { ROLES } from '../../constants/roles.js';
+import {
+  protect,
+  restrictTo,
+  requireWeb,
+  requireBusinessUnit,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+} from '../../middleware/auth.middleware.js';
+import {
+  REST_ALL,
+  REST_MANAGER_ROLES,
+  REST_CASHIER_ROLES,
+} from '../../constants/roleGroups.js';
 
 const router = Router();
+const web = [protect, requireWeb, requireBusinessUnit('REST'), enforcePlatformPolicy, blockMobileWrite];
 
-router.use(protect);
-
-router.post(
-  '/create',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
-  restaurantController.create
-);
-
-router.get(
-  '/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.RESTAURANT),
-  restaurantController.all
-);
-
-router.get(
-  '/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.RESTAURANT),
-  restaurantController.getById
-);
-
-router.patch(
-  '/settle/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
-  restaurantController.settle
-);
-
-router.get(
-  '/menu',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
-  restaurantController.getMenu
-);
-
-router.get(
-  '/tables',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
-  restaurantController.getTables
-);
-
-router.post(
-  '/menu',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.RESTAURANT),
-  restaurantController.createMenuItem
-);
+router.post('/create', ...web, restrictTo(...REST_ALL), restaurantController.create);
+router.get('/all', ...web, restrictTo(...REST_ALL), restaurantController.all);
+router.get('/:id', ...web, restrictTo(...REST_ALL), restaurantController.getById);
+router.patch('/settle/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.settle);
+router.get('/menu', ...web, restrictTo(...REST_ALL), restaurantController.getMenu);
+router.get('/tables', ...web, restrictTo(...REST_ALL), restaurantController.getTables);
+router.post('/menu', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.createMenuItem);
 
 export default router;

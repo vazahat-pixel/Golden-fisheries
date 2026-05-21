@@ -9,6 +9,10 @@ import { Product } from '../products/product.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
 import { broadcastEvent } from '../../sockets/socket.js';
+import { flowGuard } from '../../services/flowGuard.service.js';
+import { mapsService } from '../../services/maps.service.js';
+import { notificationService } from '../notifications/notification.service.js';
+import { Farmer } from '../farmers/farmer.model.js';
 
 
 class TapalService extends BaseService {
@@ -50,8 +54,8 @@ class TapalService extends BaseService {
       const tapal = await this.model.findById(tapalId).session(session);
       if (!tapal) throw new AppError('Tapal not found', 404);
 
-      // Accept both CREATED (fresh) and CONFIRMED (converted from harvest) statuses
-      const assignableStatuses = ['CREATED', 'CONFIRMED'];
+      // Accept fresh tapals and harvest-linked assignments (ASSIGNED / CONFIRMED)
+      const assignableStatuses = ['CREATED', 'ASSIGNED', 'CONFIRMED'];
       if (!assignableStatuses.includes(tapal.status)) {
         throw new AppError(`Driver assignment blocked: Tapal status is '${tapal.status}'. Must be CREATED or CONFIRMED.`, 400);
       }
@@ -88,9 +92,11 @@ class TapalService extends BaseService {
         }
       }
 
-      if (tapal.type === 'Sale' && tapal.buyerId) {
-        deliveryLocation = tapal.deliveryAddress || 'BUYER SITE';
+      if (tapal.type === 'Sale') {
+        deliveryLocation = tapal.unloadingPoint || tapal.destination || 'BUYER SITE';
       }
+
+      if (tapal.pickupLocation) pickupLocation = tapal.pickupLocation;
 
       // 5. Spawn the Trip document
       const trip = new Trip({
@@ -111,7 +117,7 @@ class TapalService extends BaseService {
       tapal.driver = driver.fullName;
       tapal.driverId = driver._id;
       tapal.driverPhone = driver.phone || null;
-      tapal.vehicleNumber = vehicle ? vehicle.plateNumber : null;
+      tapal.vehicleNumber = vehicle ? vehicle.vehicleNumber : null;
       await tapal.save({ session });
 
       // 7. Update Vehicle Status
@@ -148,6 +154,31 @@ class TapalService extends BaseService {
       }, `user:${driver._id}`);
 
       logger.info(`[Logistics Engine]: Driver ${driver.fullName} assigned to Tapal ${tapal.tapalNumber}. Trip ${trip.tripNumber} spawned.`);
+
+      if (driver.phone) {
+        notificationService
+          .sendDriverTripAssigned({
+            phone: driver.phone,
+            vehicleNo: vehicle?.vehicleNumber || tapal.vehicleNumber,
+            pickupAddr: pickupLocation,
+            tapalNo: tapal.tapalNumber
+          })
+          .catch((e) => logger.warn(`[Notify] Driver SMS failed: ${e.message}`));
+      }
+
+      mapsService
+        .resolveRoutePoints(pickupLocation, deliveryLocation)
+        .then(async (route) => {
+          if (route.pickup?.lat != null) {
+            trip.pickupCoords = { lat: route.pickup.lat, lng: route.pickup.lng };
+          }
+          if (route.delivery?.lat != null) {
+            trip.deliveryCoords = { lat: route.delivery.lat, lng: route.delivery.lng };
+          }
+          await trip.save();
+        })
+        .catch((e) => logger.warn(`[Maps] Route geocode skipped: ${e.message}`));
+
       return { tapal, trip };
 
     } catch (error) {
@@ -208,79 +239,17 @@ class TapalService extends BaseService {
   }
 
   /**
-   * Safe Transaction: Driver rejects an assigned trip
-   */
-  async rejectTrip(tapalId, driverId, reason = '') {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const tapal = await this.model.findById(tapalId).session(session);
-      if (!tapal) throw new AppError('Tapal not found', 404);
-      if (tapal.status !== 'DRIVER_ASSIGNED') {
-        throw new AppError('Trip cannot be rejected. Driver has not been assigned.', 400);
-      }
-
-      if (tapal.driverId.toString() !== driverId.toString()) {
-        throw new AppError('Access Denied: You are not the assigned driver for this trip', 403);
-      }
-
-      const trip = await Trip.findOne({ tapalId: tapal._id }).session(session);
-      if (!trip) throw new AppError('Trip registry not found', 404);
-
-      trip.status = 'REJECTED';
-      trip.timeline.push({ status: 'REJECTED', timestamp: new Date() });
-      await trip.save({ session });
-
-      // Reset tapal so admin can reassign
-      tapal.status = 'CREATED';
-      tapal.driver = null;
-      tapal.driverId = null;
-      tapal.driverPhone = null;
-      tapal.vehicleNumber = null;
-      await tapal.save({ session });
-
-      // Release vehicle if assigned
-      if (trip.vehicleId) {
-        const VehicleModel = mongoose.model('Vehicle');
-        await VehicleModel.findByIdAndUpdate(trip.vehicleId, { status: 'AVAILABLE' }, { session });
-      }
-
-      await session.commitTransaction();
-      session.endSession();
-
-      const payload = {
-        tripId: trip._id,
-        tripNumber: trip.tripNumber,
-        status: 'REJECTED',
-        reason
-      };
-      broadcastEvent('trip:status_change', payload, 'dashboard:updates');
-      broadcastEvent('trip:status_change', payload, 'buyer:updates');
-
-      logger.info(`[Driver Flow]: Trip ${trip.tripNumber} rejected by driver. Reason: ${reason}`);
-      return { tapal, trip };
-
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
-    }
-  }
-
-  /**
    * Safe Transaction: Drivers flags Trip start
    */
   async startTrip(tapalId, driverId) {
+    await flowGuard.assertTapalReadyForTripStart(tapalId, driverId);
+
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
       const tapal = await this.model.findById(tapalId).session(session);
       if (!tapal) throw new AppError('Tapal not found', 404);
-      if (tapal.status !== 'DRIVER_ASSIGNED' && tapal.status !== 'DRIVER_ACCEPTED') {
-        throw new AppError('Trip cannot be started. Driver has not been assigned or trip already started', 400);
-      }
 
       if (tapal.driverId.toString() !== driverId.toString()) {
         throw new AppError('Access Denied: You are not the assigned driver for this trip', 403);
@@ -341,7 +310,7 @@ class TapalService extends BaseService {
       trip.timeline.push({ status: 'PICKED', timestamp: new Date() });
       await trip.save({ session });
 
-      tapal.status = 'PICKED_UP';
+      tapal.status = 'IN_TRANSIT';
       await tapal.save({ session });
 
       await session.commitTransaction();
@@ -401,6 +370,18 @@ class TapalService extends BaseService {
       broadcastEvent('trip:status_change', deliverPayload, 'buyer:updates');
 
       logger.info(`[Driver Flow]: Cargo delivered for trip ${trip.tripNumber}. Actual weight: ${actualDeliveredQty} KG.`);
+
+      const notifyPhone = tapal.buyerPhone || tapal.consigneeContact;
+      if (notifyPhone) {
+        notificationService
+          .sendBuyerDeliveryReady({
+            phone: notifyPhone,
+            tapalNo: tapal.tapalNumber,
+            qty: `${actualDeliveredQty} KG`
+          })
+          .catch((e) => logger.warn(`[Notify] Buyer alert failed: ${e.message}`));
+      }
+
       return { tapal, trip };
 
     } catch (error) {

@@ -98,18 +98,6 @@ export const useDriverStore = create(
         }
       },
 
-      rejectTripAsync: async (tapalId, reason = '') => {
-        set({ loading: true });
-        try {
-          await tapalService.rejectTrip(tapalId, reason);
-          await get().fetchMyTrips();
-          set({ loading: false });
-        } catch (err) {
-          set({ loading: false });
-          throw err;
-        }
-      },
-
       submitExpenseAsync: async (expenseData) => {
         set({ loading: true });
         try {

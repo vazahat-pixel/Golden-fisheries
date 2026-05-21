@@ -24,6 +24,7 @@ const ForgotPassword = React.lazy(() => import('../pages/auth/ForgotPassword'));
 
 import ProtectedRoute from '../panels/auth/ProtectedRoute';
 import { useAuthStore } from '../store/authStore';
+import { ROLES, WEB_ERP_ROLES, REST_ROLES, FISHMALL_ROLES, PLATFORM_ACCESS } from '../constants/rbac';
 
 // Admin
 const AdminDashboard = React.lazy(() => import('../panels/admin/Dashboard'));
@@ -38,6 +39,9 @@ const VehicleDocuments = React.lazy(() => import('../panels/admin/logistics/Vehi
 const FinanceOverview = React.lazy(() => import('../panels/admin/finance/FinanceOverview'));
 const HarvestSlips = React.lazy(() => import('../panels/admin/procurement/HarvestSlips'));
 const CreateHarvestSlip = React.lazy(() => import('../panels/admin/procurement/CreateHarvestSlipV2'));
+const CreateTapalFromHarvest = React.lazy(() => import('../panels/admin/procurement/CreateTapalFromHarvest'));
+const MobileShell = React.lazy(() => import('../pages/mobile/MobileShell'));
+const MobileLogin = React.lazy(() => import('../pages/auth/MobileLogin'));
 const HarvestSlipPreview = React.lazy(() => import('../panels/admin/procurement/HarvestSlipPreview'));
 const HarvestSlipDetail = React.lazy(() => import('../panels/admin/procurement/HarvestSlipDetail'));
 const NetRate = React.lazy(() => import('../panels/admin/procurement/NetRate'));
@@ -100,6 +104,7 @@ const BuyerSalesReturn = React.lazy(() => import('../panels/buyer/BuyerSalesRetu
 const BuyerInvoiceHistory = React.lazy(() => import('../panels/buyer/BuyerInvoiceHistory'));
 const BuyerAssignDriver = React.lazy(() => import('../panels/buyer/BuyerAssignDriver'));
 const BuyerTripTracker = React.lazy(() => import('../panels/buyer/BuyerTripTracker'));
+const BuyerReconciliation = React.lazy(() => import('../panels/buyer/BuyerReconciliation'));
 import { BuyerLayout } from '../design-system/layouts/BuyerLayout';
 
 // Public
@@ -126,8 +131,8 @@ const fishMallNav = [
   { icon: ClipboardList, label: 'Stock Inflow', path: '/fishmall/stock' },
 ];
 
-// Roles that can access the Admin Panel container (module-level permissions handle the rest)
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER', 'VEHICLE_MANAGER'];
+const ADMIN_ROLES = [...WEB_ERP_ROLES, ROLES.PROCUREMENT_MANAGER, ROLES.VEHICLE_MANAGER];
+const SUPER_ADMIN_ONLY = [...WEB_ERP_ROLES, ROLES.SUPER_ADMIN];
 
 const AppRouter = () => {
   return (
@@ -139,6 +144,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="init" element={<InitPage />} />
           <Route path="admin" element={<NewAdminLogin />} />
+          <Route path="mobile" element={<MobileLogin />} />
           <Route path="driver" element={<NewDriverLogin />} />
           <Route path="signup" element={<Signup />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
@@ -151,7 +157,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<Navigate to="/auth/admin" replace />} />
           <Route element={
-            <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+            <ProtectedRoute allowedRoles={ADMIN_ROLES} requirePlatform={PLATFORM_ACCESS.WEB}>
               <AdminLayout><Outlet /></AdminLayout>
             </ProtectedRoute>
           }>
@@ -160,7 +166,7 @@ const AppRouter = () => {
             </Route>
 
             {/* Tapal Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="tapals"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ROLES.PROCUREMENT_MANAGER]} module="tapals"><Outlet /></ProtectedRoute>}>
               <Route path="tapals" element={<TapalList />} />
               <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
               <Route path="tapals/:id" element={<TapalDetail />} />
@@ -169,23 +175,24 @@ const AppRouter = () => {
             </Route>
 
             {/* Procurement Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'PROCUREMENT_MANAGER']} module="procurement"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ROLES.PROCUREMENT_MANAGER]} module="procurement"><Outlet /></ProtectedRoute>}>
               <Route path="procurement/harvest" element={<HarvestSlips />} />
               <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
               <Route path="procurement/harvest/preview" element={<HarvestSlipPreview />} />
               <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
               <Route path="procurement/net-rate" element={<NetRate />} />
+              <Route path="procurement/tapal/create" element={<CreateTapalFromHarvest />} />
               <Route path="procurement/farmer-ledger" element={<FarmerLedger />} />
             </Route>
 
             {/* Inventory Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT']} module="inventory"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={WEB_ERP_ROLES} module="inventory"><Outlet /></ProtectedRoute>}>
               <Route path="inventory" element={<InventoryOverview />} />
               <Route path="inventory/new" element={<AddInventoryItem />} />
             </Route>
 
             {/* Logistics Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VEHICLE_MANAGER']} module="logistics"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ROLES.VEHICLE_MANAGER]} module="logistics"><Outlet /></ProtectedRoute>}>
               <Route path="logistics" element={<TripsAndExpenses />} />
               <Route path="logistics/drivers" element={<DriverManagement />} />
               <Route path="logistics/control" element={<DriverControlConsole />} />
@@ -193,25 +200,26 @@ const AppRouter = () => {
               <Route path="vehicles" element={<VehicleDashboard />} />
               <Route path="vehicles/new" element={<AddVehicle />} />
               <Route path="vehicles/:id" element={<VehicleDetail />} />
+              <Route path="vehicles/documents" element={<VehicleDocuments />} />
               <Route path="vehicles/alerts" element={<VehicleDashboard />} />
             </Route>
 
             {/* Finance & Billing Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'ACCOUNTANT']} module="finance"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={WEB_ERP_ROLES} module="finance"><Outlet /></ProtectedRoute>}>
               <Route path="finance" element={<FinanceOverview />} />
               <Route path="expenses" element={<ExpenseReviewPage />} />
             </Route>
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'ACCOUNTANT']} module="billing"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={WEB_ERP_ROLES} module="billing"><Outlet /></ProtectedRoute>}>
               <Route path="billing" element={<AdminBilling />} />
             </Route>
 
             {/* Outlets Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']} module="outlets"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={WEB_ERP_ROLES} module="outlets"><Outlet /></ProtectedRoute>}>
               <Route path="outlets" element={<OutletManagement />} />
             </Route>
 
             {/* Access Control & Settings */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} module="accessControl"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={SUPER_ADMIN_ONLY} module="accessControl"><Outlet /></ProtectedRoute>}>
               <Route path="access" element={<AccessControl />} />
             </Route>
 
@@ -226,7 +234,7 @@ const AppRouter = () => {
       <Route path="/restaurant/*" element={
         <Routes>
           <Route path="auth" element={<RestaurantAuth />} />
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'RESTAURANT_STAFF', 'RESTAURANT']}><Outlet /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ...REST_ROLES]} requirePlatform={PLATFORM_ACCESS.WEB}><Outlet /></ProtectedRoute>}>
             <Route path="pos" element={<RestaurantPOS />} />
             <Route element={<PanelLayout navItems={restaurantNav} panelName="GF Restaurant" userName="Suresh"><Outlet /></PanelLayout>}>
               <Route path="dashboard" element={<RestaurantDashboard />} />
@@ -244,7 +252,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<FishMallAuth />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'BILLING', 'FISHMALL_BILLING', 'FISHMALL']}>
+            <ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ...FISHMALL_ROLES]} requirePlatform={PLATFORM_ACCESS.WEB}>
               <PanelLayout navItems={fishMallNav} panelName="GF Fish Mall" userName="Ramesh">
                 <Outlet />
               </PanelLayout>
@@ -256,10 +264,48 @@ const AppRouter = () => {
             <Route path="reports" element={<FishMallReports />} />
             <Route path="closing" element={<FishMallClosing />} />
             <Route path="alerts" element={<FishMallAlerts />} />
-            <Route path="rates" element={<FishMallRates />} />
+            <Route
+              path="rates"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.FISHMALL_MANAGER, ROLES.SUPER_ADMIN]}>
+                  <FishMallRates />
+                </ProtectedRoute>
+              }
+            />
             <Route path="stock" element={<FishMallStock />} />
           </Route>
         </Routes>
+      } />
+
+      {/* ── Mobile field app (procurement / vehicles) ── */}
+      <Route path="/mobile/*" element={
+        <ProtectedRoute
+          allowedRoles={[
+            ROLES.PROCUREMENT_MANAGER,
+            ROLES.VEHICLE_MANAGER,
+            ROLES.BUYER,
+            ROLES.DRIVER,
+            ROLES.SUPER_ADMIN,
+            'ADMIN',
+          ]}
+          requirePlatform={PLATFORM_ACCESS.MOBILE}
+        >
+          <Routes>
+            <Route element={<MobileShell />}>
+              <Route path="procurement" element={<Navigate to="/mobile/procurement/harvest" replace />} />
+              <Route path="procurement/harvest" element={<HarvestSlips />} />
+              <Route path="procurement/harvest/new" element={<CreateHarvestSlip />} />
+              <Route path="procurement/harvest/preview" element={<HarvestSlipPreview />} />
+              <Route path="procurement/harvest/:id" element={<HarvestSlipDetail />} />
+              <Route path="procurement/net-rate" element={<NetRate />} />
+              <Route path="procurement/tapal" element={<CreateTapalFromHarvest />} />
+              <Route path="vehicles" element={<VehicleDashboard />} />
+              <Route path="vehicles/new" element={<AddVehicle />} />
+              <Route path="buyer" element={<Navigate to="/buyer/dashboard" replace />} />
+              <Route path="driver" element={<Navigate to="/driver/dashboard" replace />} />
+            </Route>
+          </Routes>
+        </ProtectedRoute>
       } />
 
       {/* ── Driver Mobile Panel ── */}
@@ -267,7 +313,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<Navigate to="/auth/driver" replace />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'DRIVER']}>
+            <ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ROLES.DRIVER]} requirePlatform={PLATFORM_ACCESS.MOBILE}>
               <Outlet />
             </ProtectedRoute>
           }>
@@ -298,7 +344,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<Navigate to="/auth/init" replace />} />
           <Route element={
-            <ProtectedRoute allowedRoles={['BUYER', 'ADMIN']}>
+            <ProtectedRoute allowedRoles={[ROLES.BUYER, ...WEB_ERP_ROLES]} requirePlatform={PLATFORM_ACCESS.MOBILE}>
               <BuyerLayout><Outlet /></BuyerLayout>
             </ProtectedRoute>
           }>
@@ -309,6 +355,7 @@ const AppRouter = () => {
             <Route path="bill/:tapalId" element={<BuyerBillView />} />
             <Route path="returns" element={<BuyerSalesReturn />} />
             <Route path="invoices" element={<BuyerInvoiceHistory />} />
+            <Route path="reconciliation" element={<BuyerReconciliation />} />
             <Route index element={<Navigate to="/buyer/dashboard" replace />} />
           </Route>
         </Routes>

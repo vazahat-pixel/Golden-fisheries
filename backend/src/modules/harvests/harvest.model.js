@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 // Nested items inside the main harvest slip
 const harvestItemSchema = new mongoose.Schema({
@@ -184,22 +185,19 @@ const harvestSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate HSL-XXXX code sequence before database validations run
+// Auto-generate HSL-XXXX code sequence (atomic counter — avoids race on concurrent creates)
 harvestSchema.pre('validate', async function (next) {
   if (this.harvestNumber) return next();
   try {
-    const lastHarvest = await this.constructor.findOne({ harvestNumber: { $regex: /^HSL-\d+$/i } }, 'harvestNumber')
-      .sort({ harvestNumber: -1 })
-      .collation({ locale: 'en_US', numericOrdering: true });
-    let nextId = 1;
-    if (lastHarvest && lastHarvest.harvestNumber) {
-      const match = lastHarvest.harvestNumber.match(/HSL-(\d+)/);
-      if (match) {
-        nextId = parseInt(match[1], 10) + 1;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = await formatSequentialDocNo('harvest', 'HSL', 4);
+      const exists = await mongoose.models.Harvest.findOne({ harvestNumber: candidate }).select('_id');
+      if (!exists) {
+        this.harvestNumber = candidate;
+        return next();
       }
     }
-    this.harvestNumber = `HSL-${String(nextId).padStart(4, '0')}`;
-    next();
+    return next(new Error('Could not allocate unique harvest number'));
   } catch (error) {
     next(error);
   }

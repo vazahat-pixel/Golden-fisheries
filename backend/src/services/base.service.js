@@ -14,7 +14,11 @@ export class BaseService {
    * Fetch document by database ID
    */
   async findById(id, populateOptions = '') {
-    const doc = await this.model.findById(id).populate(populateOptions);
+    const q = { _id: id };
+    if (this.model.schema.paths.isDeleted) {
+      q.isDeleted = { $ne: true };
+    }
+    const doc = await this.model.findOne(q).populate(populateOptions);
     if (!doc) {
       throw new AppError(`Resource with ID ${id} not found`, 404);
     }
@@ -25,9 +29,13 @@ export class BaseService {
    * Find single active document by query criteria
    */
   async findOne(filter = {}, populateOptions = '') {
-    const activeFilter = this.model.schema.paths.isActive 
-      ? { isActive: { $ne: false }, ...filter } 
-      : filter;
+    const activeFilter = { ...filter };
+    if (this.model.schema.paths.isActive) {
+      Object.assign(activeFilter, { isActive: { $ne: false } });
+    }
+    if (this.model.schema.paths.isDeleted) {
+      Object.assign(activeFilter, { isDeleted: { $ne: true } });
+    }
     return await this.model.findOne(activeFilter).populate(populateOptions);
   }
 
@@ -40,9 +48,13 @@ export class BaseService {
     const skip = (page - 1) * limit;
     const sort = queryOptions.sort || { createdAt: -1 };
 
-    const activeFilter = this.model.schema.paths.isActive 
-      ? { isActive: { $ne: false }, ...filter } 
-      : filter;
+    const activeFilter = { ...filter };
+    if (this.model.schema.paths.isActive) {
+      Object.assign(activeFilter, { isActive: { $ne: false } });
+    }
+    if (this.model.schema.paths.isDeleted) {
+      Object.assign(activeFilter, { isDeleted: { $ne: true } });
+    }
 
     const [docs, totalDocs] = await Promise.all([
       this.model.find(activeFilter)
@@ -59,6 +71,7 @@ export class BaseService {
       docs,
       meta: {
         totalDocs,
+        total: totalDocs,
         limit,
         page,
         totalPages,

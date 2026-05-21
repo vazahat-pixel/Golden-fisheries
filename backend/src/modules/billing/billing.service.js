@@ -6,6 +6,7 @@ import { Product } from '../products/product.model.js';
 import { inventoryService } from '../inventory/inventory.service.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
+import { flowGuard } from '../../services/flowGuard.service.js';
 
 class BillingService extends BaseService {
   constructor() {
@@ -41,6 +42,10 @@ class BillingService extends BaseService {
     session.startTransaction();
 
     try {
+      if (invoiceData.type === 'PROCUREMENT' && invoiceData.harvestId) {
+        await flowGuard.assertHarvestEligibleForProcurementBilling(invoiceData.harvestId);
+      }
+
       // BUSINESS RULE: Billing only after delivery — verify Tapal status
       if (invoiceData.tapalId) {
         const linkedTapal = await Tapal.findById(invoiceData.tapalId).session(session);

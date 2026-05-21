@@ -2,8 +2,14 @@ import { reportsService } from './reports.service.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { Router } from 'express';
-import { protect, restrictTo } from '../../middleware/auth.middleware.js';
-import { ROLES } from '../../constants/roles.js';
+import {
+  protect,
+  restrictTo,
+  requireWeb,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+} from '../../middleware/auth.middleware.js';
+import { WEB_ERP } from '../../constants/roleGroups.js';
 
 export const reportsController = {
   // Sales summaries
@@ -39,10 +45,7 @@ export const reportsController = {
 
 const router = Router();
 
-router.use(protect);
-
-// Financial reports are restricted to Admins, Managers, and Accountants
-router.use(restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT));
+router.use(protect, requireWeb, enforcePlatformPolicy, blockMobileWrite, restrictTo(...WEB_ERP));
 
 router.get('/sales', reportsController.getSalesSummary);
 router.get('/expenses', reportsController.getExpenseSummary);

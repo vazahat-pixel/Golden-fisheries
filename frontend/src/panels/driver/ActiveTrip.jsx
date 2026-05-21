@@ -6,6 +6,8 @@ import {
   PenTool, Check, CheckCircle2, AlertTriangle, Play, FileInput 
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { socketService } from '../../services/socketService';
+import { mapsService } from '../../services/mapsService';
 
 const ActiveTrip = () => {
   const navigate = useNavigate();
@@ -32,28 +34,36 @@ const ActiveTrip = () => {
     fetchMyTrips();
   }, [fetchMyTrips]);
 
-  // Prepopulate detailed responsive mock active trip if backend lists empty
-  const mockActiveTrip = {
-    id: 'TRP-0042',
-    _id: 'TRP-0042',
-    tripNumber: 'TRP-0042',
-    status: 'Assigned', // Assigned -> In Transit -> Picked -> Delivered
-    pickupLocation: 'KARWAR WEST DOCK SITE',
-    deliveryLocation: 'MANGALORE MAIN WAREHOUSE',
-    product: 'PREMIUM WHITE PRAWNS',
-    expectedQty: '450 KG',
-    actualQty: null,
-    createdAt: '10:30 AM',
-    expenses: []
-  };
-
   useEffect(() => {
-    // Find first active trip in state or fallback to mock
-    const active = myTrips?.find(t => ['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED'].includes(t.status)) || mockActiveTrip;
-    if (active) {
-      setTrip(active);
-    }
+    const active = myTrips?.find((t) =>
+      ['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED'].includes(t.status)
+    );
+    setTrip(active || null);
   }, [myTrips]);
+
+  // Live GPS ping while trip is in transit
+  useEffect(() => {
+    const tripId = trip?._id || trip?.id;
+    const st = (trip?.status || '').toUpperCase();
+    if (!tripId || !['STARTED', 'IN TRANSIT'].includes(st)) return;
+    if (!navigator.geolocation) return;
+
+    const ping = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          socketService.emitDriverLocation(tripId, latitude, longitude);
+          mapsService.postDriverLocation(tripId, latitude, longitude, accuracy).catch(() => {});
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 12000 }
+      );
+    };
+
+    ping();
+    const timer = setInterval(ping, 15000);
+    return () => clearInterval(timer);
+  }, [trip?._id, trip?.id, trip?.status]);
 
   if (!trip) {
     return (
@@ -288,9 +298,18 @@ const ActiveTrip = () => {
           )}
 
           {/* DELIVERED / CLOSED — await admin trip closure */}
-          {['DELIVERED', 'CLOSED'].includes(trip.status) && (
+          {trip.status === 'DELIVERED' && (
+            <button
+              type="button"
+              onClick={() => navigate(`/driver/trip-expense/${trip._id || trip.id}`)}
+              className="w-full py-4 bg-[#6A7051] text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 size={14} /> End Trip Sheet
+            </button>
+          )}
+          {trip.status === 'CLOSED' && (
             <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
-              <CheckCircle2 size={14} /> Delivered — Awaiting Admin Closure
+              <CheckCircle2 size={14} /> Trip Closed
             </div>
           )}
         </div>

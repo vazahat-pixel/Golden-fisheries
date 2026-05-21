@@ -86,13 +86,16 @@ export const setupSockets = (httpServer) => {
       if (!tripId || latitude === undefined || longitude === undefined) return;
 
       // Broadcast location coordinates to managers and admin monitors
-      io.to('dashboard:updates').emit('driver:location_update', {
+      const payload = {
         driverId: socket.user.id,
         driverName: socket.user.fullName,
         tripId,
         coordinates: { latitude, longitude },
         timestamp: new Date()
-      });
+      };
+      io.to('dashboard:updates').emit('driver:location_update', payload);
+      io.to('buyer:updates').emit('driver:location_update', payload);
+      io.to(`trip:${tripId}`).emit('driver:location_update', payload);
     });
 
     // POS status updates synchronization across multiple browsers

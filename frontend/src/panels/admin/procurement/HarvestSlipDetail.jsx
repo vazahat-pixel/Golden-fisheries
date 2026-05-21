@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
+import { harvestService } from '../../../services/harvestService';
 import { 
   ArrowLeft, Calendar, FileText, User, Truck, ShieldAlert,
   CheckCircle, Clock, XCircle, ChevronRight, Check, Printer, FileCheck
@@ -17,82 +18,23 @@ const HarvestSlipDetail = () => {
     fetchHarvestSlips();
   }, [fetchHarvestSlips]);
 
-  // Fallback offline mock data (matches HarvestSlips list)
-  const mockSlips = [
-    {
-      id: 'HS-1001',
-      _id: 'HS-1001',
-      tpNo: '1001',
-      farmerName: 'APPANNA GOWDA',
-      date: '2026-05-18',
-      vehicleNo: 'KA-30-M-4321',
-      driverName: 'Ramesh Patil',
-      graderName: 'Channappa S.',
-      totalBoxes: 12,
-      totalWeight: 240,
-      status: 'Approved',
-      items: [
-        { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '100', noOfBoxes: '8', boxWeight: '20', totalWeight: '160' },
-        { id: '2', hsnCode: '03028400', particulars: 'SEABASS', count: '60', noOfBoxes: '4', boxWeight: '20', totalWeight: '80' }
-      ],
-      notes: 'BLACK GILL SECOND QUALITY ( EXP )',
-      damageNotes: 'THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT',
-      iceRentDeducted: false,
-      inWords: 'TWO HUNDRED AND FORTY KILOGRAMS ONLY'
-    },
-    {
-      id: 'HS-1002',
-      _id: 'HS-1002',
-      tpNo: '1002',
-      farmerName: 'SUBHASH NAIK',
-      date: '2026-05-19',
-      vehicleNo: 'KA-19-F-9876',
-      driverName: 'Suresh Gowda',
-      graderName: 'Channappa S.',
-      totalBoxes: 15,
-      totalWeight: 375,
-      status: 'Pending Approval',
-      items: [
-        { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '80', noOfBoxes: '15', boxWeight: '25', totalWeight: '375' }
-      ],
-      notes: 'BLACK GILL SECOND QUALITY ( EXP )',
-      damageNotes: 'NONE',
-      iceRentDeducted: true,
-      inWords: 'THREE HUNDRED AND SEVENTY FIVE KILOGRAMS ONLY'
-    },
-    {
-      id: 'HS-1003',
-      _id: 'HS-1003',
-      tpNo: '1003',
-      farmerName: 'SHEKHAR KARWAR',
-      date: '2026-05-20',
-      vehicleNo: 'MH-09-E-5544',
-      driverName: 'Anil Fernandez',
-      graderName: 'Channappa S.',
-      totalBoxes: 8,
-      totalWeight: 160,
-      status: 'Pending Approval',
-      items: [
-        { id: '1', hsnCode: '03028400', particulars: 'SEABASS', count: '50', noOfBoxes: '8', boxWeight: '20', totalWeight: '160' }
-      ],
-      notes: 'STANDARD QUALITY',
-      damageNotes: 'NONE',
-      iceRentDeducted: false,
-      inWords: 'ONE HUNDRED AND SIXTY KILOGRAMS ONLY'
-    }
-  ];
-
   useEffect(() => {
-    const found = harvestSlips?.find(s => s._id === id || s.id === id) || mockSlips.find(s => s._id === id || s.id === id);
-    if (found) {
-      setSlip(found);
+    const fromStore = harvestSlips?.find((s) => s._id === id || s.id === id);
+    if (fromStore) {
+      setSlip(fromStore);
+      return;
     }
+    harvestService
+      .getById(id)
+      .then((res) => setSlip(res?.data || res))
+      .catch(() => setSlip(null));
   }, [id, harvestSlips]);
 
   if (!slip) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-brand-olive"></div>
+        <p className="text-sm text-gray-500">Loading harvest slip…</p>
       </div>
     );
   }
@@ -100,34 +42,28 @@ const HarvestSlipDetail = () => {
   const handleApprove = async () => {
     const loadToast = toast.loading('Approving slip...');
     try {
-      await updateHarvestStatusAsync(slip._id || slip.id, 'Approved');
-      updateSlipStatus(slip.id || slip._id, 'Approved');
-      setSlip(prev => prev ? { ...prev, status: 'Approved' } : null);
-      toast.success('Harvest Slip approved successfully!', { id: loadToast });
+      await harvestService.approve(slip._id || slip.id, 'CONFIRMED');
+      await fetchHarvestSlips();
+      setSlip((prev) => (prev ? { ...prev, status: 'CONFIRMED' } : null));
+      toast.success('Harvest slip confirmed (farmer approved).', { id: loadToast });
     } catch (err) {
-      console.warn('Backend update failed, applying simulated frontend status change.');
-      updateSlipStatus(slip.id || slip._id, 'Approved');
-      setSlip(prev => prev ? { ...prev, status: 'Approved' } : null);
-      toast.success('Harvest Slip approved successfully (simulated offline)!', { id: loadToast });
+      toast.error(err?.message || 'Approval failed', { id: loadToast });
     }
   };
 
   const handleReject = async () => {
     const loadToast = toast.loading('Rejecting slip...');
     try {
-      await updateHarvestStatusAsync(slip._id || slip.id, 'Rejected');
-      updateSlipStatus(slip.id || slip._id, 'Rejected');
-      setSlip(prev => prev ? { ...prev, status: 'Rejected' } : null);
-      toast.success('Harvest Slip marked as Rejected.', { id: loadToast });
+      await harvestService.approve(slip._id || slip.id, 'REJECTED');
+      await fetchHarvestSlips();
+      setSlip((prev) => (prev ? { ...prev, status: 'REJECTED' } : null));
+      toast.success('Harvest slip rejected.', { id: loadToast });
     } catch (err) {
-      updateSlipStatus(slip.id || slip._id, 'Rejected');
-      setSlip(prev => prev ? { ...prev, status: 'Rejected' } : null);
-      toast.success('Harvest Slip marked as Rejected (simulated offline).', { id: loadToast });
+      toast.error(err?.message || 'Reject failed', { id: loadToast });
     }
   };
 
-  // Pre-calculate status flags for timeline
-  const isApproved = slip.status === 'Approved';
+  const isApproved = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'CONVERTED_TO_TAPAL', 'COMPLETED'].includes(slip.status);
   const isRejected = slip.status === 'Rejected';
   const isPending = slip.status === 'Pending Approval';
 

@@ -2,46 +2,40 @@ import { Router } from 'express';
 import { billingController } from './billing.controller.js';
 import { billingValidators } from '../../validators/billing.validator.js';
 import { validateBody } from '../../validators/auth.validator.js';
-import { protect, restrictTo } from '../../middleware/auth.middleware.js';
-import { ROLES } from '../../constants/roles.js';
+import {
+  protect,
+  restrictTo,
+  requireWeb,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+} from '../../middleware/auth.middleware.js';
+import { WEB_ERP } from '../../constants/roleGroups.js';
 
 const router = Router();
 
-// Public routes (for Buyers)
 router.get('/public/:id', billingController.getById);
 router.patch('/public/payment/:id', billingController.patchPaymentPublic);
 
-// Secure all endpoints
-router.use(protect);
+const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 
-// 1. Create a new Billing Invoice (Procurement purchase bills or customer Sales bills)
 router.post(
   '/create',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  ...web,
+  restrictTo(...WEB_ERP),
   validateBody(billingValidators.create),
   billingController.create
 );
 
-// 2. Fetch all Billing Invoices with filters and page cursor limits
-router.get(
-  '/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
-  billingController.all
-);
+router.get('/all', ...web, restrictTo(...WEB_ERP), billingController.all);
 
-// 3. Record a payment installment on an Invoice
 router.patch(
   '/payment-status/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
+  ...web,
+  restrictTo(...WEB_ERP),
   validateBody(billingValidators.payment),
   billingController.patchPayment
 );
 
-// 4. Retrieve details of a single Invoice by ID
-router.get(
-  '/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
-  billingController.getById
-);
+router.get('/:id', ...web, restrictTo(...WEB_ERP), billingController.getById);
 
 export default router;

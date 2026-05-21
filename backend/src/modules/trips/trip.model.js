@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 // Nested Expense Schema within each Trip
 const tripExpenseSchema = new mongoose.Schema({
@@ -108,7 +109,7 @@ const tripSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['ASSIGNED', 'ACCEPTED', 'REJECTED', 'STARTED', 'PICKED', 'DELIVERED', 'CLOSED'],
+      enum: ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED', 'CLOSED'],
       default: 'ASSIGNED',
       index: true
     },
@@ -119,6 +120,20 @@ const tripSchema = new mongoose.Schema(
     deliveryLocation: {
       type: String,
       required: true
+    },
+    pickupCoords: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null }
+    },
+    deliveryCoords: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null }
+    },
+    lastLocation: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      accuracy: { type: Number, default: null },
+      updatedAt: { type: Date, default: null }
     },
     expectedQty: {
       type: Number,
@@ -152,21 +167,11 @@ const tripSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate TRP-XXXX sequence before validation
+// Auto-generate TRP-XXXX sequence (atomic counter)
 tripSchema.pre('validate', async function (next) {
   if (this.tripNumber) return next();
   try {
-    const lastTrip = await this.constructor.findOne({ tripNumber: { $regex: /^TRP-\d+$/i } }, 'tripNumber')
-      .sort({ tripNumber: -1 })
-      .collation({ locale: 'en_US', numericOrdering: true });
-    let nextId = 1;
-    if (lastTrip && lastTrip.tripNumber) {
-      const match = lastTrip.tripNumber.match(/TRP-(\d+)/);
-      if (match) {
-        nextId = parseInt(match[1], 10) + 1;
-      }
-    }
-    this.tripNumber = `TRP-${String(nextId).padStart(4, '0')}`;
+    this.tripNumber = await formatSequentialDocNo('trip', 'TRP', 4);
     next();
   } catch (error) {
     next(error);

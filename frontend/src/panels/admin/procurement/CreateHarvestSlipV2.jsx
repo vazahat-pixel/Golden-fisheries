@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
+import { masterService } from '../../../services/masterService';
 import { Sprout, Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -8,22 +9,37 @@ const CreateHarvestSlipV2 = () => {
   const navigate = useNavigate();
   const { addHarvestSlip, harvestSlips } = useAdminStore();
 
-  // Mock list of vehicles and drivers for the dropdowns
-  const mockVehicles = ['KA-30-M-4321', 'KA-19-F-9876', 'MH-09-E-5544', 'KA-20-C-1122'];
-  const mockDrivers = ['Ramesh Patil', 'Suresh Gowda', 'Anil Fernandez', 'Sunil Mendonca'];
-  const mockFarmers = ['Appanna Gowda', 'Subhash Naik', 'Shekhar Karwar', 'Mohammad Ali', 'Devendra Kharvi'];
+  const [farmers, setFarmers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
 
-  // Automatically compute next TP Slip No
-  const [tpNo, setTpNo] = useState('');
   useEffect(() => {
-    const lastNo = harvestSlips.length > 0 
-      ? Math.max(...harvestSlips.map(s => parseInt(s.tpNo) || 0)) 
-      : 1000;
-    setTpNo(String(lastNo + 1));
-  }, [harvestSlips]);
+    (async () => {
+      try {
+        const [fRes, pRes, vRes, dRes] = await Promise.all([
+          masterService.farmers.getAll({ limit: 200 }),
+          masterService.products.getAll({ limit: 200 }),
+          masterService.vehicles.getAll({ limit: 100 }),
+          masterService.drivers.getActive(),
+        ]);
+        setFarmers(fRes?.data || fRes?.docs || (Array.isArray(fRes) ? fRes : []));
+        setProducts(pRes?.data || pRes?.docs || (Array.isArray(pRes) ? pRes : []));
+        const vList = vRes?.data || vRes?.docs || (Array.isArray(vRes) ? vRes : []);
+        setVehicles(vList.map((v) => v.vehicleNumber).filter(Boolean));
+        const dList = Array.isArray(dRes) ? dRes : dRes?.data || dRes?.docs || [];
+        setDrivers(dList.map((d) => d.fullName || d.name).filter(Boolean));
+      } catch {
+        /* empty — no mock fallback */
+      }
+    })();
+  }, []);
 
-  // Form Fields
+  const [hNoDisplay, setHNoDisplay] = useState('AUTO');
+
+  const [farmerId, setFarmerId] = useState('');
   const [farmerName, setFarmerName] = useState('');
+  const [farmerMobile, setFarmerMobile] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [vehicleNo, setVehicleNo] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -88,8 +104,12 @@ const CreateHarvestSlipV2 = () => {
     
     // Save details to temporary state & pass to preview page
     const slipData = {
-      tpNo,
+      hNo: hNoDisplay,
+      tpNo: hNoDisplay,
+      farmerId,
       farmerName,
+      farmerMobile,
+      pickupLocation: 'KARWAR',
       date,
       vehicleNo,
       driverName,
@@ -106,7 +126,10 @@ const CreateHarvestSlipV2 = () => {
 
     // Store in session storage so preview page can load it
     sessionStorage.setItem('current_harvest_slip_creation', JSON.stringify(slipData));
-    navigate('/admin/procurement/harvest/preview');
+    const previewPath = window.location.pathname.startsWith('/mobile')
+      ? '/mobile/procurement/harvest/preview'
+      : '/admin/procurement/harvest/preview';
+    navigate(previewPath);
   };
 
   return (
@@ -127,14 +150,14 @@ const CreateHarvestSlipV2 = () => {
       <form onSubmit={handleSubmit} className="bg-white border border-card-border p-6 md:p-8 space-y-8 shadow-sm">
         {/* Form Inputs Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Slip Number */}
+          {/* H No — assigned on save */}
           <div className="flex flex-col">
-            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">TP Slip No</label>
-            <input 
-              type="text" 
-              value={tpNo}
-              onChange={e => setTpNo(e.target.value)}
-              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">H No</label>
+            <input
+              type="text"
+              value={hNoDisplay}
+              readOnly
+              className="bg-gray-100 border border-card-border px-4 py-3 text-xs font-bold uppercase"
             />
           </div>
 
@@ -149,22 +172,40 @@ const CreateHarvestSlipV2 = () => {
             />
           </div>
 
-          {/* Farmer Selection */}
-          <div className="flex flex-col">
+          {/* Farmer */}
+          <div className="flex flex-col md:col-span-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Farmer Name</label>
-            <div className="relative">
-              <input 
-                type="text" 
-                value={farmerName}
-                onChange={e => setFarmerName(e.target.value)}
-                placeholder="Type or select farmer"
-                className="w-full bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
-                list="farmers-list"
-              />
-              <datalist id="farmers-list">
-                {mockFarmers.map(f => <option key={f} value={f} />)}
-              </datalist>
-            </div>
+            <select
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              value={farmerId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setFarmerId(id);
+                const f = farmers.find((x) => String(x._id || x.id) === id);
+                if (f) {
+                  setFarmerName(f.fullName || '');
+                  setFarmerMobile(f.phone || '');
+                }
+              }}
+            >
+              <option value="">— Select farmer —</option>
+              {farmers.map((f) => (
+                <option key={f._id || f.id} value={f._id || f.id}>
+                  {f.fullName} ({f.phone})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Mobile</label>
+            <input
+              type="tel"
+              value={farmerMobile}
+              onChange={(e) => setFarmerMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              maxLength={10}
+            />
           </div>
 
           {/* Vehicle No */}
@@ -179,7 +220,9 @@ const CreateHarvestSlipV2 = () => {
               list="vehicles-list"
             />
             <datalist id="vehicles-list">
-              {mockVehicles.map(v => <option key={v} value={v} />)}
+              {vehicles.map((v) => (
+                <option key={v} value={v} />
+              ))}
             </datalist>
           </div>
 
@@ -195,7 +238,9 @@ const CreateHarvestSlipV2 = () => {
               list="drivers-list"
             />
             <datalist id="drivers-list">
-              {mockDrivers.map(d => <option key={d} value={d} />)}
+              {drivers.map((d) => (
+                <option key={d} value={d} />
+              ))}
             </datalist>
           </div>
 

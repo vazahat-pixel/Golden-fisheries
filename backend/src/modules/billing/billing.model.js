@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 const billingItemSchema = new mongoose.Schema({
   productId: {
@@ -132,19 +133,11 @@ const billingSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate INV-XXXX sequence before database validation runs
+// Auto-generate INV-XXXX sequence (atomic counter)
 billingSchema.pre('validate', async function (next) {
   if (this.invoiceNumber) return next();
   try {
-    const lastInv = await this.constructor.findOne().sort({ createdAt: -1 });
-    let nextId = 1;
-    if (lastInv && lastInv.invoiceNumber) {
-      const match = lastInv.invoiceNumber.match(/INV-(\d+)/);
-      if (match) {
-        nextId = parseInt(match[1], 10) + 1;
-      }
-    }
-    this.invoiceNumber = `INV-${String(nextId).padStart(4, '0')}`;
+    this.invoiceNumber = await formatSequentialDocNo('billing', 'INV', 4);
     next();
   } catch (error) {
     next(error);

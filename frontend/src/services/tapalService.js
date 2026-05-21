@@ -36,11 +36,6 @@ export const tapalService = {
     return await apiClient.patch('/tapals/accept-trip', { tapalId });
   },
 
-  // 3.2 Driver rejects an assigned trip
-  rejectTrip: async (tapalId, reason = '') => {
-    return await apiClient.patch('/tapals/reject-trip', { tapalId, reason });
-  },
-
   // 4. Driver starts the trip
   startTrip: async (tapalId) => {
     return await apiClient.patch('/tapals/start-trip', { tapalId });

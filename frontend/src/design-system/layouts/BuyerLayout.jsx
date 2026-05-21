@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { ShoppingCart, FileText, RotateCcw, History, LogOut, LayoutDashboard, Truck, MapPin } from 'lucide-react';
+import { ShoppingCart, FileText, RotateCcw, History, LogOut, LayoutDashboard, Truck, MapPin, Scale } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const buyerNav = [
@@ -10,6 +10,7 @@ const buyerNav = [
   { icon: ShoppingCart,    label: 'Incoming Tapals',  path: '/buyer/tapals' },
   { icon: FileText,        label: 'My Bills',         path: '/buyer/invoices' },
   { icon: RotateCcw,       label: 'Sales Return',     path: '/buyer/returns' },
+  { icon: Scale,           label: 'Settlement',       path: '/buyer/reconciliation' },
 ];
 
 export const BuyerLayout = ({ children }) => {

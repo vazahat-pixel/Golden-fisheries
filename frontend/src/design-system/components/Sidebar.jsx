@@ -5,18 +5,26 @@ import {
   LayoutDashboard, ClipboardList, Sprout, Package, Truck,
   IndianRupee, ReceiptText, Receipt, Settings, LogOut, Bell,
   ChevronLeft, ChevronRight, UserPlus, Store, Shield,
-  AlertTriangle, ShoppingCart, FileText
+  AlertTriangle, ShoppingCart, FileText, Wallet
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
 import { useRbacStore } from '../../store/rbacStore';
 
 const allNavItems = [
-  { icon: LayoutDashboard, label: 'Dashboard',      path: '/admin/dashboard',             module: 'dashboard' },
-  { icon: Sprout,          label: 'Harvest Slips',   path: '/admin/procurement/harvest',   module: 'procurement' },
-  { icon: ClipboardList,   label: 'Tapals / Sales',  path: '/admin/tapals',                module: 'tapals' },
-  { icon: Truck,           label: 'Driver Fleet',    path: '/admin/logistics/drivers',     module: 'logistics' },
-  { icon: Shield,          label: 'Access Control',  path: '/admin/access',                highlight: true, module: 'accessControl' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard', module: 'dashboard' },
+  { icon: Sprout, label: 'Harvest Slips', path: '/admin/procurement/harvest', module: 'procurement' },
+  { icon: FileText, label: 'Purchase Invoice', path: '/admin/procurement/net-rate', module: 'procurement' },
+  { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals', module: 'tapals' },
+  { icon: IndianRupee, label: 'Farmer Ledger', path: '/admin/procurement/farmer-ledger', module: 'procurement' },
+  { icon: Truck, label: 'Logistics', path: '/admin/logistics', module: 'logistics' },
+  { icon: Receipt, label: 'Expenses', path: '/admin/expenses', module: 'finance', badge: 'expenses' },
+  { icon: Wallet, label: 'Finance / P&L', path: '/admin/finance', module: 'finance' },
+  { icon: ReceiptText, label: 'Billing', path: '/admin/billing', module: 'billing' },
+  { icon: ShoppingCart, label: 'Return Approval', path: '/admin/sales-approval', module: 'tapals' },
+  { icon: Package, label: 'Inventory', path: '/admin/inventory', module: 'inventory' },
+  { icon: Store, label: 'Outlets', path: '/admin/outlets', module: 'outlets' },
+  { icon: Shield, label: 'Access Control', path: '/admin/access', highlight: true, module: 'accessControl' },
 ];
 
 export const Sidebar = ({ onClose }) => {

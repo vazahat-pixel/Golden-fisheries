@@ -1,32 +1,27 @@
+import { normalizePaginationMeta } from './response.js';
+
 /**
  * Consistent API success response formatter.
- * Ensures all network requests return a standardized structure to the frontend.
+ * HTTP status is set via res.status(); body is always { success, message, data, meta? }.
  */
 export class ApiResponse {
-  /**
-   * Format success response
-   * @param {number} statusCode - HTTP status code
-   * @param {any} data - Response payload
-   * @param {string} message - User-facing or log summary message
-   * @param {object} meta - Optional pagination, sync stats, or metadata
-   */
   constructor(statusCode, data = null, message = 'Success', meta = null) {
     this.success = true;
-    this.statusCode = statusCode;
+    this._statusCode = statusCode;
     this.message = message;
-    if (data !== null) {
-      this.data = data;
-    }
-    if (meta !== null) {
-      this.meta = meta;
+    this.data = data === undefined ? null : data;
+    if (meta != null) {
+      this.meta = normalizePaginationMeta(meta);
     }
   }
 
-  /**
-   * Helper method to send formatted response instantly
-   * @param {object} res - Express response object
-   */
   send(res) {
-    return res.status(this.statusCode).json(this);
+    const payload = {
+      success: this.success,
+      message: this.message,
+      data: this.data
+    };
+    if (this.meta != null) payload.meta = this.meta;
+    return res.status(this._statusCode).json(payload);
   }
 }

@@ -1,12 +1,10 @@
 import React from 'react';
 
-const Placeholder = () => {
-  return (
-    <div className="p-8 text-center">
-      <h2 className="text-2xl font-bold mb-4">Under Construction</h2>
-      <p className="text-gray-600">This component has not been implemented yet.</p>
-    </div>
-  );
-};
+const DriverNotifications = () => (
+  <div className="p-4">
+    <h1 className="text-lg font-black uppercase mb-2">Notifications</h1>
+    <p className="text-sm text-gray-500">Trip assignments appear on your dashboard when dispatched.</p>
+  </div>
+);
 
-export default Placeholder;
+export default DriverNotifications;

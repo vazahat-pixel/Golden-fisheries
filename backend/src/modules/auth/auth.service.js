@@ -87,7 +87,7 @@ class AuthService {
       user = await User.create({
         phone,
         fullName: 'DEVELOPER ADMIN',
-        role: 'ADMIN',
+        role: 'SUPER_ADMIN',
         password: 'dev_password_123', // Mandatory field in schema
         phoneVerified: false
       });

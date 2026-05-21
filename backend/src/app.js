@@ -26,6 +26,9 @@ import expenseRoutes from './modules/expenses/expense.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import farmerLedgerRoutes from './modules/farmer-ledger/farmerLedger.routes.js';
+import buyerPortalRoutes from './modules/buyer-portal/buyerPortal.routes.js';
+import mapsRoutes from './modules/maps/maps.routes.js';
+import integrationsRoutes from './modules/integrations/integrations.routes.js';
 
 const app = express();
 
@@ -47,7 +50,7 @@ app.use(cors({
   ],
   credentials: config.cors.credentials,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Client-Platform', 'X-Platform']
 }));
 
 // HTTP logging mapped using winston + morgan
@@ -72,7 +75,14 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Golden Fisheries ERP API service active.',
-    timestamp: new Date().toISOString()
+    data: {
+      timestamp: new Date().toISOString(),
+      integrations: {
+        sms: config.integrations.sms.enabled,
+        whatsapp: config.integrations.whatsapp.enabled,
+        maps: config.integrations.maps.enabled
+      }
+    }
   });
 });
 
@@ -98,6 +108,9 @@ app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/farmer-ledger', farmerLedgerRoutes);
+app.use('/api/v1/buyer-portal', buyerPortalRoutes);
+app.use('/api/v1/maps', mapsRoutes);
+app.use('/api/v1/integrations', integrationsRoutes);
 
 
 // ==========================================

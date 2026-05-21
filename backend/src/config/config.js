@@ -44,5 +44,25 @@ export const config = {
   cors: {
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
     credentials: process.env.CORS_CREDENTIALS === 'true'
+  },
+  integrations: {
+    sms: {
+      enabled: Boolean(process.env.SMS_API_KEY?.trim()),
+      provider: 'fast2sms',
+      gatewayUrl: process.env.SMS_GATEWAY_URL || 'https://www.fast2sms.com/dev/bulkV2',
+      forceSendInDev: process.env.SMS_FORCE_SEND === 'true',
+      senderId: process.env.SMS_SENDER_ID || null
+    },
+    whatsapp: {
+      enabled: Boolean(
+        process.env.WHATSAPP_ACCESS_TOKEN?.trim() && process.env.WHATSAPP_PHONE_NUMBER_ID?.trim()
+      ),
+      apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
+      verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || null
+    },
+    maps: {
+      enabled: Boolean(process.env.GOOGLE_MAPS_API_KEY?.trim()),
+      region: process.env.GOOGLE_MAPS_REGION || 'in'
+    }
   }
 };

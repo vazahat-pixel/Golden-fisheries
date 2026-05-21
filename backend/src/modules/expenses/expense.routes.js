@@ -5,8 +5,15 @@ import { Expense } from './expense.model.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { Router } from 'express';
-import { protect, restrictTo } from '../../middleware/auth.middleware.js';
-import { ROLES } from '../../constants/roles.js';
+import {
+  protect,
+  restrictTo,
+  requireMobile,
+  requireWeb,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+} from '../../middleware/auth.middleware.js';
+import { DRIVER_ROLES, WEB_ERP } from '../../constants/roleGroups.js';
 import { AppError } from '../../utils/appError.js';
 import { cloudinaryService } from '../../services/cloudinary.service.js';
 
@@ -15,9 +22,6 @@ class ExpenseService extends BaseService {
     super(Expense);
   }
 
-  /**
-   * Search and filter expenses
-   */
   async findExpensesWithFilters(queryParams) {
     const { page = 1, limit = 10, search, status, expenseType } = queryParams;
     const filter = {};
@@ -27,31 +31,24 @@ class ExpenseService extends BaseService {
 
     if (search) {
       const searchRegex = new RegExp(search, 'i');
-      filter.$or = [
-        { expenseCode: searchRegex },
-        { payee: searchRegex }
-      ];
+      filter.$or = [{ expenseCode: searchRegex }, { payee: searchRegex }];
     }
 
     return await this.findMany(filter, { page, limit }, 'createdBy approvedBy');
   }
 
-  /**
-   * Approve an Expense
-   */
   async approve(expenseId, approverId, status) {
     const expense = await this.model.findById(expenseId);
     if (!expense) throw new AppError('Expense entry not found', 404);
 
-    expense.status = status; // APPROVED or REJECTED
+    expense.status = status;
     expense.approvedBy = approverId;
     await expense.save();
 
-    // Sync trip post-trip expenses status if linked
     if (expense.linkedTripId) {
       const TripModel = mongoose.model('Trip');
       const trip = await TripModel.findById(expense.linkedTripId);
-      if (trip && trip.postTripExpenses) {
+      if (trip?.postTripExpenses) {
         trip.postTripExpenses.status = status;
         trip.postTripExpenses.reviewedBy = approverId;
         trip.postTripExpenses.reviewedAt = new Date();
@@ -70,11 +67,7 @@ export const expenseService = new ExpenseService();
 
 export const expenseController = {
   create: asyncWrapper(async (req, res) => {
-    const expenseData = {
-      ...req.body,
-      createdBy: req.user.id
-    };
-    const expense = await expenseService.create(expenseData);
+    const expense = await expenseService.create({ ...req.body, createdBy: req.user.id });
     new ApiResponse(201, { expense }, 'Expense logged successfully').send(res);
   }),
 
@@ -89,50 +82,36 @@ export const expenseController = {
   }),
 
   approve: asyncWrapper(async (req, res) => {
-    const { status } = req.body; // APPROVED or REJECTED
+    const { status } = req.body;
     const expense = await expenseService.approve(req.params.id, req.user.id, status);
     new ApiResponse(200, { expense }, `Expense has been marked as ${status}`).send(res);
-  })
+  }),
 };
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
-
-router.use(protect);
+const mobile = [protect, requireMobile, enforcePlatformPolicy];
+const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 
 router.post(
   '/upload-receipt',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.DRIVER),
+  ...mobile,
+  restrictTo(...DRIVER_ROLES),
   upload.single('file'),
   asyncWrapper(async (req, res) => {
     if (!req.file) throw new AppError('No file uploaded', 400);
-    const result = await cloudinaryService.uploadStream(req.file.buffer, 'expenses/receipts', req.file.originalname);
-    res.status(200).json({ success: true, url: result.url });
+    const result = await cloudinaryService.uploadStream(
+      req.file.buffer,
+      'expenses/receipts',
+      req.file.originalname
+    );
+    new ApiResponse(200, { url: result.url }, 'Receipt uploaded successfully').send(res);
   })
 );
 
-router.post(
-  '/create',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.DRIVER),
-  expenseController.create
-);
-
-router.get(
-  '/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
-  expenseController.all
-);
-
-router.patch(
-  '/approve/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
-  expenseController.approve
-);
-
-router.get(
-  '/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT),
-  expenseController.getById
-);
+router.post('/create', ...mobile, restrictTo(...DRIVER_ROLES), expenseController.create);
+router.get('/all', ...web, restrictTo(...WEB_ERP), expenseController.all);
+router.patch('/approve/:id', ...web, restrictTo(...WEB_ERP), expenseController.approve);
+router.get('/:id', ...web, restrictTo(...WEB_ERP), expenseController.getById);
 
 export default router;

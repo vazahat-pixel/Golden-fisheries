@@ -76,7 +76,7 @@ class RestaurantService extends BaseService {
   /**
    * Settle Order: Locks payment and triggers automated stock deduction from central inventory
    */
-  async settleOrder(orderId, paymentMethod, userId) {
+  async settleOrder(orderId, paymentPayload = {}, userId) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -90,9 +90,26 @@ class RestaurantService extends BaseService {
         throw new AppError('Order ticket has already been settled and paid', 400);
       }
 
-      // Update Order Status
+      const paymentMethod = (paymentPayload.paymentMethod || 'CASH').toUpperCase();
+      const cashAmount = parseFloat(paymentPayload.cashAmount) || 0;
+      const upiAmount = parseFloat(paymentPayload.upiAmount) || 0;
+
+      if (paymentMethod === 'SPLIT' || (cashAmount > 0 && upiAmount > 0)) {
+        const sum = Math.round((cashAmount + upiAmount) * 100) / 100;
+        const total = Math.round(order.totalAmount * 100) / 100;
+        if (Math.abs(sum - total) > 0.05) {
+          throw new AppError(`Split payment must equal bill total (₹${total}). Received ₹${sum}.`, 400);
+        }
+        order.paymentMethod = 'SPLIT';
+        order.cashAmount = cashAmount;
+        order.upiAmount = upiAmount;
+      } else {
+        order.paymentMethod = paymentMethod;
+        order.cashAmount = paymentMethod === 'CASH' ? order.totalAmount : 0;
+        order.upiAmount = paymentMethod === 'UPI' ? order.totalAmount : 0;
+      }
+
       order.status = 'PAID';
-      order.paymentMethod = paymentMethod || 'CASH';
       await order.save({ session });
 
       // Trigger automatic stock updates inside transaction session

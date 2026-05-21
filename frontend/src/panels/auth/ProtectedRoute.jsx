@@ -1,26 +1,57 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useRbacStore } from '../../store/rbacStore';
+import {
+  normalizeRole,
+  roleAllowed,
+  ROLES,
+  detectClientPlatform,
+  PLATFORM_ACCESS,
+} from '../../constants/rbac';
 
-const ProtectedRoute = ({ children, allowedRoles, module }) => {
+const ProtectedRoute = ({ children, allowedRoles, module, requirePlatform }) => {
   const { user, isAuthenticated } = useAuthStore();
   const { hasPermission } = useRbacStore();
+  const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/auth/init" replace />;
   }
 
-  // Check if role is allowed (if role restriction is provided)
-  if (allowedRoles && !allowedRoles.includes(user?.role)) {
+  const role = user?.role;
+  const normalized = normalizeRole(role);
+
+  if (allowedRoles?.length && role && !roleAllowed(role, allowedRoles)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Check granular module permissions (if module permission check is requested)
+  const clientPlatform = requirePlatform || detectClientPlatform(location.pathname);
+  const pa = user?.platformAccess || {};
+
+  if (clientPlatform === PLATFORM_ACCESS.WEB && pa.web === false) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  if (clientPlatform === PLATFORM_ACCESS.MOBILE && pa.mobile === false) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  const webOnly = [ROLES.REST_MANAGER, ROLES.REST_CASHIER, ROLES.FISHMALL_MANAGER, ROLES.FISHMALL_CASHIER];
+  const mobileOnly = [ROLES.PROCUREMENT_MANAGER, ROLES.BUYER, ROLES.DRIVER, ROLES.VEHICLE_MANAGER];
+
+  if (clientPlatform === PLATFORM_ACCESS.WEB && mobileOnly.includes(normalized)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  if (clientPlatform === PLATFORM_ACCESS.MOBILE && webOnly.includes(normalized)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
   if (module && user) {
+    if (normalized === ROLES.SUPER_ADMIN || role === 'ADMIN') {
+      return <>{children}</>;
+    }
     const userId = user.id || user._id;
-    const canRead = hasPermission(userId, module, 'read');
-    if (!canRead) {
+    if (!hasPermission(userId, module, 'read')) {
       return <Navigate to="/unauthorized" replace />;
     }
   }
