@@ -41,3 +41,11 @@ export const MOBILE_FIELD = expandRoles(
   ROLES.DRIVER,
   ROLES.VEHICLE_MANAGER
 );
+
+/** Tapal dispatch: assign drivers, list fleet users */
+export const DISPATCH_ROLES = expandRoles(
+  ROLES.SUPER_ADMIN,
+  ROLES.VEHICLE_MANAGER,
+  ROLES.PROCUREMENT_MANAGER,
+  ROLES.BUYER
+);

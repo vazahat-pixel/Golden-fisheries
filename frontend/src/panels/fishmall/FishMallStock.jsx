@@ -15,10 +15,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useFishMallStore } from '../../store/fishMallStore';
+import { fishmallService } from '../../services/fishmallService';
 import { Button } from '../../design-system/components/Button';
 
 const FishMallStock = () => {
-  const { stock, updateStockQty, stockLogs, addStockItem, fetchStock } = useFishMallStore();
+  const { stock, stockLogs, fetchStock } = useFishMallStore();
+  const [saving, setSaving] = React.useState(false);
   
   React.useEffect(() => {
     fetchStock();
@@ -38,32 +40,51 @@ const FishMallStock = () => {
   const totalStockKg = stock.reduce((acc, i) => acc + i.qty, 0);
   const criticalItems = stock.filter(i => i.qty < 50).length;
 
-  const handleInflow = () => {
+  const handleInflow = async () => {
     if (!selectedProduct || !inflowQty) {
       toast.error('Select product and enter weight');
       return;
     }
-    updateStockQty(parseInt(selectedProduct), parseFloat(inflowQty));
-    toast.success('Stock replenished');
-    setInflowQty('');
+    setSaving(true);
+    try {
+      await fishmallService.adjustInventory(selectedProduct, {
+        quantityChange: parseFloat(inflowQty),
+        remarks: 'Stock inflow',
+      });
+      await fetchStock();
+      toast.success('Stock replenished');
+      setInflowQty('');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update stock');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleAddNew = (e) => {
+  const handleAddNew = async (e) => {
     e.preventDefault();
     if (!newItem.name || !newItem.rate || !newItem.qty) {
       toast.error('Please fill all fields');
       return;
     }
-    addStockItem({
-      ...newItem,
-      qty: parseFloat(newItem.qty),
-      rate: parseFloat(newItem.rate),
-      unit: 'KG',
-      lastSync: new Date().toISOString().split('T')[0]
-    });
-    setShowAddForm(false);
-    setNewItem({ name: '', category: 'Premium', rate: '', qty: '' });
-    toast.success('New variety added to registry');
+    setSaving(true);
+    try {
+      await fishmallService.createInventoryItem({
+        name: newItem.name,
+        quantity: parseFloat(newItem.qty),
+        openingStock: parseFloat(newItem.qty),
+        rate: parseFloat(newItem.rate),
+        unit: 'KG',
+      });
+      await fetchStock();
+      setShowAddForm(false);
+      setNewItem({ name: '', category: 'Premium', rate: '', qty: '' });
+      toast.success('New variety added to registry');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to create item');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

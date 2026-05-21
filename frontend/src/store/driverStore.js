@@ -114,7 +114,7 @@ export const useDriverStore = create(
         set({ loading: true });
         try {
           await tapalService.startTrip(tapalId);
-          // Store will be updated via socket or manual refetch
+          await get().fetchMyTrips();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });

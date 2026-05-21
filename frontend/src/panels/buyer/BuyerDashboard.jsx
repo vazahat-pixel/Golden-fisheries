@@ -22,16 +22,16 @@ const BuyerDashboard = () => {
   const activeTrips = buyerTrips.filter((t) => !['DELIVERED', 'CLOSED'].includes(t.status)).length;
 
   const cards = [
-    { label: 'Active trips', value: activeTrips, icon: Truck, to: '/buyer/trips', color: 'text-blue-600' },
-    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/buyer/tapals', color: 'text-amber-600' },
-    { label: 'Bills', value: billCount, icon: FileText, to: '/buyer/invoices', color: 'text-slate-900' },
-    { label: 'Returns', value: '—', icon: RotateCcw, to: '/buyer/returns', color: 'text-purple-600' }
+    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/admin/buyer/tapals', color: 'text-amber-600' },
+    { label: 'Bills', value: billCount, icon: FileText, to: '/admin/buyer/invoices', color: 'text-slate-900' },
+    { label: 'Returns', value: '—', icon: RotateCcw, to: '/admin/buyer/returns', color: 'text-purple-600' },
+    { label: 'Settlement', value: '→', icon: Truck, to: '/admin/buyer/reconciliation', color: 'text-blue-600' },
   ];
 
   return (
     <div className="space-y-6 p-1">
       <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer Portal</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer · Admin ERP</p>
         <h1 className="text-2xl font-serif italic font-black text-slate-900">Dashboard</h1>
       </div>
 
@@ -49,12 +49,6 @@ const BuyerDashboard = () => {
         ))}
       </div>
 
-      <Link
-        to="/buyer/assign"
-        className="block w-full py-4 bg-blue-600 text-white text-center rounded-2xl font-bold text-xs uppercase tracking-wider"
-      >
-        Assign driver to tapal
-      </Link>
     </div>
   );
 };

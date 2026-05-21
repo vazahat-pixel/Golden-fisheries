@@ -11,16 +11,17 @@ import {
 import { BUYER_ROLES, WEB_ERP } from '../../constants/roleGroups.js';
 
 const router = Router();
-const mobile = [protect, requireMobile, enforcePlatformPolicy];
+/** Buyer uses Admin ERP (web) or legacy mobile — not procurement-only mobile */
+const buyerAccess = [protect, enforcePlatformPolicy];
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 
-router.get('/assigned-tapals', ...mobile, restrictTo(...BUYER_ROLES), buyerPortalController.assignedTapals);
-router.post('/verify/:tapalId', ...mobile, restrictTo(...BUYER_ROLES), buyerPortalController.submitVerification);
-router.post('/bill/:tapalId', ...mobile, restrictTo(...BUYER_ROLES), buyerPortalController.createBill);
-router.get('/bills', ...mobile, restrictTo(...BUYER_ROLES), buyerPortalController.listBills);
-router.post('/return', ...mobile, restrictTo(...BUYER_ROLES), buyerPortalController.createReturn);
-router.get('/returns', ...mobile, restrictTo(...BUYER_ROLES), buyerPortalController.listReturns);
-router.get('/reconciliation', ...mobile, restrictTo(...BUYER_ROLES), buyerPortalController.reconciliation);
+router.get('/assigned-tapals', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.assignedTapals);
+router.post('/verify/:tapalId', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.submitVerification);
+router.post('/bill/:tapalId', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.createBill);
+router.get('/bills', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.listBills);
+router.post('/return', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.createReturn);
+router.get('/returns', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.listReturns);
+router.get('/reconciliation', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.reconciliation);
 
 router.patch(
   '/return/:id/approve',

@@ -46,6 +46,14 @@ export const restaurantService = {
   getInventorySummary: async () => {
     return await apiClient.get('/restaurant/inventory/summary');
   },
+
+  listInternalSupplies: async (params = {}) => {
+    return await apiClient.get('/restaurant/internal-supplies', { params });
+  },
+
+  getInternalSupply: async (id) => {
+    return await apiClient.get(`/restaurant/internal-supplies/${id}`);
+  },
 };
 
 export default restaurantService;

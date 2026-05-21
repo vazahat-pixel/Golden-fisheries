@@ -195,22 +195,6 @@ export const useAdminStore = create(
         }
       },
 
-      // Harvest Slips Async
-      fetchHarvestSlips: async (params = {}) => {
-        set({ loading: true });
-        try {
-          const res = await harvestService.all(params);
-          // harvestService calls apiClient.get directly — interceptor returns response.data
-          // harvestController.all sends: ApiResponse(200, result.docs, ..., result.meta)
-          // So res = { success, data: [...harvests], meta: {...} }
-          const list = Array.isArray(res?.data) ? res.data : (res?.docs || []);
-          set({ harvestSlips: Array.isArray(list) ? list : [], loading: false });
-        } catch (err) {
-          console.warn('[Procurement] fetchHarvestSlips failed:', err.message);
-          set({ loading: false });
-        }
-      },
-
       convertSlipToTapalAsync: async (slipId, assignedTo = null, selectedItems = null) => {
         try {
           // POST /harvests/convert-to-tapal/:id
@@ -399,6 +383,8 @@ export const useAdminStore = create(
           set({ loading: false });
         }
       },
+
+      approveExpenseAsync: async (id) => get().reviewExpenseAsync(id, 'APPROVED'),
 
       reviewExpenseAsync: async (id, status, reason = null) => {
         set({ loading: true });
@@ -724,22 +710,22 @@ export const useAdminStore = create(
         transactions: [tx, ...state.transactions]
       })),
 
-      farmers: [],
-      harvestSlips: [],
-
       fetchHarvestSlips: async (params = {}) => {
-        set({ loading: true });
+        set({ loading: true, error: null });
         try {
-          const res = await harvestService.all(params);
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const res = await harvestService.all({ limit: 500, ...params });
+          const list = Array.isArray(res?.data)
+            ? res.data
+            : res?.docs || (Array.isArray(res) ? res : []);
           const { mapHarvestFromApi } = await import('../utils/harvestPayload.js');
           set({
             harvestSlips: (Array.isArray(list) ? list : []).map(mapHarvestFromApi),
             loading: false,
           });
         } catch (err) {
-          console.error('Failed to fetch harvest slips', err);
-          set({ loading: false });
+          console.error('[Procurement] fetchHarvestSlips failed:', err);
+          set({ loading: false, error: err.message });
+          throw err;
         }
       },
 
@@ -761,30 +747,6 @@ export const useAdminStore = create(
           s.id === id ? { ...s, status, ...extra } : s
         ),
       })),
-
-      updateHarvestStatusAsync: async (id, status) => {
-        set({ loading: true });
-        try {
-          await harvestService.updateStatus(id, status);
-          await get().fetchHarvestSlips();
-          set({ loading: false });
-        } catch (err) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
-
-      convertSlipToTapalAsync: async (id, assignedTo, selectedItems) => {
-        set({ loading: true });
-        try {
-          await harvestService.convertToTapal(id, { assignedTo, selectedItems });
-          await get().fetchHarvestSlips();
-          set({ loading: false });
-        } catch (err) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
 
       addFarmer: (farmer) => set((state) => ({
         farmers: [...state.farmers, { ...farmer, id: generateId('FRM', state.farmers), totalSlips: 0, active: true }],
@@ -1063,38 +1025,19 @@ export const useAdminStore = create(
         )
       })),
 
-      transferStockToRestaurant: (items) => set((state) => {
-        // items is array of { name: 'ROHU', qty: 50 }
-        const newInventory = state.inventory.map(invItem => {
-          const matchingItem = items.find(i => i.name.toUpperCase() === invItem.name.toUpperCase());
-          if (matchingItem) {
-            const nextQty = Math.max(0, invItem.qty - matchingItem.qty);
-            return { ...invItem, qty: nextQty, status: nextQty === 0 ? 'out-of-stock' : nextQty < 50 ? 'low-stock' : 'in-stock' };
-          }
-          return invItem;
-        });
+      /** @deprecated Use Fish Mall → Restaurant internal bill API (/fishmall/internal-bill/restaurant) */
+      transferStockToRestaurant: () => {
+        console.warn(
+          'transferStockToRestaurant is disabled: use Fish Mall internal billing to move stock to Restaurant.'
+        );
+      },
 
-        // Notify restaurant store
-        useRestaurantStore.getState().receiveStock(items);
-
-        return { inventory: newInventory };
-      }),
-
-      transferStockToFishMall: (items) => set((state) => {
-        const newInventory = state.inventory.map(invItem => {
-          const matchingItem = items.find(i => i.name.toUpperCase() === invItem.name.toUpperCase());
-          if (matchingItem) {
-            const nextQty = Math.max(0, invItem.qty - matchingItem.qty);
-            return { ...invItem, qty: nextQty, status: nextQty === 0 ? 'out-of-stock' : nextQty < 50 ? 'low-stock' : 'in-stock' };
-          }
-          return invItem;
-        });
-
-        // Notify fish mall store
-        useFishMallStore.getState().receiveStock(items);
-
-        return { inventory: newInventory };
-      }),
+      /** @deprecated Procurement does not auto-sync to Fish Mall; use Fish Mall stock inflow */
+      transferStockToFishMall: () => {
+        console.warn(
+          'transferStockToFishMall is disabled: inventories are isolated. Manage Fish Mall stock separately.'
+        );
+      },
     }),
     {
       name: 'golden-fisheries-admin-v2',

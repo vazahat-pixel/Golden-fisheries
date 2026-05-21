@@ -85,6 +85,8 @@ export function mapHarvestFromApi(h) {
     notes: h.remarks || h.notes || '',
     damageNotes: h.damageComplaint || h.damageNotes || '',
     status: h.status || 'PENDING',
+    netRateCalculated: h.netRateCalculated ?? null,
+    products: h.products || [],
     items: (h.products || []).map((p, idx) => ({
       id: String(idx + 1),
       hsnCode: p.hsnCode || '',

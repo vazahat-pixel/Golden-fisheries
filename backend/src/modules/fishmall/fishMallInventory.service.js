@@ -149,11 +149,27 @@ class FishMallInventoryService {
       createdAt: { $gte: start, $lte: end },
     });
     const salesTotal = sales.reduce((s, x) => s + (x.totalAmount || 0), 0);
+    let internalSupplyTotal = 0;
+    let internalSupplyCount = 0;
+    try {
+      const { InternalSupplyBill } = await import('../internal-supply/internalSupplyBill.model.js');
+      const internalBills = await InternalSupplyBill.find({
+        status: 'ISSUED',
+        createdAt: { $gte: start, $lte: end },
+      });
+      internalSupplyCount = internalBills.length;
+      internalSupplyTotal = internalBills.reduce((s, b) => s + (b.totalAmount || 0), 0);
+    } catch {
+      /* model optional during migration */
+    }
     const items = await FishMallInventoryItem.find({ isActive: true });
     return {
       date: start,
       salesCount: sales.length,
       salesTotal,
+      internalSupplyCount,
+      internalSupplyTotal,
+      grossRetailAndInternal: salesTotal + internalSupplyTotal,
       closingStockTotal: items.reduce((s, i) => s + (i.quantity || 0), 0),
       items: items.map((i) => ({
         name: i.name,
@@ -162,6 +178,40 @@ class FishMallInventoryService {
         openingStock: i.openingStock,
       })),
     };
+  }
+
+  /**
+   * Deduct Fish Mall stock for internal supply to Restaurant (within caller's transaction).
+   */
+  async transferOutForInternal(itemId, quantity, userId, session, billId, invoiceNumber) {
+    const item = await FishMallInventoryItem.findById(itemId).session(session);
+    if (!item || !item.isActive) {
+      throw new AppError('Fish Mall inventory item not found', 404);
+    }
+    const prev = item.quantity || 0;
+    const next = prev - quantity;
+    if (next < 0) {
+      throw new AppError(
+        `Insufficient Fish Mall stock for ${item.name}. Available: ${prev} KG`,
+        400
+      );
+    }
+    item.quantity = next;
+    item.recordDate = new Date();
+    await item.save({ session });
+    await this._log(
+      item._id,
+      'INTERNAL_TRANSFER_OUT',
+      -quantity,
+      prev,
+      next,
+      userId,
+      `Internal bill ${invoiceNumber} → Restaurant`,
+      billId,
+      'InternalSupplyBill',
+      session
+    );
+    return item;
   }
 
   async getLogs(query = {}) {

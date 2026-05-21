@@ -1,5 +1,6 @@
 import { ROLES } from './roles.js';
 import { BUSINESS_UNITS } from './businessUnits.js';
+import { getModuleDefaultsForRole } from './rbacModuleDefaults.js';
 
 /**
  * Role → default platformAccess, businessUnit, permissions (client matrix).
@@ -14,16 +15,16 @@ export const ROLE_RBAC_DEFAULTS = {
   },
   [ROLES.PROCUREMENT_MANAGER]: {
     businessUnit: BUSINESS_UNITS.MKE,
-    platformAccess: { web: false, mobile: true, mobileViewOnly: false },
+    platformAccess: { web: true, mobile: true, mobileViewOnly: false },
     permissions: {
-      panels: { admin: false, restaurant: false, fishmall: false, driver: false, buyer: false },
+      panels: { admin: true, restaurant: false, fishmall: false, driver: false, buyer: false },
     },
   },
   [ROLES.BUYER]: {
     businessUnit: BUSINESS_UNITS.MKE,
-    platformAccess: { web: false, mobile: true, mobileViewOnly: false },
+    platformAccess: { web: true, mobile: true, mobileViewOnly: false },
     permissions: {
-      panels: { admin: false, restaurant: false, fishmall: false, driver: false, buyer: true },
+      panels: { admin: true, restaurant: false, fishmall: false, driver: false, buyer: false },
     },
   },
   [ROLES.DRIVER]: {
@@ -35,9 +36,9 @@ export const ROLE_RBAC_DEFAULTS = {
   },
   [ROLES.VEHICLE_MANAGER]: {
     businessUnit: BUSINESS_UNITS.MKE,
-    platformAccess: { web: false, mobile: true, mobileViewOnly: false },
+    platformAccess: { web: true, mobile: true, mobileViewOnly: false },
     permissions: {
-      panels: { admin: false, restaurant: false, fishmall: false, driver: false, buyer: false },
+      panels: { admin: true, restaurant: false, fishmall: false, driver: false, buyer: false },
     },
   },
   [ROLES.REST_MANAGER]: {
@@ -81,5 +82,13 @@ export const applyRoleDefaults = (userDoc) => {
   if (!userDoc.permissions?.panels || userDoc.isNew) {
     userDoc.permissions = userDoc.permissions || {};
     userDoc.permissions.panels = { ...defaults.permissions.panels };
+  }
+  const moduleDefaults = getModuleDefaultsForRole(role);
+  const mods = userDoc.permissions?.modules;
+  const hasModules =
+    mods &&
+    (mods instanceof Map ? mods.size > 0 : Object.keys(mods).length > 0);
+  if (moduleDefaults && (userDoc.isNew || !hasModules)) {
+    userDoc.permissions.modules = moduleDefaults;
   }
 };

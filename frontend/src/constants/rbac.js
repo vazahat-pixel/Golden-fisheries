@@ -57,7 +57,7 @@ export const MOBILE_ROLES = [
 ];
 
 export const detectClientPlatform = (pathname = '') => {
-  if (pathname.startsWith('/driver') || pathname.startsWith('/buyer') || pathname.startsWith('/mobile')) {
+  if (pathname.startsWith('/driver') || pathname.startsWith('/mobile')) {
     return PLATFORM_ACCESS.MOBILE;
   }
   if (pathname.startsWith('/admin') || pathname.startsWith('/restaurant') || pathname.startsWith('/fishmall')) {
@@ -74,8 +74,5 @@ export const isWebErpRole = (role) => {
   return WEB_ERP_ROLES.some((r) => r === role || normalizeRole(r) === normalized);
 };
 
-/** Super Admin + legacy admin roles, or any authenticated user on /admin in dev */
-export const hasFullAdminAccess = (role, pathname = '') => {
-  if (IS_DEV && pathname.startsWith('/admin')) return true;
-  return isWebErpRole(role);
-};
+/** Super Admin + legacy admin roles only (not dev-wide bypass) */
+export const hasFullAdminAccess = (role) => isWebErpRole(role);

@@ -4,7 +4,7 @@ import { AdminPageHeader, AdminDataTable, AdminBtn, StatusBadge } from '../share
 import { toast } from 'react-hot-toast';
 
 const ExpenseReviewPage = () => {
-  const { expenses, fetchExpenses, approveExpenseAsync, rejectExpenseAsync, loading } = useAdminStore();
+  const { expenses, fetchExpenses, reviewExpenseAsync, rejectExpenseAsync, loading } = useAdminStore();
 
   useEffect(() => {
     fetchExpenses();
@@ -12,7 +12,7 @@ const ExpenseReviewPage = () => {
 
   const handleApprove = async (id) => {
     try {
-      await approveExpenseAsync(id);
+      await reviewExpenseAsync(id, 'APPROVED');
       toast.success('Expense approved');
     } catch (err) {
       toast.error(err?.message || 'Failed');

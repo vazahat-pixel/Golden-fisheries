@@ -168,7 +168,7 @@ export const useFishMallStore = create(
           // Cross-post to Admin Finance
           useAdminStore.getState().addTransaction({
             date: new Date().toLocaleDateString('en-GB'),
-            desc: `FISH MALL BILL: #${res?.data?.saleNumber || res?.saleNumber || 'FM'}`,
+            desc: `FISH MALL BILL: #${res?.data?.sale?.saleNumber || res?.sale?.saleNumber || 'FM'}`,
             method: saleData.paymentMethod || 'CASH',
             type: 'income',
             amount: saleData.total,

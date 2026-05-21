@@ -12,7 +12,7 @@ const DriverSettings = () => {
         type="button"
         onClick={async () => {
           await logout();
-          navigate('/auth/init');
+          navigate('/auth/home');
         }}
         className="w-full py-3 border-2 border-red-600 text-red-700 font-bold text-xs uppercase"
       >

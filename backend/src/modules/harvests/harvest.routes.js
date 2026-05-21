@@ -47,10 +47,18 @@ router.patch(
 
 /** Farmer approval from web ERP (SUPER_ADMIN) — client office workflow */
 router.patch(
+  '/reject/:id',
+  ...mobile,
+  restrictTo(...PROCUREMENT),
+  validateBody(harvestValidators.reject),
+  harvestController.reject
+);
+
+router.patch(
   '/approve/:id',
   ...webRead,
   restrictTo(...WEB_ERP),
-  validateBody(harvestValidators.patchStatus),
+  validateBody(harvestValidators.approveStatus),
   harvestController.patchStatus
 );
 

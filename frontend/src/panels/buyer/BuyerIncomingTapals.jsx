@@ -147,7 +147,7 @@ const BuyerIncomingTapals = () => {
                     <CheckCircle2 size={14} /> Verify
                   </button>
                   <button
-                    onClick={() => navigate(`/buyer/bill/${id}`)}
+                    onClick={() => navigate(`/admin/buyer/bill/${id}`)}
                     className="flex-1 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1"
                   >
                     <FileText size={14} /> Bill

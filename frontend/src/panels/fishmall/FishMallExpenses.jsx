@@ -5,7 +5,12 @@ import { useFishMallStore } from '../../store/fishMallStore';
 import { toast } from 'react-hot-toast';
 
 const FishMallExpenses = () => {
-  const { expenses, addExpense, removeExpense } = useFishMallStore();
+  const { expenses, submitExpenseAsync, fetchExpensesAsync } = useFishMallStore();
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    fetchExpensesAsync();
+  }, [fetchExpensesAsync]);
   const [formData, setFormData] = useState({
     category: 'Ice',
     amount: '',
@@ -15,18 +20,28 @@ const FishMallExpenses = () => {
 
   const categories = ['Ice', 'Packing material', 'Cleaning expenses', 'Local transport', 'Other'];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.amount || !formData.description) {
       toast.error('Please fill all fields');
       return;
     }
-    addExpense({
-      ...formData,
-      amount: parseFloat(formData.amount)
-    });
-    setFormData({ ...formData, amount: '', description: '' });
-    toast.success('Expense recorded');
+    setSubmitting(true);
+    try {
+      await submitExpenseAsync({
+        category: formData.category,
+        amount: parseFloat(formData.amount),
+        description: formData.description,
+        expenseDate: formData.date,
+        payee: 'Fish Mall',
+      });
+      setFormData({ ...formData, amount: '', description: '' });
+      toast.success('Expense recorded');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to save expense');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const totalToday = expenses
@@ -124,7 +139,7 @@ const FishMallExpenses = () => {
                   </tr>
                 ) : (
                   expenses.map((expense) => (
-                    <tr key={expense.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <tr key={expense._id || expense.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Calendar size={12} className="text-gray-400" />
@@ -142,13 +157,8 @@ const FishMallExpenses = () => {
                       <td className="px-6 py-4 text-right">
                         <span className="text-[11px] font-black text-gray-900 tracking-tight">₹{expense.amount.toLocaleString()}</span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <button 
-                          onClick={() => removeExpense(expense.id)}
-                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <td className="px-6 py-4 text-right text-[9px] text-gray-400 font-bold uppercase">
+                        {expense.status || 'LOGGED'}
                       </td>
                     </tr>
                   ))

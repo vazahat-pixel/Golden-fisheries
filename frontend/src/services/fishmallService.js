@@ -43,6 +43,18 @@ export const fishmallService = {
   recordClosing: async (data) => {
     return await apiClient.post('/fishmall/inventory/closing', data);
   },
+
+  createInternalBillToRestaurant: async (data) => {
+    return await apiClient.post('/fishmall/internal-bill/restaurant', data);
+  },
+
+  listInternalBills: async (params = {}) => {
+    return await apiClient.get('/fishmall/internal-bill', { params });
+  },
+
+  getInternalBill: async (id) => {
+    return await apiClient.get(`/fishmall/internal-bill/${id}`);
+  },
 };
 
 export default fishmallService;

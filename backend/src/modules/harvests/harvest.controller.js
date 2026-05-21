@@ -3,6 +3,7 @@ import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { broadcastEvent } from '../../sockets/socket.js';
 import { aliasHarvestResponse, aliasTapalResponse } from '../../utils/apiAliases.js';
+import { AppError } from '../../utils/appError.js';
 
 function normalizeHarvestBody(body) {
   if (!body || typeof body !== 'object') return body;
@@ -51,9 +52,31 @@ export const harvestController = {
     new ApiResponse(200, { harvest: aliasHarvestResponse(harvest) }, 'Harvest Slip updated successfully').send(res);
   }),
 
-  // Patch status state of a Harvest Slip
+  // Reject harvest slip (alias for status REJECTED)
+  reject: asyncWrapper(async (req, res) => {
+    const { reason } = req.body || {};
+    const harvest = await harvestService.updateById(req.params.id, {
+      status: 'REJECTED',
+      ...(reason && { remarks: reason }),
+    });
+    broadcastEvent(
+      'harvest:status_update',
+      { id: req.params.id, status: 'REJECTED', harvestNumber: harvest.harvestNumber },
+      'dashboard:updates'
+    );
+    new ApiResponse(200, { harvest: aliasHarvestResponse(harvest) }, 'Harvest slip rejected').send(res);
+  }),
+
+  // Patch status state of a Harvest Slip (workflow-safe transitions only)
   patchStatus: asyncWrapper(async (req, res) => {
     const { status } = req.body;
+    const forbidden = ['CONVERTED_TO_TAPAL', 'COMPLETED'];
+    if (forbidden.includes(status)) {
+      throw new AppError(
+        `Use dedicated endpoints for ${status} (convert-to-tapal / billing workflow)`,
+        400
+      );
+    }
     const harvest = await harvestService.updateById(req.params.id, { status });
     
     // Broadcast status change for real-time dashboard sync

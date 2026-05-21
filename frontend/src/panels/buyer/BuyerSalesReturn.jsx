@@ -49,6 +49,13 @@ const BuyerSalesReturn = () => {
         ],
       });
       toast.success('Return request submitted');
+      const res = await buyerPortalService.listReturns();
+      const list = res?.data || (Array.isArray(res) ? res : []);
+      if (list.length) {
+        /* listReturns available for future UI */
+      }
+      const billsRes = await buyerPortalService.listBills();
+      setBills(billsRes?.data || (Array.isArray(billsRes) ? billsRes : []));
       setReturnedQty('');
       setDamagedQty('');
       setDamageReason('');
