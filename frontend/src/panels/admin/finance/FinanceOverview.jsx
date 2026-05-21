@@ -48,9 +48,9 @@ const FinanceOverview = () => {
         ))}
       </div>
       <AdminCard className="p-4">
-        <h3 className="text-xs font-black uppercase mb-3">Inventory reconciliation</h3>
+        <h3 className="text-xs font-black uppercase mb-3">Procurement stock snapshot</h3>
         <p className="text-[10px] text-text-muted mb-4">
-          Opening + Procurement − Sales − Restaurant − FishMall + Returns = Closing (per SKU ledger)
+          Central procurement ledger only. Restaurant and Fish Mall stock are managed in their own modules.
         </p>
         {stock.length === 0 ? (
           <p className="text-sm text-gray-500">No inventory records</p>

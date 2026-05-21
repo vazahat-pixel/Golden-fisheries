@@ -161,9 +161,9 @@ const InventoryOverview = () => {
   return (
     <div className="pb-12">
       <AdminPageHeader
-        title="Inventory"
-        subtitle="Opening + Procurement − Sales − Restaurant − FishMall + Returns = Closing"
-        badge="Stock"
+        title="Procurement Inventory"
+        subtitle="Central ERP stock only — Restaurant & Fish Mall maintain separate inventories"
+        badge="Procurement"
         actions={
           <>
             <AdminBtn variant="outline" onClick={load} disabled={loading}>
@@ -219,7 +219,7 @@ const InventoryOverview = () => {
 
       <div className="mt-8 mb-2">
         <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive">Recent ledger movements</h3>
-        <p className="text-[10px] text-text-muted mt-1">All changes from procurement, sales, FishMall, and manual adjustments</p>
+        <p className="text-[10px] text-text-muted mt-1">Procurement in/out, buyer sales, returns, and manual adjustments only</p>
       </div>
       <AdminDataTable
         columns={txnColumns}

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { BaseService } from '../../services/base.service.js';
 import { FishMallSale } from './fishmallSale.model.js';
-import { inventoryService } from '../inventory/inventory.service.js';
+import { fishMallInventoryService } from './fishMallInventory.service.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
 
@@ -46,6 +46,7 @@ class FishMallService extends BaseService {
         subtotal += lineTotal;
         verifiedItems.push({
           productId: item.productId,
+          inventoryItemId: item.inventoryItemId,
           fishName: item.fishName,
           scaleWeight: item.scaleWeight,
           rate: item.rate,
@@ -70,26 +71,13 @@ class FishMallService extends BaseService {
 
       await sale.save({ session });
 
-      // Trigger stock deduction inside transaction session
-      for (const item of sale.items) {
-        await inventoryService.adjustStock(
-          item.productId,
-          -item.scaleWeight, // Deduct weight directly from inventory
-          'FISHMALL_SALE',
-          {
-            referenceId: sale._id,
-            referenceModel: 'FishMallSale',
-            session
-          },
-          userId,
-          `Scale retail sale completed via FishMall POS ${sale.saleNumber}`
-        );
-      }
+      // Deduct from isolated Fish Mall retail inventory only
+      await fishMallInventoryService.deductForSale(sale, userId, session);
 
       await session.commitTransaction();
       session.endSession();
 
-      logger.info(`[FishMall Retail]: Sale ${sale.saleNumber} completed. Total: ₹${totalAmount}. Stock deducted.`);
+      logger.info(`[FishMall Retail]: Sale ${sale.saleNumber} completed. Total: ₹${totalAmount}. Fish Mall stock deducted.`);
       return sale;
     } catch (error) {
       await session.abortTransaction();

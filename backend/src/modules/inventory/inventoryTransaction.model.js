@@ -2,6 +2,12 @@ import mongoose from 'mongoose';
 
 const inventoryTransactionSchema = new mongoose.Schema(
   {
+    inventoryScope: {
+      type: String,
+      enum: ['PROCUREMENT', 'RESTAURANT', 'FISHMALL'],
+      default: 'PROCUREMENT',
+      index: true,
+    },
     transactionCode: {
       type: String,
       required: true,

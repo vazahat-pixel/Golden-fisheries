@@ -6,7 +6,10 @@ export const inventoryController = {
   // Fetch live inventory stock levels
   getLiveStock: asyncWrapper(async (req, res) => {
     const result = await inventoryService.getLiveStockLevels(req.query);
-    new ApiResponse(200, result.docs, 'Live stock levels fetched successfully', result.meta).send(res);
+    new ApiResponse(200, result.docs, 'Procurement stock levels fetched successfully', {
+      ...result.meta,
+      inventoryScope: 'PROCUREMENT',
+    }).send(res);
   }),
 
   // Fetch auditable stock movement ledger transactions

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { BaseService } from '../../services/base.service.js';
 import { RestaurantOrder } from './restaurantOrder.model.js';
-import { inventoryService } from '../inventory/inventory.service.js';
+import { restaurantInventoryService } from './restaurantInventory.service.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
 
@@ -43,6 +43,7 @@ class RestaurantService extends BaseService {
       subtotal += lineTotal;
       verifiedItems.push({
         productId: item.productId,
+        inventoryItemId: item.inventoryItemId,
         name: item.name,
         quantity: item.quantity,
         rate: item.rate,
@@ -112,34 +113,13 @@ class RestaurantService extends BaseService {
       order.status = 'PAID';
       await order.save({ session });
 
-      // Trigger automatic stock updates inside transaction session
-      for (const item of order.items) {
-        if (!item.productId) {
-          logger.info(`[Restaurant POS]: Skipping stock deduction for item without productId: ${item.name}`);
-          continue;
-        }
-        try {
-          await inventoryService.adjustStock(
-            item.productId,
-            -item.quantity, // Deduct ingredients/fish quantity from central stock
-            'RESTAURANT_CONSUMPTION',
-            {
-              referenceId: order._id,
-              referenceModel: 'RestaurantOrder',
-              session
-            },
-            userId,
-            `Ingredient stock consumed for Restaurant POS Order ${order.orderNumber}`
-          );
-        } catch (err) {
-          logger.warn(`[Restaurant POS]: Failed to adjust stock for item ${item.productId}: ${err.message}`);
-        }
-      }
+      // Deduct from isolated restaurant inventory only (not procurement stock)
+      await restaurantInventoryService.deductForOrder(order, userId, session);
 
       await session.commitTransaction();
       session.endSession();
 
-      logger.info(`[Restaurant POS]: Settled order ${order.orderNumber}. Inventory updated.`);
+      logger.info(`[Restaurant POS]: Settled order ${order.orderNumber}. Restaurant inventory updated.`);
       return order;
     } catch (error) {
       await session.abortTransaction();

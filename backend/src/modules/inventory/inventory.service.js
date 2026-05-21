@@ -5,6 +5,11 @@ import { InventoryTransaction } from './inventoryTransaction.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
 import { broadcastEvent } from '../../sockets/socket.js';
+import {
+  PROCUREMENT_TX_TYPES,
+  DEPRECATED_CROSS_MODULE_TX_TYPES,
+  INVENTORY_SCOPES,
+} from '../../constants/inventoryScopes.js';
 
 
 class InventoryService extends BaseService {
@@ -35,6 +40,16 @@ class InventoryService extends BaseService {
    * Modifies quantities atomically inside a Mongoose transaction, appending to the audit ledger.
    */
   async adjustStock(productId, qtyChange, transactionType, referenceDetails = {}, userId, remarks = '') {
+    if (DEPRECATED_CROSS_MODULE_TX_TYPES.includes(transactionType)) {
+      throw new AppError(
+        `${transactionType} is no longer allowed on procurement inventory. Use restaurant or Fish Mall inventory APIs.`,
+        400
+      );
+    }
+    if (!PROCUREMENT_TX_TYPES.includes(transactionType)) {
+      throw new AppError(`Invalid procurement inventory transaction type: ${transactionType}`, 400);
+    }
+
     const session = referenceDetails.session || null;
     const localSession = !session ? await mongoose.startSession() : null;
     
@@ -63,15 +78,17 @@ class InventoryService extends BaseService {
 
       // Trigger real-time inventory level update across browser sessions
       broadcastEvent('inventory:level_update', {
+        scope: INVENTORY_SCOPES.PROCUREMENT,
         productId: product._id,
         name: product.name,
         quantity: nextQty,
-        transactionType
+        transactionType,
       });
 
 
       // Spawn audit ledger log
       const tx = new InventoryTransaction({
+        inventoryScope: INVENTORY_SCOPES.PROCUREMENT,
         productId: product._id,
         type: transactionType,
         quantity: qtyChange,
@@ -124,6 +141,7 @@ class InventoryService extends BaseService {
 
     if (type) filter.type = type;
     if (productId) filter.productId = productId;
+    filter.inventoryScope = INVENTORY_SCOPES.PROCUREMENT;
 
     // Return audit history paginated list
     const docs = await InventoryTransaction.find(filter)

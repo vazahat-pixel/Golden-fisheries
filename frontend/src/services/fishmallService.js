@@ -14,7 +14,35 @@ export const fishmallService = {
   // 3. Get Sale by ID
   getById: async (id) => {
     return await apiClient.get(`/fishmall/${id}`);
-  }
+  },
+
+  getInventory: async (params = {}) => {
+    return await apiClient.get('/fishmall/inventory', { params });
+  },
+
+  createInventoryItem: async (data) => {
+    return await apiClient.post('/fishmall/inventory', data);
+  },
+
+  updateInventoryItem: async (id, data) => {
+    return await apiClient.patch(`/fishmall/inventory/${id}`, data);
+  },
+
+  adjustInventory: async (id, body) => {
+    return await apiClient.patch(`/fishmall/inventory/${id}/adjust`, body);
+  },
+
+  getInventorySummary: async () => {
+    return await apiClient.get('/fishmall/inventory/summary');
+  },
+
+  getDailyPnL: async (params = {}) => {
+    return await apiClient.get('/fishmall/inventory/daily-pnl', { params });
+  },
+
+  recordClosing: async (data) => {
+    return await apiClient.post('/fishmall/inventory/closing', data);
+  },
 };
 
 export default fishmallService;

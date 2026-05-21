@@ -5,7 +5,12 @@ const fishmallItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
-    required: [true, 'Product reference is required']
+    required: false,
+  },
+  inventoryItemId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FishMallInventoryItem',
+    required: false,
   },
   fishName: {
     type: String,
