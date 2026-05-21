@@ -36,9 +36,9 @@ const HarvestSlipPreview = () => {
     );
   }
 
-  // Pad the items list with empty rows up to 10 rows to match the paper slip pad appearance
-  const displayItems = [...slip.items];
-  const minRows = 10;
+  // Pad the items list with empty rows up to 12 rows to match the paper slip pad appearance
+  const displayItems = [...(slip.items || [])];
+  const minRows = 12;
   while (displayItems.length < minRows) {
     displayItems.push({
       id: `empty-${displayItems.length}`,
@@ -47,7 +47,9 @@ const HarvestSlipPreview = () => {
       count: '',
       noOfBoxes: '',
       boxWeight: '',
-      totalWeight: ''
+      totalWeight: '',
+      rate: '',
+      totalAmount: ''
     });
   }
 
@@ -69,6 +71,35 @@ const HarvestSlipPreview = () => {
     } catch (err) {
       toast.error(err?.message || 'Failed to save harvest slip');
     }
+  };
+
+  const handleWhatsAppShare = () => {
+    const phone = slip.mobNumber || slip.farmerPhone || '';
+    if (!phone) {
+      toast.error('No farmer mobile number available');
+      return;
+    }
+    
+    // Construct message
+    let message = `*M.K. FISHERIES - Harvest Slip ${slip.tpNo || ''}*\n`;
+    message += `Date: ${slip.date ? new Date(slip.date).toLocaleDateString('en-GB') : ''}\n`;
+    message += `Farmer: ${slip.farmerName || ''}\n\n`;
+    message += `*Items:*\n`;
+    (slip.items || []).forEach((item, idx) => {
+      if (item.particulars) {
+        message += `${idx + 1}. ${item.particulars} (Boxes: ${item.noOfBoxes || 0}, Wt: ${item.totalWeight || 0}kg)\n`;
+      }
+    });
+    message += `\n*Grand Total:* ₹${(slip.grandTotal || 0).toLocaleString('en-IN')}\n\n`;
+    message += `Please review and approve this slip. Thank you!`;
+    
+    const encodedText = encodeURIComponent(message);
+    const url = `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodedText}`;
+    window.open(url, '_blank');
+
+    // Automatically update status to 'Sent to Farmer'
+    setSlip(prev => ({ ...prev, status: 'Sent to Farmer' }));
+    toast.success('WhatsApp link opened! Status marked as "Sent to Farmer".');
   };
 
   const handlePrint = () => {
@@ -154,6 +185,12 @@ const HarvestSlipPreview = () => {
             <Download size={14} /> Download PDF
           </button>
           <button
+            onClick={handleWhatsAppShare}
+            className="flex-1 sm:flex-none border border-green-200 bg-green-50 text-green-700 px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-green-100 transition-all flex items-center justify-center gap-2"
+          >
+            <Share2 size={14} /> Share on WhatsApp
+          </button>
+          <button
             onClick={handleConfirm}
             className="flex-1 sm:flex-none bg-[#6A7051] text-white px-5 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-[#5F6846] transition-all flex items-center justify-center gap-2 shadow-md"
           >
@@ -166,220 +203,248 @@ const HarvestSlipPreview = () => {
       <div className="flex justify-center items-center py-4 bg-slate-100/50 print:bg-transparent print:p-0">
         <div 
           ref={printAreaRef}
-          className="w-[210mm] min-h-[297mm] bg-white p-[15mm] border border-slate-300 shadow-xl print:shadow-none print:border-none print:p-[5mm] print:w-full"
+          className="w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl print:shadow-none print:border-none print:p-0 print:w-full font-arial"
+          style={{ fontFamily: 'Arial, sans-serif' }}
         >
-          {/* Double Blue Borders */}
-          <div className="border-[3px] border-double border-[#1A365D] p-3 h-full flex flex-col justify-between">
+          {/* Main Border */}
+          <div className="border border-black flex flex-col justify-between">
             <div>
               {/* Header Box */}
-              <div className="text-center pb-2 border-b border-[#1A365D]">
-                <h1 className="text-3xl font-black tracking-widest text-[#1A365D] font-serif leading-none">
+              <div className="text-center pb-1 border-b border-black">
+                <h1 className="text-2xl font-bold tracking-wide text-[#1e3a8a] mt-1 mb-0 pb-0">
                   M. K. FISHERIES
                 </h1>
-                <h2 className="text-xs font-black tracking-widest text-[#1A365D] uppercase mt-1">
+                <h2 className="text-sm font-bold text-[#1e3a8a] mt-0">
                   WHOLE SALE FISH MERCHANTS
                 </h2>
-                <p className="text-[10px] font-bold text-[#1A365D] tracking-wider mt-0.5">
+                <p className="text-xs font-semibold text-[#1e3a8a] mt-0">
                   KARWAR & MANGALORE (KARNATAKA)
                 </p>
-                <p className="text-[9px] font-bold text-[#1A365D] mt-0.5">
+                <p className="text-[10px] font-semibold text-[#1e3a8a] mt-0 mb-1">
                   Mob : 9019411439, 9663655558
                 </p>
-                <div className="border-t border-[#1A365D] mt-1.5 pt-1">
-                  <span className="text-base font-black tracking-widest text-[#1A365D] border-b border-[#1A365D] px-4 py-0.5 inline-block">
-                    TAPAL
-                  </span>
+                <div className="border-t border-black w-full text-center py-1">
+                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">FARMER PURCHASE INVOICE</h3>
                 </div>
               </div>
 
               {/* Details Section */}
-              <div className="grid grid-cols-12 border-b border-[#1A365D] text-xs">
-                {/* Farmer Details */}
-                <div className="col-span-7 border-r border-[#1A365D] p-2 flex flex-col justify-between min-h-[90px]">
-                  <div>
-                    <span className="font-extrabold text-[#1A365D] block uppercase tracking-wider text-[10px]">
-                      Customer Details :
-                    </span>
-                    <span className="font-black text-[#1A365D] mt-1 block uppercase text-sm">
-                      {slip.farmerName || '__________________________________'}
-                    </span>
+              <div className="flex border-b border-black text-[11px] leading-tight font-medium text-black h-[110px]">
+                {/* Left Side Details */}
+                <div className="w-1/2 border-r border-black flex flex-col">
+                  <div className="flex border-b border-black h-1/4 items-center">
+                    <span className="font-bold pl-1 w-full">Customer Details :</span>
                   </div>
-                  <div className="text-[9px] text-slate-400">
-                    GOLDEN FISHERIES ERP REGISTERED CUSTOMER/FARMER
+                  <div className="flex border-b border-black h-1/4 items-center">
+                    <span className="font-semibold pl-1 w-24 uppercase">NAME</span>
+                    <span className="pl-1 w-full uppercase">{slip.farmerName}</span>
+                  </div>
+                  <div className="flex border-b border-black h-1/4 items-center">
+                    <span className="font-semibold pl-1 w-24 uppercase">CITY</span>
+                    <span className="pl-1 w-full uppercase">{slip.city}</span>
+                  </div>
+                  <div className="flex h-1/4 items-center">
+                    <span className="font-semibold pl-1 w-24 uppercase">MOB NUMBER</span>
+                    <span className="pl-1 w-full">{slip.mobNumber}</span>
                   </div>
                 </div>
 
-                {/* Meta Details */}
-                <div className="col-span-5 text-[10px]">
-                  <div className="grid grid-cols-12 border-b border-[#1A365D]">
-                    <div className="col-span-5 font-black uppercase text-[#1A365D] px-2 py-1.5 border-r border-[#1A365D]">
-                      TP NO
+                {/* Right Side Details */}
+                <div className="w-1/2 flex flex-col">
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Invoice No :
                     </div>
-                    <div className="col-span-7 font-black text-[#1A365D] px-2 py-1.5 uppercase bg-slate-50/50">
-                      {slip.tpNo || '___________'}
-                    </div>
+                    <div className="w-2/3 pl-1 font-semibold">{slip.tpNo}</div>
                   </div>
-                  <div className="grid grid-cols-12 border-b border-[#1A365D]">
-                    <div className="col-span-5 font-black uppercase text-[#1A365D] px-2 py-1.5 border-r border-[#1A365D]">
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
                       Date :
                     </div>
-                    <div className="col-span-7 font-bold text-[#1A365D] px-2 py-1.5">
-                      {slip.date ? new Date(slip.date).toLocaleDateString('en-GB') : '___________'}
+                    <div className="w-2/3 pl-1 font-semibold">
+                      {slip.date ? new Date(slip.date).toLocaleDateString('en-GB') : ''}
                     </div>
                   </div>
-                  <div className="grid grid-cols-12 border-b border-[#1A365D]">
-                    <div className="col-span-5 font-black uppercase text-[#1A365D] px-2 py-1.5 border-r border-[#1A365D]">
-                      Vehicle No:
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Vehicle No :
                     </div>
-                    <div className="col-span-7 font-bold text-[#1A365D] px-2 py-1.5 uppercase">
-                      {slip.vehicleNo || '___________'}
-                    </div>
+                    <div className="w-2/3 pl-1 font-semibold uppercase">{slip.vehicleNo}</div>
                   </div>
-                  <div className="grid grid-cols-12 border-b border-[#1A365D]">
-                    <div className="col-span-5 font-black uppercase text-[#1A365D] px-2 py-1.5 border-r border-[#1A365D]">
-                      Driver Name:
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Driver Name :
                     </div>
-                    <div className="col-span-7 font-bold text-[#1A365D] px-2 py-1.5 uppercase">
-                      {slip.driverName || '___________'}
-                    </div>
+                    <div className="w-2/3 pl-1 font-semibold uppercase">{slip.driverName}</div>
                   </div>
-                  <div className="grid grid-cols-12">
-                    <div className="col-span-5 font-black uppercase text-[#1A365D] px-2 py-1.5 border-r border-[#1A365D]">
-                      Grader Name:
+                  <div className="flex h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Grader Name :
                     </div>
-                    <div className="col-span-7 font-bold text-[#1A365D] px-2 py-1.5 uppercase">
-                      {slip.graderName || '___________'}
-                    </div>
+                    <div className="w-2/3 pl-1 font-semibold uppercase">{slip.graderName}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Table Data */}
+              {/* Table Header */}
               <div className="w-full">
-                <table className="w-full text-center border-collapse text-[10px]">
+                <table className="w-full text-center border-collapse text-[11px] font-semibold text-black">
                   <thead>
-                    <tr className="border-b border-[#1A365D] font-black text-[#1A365D]">
-                      <th className="py-2 px-1 border-r border-[#1A365D] w-10">Sl No</th>
-                      <th className="py-2 px-1 border-r border-[#1A365D] w-24">Hsn Code</th>
-                      <th className="py-2 px-1 border-r border-[#1A365D] w-48 text-left pl-3">Particulars</th>
-                      <th className="py-2 px-1 border-r border-[#1A365D] w-16">Count</th>
-                      <th className="py-2 px-1 border-r border-[#1A365D] w-20">NO OF BOXES</th>
-                      <th className="py-2 px-1 border-r border-[#1A365D] w-20">Box Weight</th>
-                      <th className="py-2 px-1 w-24 text-right pr-3">Total Weight</th>
+                    <tr className="border-b border-black">
+                      <th className="py-1 px-1 border-r border-black w-[40px]">Sl No</th>
+                      <th className="py-1 px-1 border-r border-black w-[70px]">Hsn Code</th>
+                      <th className="py-1 px-1 border-r border-black">Particulars</th>
+                      <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
+                      <th className="py-1 px-1 border-r border-black w-[60px] leading-tight">NO OF<br/>BOXES</th>
+                      <th className="py-1 px-1 border-r border-black w-[70px]">Box Weight</th>
+                      <th className="py-1 px-1 border-r border-black w-[80px]">Total Weight</th>
+                      <th className="py-1 px-1 border-r border-black w-[50px]">Rate</th>
+                      <th className="py-1 px-1 w-[90px]">Total Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayItems.map((item, index) => {
-                      const isReal = item.particulars || item.hsnCode;
+                      // First row sample logic
+                      let placeholderRate = "";
+                      let placeholderTotalWeight = "";
+                      let placeholderTotalAmount = "";
+                      
+                      if (index === 0 && !item.hsnCode && !item.particulars) {
+                         placeholderTotalWeight = "BOX * BOX WEIGHT";
+                         placeholderTotalAmount = "RATE *TOTAL WEIGHT";
+                      }
+                      
                       return (
-                        <tr 
-                          key={item.id} 
-                          className="border-b border-[#1A365D] h-[26px]"
-                        >
-                          <td className="border-r border-[#1A365D] font-bold text-slate-700">
+                        <tr key={item.id} className="border-b border-black h-[22px]">
+                          <td className="border-r border-black">
                             {index + 1}
                           </td>
-                          <td className="border-r border-[#1A365D] font-bold text-slate-800 tracking-wider">
+                          <td className="border-r border-black">
                             {item.hsnCode || ''}
                           </td>
-                          <td className="border-r border-[#1A365D] text-left pl-3 font-extrabold text-[#1A365D]">
+                          <td className="border-r border-black text-left pl-1">
                             {item.particulars || ''}
                           </td>
-                          <td className="border-r border-[#1A365D] font-bold text-slate-800">
+                          <td className="border-r border-black">
                             {item.count || ''}
                           </td>
-                          <td className="border-r border-[#1A365D] font-extrabold text-slate-800">
+                          <td className="border-r border-black">
                             {item.noOfBoxes || ''}
                           </td>
-                          <td className="border-r border-[#1A365D] font-bold text-slate-800">
-                            {item.boxWeight ? `${item.boxWeight} kg` : ''}
+                          <td className="border-r border-black">
+                            {item.boxWeight ? `${item.boxWeight}` : ''}
                           </td>
-                          <td className="text-right pr-3 font-black text-[#1A365D]">
-                            {item.totalWeight ? `${parseFloat(item.totalWeight).toFixed(2)}` : ''}
+                          <td className="border-r border-black">
+                            {item.totalWeight ? `${parseFloat(item.totalWeight).toFixed(2)}` : (placeholderTotalWeight || '')}
+                          </td>
+                          <td className="border-r border-black">
+                            {item.rate || placeholderRate || ''}
+                          </td>
+                          <td className="text-right pr-1">
+                            {item.totalAmount ? `${parseFloat(item.totalAmount).toFixed(2)}` : (placeholderTotalAmount || '-')}
                           </td>
                         </tr>
                       );
                     })}
 
                     {/* Totals Row */}
-                    <tr className="border-b border-[#1A365D] font-black text-[#1A365D] h-[30px] bg-slate-50/20">
-                      <td colSpan="3" className="py-2 border-r border-[#1A365D] text-center uppercase tracking-widest text-xs">
-                        TOTAL
-                      </td>
-                      <td className="border-r border-[#1A365D]"></td>
-                      <td className="border-r border-[#1A365D] text-base">{slip.totalBoxes || 0}</td>
-                      <td className="border-r border-[#1A365D]"></td>
-                      <td className="text-right pr-3 text-base">{slip.totalWeight ? parseFloat(slip.totalWeight).toFixed(2) : '0.00'}</td>
-                    </tr>
-
-                    {/* Bottom notes row 1 */}
-                    <tr className="border-b border-[#1A365D] h-[34px]">
-                      <td colSpan="5" className="py-1 px-3 border-r border-[#1A365D] text-left font-black uppercase text-[#6B5A3E] bg-[#FAF8F5]">
-                        NOTES ( BLACK GILL SECOND QUALITY ) ( EXP )
-                      </td>
-                      <td colSpan="2" className="text-left px-3 text-[9px] font-bold text-[#1A365D] uppercase bg-[#FAF8F5]">
-                        {slip.notes || 'N/A'}
-                      </td>
-                    </tr>
-
-                    {/* Bottom notes row 2 */}
-                    <tr className="border-b border-[#1A365D] h-[34px]">
-                      <td colSpan="5" className="py-1 px-3 border-r border-[#1A365D] text-left font-black uppercase text-[#6B5A3E]">
-                        THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT
-                      </td>
-                      <td colSpan="2" className="text-left px-3 text-[9px] font-bold text-[#1A365D] uppercase">
-                        {slip.damageNotes || 'N/A'}
-                      </td>
-                    </tr>
-
-                    {/* Bottom rent note row */}
-                    <tr className="border-b border-[#1A365D] h-[34px]">
-                      <td colSpan="5" className="py-1.5 px-3 border-r border-[#1A365D] text-left font-extrabold text-red-600 uppercase tracking-wide bg-red-50/20">
-                        {slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED'}
-                      </td>
-                      <td colSpan="2" className="text-left px-3 font-black text-red-600 bg-red-50/20">
-                        {slip.iceRentDeducted ? 'DEDUCTED' : 'NOT DEDUCTED'}
-                      </td>
-                    </tr>
-
-                    {/* In Words */}
-                    <tr className="h-[36px]">
-                      <td className="py-2 px-1 border-r border-[#1A365D] font-bold text-[#1A365D] text-[10px]">
-                        (in words)
-                      </td>
-                      <td colSpan="6" className="text-left pl-4 font-black uppercase tracking-wider text-[#1A365D]">
-                        {slip.inWords || '__________________________________________________'}
-                      </td>
+                    <tr className="border-b border-black font-bold h-[22px]">
+                      <td colSpan="4" className="border-r border-black"></td>
+                      <td className="border-r border-black text-center">{slip.totalBoxes || '0'}</td>
+                      <td className="border-r border-black"></td>
+                      <td className="border-r border-black text-center">{slip.totalWeight ? parseFloat(slip.totalWeight).toFixed(2) : '0'}</td>
+                      <td className="border-r border-black"></td>
+                      <td className="text-right pr-1">-</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-            </div>
 
-            {/* Bottom Signature Area */}
-            <div className="pt-6 mt-6 border-t border-[#1A365D]">
-              <div className="flex justify-between items-end text-xs">
-                <div className="text-[9px] font-bold text-[#1A365D] max-w-[200px] leading-relaxed">
-                  * Dynamic billing replica. Gold Fisheries ERP Procurement Flow Validation.
-                </div>
-                <div className="text-right flex flex-col items-end mr-4">
-                  <span className="font-extrabold text-[#1A365D] tracking-wide uppercase text-[10px]">
-                    For : M.K. FISHERIES
-                  </span>
-                  <div className="h-10 mt-2 w-32 border-b border-dashed border-[#1A365D]/60 flex items-center justify-center text-[10px] text-slate-300 select-none">
-                    SIGN HERE
+              {/* Deductions & Signatures Area */}
+              <div className="w-full flex flex-col text-[10px] font-bold text-black border-b border-black">
+                
+                {/* Notes Row 1 */}
+                <div className="flex border-b border-black h-[22px]">
+                  <div className="w-2/3 border-r border-black bg-[#FDF9EA] flex items-center justify-center">
+                    NOTES ( BLACK GILL SECOND QUALITY ) ( EXP )
                   </div>
-                  <span className="font-extrabold text-[#1A365D] tracking-widest uppercase mt-2 text-[9px]">
-                    Authorised Signatory
-                  </span>
+                  <div className="w-1/6 border-r border-black flex items-center justify-center">
+                    TDS @ 194Q
+                  </div>
+                  <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                    {slip.tds ? parseFloat(slip.tds).toFixed(2) : ''}
+                  </div>
+                </div>
+
+                {/* Notes Row 2 */}
+                <div className="flex border-b border-black h-[22px]">
+                  <div className="w-2/3 border-r border-black flex items-center justify-center">
+                    THIRD QUALITY DAMAGE METERIALS & DIO COMPLAINT
+                  </div>
+                  <div className="w-1/6 border-r border-black flex items-center justify-center">
+                    COMISSION
+                  </div>
+                  <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                     {slip.commission ? parseFloat(slip.commission).toFixed(2) : ''}
+                  </div>
+                </div>
+
+                {/* Notes Row 3 */}
+                <div className="flex border-b border-black h-[22px]">
+                  <div className="w-2/3 border-r border-black flex items-center justify-center text-red-600">
+                    {slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED'}
+                  </div>
+                  <div className="w-1/6 border-r border-black flex items-center justify-center">
+                    SOFT
+                  </div>
+                  <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                    {slip.soft ? parseFloat(slip.soft).toFixed(2) : ''}
+                  </div>
+                </div>
+
+                {/* Grand Total Row */}
+                <div className="flex h-[22px]">
+                  <div className="w-2/3 border-r border-black flex items-center justify-center">
+                  </div>
+                  <div className="w-1/6 border-r border-black flex items-center justify-center">
+                    Grand Total
+                  </div>
+                  <div className="w-1/6 flex items-center justify-end pr-1 font-bold">
+                    {slip.grandTotal ? parseFloat(slip.grandTotal).toFixed(2) : ''}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* In Words & Signatures */}
+              <div className="flex border-t border-black h-[26px]">
+                <div className="w-[80px] border-r border-black flex items-center justify-center font-bold text-[11px]">
+                  (in words)
+                </div>
+                <div className="flex-1 flex items-center pl-2 font-bold text-[11px] uppercase">
+                   {slip.inWords || ''}
                 </div>
               </div>
+              
+              <div className="flex w-full mt-1 border-t border-black min-h-[90px]">
+                 <div className="w-2/3 border-r border-black">
+                     {/* Empty signature space left */}
+                 </div>
+                 <div className="w-1/3 flex flex-col justify-between pt-1 pb-2">
+                     <div className="text-[10px] pl-2">
+                         For : M.K. FISHERIES
+                     </div>
+                     <div className="text-[10px] pl-2 flex justify-center mt-12 w-full">
+                         Authorised Signatory
+                     </div>
+                 </div>
+              </div>
+
             </div>
           </div>
         </div>
       </div>
       
-      {/* CSS style block specifically designed to optimize this layout for paper print */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body {
