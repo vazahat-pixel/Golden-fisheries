@@ -9,6 +9,7 @@ const buyerNav = [
   { icon: MapPin,          label: 'Trip Tracker',     path: '/buyer/trips' },
   { icon: ShoppingCart,    label: 'Incoming Tapals',  path: '/buyer/tapals' },
   { icon: FileText,        label: 'My Bills',         path: '/buyer/invoices' },
+  { icon: History,         label: 'Ledger',          path: '/buyer/ledger' },
   { icon: RotateCcw,       label: 'Sales Return',     path: '/buyer/returns' },
   { icon: Scale,           label: 'Settlement',       path: '/buyer/reconciliation' },
 ];

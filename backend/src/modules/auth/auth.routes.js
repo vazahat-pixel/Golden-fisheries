@@ -42,10 +42,9 @@ router.post(
   authController.refresh
 );
 
-// Logout Route (Requires authentication/protection)
+// Logout Route (No strict protect middleware so cookies can always be cleared on request)
 router.post(
   '/logout',
-  protect,
   authController.logout
 );
 
