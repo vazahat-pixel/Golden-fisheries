@@ -2,8 +2,7 @@ import { config } from '../config/config.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * Express Global Error Handling Middleware.
- * Catches all thrown AppErrors and unexpected server exceptions.
+ * Express global error handler — always returns { success, message, data, errors? }.
  */
 export const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
@@ -16,52 +15,51 @@ export const errorHandler = (err, req, res, next) => {
     logger.warn(`[Client Error]: ${err.statusCode} - ${err.message}`);
   }
 
-  // Handle MongoDB duplicate key errors (11000)
+  const buildBody = (statusCode, message, errors = null, includeStack = false) => {
+    const body = {
+      success: false,
+      message,
+      data: null
+    };
+    if (errors) body.errors = errors;
+    if (includeStack && err.stack) body.stack = err.stack;
+    return res.status(statusCode).json(body);
+  };
+
   if (err.code === 11000) {
     const field = err.keyValue ? Object.keys(err.keyValue)[0] : 'field';
-    err.message = `Duplicate field value: ${field}. Please use another value!`;
-    err.statusCode = 400;
-    err.isOperational = true;
+    return buildBody(409, `${field} already exists`, [
+      { field, message: 'Duplicate value' }
+    ]);
   }
 
-  // Handle Mongoose Validation Errors
   if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map(el => el.message);
-    err.message = `Invalid input data: ${errors.join('. ')}`;
-    err.statusCode = 400;
-    err.isOperational = true;
+    const errors = Object.values(err.errors || {}).map((e) => ({
+      field: e.path,
+      message: e.message
+    }));
+    return buildBody(422, 'Validation failed', errors.length ? errors : null);
   }
 
-  // Handle Mongoose Cast Errors (Invalid ID)
   if (err.name === 'CastError') {
-    err.message = `Invalid ${err.path}: ${err.value}.`;
-    err.statusCode = 400;
-    err.isOperational = true;
+    return buildBody(400, `Invalid ${err.path}: ${err.value}.`);
+  }
+
+  if (err.name === 'JsonWebTokenError') {
+    return buildBody(401, 'Invalid token');
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return buildBody(401, 'Token expired');
   }
 
   if (config.env === 'development') {
-    return res.status(err.statusCode).json({
-      success: false,
-      status: err.status,
-      error: err,
-      message: err.message,
-      stack: err.stack
-    });
+    return buildBody(err.statusCode, err.message, null, true);
   }
 
-  // In Production, do not expose system internal execution stack leaks
   if (err.isOperational) {
-    return res.status(err.statusCode).json({
-      success: false,
-      status: err.status,
-      message: err.message
-    });
+    return buildBody(err.statusCode, err.message);
   }
 
-  // Programming or other unknown errors: don't leak details to clients
-  return res.status(500).json({
-    success: false,
-    status: 'error',
-    message: 'A critical internal server error occurred.'
-  });
+  return buildBody(500, 'A critical internal server error occurred.');
 };

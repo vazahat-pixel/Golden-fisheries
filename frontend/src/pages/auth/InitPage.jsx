@@ -7,20 +7,30 @@ const InitPage = () => {
   const navigate = useNavigate();
 
   return (
-    <AuthLayout title="Logistics Portal" subtitle="Fleet Management System">
-      <div className="flex flex-col gap-4 mt-4">
+    <AuthLayout title="Golden Fisheries ERP" subtitle="Select your access point">
+      <div className="flex flex-col gap-3 mt-4">
         <AuthButton onClick={() => navigate('/auth/admin')} variant="primary">
-          Admin Login
+          Admin Web ERP
+        </AuthButton>
+        <AuthButton onClick={() => navigate('/auth/mobile')} variant="secondary">
+          Mobile App (Field Roles)
         </AuthButton>
         <AuthButton onClick={() => navigate('/auth/driver')} variant="secondary">
           Driver Login
         </AuthButton>
+        <AuthButton onClick={() => navigate('/restaurant/auth')} variant="secondary">
+          Restaurant Web
+        </AuthButton>
+        <AuthButton onClick={() => navigate('/fishmall/auth')} variant="secondary">
+          Fish Mall Web
+        </AuthButton>
       </div>
-      
+
       <div className="mt-8 text-center">
         <p className="text-white text-sm">
           NEW DRIVER?{' '}
-          <button 
+          <button
+            type="button"
             onClick={() => navigate('/auth/signup')}
             className="text-brand-yellow hover:underline font-bold"
           >

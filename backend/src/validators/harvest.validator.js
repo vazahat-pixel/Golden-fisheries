@@ -20,6 +20,11 @@ export const harvestValidators = {
     }),
     logisticsNotes: Joi.string().allow('', null),
     remarks: Joi.string().allow('', null),
+    vehicleNo: Joi.string().allow('', null),
+    driverName: Joi.string().allow('', null),
+    graderName: Joi.string().allow('', null),
+    damageComplaint: Joi.string().allow('', null),
+    deductionsNotes: Joi.string().allow('', null),
     tds: Joi.number().min(0).allow(null),
     commission: Joi.number().min(0).allow(null),
     soft: Joi.number().min(0).allow(null),
@@ -38,6 +43,7 @@ export const harvestValidators = {
           'number.min': 'Estimated quantity must be greater than zero'
         }),
         rate: Joi.number().min(0).allow(null),
+        count: Joi.string().allow('', null),
         boxCount: Joi.number().integer().min(1).allow(null),
         weightPerBox: Joi.number().min(0.1).allow(null),
         qualityType: Joi.string().valid('A', 'B', 'Mix').default('Mix')

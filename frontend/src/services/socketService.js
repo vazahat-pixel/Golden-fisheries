@@ -103,6 +103,22 @@ class SocketService {
       }
     });
 
+    // Driver live GPS for buyer / admin trackers
+    this.socket.on('driver:location_update', (data) => {
+      useAdminStore.setState((state) => ({
+        buyerTrips: state.buyerTrips.map((t) =>
+          (t.id === data.tripId || t.tripNumber === data.tripId)
+            ? { ...t, lastLocation: data.coordinates }
+            : t
+        ),
+        trips: (state.trips || []).map((t) =>
+          (t.id === data.tripId || t.tripNumber === data.tripId)
+            ? { ...t, lastLocation: data.coordinates }
+            : t
+        )
+      }));
+    });
+
     // 2. Real-Time Logistics (Driver Trips) Synchronizer
     this.socket.on('trip:status_change', (data) => {
       console.log('[Socket Received - Trip Sync]:', data);

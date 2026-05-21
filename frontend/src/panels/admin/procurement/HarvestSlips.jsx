@@ -18,73 +18,7 @@ const HarvestSlips = () => {
     fetchHarvestSlips();
   }, [fetchHarvestSlips]);
 
-  // Premium mock data for offline support if database is empty
-  const mockSlips = [
-    {
-      id: 'HS-1001',
-      _id: 'HS-1001',
-      tpNo: '1001',
-      farmerName: 'APPANNA GOWDA',
-      date: '2026-05-18',
-      vehicleNo: 'KA-30-M-4321',
-      driverName: 'Ramesh Patil',
-      graderName: 'Channappa S.',
-      totalBoxes: 12,
-      totalWeight: 240,
-      status: 'Approved',
-      items: [
-        { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '100', noOfBoxes: '8', boxWeight: '20', totalWeight: '160' },
-        { id: '2', hsnCode: '03028400', particulars: 'SEABASS', count: '60', noOfBoxes: '4', boxWeight: '20', totalWeight: '80' }
-      ],
-      notes: 'BLACK GILL SECOND QUALITY ( EXP )',
-      damageNotes: 'THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT',
-      iceRentDeducted: false,
-      inWords: 'TWO HUNDRED AND FORTY KILOGRAMS ONLY'
-    },
-    {
-      id: 'HS-1002',
-      _id: 'HS-1002',
-      tpNo: '1002',
-      farmerName: 'SUBHASH NAIK',
-      date: '2026-05-19',
-      vehicleNo: 'KA-19-F-9876',
-      driverName: 'Suresh Gowda',
-      graderName: 'Channappa S.',
-      totalBoxes: 15,
-      totalWeight: 375,
-      status: 'Pending Approval',
-      items: [
-        { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '80', noOfBoxes: '15', boxWeight: '25', totalWeight: '375' }
-      ],
-      notes: 'BLACK GILL SECOND QUALITY ( EXP )',
-      damageNotes: 'NONE',
-      iceRentDeducted: true,
-      inWords: 'THREE HUNDRED AND SEVENTY FIVE KILOGRAMS ONLY'
-    },
-    {
-      id: 'HS-1003',
-      _id: 'HS-1003',
-      tpNo: '1003',
-      farmerName: 'SHEKHAR KARWAR',
-      date: '2026-05-20',
-      vehicleNo: 'MH-09-E-5544',
-      driverName: 'Anil Fernandez',
-      graderName: 'Channappa S.',
-      totalBoxes: 8,
-      totalWeight: 160,
-      status: 'Pending Approval',
-      items: [
-        { id: '1', hsnCode: '03028400', particulars: 'SEABASS', count: '50', noOfBoxes: '8', boxWeight: '20', totalWeight: '160' }
-      ],
-      notes: 'STANDARD QUALITY',
-      damageNotes: 'NONE',
-      iceRentDeducted: false,
-      inWords: 'ONE HUNDRED AND SIXTY KILOGRAMS ONLY'
-    }
-  ];
-
-  // Combine real store slips with mock slips to ensure beautiful layout always
-  const activeSlips = harvestSlips && harvestSlips.length > 0 ? harvestSlips : mockSlips;
+  const activeSlips = harvestSlips || [];
 
   // Filter Logic
   const filteredSlips = activeSlips.filter(slip => {

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 const fishmallItemSchema = new mongoose.Schema({
   productId: {
@@ -74,20 +75,20 @@ const fishmallSaleSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate FML-XXXX sequence
+// Auto-generate FML-XXXX sequence (atomic counter)
 fishmallSaleSchema.pre('validate', async function (next) {
   if (this.saleNumber) return next();
   try {
-    const lastSale = await this.constructor.findOne().sort({ createdAt: -1 });
-    let nextId = 1;
-    if (lastSale && lastSale.saleNumber) {
-      const match = lastSale.saleNumber.match(/FML-(\d+)/);
-      if (match) {
-        nextId = parseInt(match[1], 10) + 1;
+    const Model = mongoose.models.FishMallSale;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = await formatSequentialDocNo('fishmall-sale', 'FML', 4);
+      const exists = await Model.findOne({ saleNumber: candidate }).select('_id');
+      if (!exists) {
+        this.saleNumber = candidate;
+        return next();
       }
     }
-    this.saleNumber = `FML-${String(nextId).padStart(4, '0')}`;
-    next();
+    return next(new Error('Could not allocate unique FishMall sale number'));
   } catch (error) {
     next(error);
   }

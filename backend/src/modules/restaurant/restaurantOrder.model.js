@@ -76,9 +76,11 @@ const restaurantOrderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['CASH', 'UPI', 'CARD', 'CREDIT'],
+      enum: ['CASH', 'UPI', 'CARD', 'CREDIT', 'SPLIT'],
       default: 'CASH'
     },
+    cashAmount: { type: Number, default: 0, min: 0 },
+    upiAmount: { type: Number, default: 0, min: 0 },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

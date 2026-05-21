@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
+import { masterService } from '../../../services/masterService';
+import { buildHarvestCreatePayload } from '../../../utils/harvestPayload';
 import { ArrowLeft, Printer, Download, Edit3, CheckCircle, Share2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
@@ -53,16 +55,21 @@ const HarvestSlipPreview = () => {
 
   const handleConfirm = async () => {
     try {
-      // Add to store
-      await addHarvestSlip(slip);
+      const [fRes, pRes] = await Promise.all([
+        masterService.farmers.getAll({ limit: 200 }),
+        masterService.products.getAll({ limit: 200 }),
+      ]);
+      const farmers = fRes?.data || fRes?.docs || (Array.isArray(fRes) ? fRes : []);
+      const products = pRes?.data || pRes?.docs || (Array.isArray(pRes) ? pRes : []);
+      const payload = buildHarvestCreatePayload(slip, { farmers, products });
+      await addHarvestSlip(payload);
       sessionStorage.removeItem('current_harvest_slip_creation');
-      toast.success('Harvest Slip saved successfully!');
-      navigate('/admin/procurement/harvest');
+      toast.success('Harvest slip saved');
+      const back =
+        window.location.pathname.startsWith('/mobile') ? '/mobile/procurement/harvest' : '/admin/procurement/harvest';
+      navigate(back);
     } catch (err) {
-      // If backend fails, save locally in state if needed or show error
-      console.warn('Backend call failed, simulated save locally.');
-      toast.success('Harvest Slip saved successfully (offline simulation)!');
-      navigate('/admin/procurement/harvest');
+      toast.error(err?.message || 'Failed to save harvest slip');
     }
   };
 

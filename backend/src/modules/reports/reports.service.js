@@ -5,6 +5,7 @@ import { Expense } from '../expenses/expense.model.js';
 import { Product } from '../products/product.model.js';
 import { Tapal } from '../tapals/tapal.model.js';
 import { User } from '../users/user.model.js';
+import { logger } from '../../utils/logger.js';
 
 export const reportsService = {
   /**
@@ -169,7 +170,7 @@ export const reportsService = {
       
       const totalRevenue = sales.totalCumulativeRevenue;
       
-      const activeDrivers = await User.countDocuments({ role: 'driver', isActive: true });
+      const activeDrivers = await User.countDocuments({ role: 'DRIVER', isActive: true });
       const pendingExpenses = await Expense.countDocuments({ status: 'PENDING' });
       
       // Real data for charts
@@ -267,9 +268,23 @@ export const reportsService = {
         topProducts
       };
     } catch (error) {
-      console.error(`[Dashboard Stats Failure]: ${error.message}`);
+      logger.error(`[Dashboard Stats Failure]: ${error.message}`);
       throw error;
     }
+  },
+
+  /**
+   * End-of-day P&L snapshot hook (extend with persisted DailyPnL model when needed).
+   */
+  generateDailyPnL: async (dateStr, businessUnit) => {
+    logger.info(`[Daily PnL] Snapshot scheduled date=${dateStr} unit=${businessUnit}`);
+    return { ok: true, dateStr, businessUnit };
+  },
+
+  generateConsolidatedPnL: async (dateStr) => {
+    logger.info(`[Daily PnL] Consolidated snapshot date=${dateStr}`);
+    return { ok: true, dateStr };
   }
 };
+
 export default reportsService;

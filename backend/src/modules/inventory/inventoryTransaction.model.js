@@ -48,7 +48,7 @@ const inventoryTransactionSchema = new mongoose.Schema(
     },
     referenceModel: {
       type: String,
-      enum: ['Tapal', 'Billing', 'Harvest', null],
+      enum: ['Tapal', 'Billing', 'Harvest', 'BuyerBill', 'SalesReturn', 'FishMallSale', 'RestaurantOrder', null],
       default: null
     },
     performedBy: {

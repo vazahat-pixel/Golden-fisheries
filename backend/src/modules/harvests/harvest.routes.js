@@ -2,63 +2,69 @@ import { Router } from 'express';
 import { harvestController } from './harvest.controller.js';
 import { harvestValidators } from '../../validators/harvest.validator.js';
 import { validateBody } from '../../validators/auth.validator.js';
-import { protect, restrictTo } from '../../middleware/auth.middleware.js';
-import { ROLES } from '../../constants/roles.js';
+import {
+  protect,
+  restrictTo,
+  requireMobile,
+  requireWeb,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+} from '../../middleware/auth.middleware.js';
+import { PROCUREMENT, WEB_ERP } from '../../constants/roleGroups.js';
 
 const router = Router();
+const mobile = [protect, requireMobile, enforcePlatformPolicy, blockMobileWrite];
+const webRead = [protect, requireWeb, enforcePlatformPolicy];
 
-// Protect all routes under the harvest engine
 router.use(protect);
 
-// 1. Create a new Harvest Slip (Allowed for Admin & Logistics Manager roles)
 router.post(
   '/create',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...mobile,
+  restrictTo(...PROCUREMENT),
   validateBody(harvestValidators.create),
   harvestController.create
 );
 
-// 2. Fetch all Harvest Slips with filters, paging, and searching
-router.get(
-  '/all',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER),
-  harvestController.all
-);
+router.get('/all', ...webRead, restrictTo(...WEB_ERP), harvestController.all);
+router.get('/:id', ...webRead, restrictTo(...WEB_ERP), harvestController.getById);
 
-// 3. Retrieve a single Harvest Slip by ID
-router.get(
-  '/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT, ROLES.PROCUREMENT_MANAGER),
-  harvestController.getById
-);
-
-// 4. Update an existing Harvest Slip
 router.put(
   '/update/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...mobile,
+  restrictTo(...PROCUREMENT),
   validateBody(harvestValidators.update),
   harvestController.update
 );
 
-// 5. Update the lifecycle status of a Harvest Slip
 router.patch(
   '/status/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...mobile,
+  restrictTo(...PROCUREMENT),
   validateBody(harvestValidators.patchStatus),
   harvestController.patchStatus
 );
 
-// 6. Convert a Confirmed Harvest Slip into an active Purchase Tapal Contract
+/** Farmer approval from web ERP (SUPER_ADMIN) — client office workflow */
+router.patch(
+  '/approve/:id',
+  ...webRead,
+  restrictTo(...WEB_ERP),
+  validateBody(harvestValidators.patchStatus),
+  harvestController.patchStatus
+);
+
 router.post(
   '/convert-to-tapal/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...mobile,
+  restrictTo(...PROCUREMENT),
   harvestController.convertToTapal
 );
 
-// 7. Save Net Rate calculation to a Harvest Slip
 router.post(
   '/net-rate/:id',
-  restrictTo(ROLES.ADMIN, ROLES.MANAGER, ROLES.PROCUREMENT_MANAGER),
+  ...mobile,
+  restrictTo(...PROCUREMENT),
   harvestController.saveNetRate
 );
 

@@ -51,7 +51,9 @@ export const masterService = {
     getActive: async () => {
       const response = await apiClient.get('/drivers/active');
       return response.data;
-    }
+    },
+    approve: async (id) => apiClient.patch(`/drivers/${id}/approve`),
+    reject: async (id, reason = '') => apiClient.patch(`/drivers/${id}/reject`, { reason }),
   },
   // Inventory — read-only from frontend, writes always through backend service
   inventory: {

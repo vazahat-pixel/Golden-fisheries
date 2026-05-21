@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 const tapalLineItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -51,6 +52,24 @@ const tapalSchema = new mongoose.Schema(
       ref: 'Buyer',
       default: null
     },
+    assignedBuyer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true
+    },
+    buyerPhone: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true
+    },
+    destination: { type: String, trim: true, default: null },
+    consignee: { type: String, trim: true, default: null },
+    consigneeContact: { type: String, trim: true, default: null },
+    pickupLocation: { type: String, trim: true, default: null },
+    unloadingPoint: { type: String, trim: true, default: null },
+    logisticsNotes: { type: String, trim: true, default: null },
     qty: {
       type: String, // Cached display string e.g. "500 KG"
     },
@@ -66,7 +85,22 @@ const tapalSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['CREATED', 'ASSIGNED', 'DRIVER_ASSIGNED', 'TRIP_STARTED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'BILL_PENDING', 'RETURNED', 'COMPLETED'],
+      enum: [
+        'CREATED',
+        'ASSIGNED',
+        'CONFIRMED',
+        'DRIVER_ASSIGNED',
+        'DRIVER_ACCEPTED',
+        'TRIP_STARTED',
+        'PICKED_UP',
+        'IN_TRANSIT',
+        'DELIVERED',
+        'BILL_PENDING',
+        'BUYER_VERIFIED',
+        'BILLING_DONE',
+        'RETURNED',
+        'COMPLETED'
+      ],
       default: 'CREATED',
       index: true
     },
@@ -109,29 +143,30 @@ const tapalSchema = new mongoose.Schema(
       type: String,
       required: true
     },
-    products: [tapalLineItemSchema]
+    products: [tapalLineItemSchema],
+    isDeleted: { type: Boolean, default: false }
   },
   {
     timestamps: true
   }
 );
 
-// Auto-generate purchase/sale numbering sequence before validation
+// Auto-generate purchase/sale numbering sequence (atomic counter)
 tapalSchema.pre('validate', async function (next) {
   if (this.tapalNumber) return next();
   try {
     const prefix = this.type === 'Purchase' ? 'PUR' : 'SAL';
-    const lastTapal = await this.constructor.findOne({ type: this.type }).sort({ createdAt: -1 });
-    let nextId = 1;
-    if (lastTapal && lastTapal.tapalNumber) {
-      const regex = new RegExp(`${prefix}-(\\d+)`);
-      const match = lastTapal.tapalNumber.match(regex);
-      if (match) {
-        nextId = parseInt(match[1], 10) + 1;
+    const key = this.type === 'Purchase' ? 'tapal-purchase' : 'tapal-sale';
+    const Model = mongoose.models.Tapal;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = await formatSequentialDocNo(key, prefix, 4);
+      const exists = await Model.findOne({ tapalNumber: candidate }).select('_id');
+      if (!exists) {
+        this.tapalNumber = candidate;
+        return next();
       }
     }
-    this.tapalNumber = `${prefix}-${String(nextId).padStart(4, '0')}`;
-    next();
+    return next(new Error('Could not allocate unique tapal number'));
   } catch (error) {
     next(error);
   }

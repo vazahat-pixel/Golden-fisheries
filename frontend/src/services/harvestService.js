@@ -16,6 +16,11 @@ export const harvestService = {
     return await apiClient.patch(`/harvests/status/${id}`, { status });
   },
 
+  /** SUPER_ADMIN web farmer approval */
+  approve: async (id, status = 'CONFIRMED') => {
+    return await apiClient.patch(`/harvests/approve/${id}`, { status });
+  },
+
   // 4. Reject Harvest Slip
   reject: async (id, reason) => {
     return await apiClient.patch(`/harvests/reject/${id}`, { reason });

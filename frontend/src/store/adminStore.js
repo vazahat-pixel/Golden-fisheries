@@ -6,6 +6,7 @@ import { billingService } from '../services/billingService';
 import { harvestService } from '../services/harvestService';
 import { expenseService } from '../services/expenseService';
 import { reportsService } from '../services/reportsService';
+import { farmerLedgerService } from '../services/farmerLedgerService';
 import { apiClient } from '../services/apiClient';
 import { useRestaurantStore } from './restaurantStore';
 import { useFishMallStore } from './fishMallStore';
@@ -312,12 +313,10 @@ export const useAdminStore = create(
             dueDate: inv.dueDate,
             tapalId: inv.tapalId
           }));
-          const salesInvoices = mapped.filter(inv => inv.type === 'SALES');
-          const purchaseInvoices = mapped.filter(inv => inv.type === 'PROCUREMENT');
-          set({ invoices: salesInvoices, purchaseInvoices, loading: false });
+          const purchaseInvoices = mapped.filter((inv) => inv.type === 'PROCUREMENT');
+          set({ invoices: mapped, purchaseInvoices, loading: false });
         } catch (err) {
-          console.warn('Backend fetchInvoices failed, using mock persistence:', err.message);
-          set({ loading: false });
+          set({ invoices: [], purchaseInvoices: [], loading: false });
         }
       },
 
@@ -530,49 +529,10 @@ export const useAdminStore = create(
         };
       }),
 
-      completeTrip: (tapalId) => set((state) => {
-        const tapal = state.tapals.find(t => t.id === tapalId);
-        const trip = state.trips.find(t => t.tapalId === tapalId);
-        if (!tapal || !trip) return {};
-
-        const qtyVal = parseFloat(trip.actualQty || tapal.qty);
-        const amountVal = parseFloat(tapal.amount.replace(/[₹,]/g, '')) || 0;
-
-        // Inventory Logic
-        const newInventory = state.inventory.map(item => {
-          const productName = tapal.products?.[0]?.name || 'GENERAL FISH';
-          if (productName.toUpperCase() === item.name.toUpperCase() || item.id === 1) { // Fallback to first item if name mismatch
-            const addedQty = tapal.type === 'Purchase' ? qtyVal : -qtyVal;
-            const nextQty = Math.max(0, item.qty + addedQty);
-            return { ...item, qty: nextQty, status: nextQty === 0 ? 'out-of-stock' : nextQty < 50 ? 'low-stock' : 'in-stock' };
-          }
-          return item;
-        });
-
-        // Create Purchase Invoice if applicable
-        const newPurchaseInvoices = tapal.type === 'Purchase' ? [{
-          id: generateId('PINV', state.purchaseInvoices || []),
-          tapalId,
-          farmer: tapal.farmer?.name || tapal.party,
-          amount: amountVal,
-          date: new Date().toISOString(),
-          status: 'unpaid',
-          paidAmount: 0,
-          dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
-        }, ...(state.purchaseInvoices || [])] : (state.purchaseInvoices || []);
-
-        return {
-          tapals: state.tapals.map(t => t.id === tapalId ? { ...t, status: 'Delivered' } : t),
-          inventory: newInventory,
-          purchaseInvoices: newPurchaseInvoices,
-          trips: state.trips.map(t => t.tapalId === tapalId ? { 
-            ...t, 
-            status: 'Delivered', 
-            completedAt: new Date().toLocaleTimeString(),
-            timeline: [...(t.timeline || []), { status: 'Delivered', time: new Date().toLocaleTimeString() }]
-          } : t)
-        };
-      }),
+      /** @deprecated Use tapal/trip APIs — local mock completion removed */
+      completeTrip: async () => {
+        console.warn('[adminStore] completeTrip is deprecated; use tapalService/trip APIs');
+      },
 
       closeTrip: (tapalId) => set((state) => {
         const tapal = state.tapals.find(t => t.id === tapalId);
@@ -772,7 +732,11 @@ export const useAdminStore = create(
         try {
           const res = await harvestService.all(params);
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          set({ harvestSlips: list, loading: false });
+          const { mapHarvestFromApi } = await import('../utils/harvestPayload.js');
+          set({
+            harvestSlips: (Array.isArray(list) ? list : []).map(mapHarvestFromApi),
+            loading: false,
+          });
         } catch (err) {
           console.error('Failed to fetch harvest slips', err);
           set({ loading: false });

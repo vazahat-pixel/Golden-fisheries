@@ -16,6 +16,10 @@ export const tapalValidators = {
   }),
 
   pickup: Joi.object({
+    tapalId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/).messages({
+      'any.required': 'Tapal ID is required',
+      'string.pattern.base': 'Tapal ID must be a valid 24-char MongoDB ObjectId'
+    }),
     actualPickupQty: Joi.number().required().min(0.1).messages({
       'any.required': 'Actual pickup weight quantity is required',
       'number.min': 'Pickup quantity must be greater than zero'
@@ -23,6 +27,10 @@ export const tapalValidators = {
   }),
 
   deliver: Joi.object({
+    tapalId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/).messages({
+      'any.required': 'Tapal ID is required',
+      'string.pattern.base': 'Tapal ID must be a valid 24-char MongoDB ObjectId'
+    }),
     actualDeliveredQty: Joi.number().required().min(0.1).messages({
       'any.required': 'Actual delivered weight quantity is required',
       'number.min': 'Delivered quantity must be greater than zero'

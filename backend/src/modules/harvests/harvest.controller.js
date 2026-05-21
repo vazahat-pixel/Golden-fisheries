@@ -2,26 +2,38 @@ import { harvestService } from './harvest.service.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { broadcastEvent } from '../../sockets/socket.js';
+import { aliasHarvestResponse, aliasTapalResponse } from '../../utils/apiAliases.js';
+
+function normalizeHarvestBody(body) {
+  if (!body || typeof body !== 'object') return body;
+  const o = { ...body };
+  if (o.hNo && !o.harvestNumber) o.harvestNumber = o.hNo;
+  if (o.farmer && !o.farmerId) o.farmerId = o.farmer;
+  if (o.date && !o.harvestDate) o.harvestDate = o.date;
+  if (o.loadingPoint && !o.pickupLocation) o.pickupLocation = o.loadingPoint;
+  return o;
+}
 
 export const harvestController = {
   // Create a new Harvest Slip
   create: asyncWrapper(async (req, res) => {
     // Inject current creator user ID from auth middleware
-    const harvestData = {
+    const harvestData = normalizeHarvestBody({
       ...req.body,
       createdBy: req.user.id
-    };
+    });
 
     const harvest = await harvestService.create(harvestData);
-    new ApiResponse(201, { harvest }, 'Harvest Slip created successfully').send(res);
+    new ApiResponse(201, { harvest: aliasHarvestResponse(harvest) }, 'Harvest Slip created successfully').send(res);
   }),
 
   // Fetch all Harvest Slips with filters, search, and pagination
   all: asyncWrapper(async (req, res) => {
     const result = await harvestService.findHarvestsWithFilters(req.query);
+    const rows = (result.docs || []).map((h) => aliasHarvestResponse(h));
     new ApiResponse(
       200, 
-      result.docs, 
+      rows, 
       'Harvest Slips fetched successfully', 
       result.meta
     ).send(res);
@@ -30,13 +42,13 @@ export const harvestController = {
   // Fetch a single Harvest Slip by ID
   getById: asyncWrapper(async (req, res) => {
     const harvest = await harvestService.findById(req.params.id, 'farmerId');
-    new ApiResponse(200, { harvest }, 'Harvest Slip retrieved successfully').send(res);
+    new ApiResponse(200, { harvest: aliasHarvestResponse(harvest) }, 'Harvest Slip retrieved successfully').send(res);
   }),
 
   // Update a Harvest Slip
   update: asyncWrapper(async (req, res) => {
-    const harvest = await harvestService.updateById(req.params.id, req.body);
-    new ApiResponse(200, { harvest }, 'Harvest Slip updated successfully').send(res);
+    const harvest = await harvestService.updateById(req.params.id, normalizeHarvestBody(req.body));
+    new ApiResponse(200, { harvest: aliasHarvestResponse(harvest) }, 'Harvest Slip updated successfully').send(res);
   }),
 
   // Patch status state of a Harvest Slip
@@ -51,7 +63,7 @@ export const harvestController = {
       harvestNumber: harvest.harvestNumber 
     }, 'dashboard:updates');
 
-    new ApiResponse(200, { harvest }, `Harvest status updated to ${status}`).send(res);
+    new ApiResponse(200, { harvest: aliasHarvestResponse(harvest) }, `Harvest status updated to ${status}`).send(res);
   }),
 
   // Convert a Confirmed Harvest Slip into a Purchase Tapal Contract
@@ -66,12 +78,12 @@ export const harvestController = {
       status: 'CONVERTED_TO_TAPAL' 
     }, 'dashboard:updates');
 
-    new ApiResponse(201, { tapal }, 'Harvest slip converted to Purchase Tapal successfully').send(res);
+    new ApiResponse(201, { tapal: aliasTapalResponse(tapal) }, 'Harvest slip converted to Purchase Tapal successfully').send(res);
   }),
 
   // Save Net Rate calculations and finalize purchase bill
   saveNetRate: asyncWrapper(async (req, res) => {
     const harvest = await harvestService.saveNetRate(req.params.id, req.body, req.user);
-    new ApiResponse(200, { harvest }, 'Net rate and finalized purchase bill saved successfully').send(res);
+    new ApiResponse(200, { harvest: aliasHarvestResponse(harvest) }, 'Net rate and finalized purchase bill saved successfully').send(res);
   })
 };

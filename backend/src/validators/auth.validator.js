@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { ROLE_LIST } from '../constants/roles.js';
+import { sendError } from '../utils/response.js';
 
 /**
  * Authentication input schemas validation utilizing Joi.
@@ -73,12 +74,11 @@ export const validateBody = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.body, { abortEarly: false });
     if (error) {
-      const errorDetails = error.details.map((detail) => detail.message).join(', ');
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        details: errorDetails
-      });
+      const errors = error.details.map((detail) => ({
+        field: detail.path.join('.'),
+        message: detail.message
+      }));
+      return sendError(res, 'Validation failed', 400, errors);
     }
     next();
   };

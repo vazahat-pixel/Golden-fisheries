@@ -1,19 +1,59 @@
 import { logger } from '../utils/logger.js';
+import { config } from '../config/config.js';
 
 class SmsService {
   constructor() {
-    this.apiKey = process.env.SMS_API_KEY;
-    this.gatewayUrl = 'https://www.fast2sms.com/dev/bulkV2';
+    this.apiKey = process.env.SMS_API_KEY?.trim() || '';
+    this.gatewayUrl = config.integrations.sms.gatewayUrl;
+    this.senderId = config.integrations.sms.senderId;
   }
 
-  /**
-   * Send OTP via Fast2SMS (Indian Gateway)
-   * @param {string} phone 10 digit phone number
-   * @param {string} otp 6 digit OTP
-   */
+  isConfigured() {
+    return Boolean(this.apiKey);
+  }
+
+  shouldSkipRealSend() {
+    return config.env === 'development' && !config.integrations.sms.forceSendInDev;
+  }
+
+  /** Generic transactional SMS (Fast2SMS bulk route). */
+  async sendMessage(phone, message) {
+    if (this.shouldSkipRealSend()) {
+      logger.info(`[SMS Service]: Dev Mode - ${phone}: ${message}`);
+      return { success: true, message: 'Dev mode: SMS skipped' };
+    }
+
+    if (!this.apiKey) {
+      logger.warn('[SMS Service]: No SMS_API_KEY — message not sent.');
+      return { success: false, message: 'SMS not configured' };
+    }
+
+    const response = await fetch(this.gatewayUrl, {
+      method: 'POST',
+      headers: {
+        authorization: this.apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        route: 'q',
+        message,
+        language: 'english',
+        numbers: phone
+      })
+    });
+
+    const data = await response.json();
+    if (data?.return === true) {
+      logger.info(`[SMS Service]: Message sent to ${phone}`);
+      return { success: true, data };
+    }
+    logger.error(`[SMS Service]: Send failed for ${phone}`, data);
+    throw new Error(data?.message || 'Failed to send SMS');
+  }
+
+  /** Send OTP via Fast2SMS OTP route */
   async sendOtp(phone, otp) {
-    // In development, we don't send real SMS to save credits
-    if (process.env.NODE_ENV === 'development') {
+    if (this.shouldSkipRealSend()) {
       logger.info(`[SMS Service]: Dev Mode - Skip sending SMS to ${phone}. OTP: ${otp}`);
       return { success: true, message: 'Dev mode: SMS skipped' };
     }

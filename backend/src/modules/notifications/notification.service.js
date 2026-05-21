@@ -1,38 +1,72 @@
 import { logger } from '../../utils/logger.js';
+import { smsService } from '../../services/sms.service.js';
+import { whatsappService } from '../../services/whatsapp.service.js';
+
+async function dispatch(channel, phone, message) {
+  try {
+    if (channel === 'SMS') {
+      const r = await smsService.sendMessage(phone, message);
+      return { ...r, channel: 'SMS', phone };
+    }
+    if (channel === 'WHATSAPP') {
+      return await whatsappService.sendText(phone, message);
+    }
+    logger.info(`[Notify ${channel}]: ${phone} — ${message}`);
+    return { success: true, channel, phone };
+  } catch (err) {
+    logger.error(`[Notify ${channel} Error]: ${err.message}`);
+    return { success: false, channel, phone, error: err.message };
+  }
+}
 
 export const notificationService = {
-  /**
-   * Dispatches WhatsApp Alerts to farmers or buyers
-   */
-  sendWhatsApp: async (phone, message) => {
-    // In production: Integrate Twilio WhatsApp Business API or Meta Cloud API
-    logger.info(`[WhatsApp Dispatch API]: Message queued and sent to +91 ${phone} -> "${message}"`);
-    return { success: true, channel: 'WHATSAPP', phone, timestamp: new Date() };
+  async sendWhatsApp(phone, message) {
+    return dispatch('WHATSAPP', phone, message);
   },
 
-  /**
-   * Dispatches SMS trip sheets to drivers
-   */
-  sendDriverAlert: async (phone, vehicleNo, pickupAddr) => {
-    const msg = `[Golden Fisheries Logistics]: Cargo Trip assigned. Vehicle: ${vehicleNo}. Pickup point: ${pickupAddr}. Open your driver panel to start trip.`;
-    logger.info(`[SMS Dispatch API]: Sent to +91 ${phone} -> "${msg}"`);
-    return { success: true, channel: 'SMS', phone, timestamp: new Date() };
+  async sendSms(phone, message) {
+    return dispatch('SMS', phone, message);
   },
 
-  /**
-   * Dispatches WhatsApp confirmations upon harvest conversions
-   */
-  sendHarvestConfirmation: async (farmerPhone, slipNo, date) => {
-    const msg = `Respected Partner, your Harvest Slip ${slipNo} scheduled for ${date.toDateString()} has been confirmed. Tapal issued. Golden Fisheries Logistics is in transit.`;
-    return await notificationService.sendWhatsApp(farmerPhone, msg);
+  async sendDriverTripAssigned({ phone, vehicleNo, pickupAddr, tapalNo }) {
+    const msg = `[Golden Fisheries] Trip ${tapalNo || ''} assigned. Vehicle: ${vehicleNo || 'TBD'}. Pickup: ${pickupAddr}. Open your driver app to start.`;
+    const sms = await dispatch('SMS', phone, msg);
+    return sms;
   },
 
-  /**
-   * Low Stock Email/Slack notifications to warehouse administrators
-   */
-  sendLowStockAlert: async (productName, currentQty, reorderLimit) => {
-    logger.warn(`[SYSTEM ALARM]: Product ${productName} stock is critically low. Current reserves: ${currentQty} KG. Reorder Limit is ${reorderLimit} KG.`);
+  async sendHarvestConfirmation(farmerPhone, slipNo, date) {
+    const msg = `Partner, Harvest Slip ${slipNo} (${date?.toDateString?.() || date}) is confirmed. Tapal issued. Golden Fisheries logistics will coordinate pickup.`;
+    if (whatsappService.isConfigured()) {
+      return dispatch('WHATSAPP', farmerPhone, msg);
+    }
+    return dispatch('SMS', farmerPhone, msg);
+  },
+
+  async sendBuyerDeliveryReady({ phone, tapalNo, qty }) {
+    const msg = `[Golden Fisheries] Shipment ${tapalNo} delivered (${qty || 'cargo'}). Please verify receipt in your buyer portal.`;
+    return dispatch('WHATSAPP', phone, msg);
+  },
+
+  async sendBuyerBillCreated({ phone, billNo, amount }) {
+    const msg = `[Golden Fisheries] Buyer bill ${billNo} generated. Amount: ₹${amount}. View details in your portal.`;
+    return dispatch('SMS', phone, msg);
+  },
+
+  async sendLowStockAlert(productName, currentQty, reorderLimit) {
+    logger.warn(
+      `[SYSTEM ALARM]: ${productName} stock low. Current: ${currentQty} KG. Reorder: ${reorderLimit} KG.`
+    );
     return { success: true, channel: 'SYSTEM_ALARM', message: `Stock critical for ${productName}` };
+  },
+
+  async sendVehicleDocAlert({ vehicle, docType, alertType, expiryDate, assignedDriver }) {
+    const msg = `[Vehicle Alert] ${vehicle?.vehicleNumber} — ${docType} ${alertType}. Expiry: ${expiryDate?.toDateString?.() || expiryDate}`;
+    logger.warn(msg);
+    if (assignedDriver?.phone) {
+      await dispatch('SMS', assignedDriver.phone, msg);
+    }
+    return { success: true, channel: 'VEHICLE_DOC', vehicleNo: vehicle?.vehicleNumber, docType, alertType };
   }
 };
+
 export default notificationService;

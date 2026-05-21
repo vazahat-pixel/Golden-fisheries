@@ -4,6 +4,8 @@ import { connectDB } from './config/db.js';
 import mongoose from 'mongoose';
 import { logger } from './utils/logger.js';
 import { setupSockets } from './sockets/socket.js';
+import { scheduleVehicleDocumentExpiryJob } from './cron/vehicleExpiryCheck.js';
+import { scheduleDailyPnLJob } from './cron/dailyPnL.js';
 
 // ==========================================
 // 1. Capture Synchronous Exceptions
@@ -35,6 +37,9 @@ const server = app.listen(config.port, () => {
 // ==========================================
 setupSockets(server);
 logger.info(`[Socket Engine]: Socket.IO event router listening on active HTTP port.`);
+
+scheduleVehicleDocumentExpiryJob();
+scheduleDailyPnLJob();
 
 // ==========================================
 // 5. Capture Unhandled Promise Rejections

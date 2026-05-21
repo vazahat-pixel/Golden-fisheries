@@ -1,12 +1,11 @@
 import React from 'react';
 
-const Placeholder = () => {
-  return (
-    <div className="p-8 text-center">
-      <h2 className="text-2xl font-bold mb-4">Under Construction</h2>
-      <p className="text-gray-600">This component has not been implemented yet.</p>
-    </div>
-  );
-};
+const DriverSupport = () => (
+  <div className="p-4 space-y-3 text-sm">
+    <h1 className="text-lg font-black uppercase">Support</h1>
+    <p>Golden Fisheries logistics desk</p>
+    <p className="text-gray-600">For trip issues, call procurement office during business hours.</p>
+  </div>
+);
 
-export default Placeholder;
+export default DriverSupport;

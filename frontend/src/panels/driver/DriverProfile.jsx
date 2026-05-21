@@ -1,12 +1,24 @@
 import React from 'react';
+import { useAuthStore } from '../../store/authStore';
 
-const Placeholder = () => {
+const DriverProfile = () => {
+  const { user } = useAuthStore();
   return (
-    <div className="p-8 text-center">
-      <h2 className="text-2xl font-bold mb-4">Under Construction</h2>
-      <p className="text-gray-600">This component has not been implemented yet.</p>
+    <div className="p-4 space-y-3">
+      <h1 className="text-lg font-black uppercase">Profile</h1>
+      <div className="bg-white border p-4 text-sm space-y-2">
+        <p>
+          <span className="text-gray-500">Name:</span> {user?.fullName || user?.name}
+        </p>
+        <p>
+          <span className="text-gray-500">Phone:</span> {user?.phone}
+        </p>
+        <p>
+          <span className="text-gray-500">Role:</span> DRIVER
+        </p>
+      </div>
     </div>
   );
 };
 
-export default Placeholder;
+export default DriverProfile;

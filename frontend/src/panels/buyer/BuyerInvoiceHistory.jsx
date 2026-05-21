@@ -1,79 +1,96 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAdminStore } from '../../store/adminStore';
-import { FileText, IndianRupee, Printer } from 'lucide-react';
+import { buyerPortalService } from '../../services/buyerPortalService';
+import { Printer } from 'lucide-react';
 
 const BuyerInvoiceHistory = () => {
-  const navigate = useNavigate();
-  const { invoices, fetchInvoices } = useAdminStore();
+  const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [printBill, setPrintBill] = useState(null);
 
   useEffect(() => {
-    fetchInvoices().finally(() => setLoading(false));
-  }, [fetchInvoices]);
-
-  const salesInvoices = invoices.filter(inv => inv.type === 'SALES');
+    buyerPortalService
+      .listBills()
+      .then((res) => setBills(Array.isArray(res?.data) ? res.data : []))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 font-sans pb-12">
-      <div className="border-b border-card-border pb-5">
-        <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase flex items-center gap-3">
-          <FileText className="text-brand-yellow" size={24} /> Invoice History
-        </h1>
-        <p className="text-text-secondary text-sm mt-1">View and print past sales invoices.</p>
+    <div className="space-y-6 p-1">
+      <div>
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer Portal</p>
+        <h1 className="text-2xl font-serif italic font-black text-slate-900">Invoice History</h1>
       </div>
 
-      <div className="bg-white border border-card-border shadow-sm overflow-hidden mt-6">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead>
-              <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
-                <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Invoice No</th>
-                <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Date</th>
-                <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Associated TP</th>
-                <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Amount</th>
-                <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive">Status</th>
-                <th className="py-3 px-4 text-[10px] font-black uppercase text-brand-olive text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-card-border text-xs">
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="py-8 text-center text-text-muted">Loading Invoices...</td>
-                </tr>
-              ) : salesInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="py-8 text-center text-text-muted italic">No invoices found.</td>
-                </tr>
-              ) : (
-                salesInvoices.map((inv) => (
-                  <tr key={inv.id || inv._id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-4 font-black text-brand-olive">#{inv.id || inv.invoiceNumber}</td>
-                    <td className="py-4 px-4 font-medium text-text-secondary">{inv.date || 'N/A'}</td>
-                    <td className="py-4 px-4 font-medium text-text-secondary">TP #{inv.tapalId || 'N/A'}</td>
-                    <td className="py-4 px-4 font-extrabold">{inv.amount}</td>
-                    <td className="py-4 px-4">
-                      <span className={`px-2 py-1 text-[10px] font-black uppercase tracking-wider rounded-sm ${
-                        inv.status?.toLowerCase() === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {inv.status || 'PENDING'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <button
-                        onClick={() => navigate(`/buyer/invoice/${inv.id || inv._id}`)}
-                        className="text-[10px] font-black uppercase tracking-widest text-brand-olive hover:text-brand-yellow transition-colors flex items-center justify-end gap-1 ml-auto"
-                      >
-                        <Printer size={12} /> View & Print
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <p className="text-sm text-slate-400">Loading...</p>
+      ) : bills.length === 0 ? (
+        <p className="text-sm text-slate-400">No bills yet</p>
+      ) : (
+        <div className="space-y-3 no-print">
+          {bills.map((b) => (
+            <div key={b._id} className="bg-white rounded-2xl border border-slate-100 p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="font-black text-sm">{b.billNo}</span>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {b.item} — {b.finalWeight} KG @ ₹{b.ratePerKg}
+                  </p>
+                  <p className="text-lg font-black text-slate-900 mt-2">
+                    ₹{b.totalAmount?.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPrintBill(b)}
+                  className="text-[10px] font-bold uppercase flex items-center gap-1 text-blue-600"
+                >
+                  <Printer size={14} /> Print
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
+
+      {printBill && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-lg my-8">
+            <div className="no-print p-3 flex justify-between border-b">
+              <button type="button" onClick={() => setPrintBill(null)} className="text-sm font-bold">
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="text-sm font-bold uppercase flex items-center gap-1"
+              >
+                <Printer size={14} /> Print
+              </button>
+            </div>
+            <div className="print-root p-6 border-2 border-black m-4 text-sm">
+              <h2 className="text-center font-bold uppercase border-b pb-2 mb-3">Buyer Bill</h2>
+              <p>
+                <strong>Bill No:</strong> {printBill.billNo}
+              </p>
+              <p>
+                <strong>Tapal:</strong> {printBill.tapal?.tapalNumber || printBill.tapalRef}
+              </p>
+              <p>
+                <strong>Item:</strong> {printBill.item}
+              </p>
+              <p>
+                <strong>Weight:</strong> {printBill.finalWeight} KG
+              </p>
+              <p>
+                <strong>Rate:</strong> ₹{printBill.ratePerKg}/KG
+              </p>
+              <p className="mt-3 text-lg font-bold border-t pt-2">
+                Total: ₹{printBill.totalAmount?.toLocaleString('en-IN')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

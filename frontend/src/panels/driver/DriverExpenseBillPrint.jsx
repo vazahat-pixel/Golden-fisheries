@@ -1,83 +1,159 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAdminStore } from '../../store/adminStore';
-import { Printer, ArrowLeft } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { tapalService } from '../../services/tapalService';
+import { PrintActions } from '../../components/print/PrintActions';
+import { toast } from 'react-hot-toast';
 
+/**
+ * Printable Driver End Trip sheet — matches client paperwork layout.
+ */
 const DriverExpenseBillPrint = () => {
-  const { id } = useParams();
+  const { tripId } = useParams();
   const navigate = useNavigate();
-  const { trips } = useAdminStore();
-  
-  const trip = trips.find(t => t.id === id || t._id === id);
+  const [trip, setTrip] = useState(null);
 
-  if (!trip) return <div className="p-8 text-center">Trip not found</div>;
+  useEffect(() => {
+    tapalService
+      .getTripById(tripId)
+      .then((res) => setTrip(res?.data?.trip || res?.trip || res))
+      .catch(() => toast.error('Trip not found'));
+  }, [tripId]);
 
-  const totalExpense = trip.expenses?.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0) || 0;
+  if (!trip) {
+    return <p className="p-6 text-sm">Loading trip sheet...</p>;
+  }
+
+  const pte = trip.postTripExpenses || {};
+  const tapal = trip.tapalId || trip.tapal || {};
+  const pumps = pte.pumps || [];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 font-sans pb-12 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center print:hidden mb-6">
-        <button onClick={() => navigate(-1)} className="text-text-muted hover:text-[#6A7051] transition-all flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
-          <ArrowLeft size={16} /> Back
-        </button>
-        <button 
-          onClick={() => window.print()}
-          className="bg-brand-olive text-white px-6 py-2.5 text-xs font-black uppercase tracking-widest hover:bg-[#5F6846] transition-all flex items-center gap-2 shadow-sm"
-        >
-          <Printer size={16} /> Print Voucher
-        </button>
-      </div>
-
-      <div className="bg-white border border-card-border p-8 shadow-sm print:shadow-none print:border-none print:p-0">
-        <div className="text-center border-b-2 border-brand-olive pb-4 mb-6">
-          <h1 className="text-2xl font-extrabold text-brand-olive uppercase tracking-tighter">GOLDEN FISHERIES</h1>
-          <h2 className="text-lg font-black uppercase tracking-widest mt-1">TRIP EXPENSE VOUCHER</h2>
+    <div className="p-4 md:p-8 bg-gray-100 min-h-screen">
+      <PrintActions onBack={() => navigate(-1)} title="Driver End Trip Sheet" />
+      <div className="print-root max-w-[210mm] mx-auto bg-white border-2 border-black p-[10mm] text-black text-sm">
+        <div className="text-center border-b-2 border-black pb-2 mb-3">
+          <h1 className="text-base font-bold uppercase tracking-widest">Golden Fisheries</h1>
+          <p className="text-xs uppercase">Driver End Trip / Expense Sheet</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-          <div>
-            <p><span className="font-bold text-text-muted w-24 inline-block uppercase">Trip No:</span> <span className="font-black">{trip.tripNumber || trip.id}</span></p>
-            <p><span className="font-bold text-text-muted w-24 inline-block uppercase">Driver:</span> <span className="font-black uppercase">{trip.driverName}</span></p>
-            <p><span className="font-bold text-text-muted w-24 inline-block uppercase">Vehicle:</span> <span className="font-black uppercase">{trip.vehicle}</span></p>
-          </div>
-          <div className="text-right">
-            <p><span className="font-bold text-text-muted inline-block uppercase mr-2">Status:</span> <span className="font-black uppercase">{trip.status}</span></p>
-            <p><span className="font-bold text-text-muted inline-block uppercase mr-2">Route:</span> <span className="font-black uppercase">{trip.pickupLocation?.split(',')[0]} to {trip.deliveryLocation?.split(',')[0]}</span></p>
-          </div>
-        </div>
-
-        <table className="w-full text-left border-collapse mb-6">
-          <thead>
-            <tr className="bg-slate-100 border-b border-card-border">
-              <th className="py-2 px-3 text-xs font-black uppercase text-brand-olive">Date</th>
-              <th className="py-2 px-3 text-xs font-black uppercase text-brand-olive">Category</th>
-              <th className="py-2 px-3 text-xs font-black uppercase text-brand-olive">Remarks</th>
-              <th className="py-2 px-3 text-xs font-black uppercase text-brand-olive text-right">Amount (₹)</th>
+        <table className="w-full text-xs mb-3">
+          <tbody>
+            <tr>
+              <td className="font-bold w-32 py-1">Trip No</td>
+              <td>{trip.tripNumber || trip.tripNo}</td>
+              <td className="font-bold w-32 py-1">Tapal No</td>
+              <td>{pte.tapalNo || tapal.tapalNumber || tapal.tpNo}</td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-card-border text-sm">
-            {trip.expenses?.length > 0 ? trip.expenses.map((exp, idx) => (
-              <tr key={idx}>
-                <td className="py-3 px-3 font-medium">{new Date().toLocaleDateString()}</td>
-                <td className="py-3 px-3 font-black uppercase">{exp.expenseType || exp.type}</td>
-                <td className="py-3 px-3 text-text-secondary">{exp.remarks || '-'}</td>
-                <td className="py-3 px-3 text-right font-bold">{parseFloat(exp.amount).toFixed(2)}</td>
-              </tr>
-            )) : (
-              <tr><td colSpan="4" className="py-4 text-center italic text-text-muted">No expenses recorded.</td></tr>
-            )}
+            <tr>
+              <td className="font-bold py-1">Vehicle</td>
+              <td>{pte.vehicleNumber || trip.vehicleId?.vehicleNumber || '—'}</td>
+              <td className="font-bold py-1">Driver</td>
+              <td>{pte.driverName || '—'}</td>
+            </tr>
+            <tr>
+              <td className="font-bold py-1">Loading</td>
+              <td colSpan={3}>{pte.loadingPoint || trip.pickupLocation}</td>
+            </tr>
+            <tr>
+              <td className="font-bold py-1">Unloading</td>
+              <td colSpan={3}>{pte.unloadingPoint || trip.deliveryLocation}</td>
+            </tr>
           </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-brand-olive">
-              <td colSpan="3" className="py-3 px-3 text-right font-black uppercase">Total Expenses:</td>
-              <td className="py-3 px-3 text-right font-black text-lg text-brand-olive">₹{totalExpense.toFixed(2)}</td>
-            </tr>
-          </tfoot>
         </table>
 
-        <div className="flex justify-between mt-16 pt-8 border-t border-card-border text-sm font-bold uppercase text-text-muted">
-          <div className="text-center w-32 border-t border-text-muted pt-2">Driver Signature</div>
-          <div className="text-center w-32 border-t border-text-muted pt-2">Admin Signature</div>
+        <table className="print-table mb-3">
+          <thead>
+            <tr>
+              <th>KM / Mileage</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Total KM</th>
+              <th>Mileage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>—</td>
+              <td>{pte.startingKms ?? '—'}</td>
+              <td>{pte.endingKms ?? '—'}</td>
+              <td>{pte.totalKms ?? '—'}</td>
+              <td>{pte.mileage ?? '—'}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table className="print-table mb-3">
+          <thead>
+            <tr>
+              <th>Expense Head</th>
+              <th className="text-right">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ['Diesel', pte.diesel],
+              ['Toll / FASTag', pte.tollFastag],
+              ['RTO / PC / RMC', pte.rtoPcRmc],
+              ['Maintenance', pte.maintenance],
+              ['Driver Batta', pte.driverBatta],
+              ['Halting', pte.halting],
+            ].map(([label, val]) => (
+              <tr key={label}>
+                <td>{label}</td>
+                <td className="text-right font-mono">{(val ?? 0).toLocaleString('en-IN')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {pumps.length > 0 && (
+          <>
+            <p className="text-xs font-bold uppercase mb-1">Pump Entries</p>
+            <table className="print-table mb-3">
+              <thead>
+                <tr>
+                  <th>Pump</th>
+                  <th>Litres</th>
+                  <th className="text-right">Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pumps.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.name}</td>
+                    <td>{p.litres}</td>
+                    <td className="text-right font-mono">{(p.amount ?? 0).toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        <div className="border-2 border-black p-3 text-sm space-y-1">
+          <div className="flex justify-between">
+            <span className="font-bold">Total Expenses</span>
+            <span className="font-mono">₹{(pte.totalExpenses ?? 0).toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Less Advance</span>
+            <span className="font-mono">₹{(pte.lessAdvance ?? 0).toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex justify-between border-t border-black pt-2 font-bold text-base">
+            <span>Balance Payable</span>
+            <span className="font-mono">₹{(pte.balancePayable ?? 0).toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        {pte.remarks && (
+          <p className="text-xs mt-3">
+            <span className="font-bold">Remarks:</span> {pte.remarks}
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-8 mt-10 text-xs">
+          <div className="border-t border-black pt-2 text-center">Driver Signature</div>
+          <div className="border-t border-black pt-2 text-center">Office Approval</div>
         </div>
       </div>
     </div>

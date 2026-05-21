@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { ROLE_LIST } from '../../constants/roles.js';
+import { BUSINESS_UNIT_LIST } from '../../constants/businessUnits.js';
+import { applyRoleDefaults } from '../../constants/rbacDefaults.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -60,6 +62,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    platformAccess: {
+      web: { type: Boolean, default: true },
+      mobile: { type: Boolean, default: true },
+      mobileViewOnly: { type: Boolean, default: false }
+    },
+    businessUnit: {
+      type: String,
+      enum: BUSINESS_UNIT_LIST,
+      default: 'MKE'
+    },
     refreshToken: {
       type: String,
       select: false
@@ -82,6 +94,13 @@ const userSchema = new mongoose.Schema(
     }
   }
 );
+
+userSchema.pre('save', function (next) {
+  if (this.isNew || this.isModified('role')) {
+    applyRoleDefaults(this);
+  }
+  next();
+});
 
 // Hash password automatically before saving if modified
 userSchema.pre('save', async function (next) {

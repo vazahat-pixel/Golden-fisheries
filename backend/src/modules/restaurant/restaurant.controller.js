@@ -25,8 +25,7 @@ export const restaurantController = {
   }),
 
   settle: asyncWrapper(async (req, res) => {
-    const { paymentMethod } = req.body;
-    const order = await restaurantService.settleOrder(req.params.id, paymentMethod, req.user.id);
+    const order = await restaurantService.settleOrder(req.params.id, req.body, req.user.id);
     
     // Broadcast for real-time dashboard sync
     broadcastEvent('restaurant:order_settled', { order }, 'dashboard:updates');
