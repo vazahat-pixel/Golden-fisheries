@@ -27,6 +27,7 @@ export const useAdminStore = create(
       users: [],
       transactions: [],
       trips: [],
+      buyerTrips: [],
       incomingStock: [],
       purchaseInvoices: [],
       harvestSlips: [],
@@ -124,6 +125,35 @@ export const useAdminStore = create(
           set({ trips: mapped, loading: false });
         } catch (err) {
           console.warn('[Logistics] fetchTrips failed:', err.message);
+          set({ loading: false });
+        }
+      },
+
+      fetchBuyerTrips: async () => {
+        set({ loading: true });
+        try {
+          const res = await tapalService.myBuyerTrips();
+          const list = Array.isArray(res?.data) ? res.data : [];
+          const mapped = list.map(t => ({
+            id: t._id,
+            tripNumber: t.tripNumber,
+            tapalId: t.tapalId?._id || t.tapalId,
+            driverId: t.driverId?._id || t.driverId,
+            driverName: t.driverId?.fullName || 'Driver',
+            vehicle: t.vehicleId?.plateNumber || 'Vehicle',
+            status: t.status,
+            pickupLocation: t.pickupLocation,
+            deliveryLocation: t.deliveryLocation,
+            product: 'Cargo',
+            expectedQty: t.expectedQty,
+            actualQty: t.actualDeliveredQty || t.actualPickupQty,
+            createdAt: new Date(t.createdAt).toLocaleTimeString(),
+            expenses: t.expenses || [],
+            timeline: t.timeline || []
+          }));
+          set({ buyerTrips: mapped, loading: false });
+        } catch (err) {
+          console.warn('[Buyer] fetchBuyerTrips failed:', err.message);
           set({ loading: false });
         }
       },

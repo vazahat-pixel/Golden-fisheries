@@ -1,19 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { Search, Bell, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '../../store/authStore';
 import { LoadingFallback } from '../components/LoadingFallback';
 
+// Context for mobile detection — child components can use this to hide action buttons
+const AdminLayoutContext = createContext({ isMobile: false });
+export const useAdminLayout = () => useContext(AdminLayoutContext);
+
 export const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { user } = useAuthStore();
 
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
+    <AdminLayoutContext.Provider value={{ isMobile }}>
     <div className="flex min-h-screen bg-page-bg">
       {/* Sidebar Overlay for Mobile */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-all"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -26,28 +39,33 @@ export const AdminLayout = ({ children }) => {
       )}>
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
-      
+
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header className="h-16 flex items-center justify-between px-6 md:px-12 bg-white border-b border-card-border sticky top-0 z-30">
           <div className="flex items-center gap-3 md:gap-4">
-            <button 
+            <button
               onClick={() => setIsSidebarOpen(true)}
               className="p-2 text-text-muted hover:bg-white hover:text-primary rounded-none lg:hidden transition-colors"
             >
               <Menu size={22} />
             </button>
-            
+
             <div className="relative w-48 md:w-[450px] max-w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
-              <input 
-                type="text" 
-                placeholder="Search system..." 
+              <input
+                type="text"
+                placeholder="Search system..."
                 className="w-full bg-white border border-card-border rounded-none py-2.5 pl-10 pr-4 text-[11px] focus:ring-1 focus:ring-accent-olive transition-all outline-none"
               />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
+            {isMobile && (
+              <span className="text-[8px] font-black bg-amber-50 text-amber-700 px-2 py-1 rounded-lg border border-amber-200 uppercase tracking-widest">
+                Read Only
+              </span>
+            )}
             <div className="flex flex-col text-right hidden md:block">
               <p className="text-[11px] font-black text-text-primary leading-tight uppercase tracking-tight">{user?.name || 'Mahesh'}</p>
               <p className="text-[9px] text-text-muted font-black uppercase tracking-widest">{user?.role || 'ADMIN'}</p>
@@ -57,7 +75,7 @@ export const AdminLayout = ({ children }) => {
             </div>
           </div>
         </header>
-        
+
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-page-bg">
           <div className="max-w-[1600px] mx-auto">
             <React.Suspense fallback={<LoadingFallback type="content" />}>
@@ -67,5 +85,6 @@ export const AdminLayout = ({ children }) => {
         </div>
       </main>
     </div>
+    </AdminLayoutContext.Provider>
   );
 };

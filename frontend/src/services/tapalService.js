@@ -16,6 +16,11 @@ export const tapalService = {
     return await apiClient.get('/tapals/my-trips');
   },
 
+  // 1.3 Buyer fetches only their own trips (scoped by JWT)
+  myBuyerTrips: async () => {
+    return await apiClient.get('/tapals/my-buyer-trips');
+  },
+
   // 2. Create Tapal from Harvest Slip
   createFromHarvest: async (harvestId, data = {}) => {
     return await apiClient.post('/tapals/create-from-harvest', { harvestId, ...data });
@@ -24,6 +29,16 @@ export const tapalService = {
   // 3. Assign Driver & Vehicle to Tapal (Launches active trip)
   assignDriver: async (tapalId, driverId, vehicleId) => {
     return await apiClient.patch('/tapals/assign-driver', { tapalId, driverId, vehicleId });
+  },
+
+  // 3.1 Driver accepts an assigned trip
+  acceptTrip: async (tapalId) => {
+    return await apiClient.patch('/tapals/accept-trip', { tapalId });
+  },
+
+  // 3.2 Driver rejects an assigned trip
+  rejectTrip: async (tapalId, reason = '') => {
+    return await apiClient.patch('/tapals/reject-trip', { tapalId, reason });
   },
 
   // 4. Driver starts the trip

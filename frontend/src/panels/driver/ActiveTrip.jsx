@@ -82,6 +82,7 @@ const ActiveTrip = () => {
         <div className="flex items-center justify-between relative">
           <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-200 -z-10 -translate-y-1/2"></div>
           
+<<<<<<< HEAD
           {['Assigned', 'In Transit', 'Picked', 'Delivered'].map((step, idx) => {
             const isActive = trip.status === step;
             const isPast = ['Assigned', 'Accepted', 'In Transit', 'Picked', 'Delivered'].indexOf(trip.status) >= ['Assigned', 'In Transit', 'Picked', 'Delivered'].indexOf(step);
@@ -96,6 +97,112 @@ const ActiveTrip = () => {
             );
           })}
         </div>
+=======
+          <div className="flex items-center justify-between text-center relative px-2">
+            {/* Background progress bar */}
+            <div className="absolute top-3.5 left-8 right-8 h-1 bg-slate-200 z-0">
+              <div className={`h-full bg-[#6A7051] transition-all duration-500`} style={{
+                width: isAssigned ? '0%' : isInTransit ? '33%' : isPicked ? '66%' : '100%'
+              }}></div>
+            </div>
+
+            {/* Step 1: Assigned */}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-xs ${
+                isAssigned ? 'bg-[#6A7051] border-[#6A7051] text-white animate-pulse' : 'bg-emerald-500 border-emerald-500 text-white'
+              }`}>
+                {!isAssigned ? <Check size={14} /> : '1'}
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-wider mt-1 text-brand-olive">Assigned</span>
+            </div>
+
+            {/* Step 2: Transit */}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-xs ${
+                isAssigned ? 'bg-white border-slate-300 text-slate-400' :
+                isInTransit ? 'bg-[#6A7051] border-[#6A7051] text-white animate-pulse' : 'bg-emerald-500 border-emerald-500 text-white'
+              }`}>
+                {isPicked || isDelivered ? <Check size={14} /> : '2'}
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-wider mt-1 text-brand-olive">Transit</span>
+            </div>
+
+            {/* Step 3: Loaded */}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-xs ${
+                isAssigned || isInTransit ? 'bg-white border-slate-300 text-slate-400' :
+                isPicked ? 'bg-[#6A7051] border-[#6A7051] text-white animate-pulse' : 'bg-emerald-500 border-emerald-500 text-white'
+              }`}>
+                {isDelivered ? <Check size={14} /> : '3'}
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-wider mt-1 text-brand-olive">Loaded</span>
+            </div>
+
+            {/* Step 4: Complete */}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-xs ${
+                isDelivered ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-300 text-slate-400'
+              }`}>
+                4
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-wider mt-1 text-brand-olive">Done</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-1">
+          {/* ASSIGNED — driver can start trip */}
+          {trip.status === 'ASSIGNED' && (
+            <button onClick={handleStartTrip} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+              <Navigation size={14} className="animate-pulse" /> Start Trip
+            </button>
+          )}
+
+          {/* STARTED — driver can log pickup weight */}
+          {trip.status === 'STARTED' && (
+            <button onClick={() => setIsPickupModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+              <PackageCheck size={14} /> Log Pickup Weight
+            </button>
+          )}
+
+          {/* PICKED — driver can confirm delivery */}
+          {trip.status === 'PICKED' && (
+            <button onClick={() => setIsDeliveryModalOpen(true)} className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+              <CheckCircle2 size={14} /> Confirm Delivery
+            </button>
+          )}
+
+          {/* DELIVERED / CLOSED — await admin trip closure */}
+          {['DELIVERED', 'CLOSED'].includes(trip.status) && (
+            <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+              <CheckCircle2 size={14} /> Delivered — Awaiting Admin Closure
+            </div>
+          )}
+        </div>
+      </div>
+
+        {/* Location Routing Coordinates */}
+        <div className="bg-white border border-card-border p-4 rounded-xl shadow-sm space-y-3 text-xs">
+          <span className="text-[10px] font-black uppercase tracking-wider text-brand-olive block border-b border-card-border pb-1">Route Waypoints</span>
+          <div className="space-y-2.5 pl-1.5 pt-1 text-[11px] text-text-secondary uppercase">
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-[#6A7051]" />
+              <div>
+                <span className="text-[8px] font-black text-text-muted tracking-widest block">Dock Location</span>
+                <span className="font-extrabold text-brand-olive">{trip.pickupLocation}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 border-t border-dashed border-card-border pt-2">
+              <Navigation size={14} className="text-brand-yellow animate-pulse" />
+              <div>
+                <span className="text-[8px] font-black text-text-muted tracking-widest block">Delivery Site</span>
+                <span className="font-extrabold text-brand-olive">{trip.deliveryLocation}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+>>>>>>> 47e56edf97dd57b0a9064bf17d38f96d6611b953
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

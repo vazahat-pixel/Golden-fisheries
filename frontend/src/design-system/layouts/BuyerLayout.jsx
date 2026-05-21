@@ -1,14 +1,23 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { ShoppingCart, FileText, RotateCcw, History, LogOut, LayoutDashboard } from 'lucide-react';
+import { ShoppingCart, FileText, RotateCcw, History, LogOut, LayoutDashboard, Truck, MapPin } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const buyerNav = [
+<<<<<<< HEAD
   { icon: LayoutDashboard, label: 'Dashboard',      path: '/buyer/dashboard' },
   { icon: ShoppingCart,    label: 'Incoming Tapals', path: '/buyer/tapals' },
   { icon: FileText,        label: 'My Bills',        path: '/buyer/invoices' },
   { icon: History,         label: 'Ledger',          path: '/buyer/ledger' },
   { icon: RotateCcw,       label: 'Sales Return',    path: '/buyer/returns' },
+=======
+  { icon: LayoutDashboard, label: 'Dashboard',        path: '/buyer/dashboard' },
+  { icon: Truck,           label: 'Assign Driver',    path: '/buyer/assign' },
+  { icon: MapPin,          label: 'Trip Tracker',     path: '/buyer/trips' },
+  { icon: ShoppingCart,    label: 'Incoming Tapals',  path: '/buyer/tapals' },
+  { icon: FileText,        label: 'My Bills',         path: '/buyer/invoices' },
+  { icon: RotateCcw,       label: 'Sales Return',     path: '/buyer/returns' },
+>>>>>>> 47e56edf97dd57b0a9064bf17d38f96d6611b953
 ];
 
 export const BuyerLayout = ({ children }) => {

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { tapalService } from '../services/tapalService';
 import { expenseService } from '../services/expenseService';
+import { apiClient } from '../services/apiClient';
 
 export const useDriverStore = create(
   persist(
@@ -64,7 +65,7 @@ export const useDriverStore = create(
           const res = await tapalService.myTrips();
           const list = Array.isArray(res?.data) ? res.data : [];
           // Active trip = any in-progress Trip status (Trip model enum: ASSIGNED, STARTED, PICKED, DELIVERED, CLOSED)
-          const live = list.find(t => ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED'].includes(t.status));
+          const live = list.find(t => ['ASSIGNED', 'ACCEPTED', 'STARTED', 'PICKED', 'DELIVERED'].includes(t.status));
           set({ myTrips: list, activeTrip: live || null, loading: false });
         } catch (err) {
           console.error('[Driver] Failed to fetch my trips:', err?.message || err);
@@ -82,6 +83,30 @@ export const useDriverStore = create(
         } catch (err) {
           console.error('[Driver] Failed to fetch expenses:', err?.message || err);
           set({ loading: false });
+        }
+      },
+
+      acceptTripAsync: async (tapalId) => {
+        set({ loading: true });
+        try {
+          await tapalService.acceptTrip(tapalId);
+          await get().fetchMyTrips();
+          set({ loading: false });
+        } catch (err) {
+          set({ loading: false });
+          throw err;
+        }
+      },
+
+      rejectTripAsync: async (tapalId, reason = '') => {
+        set({ loading: true });
+        try {
+          await tapalService.rejectTrip(tapalId, reason);
+          await get().fetchMyTrips();
+          set({ loading: false });
+        } catch (err) {
+          set({ loading: false });
+          throw err;
         }
       },
 
