@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { tapalService } from './tapal.service.js';
 import { harvestService } from '../harvests/harvest.service.js';
 import { Trip } from '../trips/trip.model.js';
@@ -18,8 +19,26 @@ function aliasTapalTripPair(result) {
 export const tapalController = {
   // Convert Harvest slip to active purchase Tapal contract
   createFromHarvest: asyncWrapper(async (req, res) => {
-    const { harvestId, assignedTo } = req.body;
-    const tapal = await harvestService.convertToTapal(harvestId, assignedTo, req.user);
+    const {
+      harvestId,
+      assignedTo,
+      buyerPhone,
+      buyerId,
+      assignedBuyer,
+      destination,
+      logisticsNotes,
+      vehicleNumber,
+      driverName,
+    } = req.body;
+    const tapal = await harvestService.convertToTapal(harvestId, assignedTo, req.user, null, {
+      buyerPhone,
+      buyerId,
+      assignedBuyer,
+      destination,
+      logisticsNotes,
+      vehicleNumber,
+      driverName,
+    });
     
     // Broadcast for real-time dashboard sync
     broadcastEvent('tapal:created', { tapal }, 'dashboard:updates');
@@ -215,7 +234,17 @@ export const tapalController = {
 
   // Get Trip Details by ID
   getTripById: asyncWrapper(async (req, res) => {
-    const trip = await Trip.findById(req.params.id).populate('tapalId driverId vehicleId');
+    const { id } = req.params;
+    let query = { _id: id };
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      query = { tripNumber: id };
+    } else {
+      const exists = await Trip.exists({ _id: id });
+      if (!exists) {
+        query = { tapalId: id };
+      }
+    }
+    const trip = await Trip.findOne(query).populate('tapalId driverId vehicleId');
     new ApiResponse(200, { trip: aliasTripResponse(trip) }, 'Trip retrieved successfully').send(res);
   })
 };

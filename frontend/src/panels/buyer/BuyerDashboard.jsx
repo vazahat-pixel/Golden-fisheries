@@ -22,10 +22,10 @@ const BuyerDashboard = () => {
   const activeTrips = buyerTrips.filter((t) => !['DELIVERED', 'CLOSED'].includes(t.status)).length;
 
   const cards = [
-    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/admin/buyer/tapals', color: 'text-amber-600' },
-    { label: 'Bills', value: billCount, icon: FileText, to: '/admin/buyer/invoices', color: 'text-slate-900' },
-    { label: 'Returns', value: '—', icon: RotateCcw, to: '/admin/buyer/returns', color: 'text-purple-600' },
-    { label: 'Settlement', value: '→', icon: Truck, to: '/admin/buyer/reconciliation', color: 'text-blue-600' },
+    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/mobile/buyer/tapals', color: 'text-amber-600' },
+    { label: 'Bills', value: billCount, icon: FileText, to: '/mobile/buyer/invoices', color: 'text-slate-900' },
+    { label: 'Returns', value: '—', icon: RotateCcw, to: '/mobile/buyer/returns', color: 'text-purple-600' },
+    { label: 'Settlement', value: '→', icon: Truck, to: '/mobile/buyer/reconciliation', color: 'text-blue-600' },
   ];
 
   return (

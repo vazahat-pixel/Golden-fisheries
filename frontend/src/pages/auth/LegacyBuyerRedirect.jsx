@@ -1,21 +1,22 @@
 import { Navigate, useLocation } from 'react-router-dom';
 
-/** Maps /buyer/* → /admin/buyer/* */
+/** Maps legacy /buyer/* → mobile buyer app */
 export default function LegacyBuyerRedirect() {
   const { pathname, search } = useLocation();
   const map = {
-    '/buyer/dashboard': '/admin/buyer/dashboard',
-    '/buyer/tapals': '/admin/buyer/tapals',
-    '/buyer/invoices': '/admin/buyer/invoices',
-    '/buyer/returns': '/admin/buyer/returns',
-    '/buyer/reconciliation': '/admin/buyer/reconciliation',
-    '/buyer/assign': '/admin/buyer/dashboard',
-    '/buyer/trips': '/admin/buyer/dashboard',
+    '/buyer/dashboard': '/mobile/buyer/dashboard',
+    '/buyer/tapals': '/mobile/buyer/tapals',
+    '/buyer/invoices': '/mobile/buyer/invoices',
+    '/buyer/returns': '/mobile/buyer/returns',
+    '/buyer/reconciliation': '/mobile/buyer/reconciliation',
+    '/buyer/assign': '/mobile/buyer/assign-driver',
+    '/buyer/assign-driver': '/mobile/buyer/assign-driver',
+    '/buyer/trips': '/mobile/buyer/dashboard',
   };
   let target = map[pathname];
   if (!target && pathname.startsWith('/buyer/bill/')) {
-    target = pathname.replace('/buyer/', '/admin/buyer/');
+    target = pathname.replace('/buyer/bill/', '/mobile/buyer/bill/');
   }
-  if (!target) target = '/admin/buyer/dashboard';
+  if (!target) target = '/mobile/buyer/dashboard';
   return <Navigate to={`${target}${search}`} replace />;
 }

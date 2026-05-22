@@ -126,6 +126,7 @@ export const useDriverStore = create(
         set({ loading: true });
         try {
           await tapalService.pickup(tapalId, qty);
+          await get().fetchMyTrips();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -137,6 +138,7 @@ export const useDriverStore = create(
         set({ loading: true });
         try {
           await tapalService.deliver(tapalId, qty, proof, sig);
+          await get().fetchMyTrips();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });

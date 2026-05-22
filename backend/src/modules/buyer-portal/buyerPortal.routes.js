@@ -16,6 +16,9 @@ const buyerAccess = [protect, enforcePlatformPolicy];
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 
 router.get('/assigned-tapals', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.assignedTapals);
+router.get('/assignable-tapals', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.assignableTapals);
+router.get('/lookup-tapal', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.lookupTapal);
+router.post('/claim-tapal', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.claimTapal);
 router.post('/verify/:tapalId', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.submitVerification);
 router.post('/bill/:tapalId', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.createBill);
 router.get('/bills', ...buyerAccess, restrictTo(...BUYER_ROLES), buyerPortalController.listBills);

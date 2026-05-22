@@ -4,6 +4,7 @@ import { useAdminStore } from '../store/adminStore';
 import { useDriverStore } from '../store/driverStore';
 import { useRestaurantStore } from '../store/restaurantStore';
 import { useFishMallStore } from '../store/fishMallStore';
+import { toast } from 'react-hot-toast';
 
 class SocketService {
   constructor() {
@@ -195,10 +196,65 @@ class SocketService {
         console.warn('[Socket] Failed to play audio:', err.message);
       }
 
+      // Display a beautiful top toast notification for driver
+      toast.success(`NEW TRIP ASSIGNED: #${data.tapalNumber}! Ready for start.`, {
+        duration: 8000,
+        position: 'top-center',
+        style: {
+          background: '#6A7051',
+          color: '#ffffff',
+          fontWeight: '900',
+          borderRadius: '0px',
+          border: '2px solid #FAF8F5',
+          fontSize: '11px',
+          letterSpacing: '0.05em'
+        }
+      });
+
       const driverStore = useDriverStore.getState();
       if (driverStore.setIncomingAssignment) {
         driverStore.setIncomingAssignment(data);
       }
+      if (driverStore.fetchMyTrips) {
+        driverStore.fetchMyTrips();
+      }
+    });
+
+    // Real-Time Trip Completion Notification
+    this.socket.on('trip:ended', (data) => {
+      console.log('[Socket Received - Trip Ended]:', data);
+      
+      // Play a beautiful audio alert
+      try {
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(e => console.warn('[Socket] Audio play blocked by browser:', e.message));
+      } catch (err) {
+        console.warn('[Socket] Failed to play audio:', err.message);
+      }
+
+      // Display a beautiful top toast notification for Admin
+      toast.success(`TRIP COMPLETED: #${data.tripNumber} by ${data.driverName}!`, {
+        duration: 8000,
+        position: 'top-right',
+        style: {
+          background: '#6A7051',
+          color: '#ffffff',
+          fontWeight: '900',
+          borderRadius: '0px',
+          border: '2px solid #FAF8F5',
+          fontSize: '11px',
+          letterSpacing: '0.05em'
+        }
+      });
+
+      const adminStore = useAdminStore.getState();
+      if (adminStore.setActiveTripNotification) {
+        adminStore.setActiveTripNotification(data);
+      }
+
+      // Refresh list under-the-hood to keep administrative dashboard 100% synchronized
+      if (adminStore.fetchTrips) adminStore.fetchTrips();
+      if (adminStore.fetchExpenses) adminStore.fetchExpenses();
     });
 
     // 4. Harvest Procurement Synchronizer

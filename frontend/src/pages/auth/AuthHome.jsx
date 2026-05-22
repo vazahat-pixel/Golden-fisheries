@@ -5,7 +5,7 @@ import AuthButton from '../../components/auth/AuthButton';
 import { Shield, Truck } from 'lucide-react';
 
 /**
- * Single entry screen: Admin ERP login + Driver login only.
+ * Single entry screen: Admin ERP login (office + field roles) + Driver login.
  * Restaurant & Fish Mall are separate URLs (not listed here).
  */
 const AuthHome = () => {
@@ -22,8 +22,8 @@ const AuthHome = () => {
             <div>
               <h2 className="text-white font-black text-sm uppercase tracking-widest">Admin Login</h2>
               <p className="text-white/60 text-[10px] mt-0.5 leading-relaxed">
-                Super Admin, Procurement, Buyer, Vehicle Manager — same login. Modules & fields are
-                assigned by Admin in Access Control.
+                Super Admin, Accountant, Buyer (Channapa), Procurement, Vehicle Manager — office or
+                mobile browser. One login; you see only modules Admin enabled.
               </p>
             </div>
           </div>

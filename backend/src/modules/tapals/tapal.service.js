@@ -486,12 +486,38 @@ class TapalService extends BaseService {
       ? { $or: [{ _id: tripId }, { tapalId: tripId }] }
       : { tripNumber: tripId };
 
-    const trip = await Trip.findOne(query);
+    const trip = await Trip.findOne(query).populate('driverId vehicleId tapalId');
     if (!trip) throw new AppError('Trip not found', 404);
 
-    if (trip.driverId.toString() !== driverId.toString()) {
+    const tripDriverId = trip.driverId?._id ? trip.driverId._id.toString() : trip.driverId?.toString();
+    if (tripDriverId !== driverId.toString()) {
       throw new AppError('Access Denied: You are not the assigned driver', 403);
     }
+
+    // Auto-populate profile, vehicle, and operational metrics if not provided by frontend
+    const tapal = trip.tapalId;
+    const driverName = trip.driverId?.fullName || tapal?.driver || data.driverName || 'Driver';
+    const vehicleNumber = trip.vehicleId?.vehicleNumber || tapal?.vehicleNumber || data.vehicleNumber || 'N/A';
+    
+    const startedEvent = trip.timeline?.find(t => t.status === 'STARTED');
+    const tripStartDate = startedEvent ? startedEvent.timestamp.toISOString() : (trip.createdAt ? trip.createdAt.toISOString() : new Date().toISOString());
+    const tripEndDate = new Date().toISOString();
+
+    const tapalNo = tapal?.tapalNumber || tapal?.tpNo || data.tapalNo || '';
+    const loadingPoint = trip.pickupLocation || tapal?.pickupLocation || data.loadingPoint || '';
+    const unloadingPoint = trip.deliveryLocation || tapal?.unloadingPoint || tapal?.destination || data.unloadingPoint || '';
+
+    // Calculate totals dynamically to guarantee correctness
+    const pumpTotal = (data.pumps || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const totalExpenses =
+      (parseFloat(data.diesel) || 0) +
+      (parseFloat(data.tollFastag) || 0) +
+      (parseFloat(data.rtoPcRmc) || 0) +
+      (parseFloat(data.maintenance) || 0) +
+      (parseFloat(data.driverBatta) || 0) +
+      (parseFloat(data.halting) || 0) +
+      pumpTotal;
+    const balancePayable = totalExpenses - (parseFloat(data.lessAdvance) || 0);
 
     // Map rich fields to standard expenses array
     const mappedExpenses = [];
@@ -562,13 +588,13 @@ class TapalService extends BaseService {
 
     // Save the detailed post-trip schema
     trip.postTripExpenses = {
-      tripStartDate: data.tripStartDate,
-      tripEndDate: data.tripEndDate,
-      vehicleNumber: data.vehicleNumber,
-      driverName: data.driverName,
-      loadingPoint: data.loadingPoint,
-      unloadingPoint: data.unloadingPoint,
-      tapalNo: data.tapalNo,
+      tripStartDate: data.tripStartDate || tripStartDate,
+      tripEndDate: data.tripEndDate || tripEndDate,
+      vehicleNumber: data.vehicleNumber || vehicleNumber,
+      driverName: data.driverName || driverName,
+      loadingPoint: data.loadingPoint || loadingPoint,
+      unloadingPoint: data.unloadingPoint || unloadingPoint,
+      tapalNo: data.tapalNo || tapalNo,
       driverBatta: parseFloat(data.driverBatta) || 0,
       rtoPcRmc: parseFloat(data.rtoPcRmc) || 0,
       maintenance: parseFloat(data.maintenance) || 0,
@@ -586,13 +612,29 @@ class TapalService extends BaseService {
         litres: parseFloat(p.litres) || 0,
         amount: parseFloat(p.amount) || 0
       })),
-      totalExpenses: parseFloat(data.totalExpenses) || 0,
-      pumpTotal: parseFloat(data.pumpTotal) || 0,
-      balancePayable: parseFloat(data.balancePayable) || 0,
+      totalExpenses: parseFloat(data.totalExpenses) || totalExpenses,
+      pumpTotal: parseFloat(data.pumpTotal) || pumpTotal,
+      balancePayable: parseFloat(data.balancePayable) || balancePayable,
       status: 'PENDING'
     };
 
+    // Ensure trip status is set to DELIVERED if it's not already DELIVERED or CLOSED
+    if (trip.status !== 'DELIVERED' && trip.status !== 'CLOSED') {
+      trip.status = 'DELIVERED';
+      trip.timeline.push({ status: 'DELIVERED', timestamp: new Date() });
+      
+      const deliverPayload = { tripId: trip._id, tripNumber: trip.tripNumber, status: 'DELIVERED', actualDeliveredQty: trip.actualDeliveredQty || trip.expectedQty };
+      broadcastEvent('trip:status_change', deliverPayload, 'dashboard:updates');
+      broadcastEvent('trip:status_change', deliverPayload, 'buyer:updates');
+    }
+
     await trip.save();
+
+    // Ensure tapal status is updated to DELIVERED
+    if (tapal && tapal.status !== 'DELIVERED' && tapal.status !== 'BILL_PENDING') {
+      tapal.status = 'DELIVERED';
+      await tapal.save();
+    }
 
     // Create matching consolidated Expense document so it appears in claims panel
     const ExpenseModel = mongoose.model('Expense');
@@ -601,9 +643,9 @@ class TapalService extends BaseService {
 
     const newExpense = new ExpenseModel({
       expenseType: 'OTHER',
-      amount: parseFloat(data.balancePayable) || parseFloat(data.totalExpenses) || 0.01,
+      amount: balancePayable || totalExpenses || 0.01,
       status: 'PENDING',
-      payee: data.driverName || 'Driver',
+      payee: driverName,
       linkedTripId: trip._id,
       createdBy: driverId,
       remarks: `Post-Trip Settlement for Trip ${trip.tripNumber}`
@@ -614,7 +656,32 @@ class TapalService extends BaseService {
       expenseId: newExpense._id,
       amount: newExpense.amount,
       tripNumber: trip.tripNumber,
-      driverName: data.driverName
+      driverName: driverName
+    }, 'dashboard:updates');
+
+    // Broadcast the full post-trip completion details for real-time admin popup notification
+    broadcastEvent('trip:ended', {
+      tripId: trip._id,
+      tripNumber: trip.tripNumber,
+      driverName: driverName,
+      vehicleNumber: vehicleNumber,
+      startingKms: parseFloat(data.startingKms) || 0,
+      endingKms: parseFloat(data.endingKms) || 0,
+      totalKms: parseFloat(data.totalKms) || 0,
+      mileage: parseFloat(data.mileage) || 0,
+      diesel: parseFloat(data.diesel) || 0,
+      driverBatta: parseFloat(data.driverBatta) || 0,
+      tollFastag: parseFloat(data.tollFastag) || 0,
+      rtoPcRmc: parseFloat(data.rtoPcRmc) || 0,
+      maintenance: parseFloat(data.maintenance) || 0,
+      halting: parseFloat(data.halting) || 0,
+      lessAdvance: parseFloat(data.lessAdvance) || 0,
+      pumps: data.pumps || [],
+      pumpTotal: pumpTotal,
+      totalExpenses: totalExpenses,
+      balancePayable: balancePayable,
+      remarks: data.remarks || '',
+      endedAt: new Date()
     }, 'dashboard:updates');
 
     logger.info(`[Driver Flow]: Rich post-trip expenses logged for Trip ${trip.tripNumber} with matching Expense entry.`);

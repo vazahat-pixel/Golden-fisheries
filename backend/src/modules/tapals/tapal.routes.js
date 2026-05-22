@@ -21,6 +21,8 @@ import {
 const router = Router();
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 const mobile = [protect, requireMobile, enforcePlatformPolicy, blockMobileWrite];
+/** Assign driver: buyer + procurement on phone, super admin on web */
+const dispatch = [protect, enforcePlatformPolicy, blockMobileWrite];
 
 router.use(protect);
 
@@ -79,7 +81,7 @@ router.post(
 // Web: assign driver, end trip, expense review
 router.patch(
   '/assign-driver',
-  ...web,
+  ...dispatch,
   restrictTo(...DISPATCH_ROLES),
   validateBody(tapalValidators.assignDriver),
   tapalController.assignDriver

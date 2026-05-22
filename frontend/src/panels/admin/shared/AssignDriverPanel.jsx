@@ -32,9 +32,12 @@ const AssignDriverPanel = ({ tapal, onAssigned }) => {
       .finally(() => setLoadingDrivers(false));
   }, [fetchVehicles]);
 
-  const availableVehicles = (vehicles || []).filter(
-    (v) => (v.status || '').toUpperCase() === 'AVAILABLE' || v.status === 'available'
-  );
+  const isVehicleAvailable = (v) => {
+    const s = (v.status || '').toUpperCase();
+    return s === 'AVAILABLE' || s === 'ACTIVE' || s === 'available' || s === 'active';
+  };
+
+  const availableVehicles = (vehicles || []).filter(isVehicleAvailable);
 
   const handleAssign = async () => {
     if (!tapalId || !driverId) {

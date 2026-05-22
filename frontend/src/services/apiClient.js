@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { detectClientPlatform } from '../constants/rbac';
+import { normalizeRole, resolveClientPlatform } from '../constants/rbac';
 
 // Create a configured Axios instance
 export const apiClient = axios.create({
@@ -32,9 +32,10 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+    const role = normalizeRole(useAuthStore.getState().user?.role);
     const platform =
-      config.headers['X-Client-Platform'] ||
-      detectClientPlatform(typeof window !== 'undefined' ? window.location.pathname : '');
+      config.headers['X-Client-Platform'] || resolveClientPlatform(pathname, role);
     config.headers['X-Client-Platform'] = platform;
     return config;
   },

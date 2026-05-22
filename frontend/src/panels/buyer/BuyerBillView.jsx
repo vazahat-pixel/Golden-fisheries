@@ -35,7 +35,7 @@ const BuyerBillView = () => {
         item: tapal?.products?.[0]?.name
       });
       toast.success('Buyer bill created');
-      navigate('/admin/buyer/invoices');
+      navigate('/mobile/buyer/invoices');
     } catch (err) {
       toast.error(err?.message || 'Failed to create bill');
     } finally {

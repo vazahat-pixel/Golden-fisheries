@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
 import { tapalService } from '../../../services/tapalService';
+import { masterService } from '../../../services/masterService';
 import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../components/forms/PaperFormFrame';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
@@ -35,6 +36,8 @@ const CreateTapalFromHarvest = () => {
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [driverName, setDriverName] = useState('');
   const [logisticsNotes, setLogisticsNotes] = useState('');
+  const [buyerId, setBuyerId] = useState('');
+  const [buyers, setBuyers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -50,7 +53,18 @@ const CreateTapalFromHarvest = () => {
     })();
   }, [fetchHarvestSlips]);
 
+  useEffect(() => {
+    masterService.buyers
+      .getAll({ limit: 200 })
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setBuyers(list.filter((b) => b.isActive !== false));
+      })
+      .catch(() => setBuyers([]));
+  }, []);
+
   const harvest = harvestSlips.find((h) => String(h._id || h.id) === String(harvestId));
+  const selectedBuyer = buyers.find((b) => String(b._id || b.id) === String(buyerId));
 
   useEffect(() => {
     if (!harvest) return;
@@ -82,13 +96,19 @@ const CreateTapalFromHarvest = () => {
       toast.error('Selected harvest must be CONFIRMED with net rate saved');
       return;
     }
+    if (!buyerId || !selectedBuyer?.phone) {
+      toast.error('Select buyer (Channapa) — required for buyer app driver assignment');
+      return;
+    }
     setSubmitting(true);
     try {
       await tapalService.createFromHarvest(harvestId, {
         destination,
         vehicleNumber,
-        driver: driverName,
+        driverName,
         logisticsNotes,
+        buyerId: selectedBuyer._id || selectedBuyer.id,
+        buyerPhone: selectedBuyer.phone,
       });
       toast.success('Tapal created from harvest');
       navigate('/admin/tapals');
@@ -109,6 +129,11 @@ const CreateTapalFromHarvest = () => {
         </button>
         <h1 className="text-xl font-bold uppercase text-brand-olive">Create Tapal (from Harvest)</h1>
       </div>
+
+      <p className="text-[11px] bg-amber-50 border border-amber-200 p-3 text-amber-900">
+        Destination / vehicle / driver fields below are notes for your team only. After save, assign the real
+        driver from Tapal detail or Logistics → Assign Driver.
+      </p>
 
       <PaperFormFrame title="Tapal Dispatch" subtitle="TP Number assigned on save">
         <PaperFieldRow label="Harvest Ref (H No)">
@@ -171,6 +196,26 @@ const CreateTapalFromHarvest = () => {
                 save net rate (purchase invoice)
               </Link>{' '}
               before creating a tapal.
+            </p>
+          )}
+        </PaperFieldRow>
+        <PaperFieldRow label="Buyer (Channapa) *">
+          <select
+            className={paperInputClass}
+            value={buyerId}
+            onChange={(e) => setBuyerId(e.target.value)}
+            required
+          >
+            <option value="">— Select buyer —</option>
+            {buyers.map((b) => (
+              <option key={b._id || b.id} value={b._id || b.id}>
+                {(b.buyerName || b.name || 'Buyer').toUpperCase()} — {b.phone}
+              </option>
+            ))}
+          </select>
+          {buyers.length === 0 && (
+            <p className="text-xs text-amber-700 mt-1">
+              No buyers in master. Add buyer under Masters first.
             </p>
           )}
         </PaperFieldRow>

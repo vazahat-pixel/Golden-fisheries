@@ -80,10 +80,6 @@ const DriverTripExpenseForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (trip?.status && trip.status !== 'DELIVERED') {
-      toast.error('Complete delivery before end trip sheet');
-      return;
-    }
     setLoading(true);
     try {
       await tapalService.submitPostTripExpense(tripId, {

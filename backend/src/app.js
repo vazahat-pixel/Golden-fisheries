@@ -59,8 +59,8 @@ app.use(loggingMiddleware);
 // ==========================================
 // 2. Request Parsers & Sanitizers
 // ==========================================
-app.use(express.json({ limit: '50kb' })); // Supports driver registration metadata
-app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+app.use(express.json({ limit: '10mb' })); // Supports rich driver post-trip PODs and signatures
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
 // Anti-injection & XSS security filters

@@ -1038,6 +1038,10 @@ export const useAdminStore = create(
           'transferStockToFishMall is disabled: inventories are isolated. Manage Fish Mall stock separately.'
         );
       },
+
+      activeTripNotification: null,
+      setActiveTripNotification: (notif) => set({ activeTripNotification: notif }),
+      clearActiveTripNotification: () => set({ activeTripNotification: null }),
     }),
     {
       name: 'golden-fisheries-admin-v2',

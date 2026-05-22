@@ -328,7 +328,24 @@ const AppRouter = () => {
               <Route path="procurement/tapal" element={<CreateTapalFromHarvest />} />
               <Route path="vehicles" element={<VehicleDashboard />} />
               <Route path="vehicles/new" element={<AddVehicle />} />
-              <Route path="buyer" element={<Navigate to="/buyer/dashboard" replace />} />
+              <Route path="buyer" element={<Navigate to="/mobile/buyer/dashboard" replace />} />
+              <Route element={<ProtectedRoute module="buyerDashboard"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/dashboard" element={<BuyerDashboard />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerVerify"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/tapals" element={<BuyerIncomingTapals />} />
+                <Route path="buyer/bill/:tapalId" element={<BuyerBillView />} />
+                <Route path="buyer/assign-driver" element={<BuyerAssignDriver />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerBills"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/invoices" element={<BuyerInvoiceHistory />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerReturns"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/returns" element={<BuyerSalesReturn />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerSettlement"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/reconciliation" element={<BuyerReconciliation />} />
+              </Route>
               <Route path="driver" element={<Navigate to="/driver/dashboard" replace />} />
             </Route>
           </Routes>

@@ -66,6 +66,22 @@ export const detectClientPlatform = (pathname = '') => {
   return PLATFORM_ACCESS.WEB;
 };
 
+/** Field roles always use MOBILE API header (even when UI is under /admin after unified login). */
+export const MOBILE_FIELD_ROLES = [
+  ROLES.PROCUREMENT_MANAGER,
+  ROLES.BUYER,
+  ROLES.VEHICLE_MANAGER,
+  ROLES.DRIVER,
+];
+
+export const resolveClientPlatform = (pathname = '', role) => {
+  const r = role ? normalizeRole(role) : null;
+  if (r && MOBILE_FIELD_ROLES.includes(r)) {
+    return PLATFORM_ACCESS.MOBILE;
+  }
+  return detectClientPlatform(pathname);
+};
+
 /** Vite dev server — grant full admin ERP access while developing locally */
 export const IS_DEV = import.meta.env.DEV;
 
