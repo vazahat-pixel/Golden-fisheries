@@ -80,7 +80,7 @@ const harvestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['DRAFT', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'PARTIALLY_CONVERTED', 'CONVERTED_TO_TAPAL', 'COMPLETED'],
+      enum: ['DRAFT', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'PARTIALLY_CONVERTED', 'CONVERTED_TO_TAPAL', 'COMPLETED', 'OPEN', 'PARTIAL_USED', 'CLOSED'],
       default: 'PENDING',
       index: true
     },
@@ -170,6 +170,9 @@ const harvestSchema = new mongoose.Schema(
     deductionSoft: { type: Number, default: 0 },
     deductionOther: { type: Number, default: 0 },
     finalNetRate: { type: Number, default: null },
+    availableQty: { type: Number, default: 0 },
+    allocatedQty: { type: Number, default: 0 },
+    remainingQty: { type: Number, default: 0 },
     products: {
       type: [harvestItemSchema],
       validate: {
@@ -201,6 +204,34 @@ harvestSchema.pre('validate', async function (next) {
   } catch (error) {
     next(error);
   }
+});
+
+harvestSchema.pre('save', function (next) {
+  // If products are available, compute availableQty if it's 0 or not set
+  if (this.products && this.products.length > 0) {
+    const totalEstWeight = this.products.reduce((sum, item) => sum + (item.estimatedQty || 0), 0);
+    if (!this.availableQty || this.availableQty === 0) {
+      this.availableQty = totalEstWeight;
+    }
+  }
+
+  this.remainingQty = this.availableQty - this.allocatedQty;
+  if (this.remainingQty < 0) {
+    this.remainingQty = 0; // Guard
+  }
+
+  // Transition status dynamically for active/confirmed harvest slips
+  const activeInventoryStatuses = ['CONFIRMED', 'CONVERTED_TO_TAPAL', 'PARTIALLY_CONVERTED', 'OPEN', 'PARTIAL_USED', 'CLOSED'];
+  if (activeInventoryStatuses.includes(this.status)) {
+    if (this.allocatedQty === 0) {
+      this.status = 'OPEN';
+    } else if (this.remainingQty > 0 && this.allocatedQty > 0) {
+      this.status = 'PARTIAL_USED';
+    } else if (this.remainingQty <= 0 && this.allocatedQty > 0) {
+      this.status = 'CLOSED';
+    }
+  }
+  next();
 });
 
 export const Harvest = mongoose.model('Harvest', harvestSchema);

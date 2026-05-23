@@ -427,8 +427,19 @@ class TapalService extends BaseService {
       tapal.numericQty = deliveredQty;
       await tapal.save({ session });
 
-      // Update Harvest State to COMPLETED if linked
-      if (tapal.harvestId) {
+      // Update Harvest State to COMPLETED for all linked harvests in many-to-many relationship
+      const { HarvestTapalMapping } = await import('../harvests/harvestTapalMapping.model.js');
+      const mappings = await HarvestTapalMapping.find({ tapalId: tapal._id }).session(session);
+      if (mappings && mappings.length > 0) {
+        for (const mapping of mappings) {
+          const harvest = await Harvest.findById(mapping.harvestSlipId).session(session);
+          if (harvest) {
+            harvest.status = 'COMPLETED';
+            await harvest.save({ session });
+          }
+        }
+      } else if (tapal.harvestId) {
+        // Legacy fallback
         await Harvest.findByIdAndUpdate(tapal.harvestId, { status: 'COMPLETED' }, { session });
       }
 

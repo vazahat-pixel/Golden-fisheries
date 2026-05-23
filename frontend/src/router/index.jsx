@@ -251,7 +251,6 @@ const AppRouter = () => {
             <Route element={<ProtectedRoute module="buyerVerify"><Outlet /></ProtectedRoute>}>
               <Route path="buyer/tapals" element={<BuyerIncomingTapals />} />
               <Route path="buyer/bill/:tapalId" element={<BuyerBillView />} />
-              <Route path="buyer/assign-driver" element={<BuyerAssignDriver />} />
             </Route>
             <Route element={<ProtectedRoute module="buyerBills"><Outlet /></ProtectedRoute>}>
               <Route path="buyer/invoices" element={<BuyerInvoiceHistory />} />
@@ -370,7 +369,6 @@ const AppRouter = () => {
               <Route element={<ProtectedRoute module="buyerVerify"><Outlet /></ProtectedRoute>}>
                 <Route path="buyer/tapals" element={<BuyerIncomingTapals />} />
                 <Route path="buyer/bill/:tapalId" element={<BuyerBillView />} />
-                <Route path="buyer/assign-driver" element={<BuyerAssignDriver />} />
               </Route>
               <Route element={<ProtectedRoute module="buyerBills"><Outlet /></ProtectedRoute>}>
                 <Route path="buyer/invoices" element={<BuyerInvoiceHistory />} />

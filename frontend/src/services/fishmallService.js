@@ -67,6 +67,35 @@ export const fishmallService = {
   getInternalSalesReport: async (params = {}) => {
     return await apiClient.get('/fishmall/internal-bill/reports/sales', { params });
   },
+
+  // --- Operational Accounting Shift Sessions ---
+  getActiveSession: async () => {
+    return await apiClient.get('/fishmall/accounting/session/active');
+  },
+
+  openSession: async (data) => {
+    return await apiClient.post('/fishmall/accounting/session/open', data);
+  },
+
+  closeSession: async (data) => {
+    return await apiClient.post('/fishmall/accounting/session/close', data);
+  },
+
+  getSessionSummary: async () => {
+    return await apiClient.get('/fishmall/accounting/session/summary');
+  },
+
+  recordExpense: async (data) => {
+    return await apiClient.post('/fishmall/accounting/expenses', data);
+  },
+
+  listExpenses: async () => {
+    return await apiClient.get('/fishmall/accounting/expenses');
+  },
+
+  listCashbook: async () => {
+    return await apiClient.get('/fishmall/accounting/cashbook');
+  },
 };
 
 export default fishmallService;

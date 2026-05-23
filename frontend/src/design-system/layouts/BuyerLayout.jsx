@@ -13,17 +13,11 @@ const buyerNav = [
   { icon: Scale, label: 'Settlement', path: '/buyer/reconciliation' },
 ];
 
-const buyerOpsNav = [
-  { icon: Truck, label: 'Assign Driver', path: '/buyer/assign' },
-  { icon: MapPin, label: 'Trip Tracker', path: '/buyer/trips' },
-];
-
 export const BuyerLayout = ({ children }) => {
   const { user, logout } = useAuthStore();
   const userName = user?.fullName || user?.name || 'Buyer';
   const role = user?.role;
-  const navItems =
-    role === ROLES.BUYER ? buyerNav : [...buyerNav, ...buyerOpsNav];
+  const navItems = buyerNav;
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans">

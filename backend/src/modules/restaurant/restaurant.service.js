@@ -9,6 +9,7 @@ import { KitchenTicket } from './kitchenTicket.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
 import { broadcastEvent } from '../../sockets/socket.js';
+import { RestaurantSession, RestaurantCashbookEntry } from './restaurantAccounting.model.js';
 
 class RestaurantService extends BaseService {
   constructor() {
@@ -146,7 +147,58 @@ class RestaurantService extends BaseService {
       }
 
       order.status = 'PAID';
+      
+      // Check active open shift session for cashier
+      const activeSession = await RestaurantSession.findOne({
+        cashierId: userId,
+        status: 'OPEN'
+      }).session(session);
+
+      if (!activeSession) {
+        throw new AppError('Operations are locked! Shift is not open. Please open your shift session first.', 400);
+      }
+
+      order.sessionId = activeSession._id;
       await order.save({ session });
+
+      // Record inflow in cashbook
+      const finalPaymentMethod = order.paymentMethod;
+      const amount = order.totalAmount;
+      const cashAmt = finalPaymentMethod === 'CASH' ? amount : (finalPaymentMethod === 'SPLIT' ? order.cashAmount : 0);
+      const upiAmt = finalPaymentMethod === 'UPI' ? amount : (finalPaymentMethod === 'SPLIT' ? order.upiAmount : 0);
+      const cardAmt = finalPaymentMethod === 'CARD' ? amount : 0;
+
+      await RestaurantCashbookEntry.create(
+        [
+          {
+            sessionId: activeSession._id,
+            type: 'INFLOW',
+            category: 'POS_SALE',
+            paymentMethod: finalPaymentMethod,
+            amount,
+            cashAmount: cashAmt,
+            upiAmount: upiAmt,
+            cardAmount: cardAmt,
+            description: `POS Order Sale: ${order.orderNumber} - Table/Type: ${order.tableNumber || order.orderType}`,
+            referenceId: order._id,
+            referenceModel: 'RestaurantOrder',
+            createdBy: userId
+          }
+        ],
+        { session }
+      );
+
+      // Update session aggregates
+      activeSession.salesTotal += amount;
+      activeSession.cashSalesTotal += cashAmt;
+      activeSession.upiSalesTotal += upiAmt;
+      activeSession.cardSalesTotal += cardAmt;
+      activeSession.discountTotal += order.discountAmount || 0;
+      activeSession.expectedClosingCash = activeSession.openingCash + activeSession.cashSalesTotal - activeSession.cashExpensesTotal;
+      activeSession.expectedClosingUpi = activeSession.upiSalesTotal - activeSession.upiExpensesTotal;
+      activeSession.netPnL = activeSession.salesTotal - activeSession.expensesTotal;
+
+      await activeSession.save({ session });
 
       await restaurantInventoryService.deductForOrder(order, userId, session);
 
@@ -163,7 +215,7 @@ class RestaurantService extends BaseService {
       broadcastEvent('restaurant:order_settled', { order });
       broadcastEvent('restaurant:inventory_updated', {});
 
-      logger.info(`[Restaurant POS]: Settled ${order.orderNumber}. Kitchen stock consumed.`);
+      logger.info(`[Restaurant POS]: Settled ${order.orderNumber}. Shift Cashbook updated.`);
       return order;
     } catch (error) {
       await session.abortTransaction();

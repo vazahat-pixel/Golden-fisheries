@@ -1,5 +1,6 @@
 import { fishmallService } from './fishmall.service.js';
 import { fishMallInventoryService } from './fishMallInventory.service.js';
+import { fishMallAccountingService } from './fishMallAccounting.service.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { Router } from 'express';
@@ -23,9 +24,60 @@ import { validateBody } from '../../validators/auth.validator.js';
 
 export const fishmallController = {
   create: asyncWrapper(async (req, res) => {
-    const sale = await fishmallService.createSale(req.body, req.user.id);
+    const sale = await fishmallService.createSale(
+      { ...req.body, outletId: req.fishMallOutletId },
+      req.user.id
+    );
     broadcastEvent('fishmall:sale_created', { sale }, 'dashboard:updates');
     new ApiResponse(201, { sale }, 'Retail POS sale recorded successfully').send(res);
+  }),
+
+  // Shift & Accounting Sessions
+  activeSession: asyncWrapper(async (req, res) => {
+    const session = await fishMallAccountingService.getActiveSession(req.user.id, req.fishMallOutletId);
+    new ApiResponse(200, { activeSession: session || null }, 'Active session status loaded').send(res);
+  }),
+
+  openSession: asyncWrapper(async (req, res) => {
+    const session = await fishMallAccountingService.openSession(req.user.id, req.fishMallOutletId, req.body);
+    new ApiResponse(201, { session }, 'Shift session opened successfully').send(res);
+  }),
+
+  closeSession: asyncWrapper(async (req, res) => {
+    const session = await fishMallAccountingService.closeSession(req.user.id, req.fishMallOutletId, req.body);
+    new ApiResponse(200, { session }, 'Shift session closed successfully').send(res);
+  }),
+
+  sessionSummary: asyncWrapper(async (req, res) => {
+    const active = await fishMallAccountingService.getActiveSession(req.user.id, req.fishMallOutletId);
+    if (!active) {
+      return new ApiResponse(200, { session: null, cashbook: [], expenses: [] }, 'No active open session').send(res);
+    }
+    const summary = await fishMallAccountingService.getSessionSummary(active._id);
+    new ApiResponse(200, summary, 'Session shift summary loaded').send(res);
+  }),
+
+  recordExpense: asyncWrapper(async (req, res) => {
+    const expense = await fishMallAccountingService.recordExpense(req.user.id, req.fishMallOutletId, req.body);
+    new ApiResponse(201, { expense }, 'Operational expense recorded successfully').send(res);
+  }),
+
+  listExpenses: asyncWrapper(async (req, res) => {
+    const active = await fishMallAccountingService.getActiveSession(req.user.id, req.fishMallOutletId);
+    if (!active) {
+      return new ApiResponse(200, [], 'No active session').send(res);
+    }
+    const summary = await fishMallAccountingService.getSessionSummary(active._id);
+    new ApiResponse(200, summary.expenses, 'Session expenses loaded').send(res);
+  }),
+
+  listCashbook: asyncWrapper(async (req, res) => {
+    const active = await fishMallAccountingService.getActiveSession(req.user.id, req.fishMallOutletId);
+    if (!active) {
+      return new ApiResponse(200, [], 'No active session').send(res);
+    }
+    const summary = await fishMallAccountingService.getSessionSummary(active._id);
+    new ApiResponse(200, summary.cashbook, 'Cashbook entries loaded').send(res);
   }),
 
   all: asyncWrapper(async (req, res) => {
@@ -146,6 +198,15 @@ router.get(
   restrictTo(...FISHMALL_ALL),
   internalSupplyController.getBill
 );
+// --- Shift Sessions & Accounting Routes ---
+router.get('/accounting/session/active', ...web, restrictTo(...FISHMALL_ALL), fishmallController.activeSession);
+router.post('/accounting/session/open', ...web, restrictTo(...FISHMALL_ALL), fishmallController.openSession);
+router.post('/accounting/session/close', ...web, restrictTo(...FISHMALL_ALL), fishmallController.closeSession);
+router.get('/accounting/session/summary', ...web, restrictTo(...FISHMALL_ALL), fishmallController.sessionSummary);
+router.post('/accounting/expenses', ...web, restrictTo(...FISHMALL_ALL), fishmallController.recordExpense);
+router.get('/accounting/expenses', ...web, restrictTo(...FISHMALL_ALL), fishmallController.listExpenses);
+router.get('/accounting/cashbook', ...web, restrictTo(...FISHMALL_ALL), fishmallController.listCashbook);
+
 router.post('/create', ...web, restrictTo(...FISHMALL_ALL), fishmallController.create);
 router.get('/all', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.all);
 router.get('/:id', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.getById);

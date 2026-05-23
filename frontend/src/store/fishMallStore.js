@@ -13,6 +13,9 @@ export const useFishMallStore = create(
       closings: [],
       alerts: [],
       stockLogs: [],
+      activeSession: null,
+      accountingSummary: null,
+      cashbook: [],
       
       // Actions
       addBill: (bill) => {
@@ -239,8 +242,8 @@ export const useFishMallStore = create(
       fetchExpensesAsync: async () => {
         set({ loading: true });
         try {
-          const res = await expenseService.all({ source: 'FISHMALL' });
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const res = await fishmallService.listExpenses();
+          const list = res?.data || res || [];
           set({ expenses: list, loading: false });
         } catch (err) {
           console.error('Failed to fetch fishmall expenses', err);
@@ -251,12 +254,68 @@ export const useFishMallStore = create(
       submitExpenseAsync: async (expenseData) => {
         set({ loading: true });
         try {
-          await expenseService.create({ ...expenseData, source: 'FISHMALL' });
-          await get().fetchExpensesAsync();
+          await fishmallService.recordExpense(expenseData);
+          await get().fetchAccountingSummaryAsync();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
           throw err;
+        }
+      },
+
+      fetchActiveSessionAsync: async () => {
+        try {
+          const res = await fishmallService.getActiveSession();
+          set({ activeSession: res?.data?.activeSession || res?.activeSession || null });
+        } catch (err) {
+          console.error('Failed to fetch active session', err);
+        }
+      },
+
+      openSessionAsync: async (openingCash, openingNotes) => {
+        set({ loading: true });
+        try {
+          const res = await fishmallService.openSession({ openingCash, openingNotes });
+          const session = res?.data?.session || res?.session;
+          set({ activeSession: session, loading: false });
+          await get().fetchAccountingSummaryAsync();
+          return session;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      closeSessionAsync: async (closingData) => {
+        set({ loading: true });
+        try {
+          const res = await fishmallService.closeSession(closingData);
+          const session = res?.data?.session || res?.session;
+          set({ activeSession: null, accountingSummary: null, cashbook: [], loading: false });
+          get().recordClosing({
+            cashReported: closingData.actualClosingCash,
+            notes: closingData.closingNotes,
+            systemSales: session?.salesTotal || 0,
+            date: new Date().toISOString().split('T')[0]
+          });
+          return session;
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      fetchAccountingSummaryAsync: async () => {
+        try {
+          const res = await fishmallService.getSessionSummary();
+          const summary = res?.data || res;
+          set({
+            accountingSummary: summary?.session || null,
+            expenses: summary?.expenses || [],
+            cashbook: summary?.cashbook || []
+          });
+        } catch (err) {
+          console.error('Failed to fetch accounting summary', err);
         }
       },
     }),

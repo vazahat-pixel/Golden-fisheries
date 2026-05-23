@@ -85,6 +85,12 @@ const restaurantOrderSchema = new mongoose.Schema(
       default: 'PENDING',
       index: true
     },
+    sessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RestaurantSession',
+      index: true,
+      default: null
+    },
     paymentMethod: {
       type: String,
       enum: ['CASH', 'UPI', 'CARD', 'CREDIT', 'SPLIT'],

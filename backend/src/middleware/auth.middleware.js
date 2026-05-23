@@ -160,6 +160,11 @@ export const blockMobileWrite = (req, res, next) => {
   const viewOnly = req.user?.platformAccess?.mobileViewOnly === true;
 
   if (isMobileClient && isSuperAdmin(req.user.role) && viewOnly && writeMethods.includes(req.method)) {
+    // In development mode, allow SUPER_ADMIN to perform write operations for E2E testing
+    if (config.env === 'development') {
+      return next();
+    }
+
     const isDriverBypass = req.originalUrl && (
       req.originalUrl.includes('/start-trip') ||
       req.originalUrl.includes('/pickup') ||

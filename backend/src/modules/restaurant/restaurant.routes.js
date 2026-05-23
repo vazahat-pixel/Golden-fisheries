@@ -88,6 +88,15 @@ router.get('/reports/wastage', ...web, restrictTo(...REST_MANAGER_ROLES), restau
 router.get('/reports/tables', ...web, restrictTo(...REST_ALL), restaurantController.reportTables);
 router.get('/reports/profit', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.reportProfit);
 
+// --- Shift Sessions & Accounting Routes ---
+router.get('/accounting/session/active', ...web, restrictTo(...REST_ALL), restaurantController.activeSession);
+router.post('/accounting/session/open', ...web, restrictTo(...REST_ALL), restaurantController.openSession);
+router.post('/accounting/session/close', ...web, restrictTo(...REST_ALL), restaurantController.closeSession);
+router.get('/accounting/session/summary', ...web, restrictTo(...REST_ALL), restaurantController.sessionSummary);
+router.post('/accounting/expenses', ...web, restrictTo(...REST_ALL), restaurantController.recordExpense);
+router.get('/accounting/expenses', ...web, restrictTo(...REST_ALL), restaurantController.listExpenses);
+router.get('/accounting/cashbook', ...web, restrictTo(...REST_ALL), restaurantController.listCashbook);
+
 router.post(
   '/create',
   ...web,

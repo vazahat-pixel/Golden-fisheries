@@ -80,6 +80,12 @@ export const useRestaurantStore = create(
       alerts: [],
       kitchenStock: [],
       coupons: COUPONS,
+      activeSession: null,
+      accountingSummary: null,
+      cashbook: [],
+      expenses: [],
+      loading: false,
+      error: null,
 
       // ── Menu Actions ────────────────────────────────────────────────────────
       updateMenuItem: (updatedItem) => set((state) => ({
@@ -400,6 +406,92 @@ export const useRestaurantStore = create(
           const wrapped = new Error(msg);
           wrapped.cause = err;
           throw wrapped;
+        }
+      },
+
+      fetchActiveSessionAsync: async () => {
+        try {
+          const res = await restaurantService.getActiveSession();
+          const session = res?.data?.activeSession ?? res?.activeSession;
+          set({ activeSession: session || null });
+          if (session) {
+            await get().fetchAccountingSummaryAsync();
+          }
+          return session;
+        } catch (err) {
+          console.error('Failed to fetch active session', err);
+          return null;
+        }
+      },
+
+      openSessionAsync: async (openingCash, openingNotes) => {
+        set({ loading: true, error: null });
+        try {
+          const res = await restaurantService.openSession({ openingCash, openingNotes });
+          const session = res?.data?.session ?? res?.session;
+          set({ activeSession: session, loading: false });
+          await get().fetchAccountingSummaryAsync();
+          return session;
+        } catch (err) {
+          const msg = err?.response?.data?.message || err?.message || 'Failed to open shift session';
+          set({ error: msg, loading: false });
+          throw new Error(msg);
+        }
+      },
+
+      closeSessionAsync: async (closingData) => {
+        set({ loading: true, error: null });
+        try {
+          const res = await restaurantService.closeSession(closingData);
+          const session = res?.data?.session ?? res?.session;
+          set({ activeSession: null, accountingSummary: null, cashbook: [], expenses: [], loading: false });
+          return session;
+        } catch (err) {
+          const msg = err?.response?.data?.message || err?.message || 'Failed to close shift session';
+          set({ error: msg, loading: false });
+          throw new Error(msg);
+        }
+      },
+
+      fetchAccountingSummaryAsync: async () => {
+        try {
+          const res = await restaurantService.getSessionSummary();
+          const summary = res?.data ?? res;
+          if (summary) {
+            set({
+              activeSession: summary.session,
+              accountingSummary: summary.session,
+              cashbook: summary.cashbook || [],
+              expenses: summary.expenses || [],
+            });
+          }
+        } catch (err) {
+          console.error('Failed to fetch accounting summary', err);
+        }
+      },
+
+      submitExpenseAsync: async (expenseData) => {
+        set({ loading: true, error: null });
+        try {
+          const res = await restaurantService.recordExpense(expenseData);
+          const expense = res?.data?.expense ?? res?.expense;
+          set({ loading: false });
+          await get().fetchAccountingSummaryAsync();
+          return expense;
+        } catch (err) {
+          const msg = err?.response?.data?.message || err?.message || 'Failed to submit kitchen expense';
+          set({ error: msg, loading: false });
+          throw new Error(msg);
+        }
+      },
+
+      fetchExpensesAsync: async () => {
+        try {
+          const res = await restaurantService.listExpenses();
+          const list = res?.data ?? res;
+          set({ expenses: Array.isArray(list) ? list : [] });
+        } catch (err) {
+          console.error('Failed to fetch expenses', err);
         }
       },
     }),

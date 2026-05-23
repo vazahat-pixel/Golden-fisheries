@@ -24,6 +24,8 @@ const RestaurantPOS = () => {
     fetchTables,
     fetchKitchenTickets,
     loading,
+    activeSession,
+    fetchActiveSessionAsync,
   } = useRestaurantStore();
 
   React.useEffect(() => {
@@ -31,7 +33,8 @@ const RestaurantPOS = () => {
     fetchMenu();
     fetchTables();
     fetchKitchenTickets();
-  }, [fetchOrders, fetchMenu, fetchTables, fetchKitchenTickets]);
+    fetchActiveSessionAsync();
+  }, [fetchOrders, fetchMenu, fetchTables, fetchKitchenTickets, fetchActiveSessionAsync]);
 
   const [orderType, setOrderType] = useState('Dine In');
   const [tableLabel, setTableLabel] = useState('');
@@ -362,10 +365,24 @@ const RestaurantPOS = () => {
              </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleSendToKitchen} disabled={cart.length === 0} className="flex-1 h-11 bg-white border border-slate-200 hover:bg-slate-50 text-[9px] font-black uppercase tracking-widest shadow-sm">
+            <Button onClick={() => {
+              if (!activeSession) {
+                toast.error('Operations are locked! Shift is not open. Please open your shift first.');
+                navigate('/restaurant/dashboard');
+                return;
+              }
+              handleSendToKitchen();
+            }} disabled={cart.length === 0} className="flex-1 h-11 bg-white border border-slate-200 hover:bg-slate-50 text-[9px] font-black uppercase tracking-widest shadow-sm">
               <ChefHat size={14} className="mr-2" /> KOT
             </Button>
-            <Button onClick={() => setBillingView(true)} disabled={cart.length === 0} className="flex-1 h-11 bg-black text-white border-none text-[9px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">
+            <Button onClick={() => {
+              if (!activeSession) {
+                toast.error('Operations are locked! Shift is not open. Please open shift first in the dashboard.');
+                navigate('/restaurant/dashboard');
+                return;
+              }
+              setBillingView(true);
+            }} disabled={cart.length === 0} className="flex-1 h-11 bg-black text-white border-none text-[9px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">
               <Receipt size={14} className="mr-2" /> CHECKOUT
             </Button>
           </div>

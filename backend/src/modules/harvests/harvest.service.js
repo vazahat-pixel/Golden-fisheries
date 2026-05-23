@@ -65,109 +65,122 @@ class HarvestService extends BaseService {
    * Safe transaction-controlled conversion from Harvest Slip to Purchase Tapal contract.
    * Leverages MongoDB Multi-Document ACID Transactions to guarantee data integrity.
    */
-  async convertToTapal(harvestId, assignedTo, creatorUser, selectedItems = null, logistics = {}) {
+  /**
+   * Create a purchase Tapal contract from multiple harvest slip allocations (Many-to-Many).
+   */
+  async createTapalFromHarvests(allocations, logistics = {}, creatorUser) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
-      await flowGuard.assertHarvestReadyForTapalConversion(harvestId);
-
-      // 1. Fetch Harvest
-      const harvest = await this.model.findById(harvestId);
-      if (!harvest) {
-        throw new AppError(`Harvest Slip with ID ${harvestId} does not exist.`, 404);
+      if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
+        throw new AppError('Allocations list is required and cannot be empty.', 400);
       }
 
-      // Business rule: Check if harvest slip has already been converted
-      if (harvest.status === 'CONVERTED_TO_TAPAL') {
-        throw new AppError(`This harvest slip has already been converted (Tapal already issued).`, 400);
+      // 1. Validate all harvests and verify stock availability
+      const harvestIds = allocations.map(a => a.harvestId);
+      const harvests = await this.model.find({ _id: { $in: harvestIds } }).session(session);
+      
+      if (harvests.length !== new Set(harvestIds.map(id => String(id))).size) {
+        throw new AppError('One or more selected Harvest Slips do not exist.', 404);
       }
 
-      // 2. Fetch Farmer details to cache party info
-      const farmer = await Farmer.findById(harvest.farmerId);
+      // 2. Fetch Farmer details using the first harvest
+      const firstHarvest = harvests.find(h => String(h._id) === String(allocations[0].harvestId));
+      const farmer = await Farmer.findById(firstHarvest.farmerId).session(session);
       if (!farmer) {
-        throw new AppError('Farmer registry lookup failed for this harvest slip.', 404);
+        throw new AppError('Farmer registry lookup failed for the first harvest slip.', 404);
       }
 
-      // 3. Process Product details & calculate values
       let totalQty = 0;
       let totalAmount = 0;
-      const tapalProducts = [];
-      let fullyConverted = true;
+      const productMap = {};
 
-      for (const item of harvest.products) {
-        // Find if this item is selected for partial conversion
-        let qtyToConvert = 0;
-        let boxQtyToConvert = 0;
+      // 3. Process allocations one by one
+      for (const allocation of allocations) {
+        const harvest = harvests.find(h => String(h._id) === String(allocation.harvestId));
+        const allocatedQty = parseFloat(allocation.allocatedQty) || 0;
 
-        if (selectedItems && Array.isArray(selectedItems)) {
-          const selected = selectedItems.find(si => si.productId === item.productId.toString() || si._id === item._id.toString());
-          if (selected) {
-            qtyToConvert = parseFloat(selected.qty) || 0;
-            boxQtyToConvert = parseInt(selected.boxes) || 0;
+        if (allocatedQty <= 0) {
+          throw new AppError(`Allocated quantity must be greater than zero for Harvest ${harvest.harvestNumber}`, 400);
+        }
+
+        // Calculate available and remaining quantities
+        const totalEstWeight = harvest.products.reduce((sum, item) => sum + (item.estimatedQty || 0), 0);
+        const availableQty = harvest.availableQty || totalEstWeight || 1;
+        const remainingQty = availableQty - harvest.allocatedQty;
+
+        if (allocatedQty > remainingQty + 0.001) { // slight floating-point margin
+          throw new AppError(`Cannot allocate ${allocatedQty} KG from Harvest ${harvest.harvestNumber}. Only ${remainingQty.toFixed(2)} KG remaining.`, 400);
+        }
+
+        const scaleFactor = allocatedQty / availableQty;
+
+        for (const item of harvest.products) {
+          let activeRate = parseFloat(item.rate);
+          if (isNaN(activeRate) || activeRate === null) {
+            const product = await Product.findById(item.productId).session(session);
+            activeRate = product ? (product.basePrice || 0) : 0;
           }
-        } else {
-          // Default: convert remaining available qty
-          qtyToConvert = Math.max(0, (parseFloat(item.estimatedQty) || 0) - (item.usedQty || 0));
-          boxQtyToConvert = Math.max(0, (parseInt(item.boxCount) || 0) - (parseInt(item.usedBoxes) || 0)); // if usedBoxes existed
-        }
 
-        if (qtyToConvert <= 0) {
-          if ((item.usedQty || 0) < (parseFloat(item.estimatedQty) || 0)) {
-            fullyConverted = false;
+          const scaledQty = (item.estimatedQty || 0) * scaleFactor;
+          const scaledBoxes = (item.boxCount || 0) * scaleFactor;
+          const lineTotal = scaledQty * activeRate;
+
+          const key = String(item.productId);
+          if (!productMap[key]) {
+            productMap[key] = {
+              productId: item.productId,
+              fishName: item.fishName,
+              hsnCode: item.hsnCode,
+              numericQty: 0,
+              boxQty: 0,
+              rate: activeRate,
+              weightPerBox: item.weightPerBox || null,
+              qualityType: item.qualityType || 'Mix',
+              totalAmount: 0
+            };
           }
-          continue;
+
+          productMap[key].numericQty += scaledQty;
+          productMap[key].boxQty += scaledBoxes;
+          productMap[key].totalAmount += lineTotal;
         }
 
-        // Validate available stock
-        const availableQty = (parseFloat(item.estimatedQty) || 0) - (item.usedQty || 0);
-        if (qtyToConvert > availableQty) {
-          throw new AppError(`Cannot convert ${qtyToConvert} KG of ${item.fishName}. Only ${availableQty} KG available.`, 400);
-        }
+        totalQty += allocatedQty;
 
-        // Update used quantities
-        item.usedQty = (item.usedQty || 0) + qtyToConvert;
-        if ((item.usedQty || 0) < (parseFloat(item.estimatedQty) || 0)) {
-          fullyConverted = false;
-        }
-
-        totalQty += qtyToConvert;
-
-        // If no rate is defined on slip, use base pricing
-        let activeRate = parseFloat(item.rate);
-        if (isNaN(activeRate)) {
-          const product = await Product.findById(item.productId);
-          activeRate = product ? (product.basePrice || 0) : 0;
-        }
-
-        const lineTotal = qtyToConvert * activeRate;
-        totalAmount += lineTotal;
-
-        // Map line item details to standard Tapal string representations
-        tapalProducts.push({
-          name: item.fishName.toUpperCase(),
-          qty: `${qtyToConvert} KG`,
-          numericQty: qtyToConvert,
-          rate: `₹${activeRate}`,
-          total: `₹${lineTotal.toLocaleString('en-IN')}`,
-          boxQty: boxQtyToConvert || item.boxCount || null,
-          weightPerBox: item.weightPerBox || null
-        });
+        // Update allocatedQty in Harvest document
+        harvest.allocatedQty += allocatedQty;
+        await harvest.save({ session });
       }
 
-      if (tapalProducts.length === 0) {
-        throw new AppError('No products selected for Tapal conversion or no available quantity left.', 400);
-      }
+      // Convert product map to Tapal products array format
+      const tapalProducts = Object.values(productMap).map(p => {
+        totalAmount += p.totalAmount;
+        return {
+          name: p.fishName.toUpperCase(),
+          hsnCode: p.hsnCode,
+          qty: `${p.numericQty.toFixed(2)} KG`,
+          numericQty: p.numericQty,
+          rate: `₹${p.rate}`,
+          total: `₹${p.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
+          boxQty: p.boxQty ? Math.round(p.boxQty) : null,
+          weightPerBox: p.weightPerBox,
+          totalWeight: p.numericQty
+        };
+      });
 
-      // 4. Instantiate the Purchase Tapal Record
+      // 4. Create Tapal document
       const newTapal = new Tapal({
         type: 'Purchase',
-        harvestId: harvest._id,
+        harvestId: firstHarvest._id, // Backwards compatibility: keep first harvest id
         partyName: farmer.fullName,
         farmerId: farmer._id,
-        qty: `${totalQty} KG`,
+        qty: `${totalQty.toFixed(2)} KG`,
         numericQty: totalQty,
-        amount: `₹${totalAmount.toLocaleString('en-IN')}`,
+        amount: `₹${totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
         numericAmount: totalAmount,
-        status: assignedTo || logistics.assignedTo ? 'ASSIGNED' : 'CREATED',
-        assignedTo: assignedTo || logistics.assignedTo || null,
+        status: logistics.assignedTo ? 'ASSIGNED' : 'CREATED',
+        assignedTo: logistics.assignedTo || null,
         driver: logistics.driverName || 'Unassigned',
         vehicleNumber: logistics.vehicleNumber || null,
         destination: logistics.destination || null,
@@ -188,43 +201,67 @@ class HarvestService extends BaseService {
             isActive: { $ne: false },
             role: { $in: ['BUYER', 'Buyer'] },
             $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
-          });
+          }).session(session);
           if (buyerUser) newTapal.assignedBuyer = buyerUser._id;
         }
         if (!newTapal.buyerId) {
           const buyerMaster = await Buyer.findOne({
             isActive: { $ne: false },
             $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
-          });
+          }).session(session);
           if (buyerMaster) newTapal.buyerId = buyerMaster._id;
         }
       }
 
-      await newTapal.save();
+      await newTapal.save({ session });
 
-      // 5. Update Harvest Slip state representation
-      harvest.status = fullyConverted ? 'CONVERTED_TO_TAPAL' : 'PARTIALLY_CONVERTED';
-      await harvest.save();
-
-      logger.info(`[Harvest Engine]: Successfully converted Slip ${harvest.harvestNumber} to Tapal ${newTapal.tapalNumber}`);
-
-      try {
-        if (farmer?.phone) {
-          await notificationService.sendHarvestConfirmation(
-            farmer.phone,
-            harvest.harvestNumber,
-            harvest.harvestDate
-          );
-        }
-      } catch (notifyErr) {
-        logger.warn(`[Harvest Engine]: Farmer notify skipped: ${notifyErr.message}`);
+      // 5. Create many-to-many allocation mappings in HarvestTapalMapping
+      const { HarvestTapalMapping } = await import('./harvestTapalMapping.model.js');
+      for (const allocation of allocations) {
+        const mapping = new HarvestTapalMapping({
+          harvestSlipId: allocation.harvestId,
+          tapalId: newTapal._id,
+          allocatedQty: allocation.allocatedQty,
+          createdBy: creatorUser._id
+        });
+        await mapping.save({ session });
       }
 
+      await session.commitTransaction();
+      session.endSession();
+
+      logger.info(`[Harvest Engine]: Successfully created Tapal ${newTapal.tapalNumber} from ${allocations.length} harvests.`);
       return newTapal;
     } catch (error) {
-      logger.error(`[Harvest Engine Error]: Transition failure. ${error.message}`);
+      await session.abortTransaction();
+      session.endSession();
+      logger.error(`[Harvest Engine Error]: Many-to-Many conversion failure: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Legacy wrapper for single harvest slip conversion
+   */
+  async convertToTapal(harvestId, assignedTo, creatorUser, selectedItems = null, logistics = {}) {
+    const harvest = await this.model.findById(harvestId);
+    if (!harvest) {
+      throw new AppError(`Harvest Slip with ID ${harvestId} does not exist.`, 404);
+    }
+    const totalEstWeight = harvest.products.reduce((sum, item) => sum + (item.estimatedQty || 0), 0);
+    const availableQty = harvest.availableQty || totalEstWeight || 1;
+    const remainingQty = Math.max(0, availableQty - harvest.allocatedQty) || availableQty;
+    
+    const finalLogistics = { ...logistics };
+    if (assignedTo && !finalLogistics.assignedTo) {
+      finalLogistics.assignedTo = assignedTo;
+    }
+    
+    return await this.createTapalFromHarvests(
+      [{ harvestId, allocatedQty: remainingQty }],
+      finalLogistics,
+      creatorUser
+    );
   }
 
   /**

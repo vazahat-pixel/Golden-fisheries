@@ -3,6 +3,7 @@ import { restaurantMenuService } from './restaurantMenu.service.js';
 import { restaurantInventoryService } from './restaurantInventory.service.js';
 import { kitchenService } from './kitchen.service.js';
 import { restaurantReportsService } from './restaurantReports.service.js';
+import { restaurantAccountingService } from './restaurantAccounting.service.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { broadcastEvent } from '../../sockets/socket.js';
@@ -189,6 +190,54 @@ export const restaurantController = {
   reportProfit: asyncWrapper(async (req, res) => {
     const data = await restaurantReportsService.getProfitSummary(req.query);
     new ApiResponse(200, data, 'Restaurant P&L summary').send(res);
+  }),
+
+  // Shift & Accounting Sessions
+  activeSession: asyncWrapper(async (req, res) => {
+    const session = await restaurantAccountingService.getActiveSession(req.user.id);
+    new ApiResponse(200, { activeSession: session || null }, 'Active shift session loaded').send(res);
+  }),
+
+  openSession: asyncWrapper(async (req, res) => {
+    const session = await restaurantAccountingService.openSession(req.user.id, req.body);
+    new ApiResponse(201, { session }, 'Shift session opened successfully').send(res);
+  }),
+
+  closeSession: asyncWrapper(async (req, res) => {
+    const session = await restaurantAccountingService.closeSession(req.user.id, req.body);
+    new ApiResponse(200, { session }, 'Shift session closed successfully').send(res);
+  }),
+
+  sessionSummary: asyncWrapper(async (req, res) => {
+    const active = await restaurantAccountingService.getActiveSession(req.user.id);
+    if (!active) {
+      return new ApiResponse(200, { session: null, cashbook: [], expenses: [] }, 'No active open session').send(res);
+    }
+    const summary = await restaurantAccountingService.getSessionSummary(active._id);
+    new ApiResponse(200, summary, 'Session shift summary loaded').send(res);
+  }),
+
+  recordExpense: asyncWrapper(async (req, res) => {
+    const expense = await restaurantAccountingService.recordExpense(req.user.id, req.body);
+    new ApiResponse(201, { expense }, 'Operational expense recorded successfully').send(res);
+  }),
+
+  listExpenses: asyncWrapper(async (req, res) => {
+    const active = await restaurantAccountingService.getActiveSession(req.user.id);
+    if (!active) {
+      return new ApiResponse(200, [], 'No active session').send(res);
+    }
+    const summary = await restaurantAccountingService.getSessionSummary(active._id);
+    new ApiResponse(200, summary.expenses, 'Session expenses loaded').send(res);
+  }),
+
+  listCashbook: asyncWrapper(async (req, res) => {
+    const active = await restaurantAccountingService.getActiveSession(req.user.id);
+    if (!active) {
+      return new ApiResponse(200, [], 'No active session').send(res);
+    }
+    const summary = await restaurantAccountingService.getSessionSummary(active._id);
+    new ApiResponse(200, summary.cashbook, 'Cashbook entries loaded').send(res);
   }),
 };
 

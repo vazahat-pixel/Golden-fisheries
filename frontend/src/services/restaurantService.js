@@ -114,6 +114,29 @@ export const restaurantService = {
   getReportTables: async (params) => {
     return await apiClient.get('/restaurant/reports/tables', { params });
   },
+
+  // --- Shift Sessions & Accounting API Calls ---
+  getActiveSession: async () => {
+    return await apiClient.get('/restaurant/accounting/session/active');
+  },
+  openSession: async (data) => {
+    return await apiClient.post('/restaurant/accounting/session/open', data);
+  },
+  closeSession: async (data) => {
+    return await apiClient.post('/restaurant/accounting/session/close', data);
+  },
+  getSessionSummary: async () => {
+    return await apiClient.get('/restaurant/accounting/session/summary');
+  },
+  recordExpense: async (data) => {
+    return await apiClient.post('/restaurant/accounting/expenses', data);
+  },
+  listExpenses: async () => {
+    return await apiClient.get('/restaurant/accounting/expenses');
+  },
+  listCashbook: async () => {
+    return await apiClient.get('/restaurant/accounting/cashbook');
+  },
 };
 
 export default restaurantService;

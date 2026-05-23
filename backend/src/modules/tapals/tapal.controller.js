@@ -21,6 +21,7 @@ export const tapalController = {
   createFromHarvest: asyncWrapper(async (req, res) => {
     const {
       harvestId,
+      allocations,
       assignedTo,
       buyerPhone,
       buyerId,
@@ -30,7 +31,8 @@ export const tapalController = {
       vehicleNumber,
       driverName,
     } = req.body;
-    const tapal = await harvestService.convertToTapal(harvestId, assignedTo, req.user, null, {
+
+    const logistics = {
       buyerPhone,
       buyerId,
       assignedBuyer,
@@ -38,14 +40,39 @@ export const tapalController = {
       logisticsNotes,
       vehicleNumber,
       driverName,
-    });
+    };
+
+    if (assignedTo && !logistics.assignedTo) {
+      logistics.assignedTo = assignedTo;
+    }
+
+    let tapal;
+    let involvedHarvestIds = [];
+
+    if (allocations && Array.isArray(allocations) && allocations.length > 0) {
+      tapal = await harvestService.createTapalFromHarvests(allocations, logistics, req.user);
+      involvedHarvestIds = allocations.map(a => a.harvestId);
+    } else if (harvestId) {
+      tapal = await harvestService.convertToTapal(harvestId, assignedTo, req.user, null, logistics);
+      involvedHarvestIds = [harvestId];
+    } else {
+      throw new AppError('Either allocations or harvestId is required', 400);
+    }
     
     // Broadcast for real-time dashboard sync
     broadcastEvent('tapal:created', { tapal }, 'dashboard:updates');
-    broadcastEvent('harvest:status_update', { 
-      id: harvestId, 
-      status: 'CONVERTED_TO_TAPAL' 
-    }, 'dashboard:updates');
+    
+    // Broadcast status updates for all involved harvests
+    const { Harvest } = await import('../harvests/harvest.model.js');
+    for (const hId of involvedHarvestIds) {
+      const updatedHarvest = await Harvest.findById(hId).select('status');
+      if (updatedHarvest) {
+        broadcastEvent('harvest:status_update', { 
+          id: hId, 
+          status: updatedHarvest.status 
+        }, 'dashboard:updates');
+      }
+    }
 
     new ApiResponse(201, { tapal: aliasTapalResponse(tapal) }, 'Tapal created from harvest slip successfully').send(res);
   }),
