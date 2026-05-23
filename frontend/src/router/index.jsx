@@ -35,6 +35,9 @@ const CreateSalesTapal = React.lazy(() => import('../panels/admin/tapals/CreateS
 const TapalDetail = React.lazy(() => import('../panels/admin/tapals/TapalDetail'));
 const InventoryOverview = React.lazy(() => import('../panels/admin/inventory/InventoryOverview'));
 const AddInventoryItem = React.lazy(() => import('../panels/admin/inventory/AddInventoryItem'));
+const ProcurementToFishMallTransfer = React.lazy(
+  () => import('../panels/admin/inventory/ProcurementToFishMallTransfer')
+);
 const DriverManagement = React.lazy(() => import('../panels/admin/logistics/DriverManagement'));
 const TripsAndExpenses = React.lazy(() => import('../panels/admin/logistics/TripsAndExpenses'));
 const VehicleDocuments = React.lazy(() => import('../panels/admin/logistics/VehicleDocuments'));
@@ -68,6 +71,10 @@ const RestaurantDashboard = React.lazy(() => import('../panels/restaurant/Restau
 const RestaurantPOS = React.lazy(() => import('../panels/restaurant/RestaurantPOS'));
 const RestaurantOrderHistory = React.lazy(() => import('../panels/restaurant/RestaurantOrderHistory'));
 const RestaurantInventory = React.lazy(() => import('../panels/restaurant/RestaurantInventory'));
+const RestaurantInternalReceives = React.lazy(
+  () => import('../panels/restaurant/RestaurantInternalReceives')
+);
+const RestaurantMenuSetup = React.lazy(() => import('../panels/restaurant/RestaurantMenuSetup'));
 const RestaurantKitchen = React.lazy(() => import('../panels/restaurant/RestaurantKitchen'));
 const RestaurantSettings = React.lazy(() => import('../panels/restaurant/RestaurantSettings'));
 
@@ -120,6 +127,8 @@ const restaurantNav = [
   { icon: ChefHat, label: 'Kitchen', path: '/restaurant/kitchen' },
   { icon: ShoppingCart, label: 'Order History', path: '/restaurant/orders' },
   { icon: ClipboardList, label: 'Inventory', path: '/restaurant/inventory' },
+  { icon: ArrowRightLeft, label: 'Received Stock', path: '/restaurant/received-stock' },
+  { icon: ChefHat, label: 'Menu & Recipes', path: '/restaurant/menu-setup' },
   { icon: Settings, label: 'Settings', path: '/restaurant/settings' },
 ];
 
@@ -194,6 +203,7 @@ const AppRouter = () => {
             {/* Inventory Routes */}
             <Route element={<ProtectedRoute allowedRoles={WEB_ERP_ROLES} module="inventory"><Outlet /></ProtectedRoute>}>
               <Route path="inventory" element={<InventoryOverview />} />
+              <Route path="inventory/transfer-fishmall" element={<ProcurementToFishMallTransfer />} />
               <Route path="inventory/new" element={<AddInventoryItem />} />
             </Route>
 
@@ -262,11 +272,30 @@ const AppRouter = () => {
           <Route path="auth" element={<RestaurantAuth />} />
           <Route element={<ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ...REST_ROLES]} requirePlatform={PLATFORM_ACCESS.WEB}><Outlet /></ProtectedRoute>}>
             <Route path="pos" element={<RestaurantPOS />} />
-            <Route element={<PanelLayout navItems={restaurantNav} panelName="GF Restaurant" userName="Suresh"><Outlet /></PanelLayout>}>
+            <Route element={
+              <PanelLayout
+                navItems={restaurantNav}
+                panelName="GF Restaurant"
+                userName="Suresh"
+                panelKind="restaurant"
+                alertsHref="/restaurant/received-stock"
+              >
+                <Outlet />
+              </PanelLayout>
+            }>
               <Route path="dashboard" element={<RestaurantDashboard />} />
               <Route path="kitchen" element={<RestaurantKitchen />} />
               <Route path="orders" element={<RestaurantOrderHistory />} />
               <Route path="inventory" element={<RestaurantInventory />} />
+              <Route path="received-stock" element={<RestaurantInternalReceives />} />
+              <Route
+                path="menu-setup"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.REST_MANAGER, ROLES.SUPER_ADMIN]}>
+                    <RestaurantMenuSetup />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="settings" element={<RestaurantSettings />} />
             </Route>
           </Route>
@@ -279,7 +308,13 @@ const AppRouter = () => {
           <Route path="auth" element={<FishMallAuth />} />
           <Route element={
             <ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ...FISHMALL_ROLES]} requirePlatform={PLATFORM_ACCESS.WEB}>
-              <PanelLayout navItems={fishMallNav} panelName="GF Fish Mall" userName="Ramesh">
+              <PanelLayout
+                navItems={fishMallNav}
+                panelName="GF Fish Mall"
+                userName="Ramesh"
+                panelKind="fishmall"
+                alertsHref="/fishmall/alerts"
+              >
                 <Outlet />
               </PanelLayout>
             </ProtectedRoute>
@@ -328,7 +363,24 @@ const AppRouter = () => {
               <Route path="procurement/tapal" element={<CreateTapalFromHarvest />} />
               <Route path="vehicles" element={<VehicleDashboard />} />
               <Route path="vehicles/new" element={<AddVehicle />} />
-              <Route path="buyer" element={<Navigate to="/buyer/dashboard" replace />} />
+              <Route path="buyer" element={<Navigate to="/mobile/buyer/dashboard" replace />} />
+              <Route element={<ProtectedRoute module="buyerDashboard"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/dashboard" element={<BuyerDashboard />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerVerify"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/tapals" element={<BuyerIncomingTapals />} />
+                <Route path="buyer/bill/:tapalId" element={<BuyerBillView />} />
+                <Route path="buyer/assign-driver" element={<BuyerAssignDriver />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerBills"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/invoices" element={<BuyerInvoiceHistory />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerReturns"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/returns" element={<BuyerSalesReturn />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerSettlement"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/reconciliation" element={<BuyerReconciliation />} />
+              </Route>
               <Route path="driver" element={<Navigate to="/driver/dashboard" replace />} />
             </Route>
           </Routes>

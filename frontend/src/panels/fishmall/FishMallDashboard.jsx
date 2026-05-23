@@ -1,11 +1,13 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Scale, TrendingUp, Layers, ClipboardCheck, ArrowRight } from 'lucide-react';
+import { Scale, TrendingUp, Layers, ClipboardCheck, ArrowRight, Package } from 'lucide-react';
 import { Button } from '../../design-system/components/Button';
 import { useFishMallStore } from '../../store/fishMallStore';
 
 const FishMallDashboard = () => {
-  const { stock, bills, fetchStock } = useFishMallStore();
+  const { stock, bills, fetchStock, alerts } = useFishMallStore();
+  const transferAlerts = alerts.filter((a) => a.type === 'PROCUREMENT_TRANSFER' && !a.read);
+  const latestTransfer = transferAlerts[0];
 
   React.useEffect(() => {
     fetchStock();
@@ -33,6 +35,23 @@ const FishMallDashboard = () => {
           </Button>
         </Link>
       </header>
+
+      {latestTransfer && (
+        <Link
+          to="/fishmall/alerts"
+          className="mb-4 block bg-emerald-50 border border-emerald-200 p-4 rounded-xl hover:border-emerald-400 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <Package size={20} className="text-emerald-700 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">
+                {latestTransfer.title}
+              </p>
+              <p className="text-[9px] text-emerald-700 font-bold mt-1">{latestTransfer.message}</p>
+            </div>
+          </div>
+        </Link>
+      )}
 
       <div className="space-y-4">
         {/* Compact Grid Stats */}

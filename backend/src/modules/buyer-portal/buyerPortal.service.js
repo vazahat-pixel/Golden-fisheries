@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import { Tapal } from '../tapals/tapal.model.js';
+import { InventoryTransaction } from '../inventory/inventoryTransaction.model.js';
 import { Trip } from '../trips/trip.model.js';
 import { Buyer } from '../buyers/buyer.model.js';
 import { BuyerVerification } from './buyerVerification.model.js';
@@ -10,11 +12,22 @@ import { inventoryService } from '../inventory/inventory.service.js';
 import { Product } from '../products/product.model.js';
 import { notificationService } from '../notifications/notification.service.js';
 import { broadcastEvent } from '../../sockets/socket.js';
+import { normalizePhone10 } from '../../utils/phone.js';
+
+const ASSIGNABLE_STATUSES = ['CREATED', 'ASSIGNED', 'CONFIRMED'];
 
 /** Resolve tapals visible to logged-in buyer user */
 async function buyerTapalFilter(user) {
-  const buyerMaster = await Buyer.findOne({ phone: user.phone, isActive: { $ne: false } });
-  const or = [{ buyerPhone: user.phone }, { assignedBuyer: user._id }];
+  const p10 = normalizePhone10(user.phone);
+  const phoneVariants = [...new Set([user.phone, p10].filter(Boolean))];
+  const buyerMaster = await Buyer.findOne({
+    isActive: { $ne: false },
+    phone: { $in: phoneVariants },
+  });
+  const or = [
+    { buyerPhone: { $in: phoneVariants } },
+    { assignedBuyer: user._id },
+  ];
   if (buyerMaster) or.push({ buyerId: buyerMaster._id });
   return { $or: or, isDeleted: { $ne: true } };
 }
@@ -37,6 +50,80 @@ export const buyerPortalService = {
       docs,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) || 0, totalDocs: total }
     };
+  },
+
+  /** Tapals linked to this buyer that still need a driver */
+  async getAssignableTapals(user, query = {}) {
+    const filter = await buyerTapalFilter(user);
+    filter.status = { $in: ASSIGNABLE_STATUSES };
+
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.min(100, parseInt(query.limit, 10) || 50);
+    const skip = (page - 1) * limit;
+
+    const [docs, total] = await Promise.all([
+      Tapal.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('harvestId'),
+      Tapal.countDocuments(filter),
+    ]);
+
+    return {
+      docs,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) || 0, totalDocs: total },
+    };
+  },
+
+  /** Find tapal by number for buyer claim (unlinked + assignable only) */
+  async lookupTapalByNumber(user, tapalNumber) {
+    const tn = String(tapalNumber || '').trim().toUpperCase();
+    if (!tn) throw new AppError('Tapal number is required', 400);
+
+    const tapal = await Tapal.findOne({ tapalNumber: tn, isDeleted: { $ne: true } });
+    if (!tapal) return { tapal: null, canClaim: false };
+
+    const p10 = normalizePhone10(user.phone);
+    const linked =
+      (tapal.buyerPhone && normalizePhone10(tapal.buyerPhone) === p10) ||
+      tapal.assignedBuyer?.toString() === user._id.toString();
+
+    if (linked) {
+      return { tapal, canClaim: false, alreadyYours: true };
+    }
+
+    if (tapal.buyerPhone) {
+      return { tapal, canClaim: false, belongsToOther: true };
+    }
+
+    const canClaim = ASSIGNABLE_STATUSES.includes(tapal.status);
+    return { tapal, canClaim, alreadyYours: false, belongsToOther: false };
+  },
+
+  /** Link an unassigned tapal to the logged-in buyer (Channapa self-claim) */
+  async claimTapalByNumber(user, tapalNumber) {
+    const { tapal, canClaim, belongsToOther, alreadyYours } = await this.lookupTapalByNumber(
+      user,
+      tapalNumber
+    );
+
+    if (!tapal) throw new AppError('Tapal not found', 404);
+    if (belongsToOther) throw new AppError('This tapal belongs to another buyer', 403);
+    if (alreadyYours) return tapal;
+    if (!canClaim) {
+      throw new AppError(
+        `Cannot claim tapal in status "${tapal.status}". Must be CREATED, ASSIGNED, or CONFIRMED.`,
+        400
+      );
+    }
+
+    const p10 = normalizePhone10(user.phone);
+    tapal.buyerPhone = p10;
+    tapal.assignedBuyer = user._id;
+    const buyerMaster = await Buyer.findOne({
+      isActive: { $ne: false },
+      phone: { $in: [user.phone, p10] },
+    });
+    if (buyerMaster) tapal.buyerId = buyerMaster._id;
+    await tapal.save();
+    return tapal;
   },
 
   async submitVerification(tapalId, user, body) {
@@ -105,55 +192,106 @@ export const buyerPortalService = {
     const totalAmount = parseFloat((grossAmount + taxAmount).toFixed(2));
 
     const primaryItem = tapal.products?.[0]?.name || body.item || 'SEAFOOD';
+    const billLines =
+      body.items?.length > 0
+        ? body.items.map((line) => ({
+            item: line.item || primaryItem,
+            quantity: parseFloat(line.quantity) || finalWeight,
+            ratePerKg: parseFloat(line.ratePerKg) || ratePerKg,
+            amount:
+              (parseFloat(line.quantity) || finalWeight) *
+              (parseFloat(line.ratePerKg) || ratePerKg),
+          }))
+        : [
+            {
+              item: primaryItem,
+              quantity: finalWeight,
+              ratePerKg,
+              amount: grossAmount,
+            },
+          ];
 
-    const bill = await BuyerBill.create({
-      tapal: tapalId,
-      buyer: user._id,
-      item: primaryItem,
-      finalWeight,
-      ratePerKg,
-      grossAmount,
-      taxRate,
-      taxAmount,
-      totalAmount,
-      items: (body.items || []).map((line) => ({
-        item: line.item || primaryItem,
-        quantity: line.quantity || finalWeight,
-        ratePerKg: line.ratePerKg || ratePerKg,
-        amount: (line.quantity || finalWeight) * (line.ratePerKg || ratePerKg)
-      })),
-      status: 'ISSUED',
-      date: body.date ? new Date(body.date) : new Date(),
-      createdBy: user._id
-    });
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Inventory — sales out
-    const product = await Product.findOne({ name: new RegExp(`^${primaryItem}$`, 'i') });
-    if (product) {
-      await inventoryService.adjustStock(
-        product._id,
-        -finalWeight,
-        'SALES_OUT',
-        { referenceId: bill._id, referenceModel: 'BuyerBill' },
-        user._id,
-        `Buyer bill ${bill.billNo}`
+    try {
+      const bill = await BuyerBill.create(
+        [
+          {
+            tapal: tapalId,
+            buyer: user._id,
+            item: primaryItem,
+            finalWeight,
+            ratePerKg,
+            grossAmount,
+            taxRate,
+            taxAmount,
+            totalAmount,
+            items: billLines,
+            status: 'ISSUED',
+            date: body.date ? new Date(body.date) : new Date(),
+            createdBy: user._id,
+          },
+        ],
+        { session }
       );
+      const savedBill = bill[0];
+
+      const existingStockTx = await InventoryTransaction.findOne({
+        referenceId: savedBill._id,
+        referenceModel: 'BuyerBill',
+        type: 'PROCUREMENT_IN',
+      }).session(session);
+
+      if (!existingStockTx) {
+        for (const line of billLines) {
+          const qtyIn = parseFloat(line.quantity) || 0;
+          if (qtyIn <= 0) continue;
+
+          const product = await Product.findOne({
+            name: new RegExp(`^${line.item}$`, 'i'),
+            isActive: { $ne: false },
+          }).session(session);
+
+          if (product) {
+            await inventoryService.adjustStock(
+              product._id,
+              qtyIn,
+              'PROCUREMENT_IN',
+              { referenceId: savedBill._id, referenceModel: 'BuyerBill', session },
+              user._id,
+              `Buyer billing complete — stock available (${savedBill.billNo})`
+            );
+          }
+        }
+      }
+
+      tapal.status = 'BILLING_DONE';
+      await tapal.save({ session });
+
+      await session.commitTransaction();
+
+      if (user.phone) {
+        await notificationService.sendBuyerBillCreated({
+          phone: user.phone,
+          billNo: savedBill.billNo,
+          amount: totalAmount,
+        });
+      }
+
+      broadcastEvent(
+        'buyer:bill_created',
+        { billNo: savedBill.billNo, tapalId },
+        'dashboard:updates'
+      );
+
+      return savedBill;
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
     }
-
-    tapal.status = 'BILLING_DONE';
-    await tapal.save();
-
-    if (user.phone) {
-      await notificationService.sendBuyerBillCreated({
-        phone: user.phone,
-        billNo: bill.billNo,
-        amount: totalAmount
-      });
-    }
-
-    broadcastEvent('buyer:bill_created', { billNo: bill.billNo, tapalId }, 'dashboard:updates');
-
-    return bill;
   },
 
   async listBills(user, query = {}) {
@@ -274,11 +412,11 @@ export const buyerPortalService = {
       if (product) {
         await inventoryService.adjustStock(
           product._id,
-          qtyIn,
-          'RETURN_IN',
+          -qtyIn,
+          'SALES_OUT',
           { referenceId: salesReturn._id, referenceModel: 'SalesReturn' },
           approverId,
-          `Sales return ${salesReturn.returnNo}: ${retItem.damageReason || retItem.reason}`
+          `Sales return ${salesReturn.returnNo}: stock reversed (${retItem.damageReason || retItem.reason})`
         );
         totalRestored += qtyIn;
         primaryProductId = product._id;
@@ -291,7 +429,7 @@ export const buyerPortalService = {
       applied: totalRestored > 0,
       quantity: totalRestored,
       productId: primaryProductId,
-      transactionType: 'RETURN_IN',
+      transactionType: 'SALES_OUT',
     };
     salesReturn.settlementImpact = {
       balanceAdjustment: salesReturn.settlementImpact?.balanceAdjustment ?? 0,

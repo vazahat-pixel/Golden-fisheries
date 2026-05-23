@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
+import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 const restaurantItemSchema = new mongoose.Schema({
+  menuItemId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RestaurantMenuItem',
+    required: false,
+  },
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
@@ -86,6 +92,13 @@ const restaurantOrderSchema = new mongoose.Schema(
     },
     cashAmount: { type: Number, default: 0, min: 0 },
     upiAmount: { type: Number, default: 0, min: 0 },
+    discountAmount: { type: Number, default: 0, min: 0 },
+    couponCode: { type: String, default: '' },
+    kitchenTicketId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'KitchenTicket',
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -101,20 +114,19 @@ const restaurantOrderSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate RST-XXXX sequence
-restaurantOrderSchema.pre('validate', async function (next) {
+restaurantOrderSchema.pre('validate', async function assignOrderNumber(next) {
   if (this.orderNumber) return next();
   try {
-    const lastOrder = await this.constructor.findOne().sort({ createdAt: -1 });
-    let nextId = 1;
-    if (lastOrder && lastOrder.orderNumber) {
-      const match = lastOrder.orderNumber.match(/RST-(\d+)/);
-      if (match) {
-        nextId = parseInt(match[1], 10) + 1;
+    const Model = mongoose.models.RestaurantOrder || this.constructor;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = await formatSequentialDocNo('restaurant-order', 'RST', 4);
+      const exists = await Model.findOne({ orderNumber: candidate }).select('_id');
+      if (!exists) {
+        this.orderNumber = candidate;
+        return next();
       }
     }
-    this.orderNumber = `RST-${String(nextId).padStart(4, '0')}`;
-    next();
+    return next(new Error('Could not allocate unique restaurant order number'));
   } catch (error) {
     next(error);
   }

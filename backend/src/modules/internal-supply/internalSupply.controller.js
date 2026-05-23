@@ -11,7 +11,7 @@ export const internalSupplyController = {
     new ApiResponse(
       201,
       { bill },
-      'Internal supply bill issued — Fish Mall stock reduced, Restaurant stock increased'
+      'Internal bill issued — Fish Mall stock reduced, Restaurant kitchen stock increased'
     ).send(res);
   }),
 
@@ -28,8 +28,29 @@ export const internalSupplyController = {
   }),
 
   summary: asyncWrapper(async (req, res) => {
-    const summary = await internalSupplyService.getSummary();
+    const summary = await internalSupplyService.getSummary(req.query);
     new ApiResponse(200, summary, 'Internal supply summary').send(res);
+  }),
+
+  fishMallSalesReport: asyncWrapper(async (req, res) => {
+    const data = await internalSupplyService.getFishMallInternalSalesReport(req.query);
+    new ApiResponse(200, data, 'Fish Mall internal sales report').send(res);
+  }),
+
+  restaurantReceiveReport: asyncWrapper(async (req, res) => {
+    const data = await internalSupplyService.getRestaurantReceiveReport(req.query);
+    new ApiResponse(200, data, 'Restaurant stock receive report').send(res);
+  }),
+
+  movementReport: asyncWrapper(async (req, res) => {
+    const data = await internalSupplyService.getMovementReport(req.query);
+    new ApiResponse(200, data, 'Internal inventory movement report').send(res);
+  }),
+
+  dailyTransferSummary: asyncWrapper(async (req, res) => {
+    const date = req.query.date ? new Date(req.query.date) : new Date();
+    const data = await internalSupplyService.getDailyTransferSummary(date);
+    new ApiResponse(200, data, 'Daily internal transfer summary').send(res);
   }),
 };
 

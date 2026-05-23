@@ -6,13 +6,13 @@ export function getHomePathForRole(role) {
     case ROLES.SUPER_ADMIN:
       return '/admin/dashboard';
     case ROLES.PROCUREMENT_MANAGER:
-      return '/admin/dashboard';
+      return '/mobile/procurement/harvest';
     case ROLES.BUYER:
-      return '/admin/buyer/dashboard';
+      return '/mobile/buyer/dashboard';
     case ROLES.DRIVER:
       return '/driver/dashboard';
     case ROLES.VEHICLE_MANAGER:
-      return '/admin/logistics';
+      return '/mobile/vehicles';
     case ROLES.REST_MANAGER:
     case ROLES.REST_CASHIER:
       return '/restaurant/dashboard';
@@ -28,6 +28,7 @@ export function isMobileRole(role) {
   const r = normalizeRole(role);
   return [
     ROLES.PROCUREMENT_MANAGER,
+    ROLES.BUYER,
     ROLES.DRIVER,
     ROLES.VEHICLE_MANAGER,
     ROLES.SUPER_ADMIN,

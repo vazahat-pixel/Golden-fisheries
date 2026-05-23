@@ -1,10 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
-import { 
-  Sprout, Plus, Search, Calendar, Filter, ArrowRight, 
-  CheckCircle, Clock, XCircle, ShoppingBag, Weight, Inbox, RefreshCw 
+import {
+  Sprout, Plus, Search, Calendar, Filter, ArrowRight,
+  CheckCircle, Clock, XCircle, ShoppingBag, Weight, Inbox, RefreshCw,
+  FileText, FileCheck,
 } from 'lucide-react';
+
+/** Map API harvest status → display label for badges/filters */
+function displayHarvestStatus(apiStatus) {
+  const s = (apiStatus || '').toUpperCase();
+  const map = {
+    DRAFT: 'Draft',
+    PENDING: 'Pending Approval',
+    SENT: 'Sent to Farmer',
+    PENDING_CONFIRMATION: 'Pending Approval',
+    CONFIRMED: 'Farmer Approved',
+    PARTIALLY_CONVERTED: 'Tapal Created',
+    CONVERTED_TO_TAPAL: 'Tapal Created',
+    REJECTED: 'Rejected',
+    COMPLETED: 'Approved',
+  };
+  return map[s] || apiStatus;
+}
 import { toast } from 'react-hot-toast';
 
 const HarvestSlips = () => {
@@ -26,16 +44,21 @@ const HarvestSlips = () => {
       (slip.farmerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (slip.tpNo || '').toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = 
-      statusFilter === 'ALL' || 
-      slip.status?.toUpperCase().replace(' ', '_') === statusFilter.toUpperCase();
+    const apiStatus = (slip.status || '').toUpperCase();
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      apiStatus === statusFilter ||
+      (statusFilter === 'PENDING_CONFIRMATION' &&
+        ['PENDING', 'SENT', 'PENDING_CONFIRMATION'].includes(apiStatus));
 
     return matchesSearch && matchesStatus;
   });
 
   // Calculate quick stats
   const statsTotalSlips = activeSlips.length;
-  const statsPendingApprovals = activeSlips.filter(s => s.status === 'Pending Approval').length;
+  const statsPendingApprovals = activeSlips.filter((s) =>
+    ['PENDING', 'SENT', 'PENDING_CONFIRMATION'].includes((s.status || '').toUpperCase())
+  ).length;
   const statsTotalWeight = activeSlips.reduce((sum, s) => sum + (parseFloat(s.totalWeight) || 0), 0);
   const statsTotalBoxes = activeSlips.reduce((sum, s) => sum + (parseInt(s.totalBoxes) || 0), 0);
 
@@ -176,17 +199,24 @@ const HarvestSlips = () => {
           <span className="text-[10px] font-black uppercase tracking-widest text-brand-olive mr-2 flex items-center gap-1">
             <Filter size={12} /> Filter:
           </span>
-          {['ALL', 'PENDING APPROVAL', 'APPROVED', 'REJECTED'].map((filter) => (
+          {[
+            { key: 'ALL', label: 'All' },
+            { key: 'PENDING_CONFIRMATION', label: 'Pending' },
+            { key: 'CONFIRMED', label: 'Confirmed' },
+            { key: 'CONVERTED_TO_TAPAL', label: 'Tapal done' },
+            { key: 'REJECTED', label: 'Rejected' },
+          ].map(({ key, label }) => (
             <button
-              key={filter}
-              onClick={() => setStatusFilter(filter)}
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
               className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-sm border ${
-                statusFilter === filter
+                statusFilter === key
                   ? 'bg-[#6A7051] border-[#6A7051] text-white shadow-sm'
                   : 'bg-white border-card-border text-text-secondary hover:bg-slate-50'
               }`}
             >
-              {filter.replace('_', ' ')}
+              {label}
             </button>
           ))}
           <button
@@ -264,7 +294,7 @@ const HarvestSlips = () => {
                         {parseFloat(slip.totalWeight || 0).toFixed(2)} kg
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        {getStatusBadge(slip.status)}
+                        {getStatusBadge(displayHarvestStatus(slip.status))}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <button
@@ -292,7 +322,7 @@ const HarvestSlips = () => {
                     <span className="font-black text-xs text-brand-olive tracking-wider">
                       #{slip.tpNo || 'N/A'}
                     </span>
-                    {getStatusBadge(slip.status)}
+                    {getStatusBadge(displayHarvestStatus(slip.status))}
                   </div>
                   <div>
                     <h3 className="font-extrabold text-brand-olive uppercase text-xs">

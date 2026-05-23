@@ -25,11 +25,12 @@ const MENU = {
     { label: 'Add Vehicle', path: '/mobile/vehicles/new' },
   ],
   [ROLES.BUYER]: [
-    { label: 'Dashboard', path: '/buyer/dashboard' },
-    { label: 'Tapals', path: '/buyer/tapals' },
-    { label: 'Bills', path: '/buyer/invoices' },
-    { label: 'Returns', path: '/buyer/returns' },
-    { label: 'Settlement', path: '/buyer/reconciliation' },
+    { label: 'Dashboard', path: '/mobile/buyer/dashboard' },
+    { label: 'Tapals', path: '/mobile/buyer/tapals' },
+    { label: 'Assign Driver', path: '/mobile/buyer/assign-driver' },
+    { label: 'Bills', path: '/mobile/buyer/invoices' },
+    { label: 'Returns', path: '/mobile/buyer/returns' },
+    { label: 'Settlement', path: '/mobile/buyer/reconciliation' },
   ],
   [ROLES.DRIVER]: [
     { label: 'Dashboard', path: '/driver/dashboard' },

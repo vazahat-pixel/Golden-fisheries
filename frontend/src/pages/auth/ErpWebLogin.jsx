@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthInput from '../../components/auth/AuthInput';
 import AuthButton from '../../components/auth/AuthButton';
@@ -7,17 +7,23 @@ import { Phone, Lock, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../services/authService';
 import { toast } from 'react-hot-toast';
-import { normalizeRole } from '../../constants/rbac';
-import { canAccessAdminPanel, getDefaultHomePath, normalizePermissions } from '../../utils/permissions';
+import { normalizeRole, ROLES } from '../../constants/rbac';
+import { canLoginViaAdminErp, getDefaultHomePath, normalizePermissions } from '../../utils/permissions';
 
 /**
- * Unified web ERP login — Super Admin, Procurement (web), Buyer, Finance, Logistics, etc.
+ * Unified Admin login — Super Admin, field roles (Buyer, Procurement, Vehicles), and office ERP staff.
  */
 const ErpWebLogin = () => {
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { isAuthenticated, user } = useAuthStore();
+
+  // If already authenticated, redirect to their dashboard (prevents back-button loop)
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultHomePath(user)} replace />;
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -52,15 +58,16 @@ const ErpWebLogin = () => {
         permissions: normalizePermissions(raw.permissions, raw.role),
       };
 
-      if (!canAccessAdminPanel(user)) {
-        toast.error(
-          'This account is not enabled for Admin ERP web access. Use Restaurant, Fish Mall, Driver, or Mobile login.'
-        );
+      if (normalizeRole(user.role) === ROLES.DRIVER) {
+        toast.error('Drivers must use Driver Login from the home screen.');
+        navigate('/auth/driver');
         return;
       }
 
-      if (user.platformAccess?.web === false) {
-        toast.error('Web ERP access is disabled for this account.');
+      if (!canLoginViaAdminErp(user)) {
+        toast.error(
+          'This account cannot sign in here. Use Restaurant, Fish Mall, or Driver login — or ask Admin to enable your access.'
+        );
         return;
       }
 

@@ -72,6 +72,12 @@ const userSchema = new mongoose.Schema(
       enum: BUSINESS_UNIT_LIST,
       default: 'MKE'
     },
+    fishMallOutletId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FishMallOutlet',
+      default: null,
+      index: true,
+    },
     refreshToken: {
       type: String,
       select: false

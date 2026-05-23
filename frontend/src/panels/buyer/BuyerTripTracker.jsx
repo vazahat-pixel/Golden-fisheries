@@ -92,7 +92,7 @@ const BuyerTripTracker = () => {
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
           <button
-            onClick={() => navigate('/buyer/assign')}
+            onClick={() => navigate('/mobile/buyer/assign-driver')}
             className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-blue-700 active:scale-95 transition-all"
           >
             + New Trip
@@ -132,7 +132,7 @@ const BuyerTripTracker = () => {
             <Truck size={40} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm font-bold text-slate-400">No trips found</p>
             <button
-              onClick={() => navigate('/buyer/assign')}
+              onClick={() => navigate('/mobile/buyer/assign-driver')}
               className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider"
             >
               Assign Your First Driver

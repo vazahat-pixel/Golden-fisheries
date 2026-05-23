@@ -65,8 +65,9 @@ const NetRate = () => {
       toast.error('Select harvest reference');
       return;
     }
-    if (harvest?.status && !['CONFIRMED', 'PARTIALLY_CONVERTED', 'PENDING', 'SENT'].includes(harvest.status)) {
+    if (harvest?.status && !['CONFIRMED', 'PARTIALLY_CONVERTED'].includes(harvest.status)) {
       toast.error(`Harvest status "${harvest.status}" — confirm farmer approval first`);
+      return;
     }
     try {
       await saveNetRateAsync(harvestId, {

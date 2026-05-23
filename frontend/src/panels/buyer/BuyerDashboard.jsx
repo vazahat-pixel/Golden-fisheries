@@ -13,26 +13,19 @@ const BuyerDashboard = () => {
     fetchBuyerTrips();
     buyerPortalService.listBills().then((r) => {
       setBillCount(Array.isArray(r?.data) ? r.data.length : 0);
-    }).catch(() => {});
+    }).catch(() => { });
     buyerPortalService.getAssignedTapals({ status: 'DELIVERED' }).then((r) => {
       setPendingVerify(Array.isArray(r?.data) ? r.data.length : 0);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [fetchBuyerTrips]);
 
   const activeTrips = buyerTrips.filter((t) => !['DELIVERED', 'CLOSED'].includes(t.status)).length;
 
   const cards = [
-<<<<<<< HEAD
-    { label: 'Active trips', value: activeTrips, icon: Truck, to: '/buyer/trips', color: 'text-accent-olive' },
-    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/buyer/tapals', color: 'text-brand-yellow' },
-    { label: 'Bills', value: billCount, icon: FileText, to: '/buyer/invoices', color: 'text-black' },
-    { label: 'Returns', value: '—', icon: RotateCcw, to: '/buyer/returns', color: 'text-slate-500' }
-=======
-    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/admin/buyer/tapals', color: 'text-amber-600' },
-    { label: 'Bills', value: billCount, icon: FileText, to: '/admin/buyer/invoices', color: 'text-slate-900' },
-    { label: 'Returns', value: '—', icon: RotateCcw, to: '/admin/buyer/returns', color: 'text-purple-600' },
-    { label: 'Settlement', value: '→', icon: Truck, to: '/admin/buyer/reconciliation', color: 'text-blue-600' },
->>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
+    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/mobile/buyer/tapals', color: 'text-amber-600' },
+    { label: 'Bills', value: billCount, icon: FileText, to: '/mobile/buyer/invoices', color: 'text-slate-900' },
+    { label: 'Returns', value: '—', icon: RotateCcw, to: '/mobile/buyer/returns', color: 'text-purple-600' },
+    { label: 'Settlement', value: '→', icon: Truck, to: '/mobile/buyer/reconciliation', color: 'text-blue-600' },
   ];
 
   return (
@@ -44,7 +37,7 @@ const BuyerDashboard = () => {
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer · Admin ERP</p>
 >>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
         <h1 className="text-2xl font-serif italic font-black text-slate-900">Dashboard</h1>
-      </div>
+      </div >
 
       <div className="grid grid-cols-2 gap-4">
         {cards.map((c) => (
@@ -69,7 +62,7 @@ const BuyerDashboard = () => {
       </Link>
 =======
 >>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
-    </div>
+    </div >
   );
 };
 

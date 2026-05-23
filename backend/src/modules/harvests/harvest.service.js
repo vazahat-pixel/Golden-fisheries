@@ -9,6 +9,9 @@ import { logger } from '../../utils/logger.js';
 import { flowGuard } from '../../services/flowGuard.service.js';
 import { recalculateHarvestNetRate } from '../../services/netRate.service.js';
 import { notificationService } from '../notifications/notification.service.js';
+import { User } from '../users/user.model.js';
+import { Buyer } from '../buyers/buyer.model.js';
+import { normalizePhone10 } from '../../utils/phone.js';
 
 class HarvestService extends BaseService {
   constructor() {
@@ -62,7 +65,7 @@ class HarvestService extends BaseService {
    * Safe transaction-controlled conversion from Harvest Slip to Purchase Tapal contract.
    * Leverages MongoDB Multi-Document ACID Transactions to guarantee data integrity.
    */
-  async convertToTapal(harvestId, assignedTo, creatorUser, selectedItems = null) {
+  async convertToTapal(harvestId, assignedTo, creatorUser, selectedItems = null, logistics = {}) {
     try {
       await flowGuard.assertHarvestReadyForTapalConversion(harvestId);
 
@@ -163,14 +166,40 @@ class HarvestService extends BaseService {
         numericQty: totalQty,
         amount: `₹${totalAmount.toLocaleString('en-IN')}`,
         numericAmount: totalAmount,
-        status: assignedTo ? 'ASSIGNED' : 'CREATED', 
-        assignedTo: assignedTo || null,
-        driver: 'Unassigned',
-        createdBy: creatorUser.phone, // Track auditing details
+        status: assignedTo || logistics.assignedTo ? 'ASSIGNED' : 'CREATED',
+        assignedTo: assignedTo || logistics.assignedTo || null,
+        driver: logistics.driverName || 'Unassigned',
+        vehicleNumber: logistics.vehicleNumber || null,
+        destination: logistics.destination || null,
+        logisticsNotes: logistics.logisticsNotes || null,
+        createdBy: creatorUser.phone,
         products: tapalProducts
       });
 
-      // Save new Tapal
+      const buyerPhoneRaw = logistics.buyerPhone;
+      if (buyerPhoneRaw) {
+        const p10 = normalizePhone10(buyerPhoneRaw);
+        newTapal.buyerPhone = p10;
+        if (logistics.buyerId) newTapal.buyerId = logistics.buyerId;
+        if (logistics.assignedBuyer) {
+          newTapal.assignedBuyer = logistics.assignedBuyer;
+        } else {
+          const buyerUser = await User.findOne({
+            isActive: { $ne: false },
+            role: { $in: ['BUYER', 'Buyer'] },
+            $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
+          });
+          if (buyerUser) newTapal.assignedBuyer = buyerUser._id;
+        }
+        if (!newTapal.buyerId) {
+          const buyerMaster = await Buyer.findOne({
+            isActive: { $ne: false },
+            $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
+          });
+          if (buyerMaster) newTapal.buyerId = buyerMaster._id;
+        }
+      }
+
       await newTapal.save();
 
       // 5. Update Harvest Slip state representation

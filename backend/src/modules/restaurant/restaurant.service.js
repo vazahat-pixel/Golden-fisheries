@@ -2,17 +2,19 @@ import mongoose from 'mongoose';
 import { BaseService } from '../../services/base.service.js';
 import { RestaurantOrder } from './restaurantOrder.model.js';
 import { restaurantInventoryService } from './restaurantInventory.service.js';
+import { restaurantMenuService } from './restaurantMenu.service.js';
+import { normalizeOrderType } from './kitchen.service.js';
+import { RestaurantInventoryLog } from './restaurantInventory.model.js';
+import { KitchenTicket } from './kitchenTicket.model.js';
 import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
+import { broadcastEvent } from '../../sockets/socket.js';
 
 class RestaurantService extends BaseService {
   constructor() {
     super(RestaurantOrder);
   }
 
-  /**
-   * Search and filter restaurant orders
-   */
   async findOrdersWithFilters(queryParams) {
     const { page = 1, limit = 10, search, status, orderType } = queryParams;
     const filter = {};
@@ -22,60 +24,75 @@ class RestaurantService extends BaseService {
 
     if (search) {
       const searchRegex = new RegExp(search, 'i');
-      filter.$or = [
-        { orderNumber: searchRegex },
-        { tableNumber: searchRegex }
-      ];
+      filter.$or = [{ orderNumber: searchRegex }, { tableNumber: searchRegex }];
     }
 
     return await this.findMany(filter, { page, limit });
   }
 
   /**
-   * Create an initial order ticket
+   * Create POS order ticket (PENDING until settled).
    */
   async createOrder(orderData, userId) {
     let subtotal = 0;
     const verifiedItems = [];
 
     for (const item of orderData.items) {
-      const lineTotal = item.quantity * item.rate;
+      const qty = parseFloat(item.quantity) || 1;
+      let rate = parseFloat(item.rate);
+      let name = item.name;
+
+      if (item.menuItemId) {
+        const menu = await restaurantMenuService.getById(item.menuItemId);
+        rate = rate ?? menu.sellingPrice;
+        name = name || menu.name;
+      }
+
+      rate = rate ?? 0;
+      const lineTotal = Math.round(qty * rate * 100) / 100;
       subtotal += lineTotal;
+
       verifiedItems.push({
-        productId: item.productId,
-        inventoryItemId: item.inventoryItemId,
-        name: item.name,
-        quantity: item.quantity,
-        rate: item.rate,
-        amount: lineTotal
+        menuItemId: item.menuItemId || null,
+        productId: item.productId || null,
+        inventoryItemId: item.inventoryItemId || null,
+        name: name || 'ITEM',
+        quantity: qty,
+        rate,
+        amount: lineTotal,
       });
     }
 
-    // 5% standard GST split (2.5% CGST + 2.5% SGST)
-    const cgst = subtotal * 0.025;
-    const sgst = subtotal * 0.025;
-    const totalAmount = subtotal + cgst + sgst;
+    subtotal = Math.round(subtotal * 100) / 100;
+    const discountAmount = Math.round((parseFloat(orderData.discountAmount ?? orderData.discount) || 0) * 100) / 100;
+    const taxable = Math.max(0, subtotal - discountAmount);
+    const cgst = Math.round(taxable * 0.025 * 100) / 100;
+    const sgst = Math.round(taxable * 0.025 * 100) / 100;
+    const totalAmount = Math.round((taxable + cgst + sgst) * 100) / 100;
 
     const order = new RestaurantOrder({
-      orderType: orderData.orderType || 'DINE_IN',
-      tableNumber: orderData.tableNumber || 'TAKEAWAY',
+      orderType: normalizeOrderType(orderData.orderType),
+      tableNumber: orderData.tableNumber || orderData.tableLabel || 'TAKEAWAY',
       items: verifiedItems,
       subtotal,
       cgst,
       sgst,
       totalAmount,
+      discountAmount,
+      couponCode: orderData.coupon || orderData.couponCode || '',
+      kitchenTicketId: orderData.kitchenTicketId || null,
       status: 'PENDING',
       createdBy: userId,
-      remarks: orderData.remarks || ''
+      remarks: orderData.remarks || '',
     });
 
     await order.save();
-    logger.info(`[Restaurant POS]: Order ticket ${order.orderNumber} issued for ${order.tableNumber}`);
+    logger.info(`[Restaurant POS]: Order ${order.orderNumber} created for ${order.tableNumber}`);
     return order;
   }
 
   /**
-   * Settle Order: Locks payment and triggers automated stock deduction from central inventory
+   * Settle order: payment + atomic recipe-based stock consumption.
    */
   async settleOrder(orderId, paymentPayload = {}, userId) {
     const session = await mongoose.startSession();
@@ -83,12 +100,19 @@ class RestaurantService extends BaseService {
 
     try {
       const order = await this.model.findById(orderId).session(session);
-      if (!order) {
-        throw new AppError('Restaurant order ticket not found', 404);
+      if (!order) throw new AppError('Restaurant order ticket not found', 404);
+      if (order.status === 'PAID') {
+        throw new AppError('Order ticket has already been settled and paid', 409);
       }
 
-      if (order.status === 'PAID') {
-        throw new AppError('Order ticket has already been settled and paid', 400);
+      const existingConsumption = await RestaurantInventoryLog.findOne({
+          referenceId: order._id,
+          referenceModel: 'RestaurantOrder',
+          type: { $in: ['RECIPE_CONSUMPTION', 'SALE_OUT'] },
+        })
+        .session(session);
+      if (existingConsumption) {
+        throw new AppError('Stock consumption already recorded for this order', 409);
       }
 
       const paymentMethod = (paymentPayload.paymentMethod || 'CASH').toUpperCase();
@@ -99,33 +123,63 @@ class RestaurantService extends BaseService {
         const sum = Math.round((cashAmount + upiAmount) * 100) / 100;
         const total = Math.round(order.totalAmount * 100) / 100;
         if (Math.abs(sum - total) > 0.05) {
-          throw new AppError(`Split payment must equal bill total (₹${total}). Received ₹${sum}.`, 400);
+          throw new AppError(
+            `Split payment must equal bill total (₹${total}). Received ₹${sum}.`,
+            400
+          );
         }
         order.paymentMethod = 'SPLIT';
         order.cashAmount = cashAmount;
         order.upiAmount = upiAmount;
+      } else if (paymentMethod === 'UPI') {
+        order.paymentMethod = 'UPI';
+        order.upiAmount = order.totalAmount;
+        order.cashAmount = 0;
+      } else if (paymentMethod === 'CARD') {
+        order.paymentMethod = 'CARD';
+        order.cashAmount = 0;
+        order.upiAmount = 0;
       } else {
-        order.paymentMethod = paymentMethod;
-        order.cashAmount = paymentMethod === 'CASH' ? order.totalAmount : 0;
-        order.upiAmount = paymentMethod === 'UPI' ? order.totalAmount : 0;
+        order.paymentMethod = 'CASH';
+        order.cashAmount = order.totalAmount;
+        order.upiAmount = 0;
       }
 
       order.status = 'PAID';
       await order.save({ session });
 
-      // Deduct from isolated restaurant inventory only (not procurement stock)
       await restaurantInventoryService.deductForOrder(order, userId, session);
 
-      await session.commitTransaction();
-      session.endSession();
+      if (order.kitchenTicketId) {
+        await KitchenTicket.findByIdAndUpdate(
+          order.kitchenTicketId,
+          { status: 'COMPLETED' },
+          { session }
+        );
+      }
 
-      logger.info(`[Restaurant POS]: Settled order ${order.orderNumber}. Restaurant inventory updated.`);
+      await session.commitTransaction();
+
+      broadcastEvent('restaurant:order_settled', { order });
+      broadcastEvent('restaurant:inventory_updated', {});
+
+      logger.info(`[Restaurant POS]: Settled ${order.orderNumber}. Kitchen stock consumed.`);
       return order;
     } catch (error) {
       await session.abortTransaction();
-      session.endSession();
       throw error;
+    } finally {
+      session.endSession();
     }
+  }
+
+  async updateOrderStatus(orderId, status) {
+    const allowed = ['PENDING', 'PREPARING', 'SERVED', 'PAID', 'CANCELLED'];
+    if (!allowed.includes(status)) throw new AppError(`Invalid status: ${status}`, 400);
+    const order = await this.model.findByIdAndUpdate(orderId, { status }, { new: true });
+    if (!order) throw new AppError('Order not found', 404);
+    broadcastEvent('restaurant:order_updated', { order });
+    return order;
   }
 }
 

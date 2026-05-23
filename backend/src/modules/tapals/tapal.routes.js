@@ -21,6 +21,8 @@ import {
 const router = Router();
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 const mobile = [protect, requireMobile, enforcePlatformPolicy, blockMobileWrite];
+/** Assign driver: buyer + procurement on phone, super admin on web */
+const dispatch = [protect, enforcePlatformPolicy, blockMobileWrite];
 
 router.use(protect);
 
@@ -46,40 +48,40 @@ router.get('/all', ...web, restrictTo(...WEB_ERP), tapalController.all);
 router.get('/trips/all', ...web, restrictTo(...WEB_ERP), tapalController.allTrips);
 
 // Driver lifecycle (mobile only) — Assigned → Start → Pickup → Deliver → Expense → End
-router.get('/my-trips', ...mobile, restrictTo(...DRIVER_ROLES), tapalController.myTrips);
-router.patch('/start-trip', ...mobile, restrictTo(...DRIVER_ROLES), tapalController.startTrip);
+router.get('/my-trips', ...mobile, restrictTo(...DRIVER_ROLES, ...WEB_ERP), tapalController.myTrips);
+router.patch('/start-trip', ...mobile, restrictTo(...DRIVER_ROLES, ...WEB_ERP), tapalController.startTrip);
 router.patch(
   '/pickup',
   ...mobile,
-  restrictTo(...DRIVER_ROLES),
+  restrictTo(...DRIVER_ROLES, ...WEB_ERP),
   validateBody(tapalValidators.pickup),
   tapalController.pickup
 );
 router.patch(
   '/deliver',
   ...mobile,
-  restrictTo(...DRIVER_ROLES),
+  restrictTo(...DRIVER_ROLES, ...WEB_ERP),
   validateBody(tapalValidators.deliver),
   tapalController.deliver
 );
 router.post(
   '/expense',
   ...mobile,
-  restrictTo(...DRIVER_ROLES),
+  restrictTo(...DRIVER_ROLES, ...WEB_ERP),
   validateBody(tapalValidators.logExpense),
   tapalController.logExpense
 );
 router.post(
   '/trip/:tripId/post-trip-expense',
   ...mobile,
-  restrictTo(...DRIVER_ROLES),
+  restrictTo(...DRIVER_ROLES, ...WEB_ERP),
   tapalController.submitPostTripExpense
 );
 
 // Web: assign driver, end trip, expense review
 router.patch(
   '/assign-driver',
-  ...web,
+  ...dispatch,
   restrictTo(...DISPATCH_ROLES),
   validateBody(tapalValidators.assignDriver),
   tapalController.assignDriver

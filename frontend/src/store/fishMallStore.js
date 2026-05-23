@@ -137,6 +137,40 @@ export const useFishMallStore = create(
         alerts: state.alerts.filter(a => a.id !== id)
       })),
 
+      addProcurementTransferAlert: (payload, kind = 'received') => {
+        const lines = payload?.lines || [];
+        const itemsSummary = lines
+          .map((l) => `${l.productName} (${l.quantity} ${l.unit || 'KG'})`)
+          .join(', ');
+        const isPending = kind === 'pending';
+        const alert = {
+          id: `TR-${payload.transferNumber}-${kind}-${Date.now()}`,
+          type: 'PROCUREMENT_TRANSFER',
+          title: isPending
+            ? `Incoming transfer ${payload.transferNumber}`
+            : `Stock received — ${payload.transferNumber}`,
+          message: isPending
+            ? `Admin created transfer to ${payload.outletName || 'your Fish Mall'}. ${payload.lineCount || lines.length} item(s) — awaiting approval.`
+            : `Procurement stock delivered to ${payload.outletName || 'Fish Mall'}: ${itemsSummary || 'see Stock Inflow'}.`,
+          severity: isPending ? 'warning' : 'info',
+          timestamp: new Date().toISOString(),
+          read: false,
+          transferNumber: payload.transferNumber,
+          outletId: payload.outletId,
+        };
+        set((state) => ({
+          alerts: [alert, ...state.alerts.filter((a) => a.transferNumber !== payload.transferNumber || a.type !== 'PROCUREMENT_TRANSFER')].slice(0, 50),
+        }));
+        return alert;
+      },
+
+      markAlertsRead: () =>
+        set((state) => ({
+          alerts: state.alerts.map((a) => ({ ...a, read: true })),
+        })),
+
+      unreadAlertCount: () => get().alerts.filter((a) => !a.read).length,
+
       // Async Actions
       fetchStock: async () => {
         set({ loading: true });

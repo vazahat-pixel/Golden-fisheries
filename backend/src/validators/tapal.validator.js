@@ -35,7 +35,7 @@ export const tapalValidators = {
       'any.required': 'Actual delivered weight quantity is required',
       'number.min': 'Delivered quantity must be greater than zero'
     }),
-    proofPhotoUrl: Joi.string().uri().allow('', null),
+    proofPhotoUrl: Joi.string().allow('', null),
     signatureUrl: Joi.string().allow('', null)
   }),
 

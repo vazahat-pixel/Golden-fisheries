@@ -54,6 +54,66 @@ export const restaurantService = {
   getInternalSupply: async (id) => {
     return await apiClient.get(`/restaurant/internal-supplies/${id}`);
   },
+
+  getReceiveReport: async (params = {}) => {
+    return await apiClient.get('/restaurant/internal-supplies/reports/receives', { params });
+  },
+
+  getInternalDailySummary: async (params = {}) => {
+    return await apiClient.get('/restaurant/internal-supplies/reports/daily', { params });
+  },
+
+  getInventoryLogs: async (params = {}) => {
+    return await apiClient.get('/restaurant/inventory/logs', { params });
+  },
+
+  createKitchenTicket: async (data) => {
+    return await apiClient.post('/restaurant/kitchen-tickets', data);
+  },
+
+  listKitchenTickets: async (params = { active: 'true' }) => {
+    return await apiClient.get('/restaurant/kitchen-tickets', { params });
+  },
+
+  advanceKitchenLine: async (ticketId, lineId) => {
+    return await apiClient.patch(`/restaurant/kitchen-tickets/${ticketId}/lines/${lineId}/advance`);
+  },
+
+  createMenuItem: async (data) => {
+    return await apiClient.post('/restaurant/menu', data);
+  },
+
+  updateMenuItem: async (id, data) => {
+    return await apiClient.patch(`/restaurant/menu/${id}`, data);
+  },
+
+  getMenuCatalog: async () => {
+    return await apiClient.get('/restaurant/menu/catalog');
+  },
+
+  recordWastage: async (data) => {
+    return await apiClient.post('/restaurant/inventory/wastage', data);
+  },
+
+  getReportDailySales: async (params) => {
+    return await apiClient.get('/restaurant/reports/daily-sales', { params });
+  },
+
+  getReportItemSales: async (params) => {
+    return await apiClient.get('/restaurant/reports/item-sales', { params });
+  },
+
+  getReportConsumption: async (params) => {
+    return await apiClient.get('/restaurant/reports/consumption', { params });
+  },
+
+  getReportWastage: async (params) => {
+    return await apiClient.get('/restaurant/reports/wastage', { params });
+  },
+
+  getReportTables: async (params) => {
+    return await apiClient.get('/restaurant/reports/tables', { params });
+  },
 };
 
 export default restaurantService;

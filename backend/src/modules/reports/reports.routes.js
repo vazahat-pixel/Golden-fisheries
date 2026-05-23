@@ -40,7 +40,27 @@ export const reportsController = {
   getDashboardStats: asyncWrapper(async (req, res) => {
     const data = await reportsService.getDashboardStats();
     new ApiResponse(200, data, 'Dashboard stats aggregated successfully').send(res);
-  })
+  }),
+
+  getProcurementLedger: asyncWrapper(async (req, res) => {
+    const data = await reportsService.getProcurementStockLedger(req.query);
+    new ApiResponse(200, data, 'Procurement stock ledger fetched').send(res);
+  }),
+
+  getFishMallLedger: asyncWrapper(async (req, res) => {
+    const data = await reportsService.getFishMallStockLedger(req.query);
+    new ApiResponse(200, data, 'Fish Mall stock ledger fetched').send(res);
+  }),
+
+  getTransferReport: asyncWrapper(async (req, res) => {
+    const data = await reportsService.getTransferReport(req.query);
+    new ApiResponse(200, data, 'Stock transfer report fetched').send(res);
+  }),
+
+  getDailyStockReport: asyncWrapper(async (req, res) => {
+    const data = await reportsService.getDailyStockReport(req.query);
+    new ApiResponse(200, data, 'Daily stock report fetched').send(res);
+  }),
 };
 
 const router = Router();
@@ -52,5 +72,9 @@ router.get('/expenses', reportsController.getExpenseSummary);
 router.get('/inventory', reportsController.getInventorySummary);
 router.get('/profitability', reportsController.getProfitSummary);
 router.get('/dashboard/stats', reportsController.getDashboardStats);
+router.get('/inventory/procurement-ledger', reportsController.getProcurementLedger);
+router.get('/inventory/fishmall-ledger', reportsController.getFishMallLedger);
+router.get('/inventory/transfers', reportsController.getTransferReport);
+router.get('/inventory/daily-stock', reportsController.getDailyStockReport);
 
 export default router;

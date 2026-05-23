@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Package, PlusCircle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Package, PlusCircle, RefreshCw } from 'lucide-react';
 import { reportsService } from '../../../services/reportsService';
 import { masterService } from '../../../services/masterService';
 import {
@@ -18,6 +18,7 @@ const TX_TYPE_LABELS = {
   FISHMALL_SALE: 'FishMall sale',
   RETURN_IN: 'Return in',
   MANUAL_ADJUSTMENT: 'Manual adjustment',
+  TRANSFER_OUT: 'Transfer to Fish Mall',
 };
 
 const formatQty = (n) => {
@@ -169,6 +170,10 @@ const InventoryOverview = () => {
             <AdminBtn variant="outline" onClick={load} disabled={loading}>
               <RefreshCw size={14} className={`inline mr-1 ${loading ? 'animate-spin' : ''}`} />
               Refresh
+            </AdminBtn>
+            <AdminBtn variant="outline" onClick={() => navigate('/admin/inventory/transfer-fishmall')}>
+              <ArrowRightLeft size={14} className="inline mr-1" />
+              Transfer to Fish Mall
             </AdminBtn>
             <AdminBtn variant="primary" onClick={() => navigate('/admin/inventory/new')}>
               <PlusCircle size={14} className="inline mr-1" />

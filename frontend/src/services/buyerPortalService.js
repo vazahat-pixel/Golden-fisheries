@@ -1,24 +1,45 @@
 import { apiClient } from './apiClient';
+import { buyerPortalPlatformConfig } from './platformHeaders';
+
+const buyerCfg = buyerPortalPlatformConfig;
 
 export const buyerPortalService = {
-  getAssignedTapals: async (params = {}) => apiClient.get('/buyer-portal/assigned-tapals', { params }),
+  getAssignedTapals: async (params = {}) =>
+    apiClient.get('/buyer-portal/assigned-tapals', { params, ...buyerCfg() }),
+
+  getAssignableTapals: async (params = {}) =>
+    apiClient.get('/buyer-portal/assignable-tapals', {
+      params: { limit: 50, ...params },
+      ...buyerCfg(),
+    }),
+
+  lookupTapal: async (tapalNumber) =>
+    apiClient.get('/buyer-portal/lookup-tapal', { params: { tapalNumber }, ...buyerCfg() }),
+
+  claimTapal: async (tapalNumber) =>
+    apiClient.post('/buyer-portal/claim-tapal', { tapalNumber }, buyerCfg()),
 
   submitVerification: async (tapalId, data) =>
-    apiClient.post(`/buyer-portal/verify/${tapalId}`, data),
+    apiClient.post(`/buyer-portal/verify/${tapalId}`, data, buyerCfg()),
 
-  createBill: async (tapalId, data) => apiClient.post(`/buyer-portal/bill/${tapalId}`, data),
+  createBill: async (tapalId, data) =>
+    apiClient.post(`/buyer-portal/bill/${tapalId}`, data, buyerCfg()),
 
-  listBills: async (params = {}) => apiClient.get('/buyer-portal/bills', { params }),
+  listBills: async (params = {}) =>
+    apiClient.get('/buyer-portal/bills', { params, ...buyerCfg() }),
 
-  createReturn: async (data) => apiClient.post('/buyer-portal/return', data),
+  createReturn: async (data) => apiClient.post('/buyer-portal/return', data, buyerCfg()),
 
-  listReturns: async (params = {}) => apiClient.get('/buyer-portal/returns', { params }),
+  listReturns: async (params = {}) =>
+    apiClient.get('/buyer-portal/returns', { params, ...buyerCfg() }),
 
-  getReconciliation: async () => apiClient.get('/buyer-portal/reconciliation'),
+  getReconciliation: async () => apiClient.get('/buyer-portal/reconciliation', buyerCfg()),
 
-  approveReturn: async (id) => apiClient.patch(`/buyer-portal/return/${id}/approve`),
+  approveReturn: async (id) =>
+    apiClient.patch(`/buyer-portal/return/${id}/approve`, {}, buyerCfg()),
 
-  adminListReturns: async (params = {}) => apiClient.get('/buyer-portal/admin/returns', { params }),
+  adminListReturns: async (params = {}) =>
+    apiClient.get('/buyer-portal/admin/returns', { params, ...buyerCfg() }),
 };
 
 export default buyerPortalService;

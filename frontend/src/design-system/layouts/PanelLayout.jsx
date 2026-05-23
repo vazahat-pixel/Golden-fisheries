@@ -3,8 +3,13 @@ import { NavLink, Link } from 'react-router-dom';
 import { Menu, X, Bell, Search, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 import { LoadingFallback } from '../components/LoadingFallback';
+import { useFishMallStore } from '../../store/fishMallStore';
+import { useRestaurantStore } from '../../store/restaurantStore';
 
-export const PanelLayout = ({ children, navItems, panelName, userName }) => {
+export const PanelLayout = ({ children, navItems, panelName, userName, alertsHref = null, panelKind = 'fishmall' }) => {
+  const fishUnread = useFishMallStore((s) => s.alerts.filter((a) => !a.read).length);
+  const restUnread = useRestaurantStore((s) => s.alerts.filter((a) => !a.read).length);
+  const unreadAlerts = panelKind === 'restaurant' ? restUnread : fishUnread;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -100,6 +105,20 @@ export const PanelLayout = ({ children, navItems, panelName, userName }) => {
               />
             </div>
             <div className="w-[1px] h-6 bg-card-border mx-2"></div>
+            {alertsHref ? (
+              <Link
+                to={alertsHref}
+                className="relative p-2 text-black hover:bg-olive-50 rounded-none transition-colors"
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {unreadAlerts > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-600 text-white text-[9px] font-black rounded-full">
+                    {unreadAlerts > 9 ? '9+' : unreadAlerts}
+                  </span>
+                )}
+              </Link>
+            ) : null}
             <button className="p-2 text-black hover:bg-olive-50 rounded-none transition-colors">
               <Settings size={18} />
             </button>

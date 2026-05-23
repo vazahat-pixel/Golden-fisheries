@@ -12,9 +12,11 @@ import { WEB_ERP, DISPATCH_ROLES } from '../../constants/roleGroups.js';
 const router = Router();
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 
+// Drivers endpoint needs to be accessible by both web (admin/logistics) and mobile (buyers, procurement)
+router.get('/drivers', protect, enforcePlatformPolicy, restrictTo(...DISPATCH_ROLES), userController.drivers);
+
 router.use(...web);
 
-router.get('/drivers', restrictTo(...DISPATCH_ROLES), userController.drivers);
 router.get('/all', restrictTo(...WEB_ERP), userController.all);
 router.put('/update/:id', restrictTo(...WEB_ERP), userController.update);
 router.delete('/:id', restrictTo(...WEB_ERP), userController.delete);

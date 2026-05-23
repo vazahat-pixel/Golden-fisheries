@@ -10,6 +10,28 @@ export const buyerPortalController = {
     new ApiResponse(200, rows, 'Assigned tapals fetched', result.meta).send(res);
   }),
 
+  assignableTapals: asyncWrapper(async (req, res) => {
+    const result = await buyerPortalService.getAssignableTapals(req.user, req.query);
+    const rows = result.docs.map((t) => aliasTapalResponse(t));
+    new ApiResponse(200, rows, 'Assignable tapals fetched', result.meta).send(res);
+  }),
+
+  lookupTapal: asyncWrapper(async (req, res) => {
+    const result = await buyerPortalService.lookupTapalByNumber(req.user, req.query.tapalNumber);
+    const payload = {
+      tapal: result.tapal ? aliasTapalResponse(result.tapal) : null,
+      canClaim: result.canClaim,
+      alreadyYours: result.alreadyYours,
+      belongsToOther: result.belongsToOther,
+    };
+    new ApiResponse(200, payload, 'Tapal lookup complete').send(res);
+  }),
+
+  claimTapal: asyncWrapper(async (req, res) => {
+    const tapal = await buyerPortalService.claimTapalByNumber(req.user, req.body.tapalNumber);
+    new ApiResponse(200, { tapal: aliasTapalResponse(tapal) }, 'Tapal linked to your account').send(res);
+  }),
+
   submitVerification: asyncWrapper(async (req, res) => {
     const verification = await buyerPortalService.submitVerification(
       req.params.tapalId,

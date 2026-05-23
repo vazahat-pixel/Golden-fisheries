@@ -9,11 +9,8 @@ const InitPage = () => {
   return (
     <AuthLayout title="Golden Fisheries ERP" subtitle="Select your access point">
       <div className="flex flex-col gap-3 mt-4">
-        <AuthButton onClick={() => navigate('/auth/erp')} variant="primary">
-          Admin Web ERP
-        </AuthButton>
-        <AuthButton onClick={() => navigate('/auth/mobile')} variant="secondary">
-          Mobile App (Field Roles)
+        <AuthButton onClick={() => navigate('/auth/admin')} variant="primary">
+          Admin Login
         </AuthButton>
         <AuthButton onClick={() => navigate('/auth/driver')} variant="secondary">
           Driver Login

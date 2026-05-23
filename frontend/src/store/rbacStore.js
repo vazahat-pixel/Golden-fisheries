@@ -289,11 +289,11 @@ export const ROLE_TEMPLATES = {
   BUYER: {
     id: 'BUYER',
     label: 'Buyer (Channapa)',
-    description: 'Verify tapals, buyer billing, returns, settlement — Admin ERP only',
+    description: 'Verify tapals, buyer billing, returns, settlement — sign in via Admin Login',
     color: '#2563EB',
     loginPortal: '/auth/admin',
     permissions: {
-      panels: { restaurant: false, fishmall: false, driver: false, admin: true, buyer: false },
+      panels: { restaurant: false, fishmall: false, driver: false, admin: false, buyer: false },
       modules: {
         dashboard: { read: false, write: false, delete: false },
         procurement: { read: false, write: false, delete: false },

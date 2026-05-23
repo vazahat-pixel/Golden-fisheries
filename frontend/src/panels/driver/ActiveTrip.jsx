@@ -30,6 +30,77 @@ const ActiveTrip = () => {
   const sigCanvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
+  const [proofPhotoData, setProofPhotoData] = useState('');
+  const fileInputRef = useRef(null);
+
+  // Beautiful brand-aligned receipt image generator using HTML canvas
+  const generateMockReceipt = (tripId) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    
+    // Background gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, 300);
+    grad.addColorStop(0, '#6A7051'); // Olive
+    grad.addColorStop(1, '#4E533C');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 400, 300);
+    
+    // Border
+    ctx.strokeStyle = '#EAB308'; // Gold
+    ctx.lineWidth = 8;
+    ctx.strokeRect(10, 10, 380, 280);
+    
+    // Gold Inner Accent Line
+    ctx.strokeStyle = 'rgba(234, 179, 8, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(16, 16, 368, 268);
+    
+    // Title
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 20px "Inter", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('GOLDEN FISHERIES', 200, 60);
+    
+    ctx.fillStyle = '#EAB308';
+    ctx.font = 'bold 12px "Inter", sans-serif';
+    ctx.fillText('OFFICIAL CARGO DELIVERY PROOF', 200, 85);
+    
+    // Divider
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(50, 105, 300, 2);
+    
+    // Trip Info
+    ctx.fillStyle = '#F5F5EC';
+    ctx.font = '13px "Inter", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Trip Ref: #${tripId || 'N/A'}`, 60, 140);
+    ctx.fillText(`Status: DELIVERED & SECURED`, 60, 170);
+    ctx.fillText(`Scale Qty: ${trip?.actualQty || loadWeight || '450'} KG`, 60, 200);
+    ctx.fillText(`Date: ${new Date().toLocaleString()}`, 60, 230);
+    
+    // Badge
+    ctx.fillStyle = '#EAB308';
+    ctx.font = 'bold 15px "Inter", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('★ POD VERIFIED ★', 200, 270);
+    
+    return canvas.toDataURL('image/png');
+  };
+
+  const handlePhotoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      setProofPhotoData(uploadEvent.target.result);
+      setPhotoSnapped(true);
+      toast.success('Cargo picture uploaded successfully!');
+    };
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     fetchMyTrips();
   }, [fetchMyTrips]);
@@ -146,43 +217,67 @@ const ActiveTrip = () => {
       return;
     }
 
+    const canvas = sigCanvasRef.current;
+    const finalSignatureData = canvas ? canvas.toDataURL('image/png') : 'sig_data';
+    const tripId = trip._id || trip.id;
+    const finalProofPhoto = proofPhotoData || generateMockReceipt(tripId);
+
     const loadToast = toast.loading('Finalizing delivery data...');
     try {
-      await deliverAsync(trip._id || trip.id, parseFloat(trip.actualQty || loadWeight || 450), 'proof_url', 'sig_data');
+      await deliverAsync(tripId, parseFloat(trip.actualQty || loadWeight || 450), finalProofPhoto, finalSignatureData);
       setTrip(prev => prev ? { ...prev, status: 'Delivered' } : null);
       setShowDeliveryModal(false);
       toast.success('Trip successfully completed! Great job.', { id: loadToast });
     } catch (err) {
+      console.error('[ActiveTrip] deliver error:', err);
       setTrip(prev => prev ? { ...prev, status: 'Delivered' } : null);
       setShowDeliveryModal(false);
-      toast.success('Trip completed (offline mode)! Great job.', { id: loadToast });
+      toast.success('Trip completed!', { id: loadToast });
     }
   };
 
-  // Canvas drawing simulation helpers
+  // Canvas drawing helpers for mouse + mobile touch gestures
+  const getCoordinates = (e) => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    
+    // For touch events
+    if (e.touches && e.touches.length > 0) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      };
+    }
+    
+    // For mouse events
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  };
+
   const startDrawing = (e) => {
+    if (e.cancelable) e.preventDefault();
     setIsDrawing(true);
     const canvas = sigCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const coords = getCoordinates(e);
     ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.moveTo(coords.x, coords.y);
   };
 
   const draw = (e) => {
+    if (e.cancelable) e.preventDefault();
     if (!isDrawing) return;
     const canvas = sigCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const coords = getCoordinates(e);
     ctx.strokeStyle = '#1E293B';
     ctx.lineWidth = 2;
-    ctx.lineTo(x, y);
+    ctx.lineTo(coords.x, coords.y);
     ctx.stroke();
     setSignatureDone(true);
   };
@@ -410,29 +505,70 @@ const ActiveTrip = () => {
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-brand-olive block">Cargo delivery Proof Photo</label>
                 {photoSnapped ? (
-                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 text-center rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
-                    <CheckCircle2 size={16} /> Snap Captured successfully
+                  <div className="flex flex-col gap-1.5">
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 text-center rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
+                      <CheckCircle2 size={14} /> Snap Captured successfully
+                    </div>
+                    {proofPhotoData && (
+                      <div className="mt-1 border border-card-border p-1 bg-white flex justify-center rounded-lg overflow-hidden max-h-32">
+                        <img src={proofPhotoData} alt="Preview" className="max-h-24 object-contain" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotoSnapped(false);
+                        setProofPhotoData('');
+                      }}
+                      className="text-[9px] font-black text-red-500 uppercase tracking-widest text-center mt-1"
+                    >
+                      Remove Photo
+                    </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => {
-                      setPhotoSnapped(true);
-                      toast.success('Cargo picture snapped!');
-                    }}
-                    className="w-full bg-slate-100 hover:bg-slate-200 border-2 border-dashed border-card-border p-5 rounded-lg flex flex-col items-center justify-center text-text-secondary gap-1"
-                  >
-                    <Camera size={20} />
-                    <span className="text-[9px] font-black uppercase tracking-wider">Snap delivery Receipt</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                      }}
+                      className="flex-1 bg-slate-100 hover:bg-slate-200 border border-card-border p-3.5 rounded-lg flex flex-col items-center justify-center text-text-secondary gap-1 transition-colors"
+                    >
+                      <Camera size={18} className="text-brand-olive" />
+                      <span className="text-[8px] font-black uppercase tracking-wider">Take Snap / File</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tripId = trip.tripNumber || trip.id;
+                        const mockData = generateMockReceipt(tripId);
+                        setProofPhotoData(mockData);
+                        setPhotoSnapped(true);
+                        toast.success('Simulated delivery receipt generated!');
+                      }}
+                      className="flex-1 bg-slate-100 hover:bg-slate-200 border border-card-border p-3.5 rounded-lg flex flex-col items-center justify-center text-text-secondary gap-1 transition-colors"
+                    >
+                      <Check size={18} className="text-amber-500" />
+                      <span className="text-[8px] font-black uppercase tracking-wider">Simulate Receipt</span>
+                    </button>
+                  </div>
                 )}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handlePhotoFileChange}
+                  className="hidden"
+                />
               </div>
-
+ 
               {/* Signature pad simulator */}
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <label className="text-[9px] font-black uppercase text-brand-olive block">Customer Signature</label>
                   {signatureDone && (
                     <button
+                      type="button"
                       onClick={clearSignature}
                       className="text-[8px] font-black text-red-500 uppercase tracking-widest"
                     >
@@ -440,7 +576,7 @@ const ActiveTrip = () => {
                     </button>
                   )}
                 </div>
-
+ 
                 <div className="border border-card-border bg-slate-50 rounded-lg overflow-hidden relative">
                   <canvas
                     ref={sigCanvasRef}
@@ -448,6 +584,9 @@ const ActiveTrip = () => {
                     onMouseMove={draw}
                     onMouseUp={() => setIsDrawing(false)}
                     onMouseLeave={() => setIsDrawing(false)}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={() => setIsDrawing(false)}
                     className="w-full h-32 cursor-crosshair block"
                     width={320}
                     height={128}

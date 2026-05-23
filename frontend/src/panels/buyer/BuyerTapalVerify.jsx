@@ -52,7 +52,7 @@ const BuyerTapalVerify = () => {
       // Here we just use the mocked completeTrip which finalizes the logistics side.
       await completeTrip(tapal.id || tapal._id);
       toast.success('Load verified and invoice generated!', { id: loadToast });
-      navigate('/buyer/invoices');
+      navigate('/mobile/buyer/invoices');
     } catch (err) {
       toast.error('Verification failed', { id: loadToast });
     }
