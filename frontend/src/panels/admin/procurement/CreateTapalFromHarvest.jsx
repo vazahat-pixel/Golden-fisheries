@@ -74,6 +74,11 @@ const CreateTapalFromHarvest = () => {
     setLogisticsNotes(harvest.logisticsNotes || harvest.notes || '');
   }, [harvest]);
 
+<<<<<<< HEAD
+  const eligible = harvestSlips.filter(
+    (h) => !['CONVERTED_TO_TAPAL', 'COMPLETED', 'REJECTED'].includes(h.status)
+  );
+=======
   const { eligible, needNetRate, other } = useMemo(() => {
     const eligibleList = [];
     const needNetRateList = [];
@@ -86,12 +91,24 @@ const CreateTapalFromHarvest = () => {
     }
     return { eligible: eligibleList, needNetRate: needNetRateList, other: otherList };
   }, [harvestSlips]);
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
+
+  const isConfirmed = harvest && ['CONFIRMED', 'PARTIALLY_CONVERTED'].includes(harvest.status);
+  const hasNetRate = harvest && harvest.netRateCalculated != null;
+  const showWarning = harvest && (!isConfirmed || !hasNetRate);
 
   const handleCreate = async () => {
     if (!harvestId) {
       toast.error('Select harvest reference');
       return;
     }
+<<<<<<< HEAD
+    if (showWarning) {
+      toast.error('This harvest slip is not yet eligible for Tapal generation.');
+      return;
+    }
+    setLoading(true);
+=======
     if (!harvestReadyForTapal(harvest)) {
       toast.error('Selected harvest must be CONFIRMED with net rate saved');
       return;
@@ -101,6 +118,7 @@ const CreateTapalFromHarvest = () => {
       return;
     }
     setSubmitting(true);
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
     try {
       await tapalService.createFromHarvest(harvestId, {
         destination,
@@ -137,134 +155,159 @@ const CreateTapalFromHarvest = () => {
 
       <PaperFormFrame title="Tapal Dispatch" subtitle="TP Number assigned on save">
         <PaperFieldRow label="Harvest Ref (H No)">
+<<<<<<< HEAD
+          <select className={paperInputClass} value={harvestId} onChange={(e) => setHarvestId(e.target.value)}>
+            <option value="">— Select —</option>
+            {eligible.map((h) => {
+              const statusText = h.status || 'PENDING';
+              const hasNetVal = h.netRateCalculated != null;
+              const suffix = ` (${statusText}${hasNetVal ? ', Net Rate Saved' : ', No Net Rate'})`;
+              return (
+                <option key={h._id || h.id} value={h._id || h.id}>
+                  {h.hNo || h.harvestNumber || h.tpNo} — {h.farmerName}{suffix}
+                </option>
+              );
+            })}
+=======
           <select
-            className={paperInputClass}
-            value={harvestId}
-            onChange={(e) => setHarvestId(e.target.value)}
-            disabled={loading}
-          >
-            <option value="">
-              {loading ? 'Loading harvest slips…' : '— Select harvest —'}
+      className={paperInputClass}
+      value={harvestId}
+      onChange={(e) => setHarvestId(e.target.value)}
+      disabled={loading}
+    >
+      <option value="">
+        {loading ? 'Loading harvest slips…' : '— Select harvest —'}
+      </option>
+      {eligible.length > 0 && (
+        <optgroup label="Ready for tapal (confirmed + net rate)">
+          {eligible.map((h) => (
+            <option key={h._id || h.id} value={h._id || h.id}>
+              {harvestLabel(h)}
             </option>
-            {eligible.length > 0 && (
-              <optgroup label="Ready for tapal (confirmed + net rate)">
-                {eligible.map((h) => (
-                  <option key={h._id || h.id} value={h._id || h.id}>
-                    {harvestLabel(h)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {needNetRate.length > 0 && (
-              <optgroup label="Confirmed — save net rate first">
-                {needNetRate.map((h) => (
-                  <option key={h._id || h.id} value={h._id || h.id} disabled>
-                    {harvestLabel(h)} (net rate required)
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {other.length > 0 && (
-              <optgroup label="Not yet confirmed">
-                {other.map((h) => (
-                  <option key={h._id || h.id} value={h._id || h.id} disabled>
-                    {harvestLabel(h)} — {h.status}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-          {fetchError && (
-            <p className="text-xs text-red-600 mt-1">{fetchError}</p>
-          )}
-          {!loading && !fetchError && harvestSlips.length === 0 && (
-            <p className="text-xs text-amber-700 mt-1">
-              No harvest slips in database.{' '}
-              <Link to="/admin/procurement/harvest/new" className="underline font-bold">
-                Create a harvest slip
-              </Link>{' '}
-              first.
-            </p>
-          )}
-          {!loading && harvestSlips.length > 0 && eligible.length === 0 && (
-            <p className="text-xs text-amber-700 mt-1">
-              No harvest is ready yet. Confirm the slip and{' '}
-              <Link
-                to={needNetRate[0] ? `/admin/procurement/net-rate?harvestId=${needNetRate[0]._id || needNetRate[0].id}` : '/admin/procurement/net-rate'}
-                className="underline font-bold"
-              >
-                save net rate (purchase invoice)
-              </Link>{' '}
-              before creating a tapal.
-            </p>
-          )}
-        </PaperFieldRow>
-        <PaperFieldRow label="Buyer (Channapa) *">
-          <select
-            className={paperInputClass}
-            value={buyerId}
-            onChange={(e) => setBuyerId(e.target.value)}
-            required
-          >
-            <option value="">— Select buyer —</option>
-            {buyers.map((b) => (
-              <option key={b._id || b.id} value={b._id || b.id}>
-                {(b.buyerName || b.name || 'Buyer').toUpperCase()} — {b.phone}
-              </option>
-            ))}
-          </select>
-          {buyers.length === 0 && (
-            <p className="text-xs text-amber-700 mt-1">
-              No buyers in master. Add buyer under Masters first.
-            </p>
-          )}
-        </PaperFieldRow>
-        <PaperFieldRow label="Destination">
-          <input className={paperInputClass} value={destination} onChange={(e) => setDestination(e.target.value)} />
-        </PaperFieldRow>
-        <PaperFieldRow label="Vehicle">
-          <input className={paperInputClass} value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} />
-        </PaperFieldRow>
-        <PaperFieldRow label="Driver">
-          <input className={paperInputClass} value={driverName} onChange={(e) => setDriverName(e.target.value)} />
-        </PaperFieldRow>
-        <PaperFieldRow label="Dispatch Notes">
-          <textarea className={paperInputClass} rows={2} value={logisticsNotes} onChange={(e) => setLogisticsNotes(e.target.value)} />
-        </PaperFieldRow>
-
-        {lines.length > 0 && (
-          <table className="w-full border border-black text-xs mt-4">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-black p-1">Fish Item</th>
-                <th className="border border-black p-1">Qty</th>
-                <th className="border border-black p-1">Box</th>
-                <th className="border border-black p-1">Weight</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((p, i) => (
-                <tr key={i}>
-                  <td className="border border-black p-1">{p.fishName || p.particulars}</td>
-                  <td className="border border-black p-1 text-right">{p.estimatedQty || p.totalWeight}</td>
-                  <td className="border border-black p-1 text-right">{p.boxCount || p.noOfBoxes}</td>
-                  <td className="border border-black p-1 text-right">{p.totalWeight || p.estimatedQty}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        <button
-          type="button"
-          disabled={submitting || !harvestId || !harvestReadyForTapal(harvest)}
-          onClick={handleCreate}
-          className="w-full mt-4 bg-[#6A7051] text-white py-3 font-bold uppercase text-sm disabled:opacity-50"
+          ))}
+        </optgroup>
+      )}
+      {needNetRate.length > 0 && (
+        <optgroup label="Confirmed — save net rate first">
+          {needNetRate.map((h) => (
+            <option key={h._id || h.id} value={h._id || h.id} disabled>
+              {harvestLabel(h)} (net rate required)
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {other.length > 0 && (
+        <optgroup label="Not yet confirmed">
+          {other.map((h) => (
+            <option key={h._id || h.id} value={h._id || h.id} disabled>
+              {harvestLabel(h)} — {h.status}
+            </option>
+          ))}
+        </optgroup>
+      )}
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
+    </select>
+    {fetchError && (
+      <p className="text-xs text-red-600 mt-1">{fetchError}</p>
+    )}
+    {!loading && !fetchError && harvestSlips.length === 0 && (
+      <p className="text-xs text-amber-700 mt-1">
+        No harvest slips in database.{' '}
+        <Link to="/admin/procurement/harvest/new" className="underline font-bold">
+          Create a harvest slip
+        </Link>{' '}
+        first.
+      </p>
+    )}
+    {!loading && harvestSlips.length > 0 && eligible.length === 0 && (
+      <p className="text-xs text-amber-700 mt-1">
+        No harvest is ready yet. Confirm the slip and{' '}
+        <Link
+          to={needNetRate[0] ? `/admin/procurement/net-rate?harvestId=${needNetRate[0]._id || needNetRate[0].id}` : '/admin/procurement/net-rate'}
+          className="underline font-bold"
         >
+          save net rate (purchase invoice)
+        </Link>{' '}
+        before creating a tapal.
+      </p>
+    )}
+  </PaperFieldRow>
+    <PaperFieldRow label="Buyer (Channapa) *">
+      <select
+        className={paperInputClass}
+        value={buyerId}
+        onChange={(e) => setBuyerId(e.target.value)}
+        required
+      >
+        <option value="">— Select buyer —</option>
+        {buyers.map((b) => (
+          <option key={b._id || b.id} value={b._id || b.id}>
+            {(b.buyerName || b.name || 'Buyer').toUpperCase()} — {b.phone}
+          </option>
+        ))}
+      </select>
+      {buyers.length === 0 && (
+        <p className="text-xs text-amber-700 mt-1">
+          No buyers in master. Add buyer under Masters first.
+        </p>
+      )}
+    </PaperFieldRow>
+    <PaperFieldRow label="Destination">
+      <input className={paperInputClass} value={destination} onChange={(e) => setDestination(e.target.value)} />
+    </PaperFieldRow>
+    <PaperFieldRow label="Vehicle">
+      <input className={paperInputClass} value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} />
+    </PaperFieldRow>
+    <PaperFieldRow label="Driver">
+      <input className={paperInputClass} value={driverName} onChange={(e) => setDriverName(e.target.value)} />
+    </PaperFieldRow>
+    <PaperFieldRow label="Dispatch Notes">
+      <textarea className={paperInputClass} rows={2} value={logisticsNotes} onChange={(e) => setLogisticsNotes(e.target.value)} />
+    </PaperFieldRow>
+
+  {
+    lines.length > 0 && (
+      <table className="w-full border border-black text-xs mt-4">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border border-black p-1">Fish Item</th>
+            <th className="border border-black p-1">Qty</th>
+            <th className="border border-black p-1">Box</th>
+            <th className="border border-black p-1">Weight</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((p, i) => (
+            <tr key={i}>
+              <td className="border border-black p-1">{p.fishName || p.particulars}</td>
+              <td className="border border-black p-1 text-right">{p.estimatedQty || p.totalWeight}</td>
+              <td className="border border-black p-1 text-right">{p.boxCount || p.noOfBoxes}</td>
+              <td className="border border-black p-1 text-right">{p.totalWeight || p.estimatedQty}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  }
+
+  <button
+    type="button"
+<<<<<<< HEAD
+    disabled={loading || !harvestId || showWarning}
+=======
+          disabled={submitting || !harvestId || !harvestReadyForTapal(harvest)}
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
+    onClick={handleCreate}
+    className="w-full mt-4 bg-[#6A7051] text-white py-3 font-bold uppercase text-sm disabled:opacity-50 transition-all"
+  >
+<<<<<<< HEAD
+{ loading ? 'Creating...' : showWarning ? 'Ineligible Slip (Fix warnings above)' : 'Generate Tapal' }
+=======
           {submitting ? 'Creating...' : 'Generate Tapal'}
-        </button>
-      </PaperFormFrame>
-    </div>
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
+        </button >
+      </PaperFormFrame >
+    </div >
   );
 };
 

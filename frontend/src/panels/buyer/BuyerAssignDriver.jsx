@@ -114,9 +114,8 @@ const BuyerAssignDriver = () => {
       {[1, 2].map((s) => (
         <React.Fragment key={s}>
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${
-              step >= s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
-            }`}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${step >= s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
+              }`}
           >
             {s}
           </div>
@@ -129,7 +128,7 @@ const BuyerAssignDriver = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer Portal</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-accent-olive mb-1">Buyer Portal</p>
         <h1 className="text-2xl font-serif italic font-black text-slate-900">Assign Driver</h1>
         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
           Your tapals only · vehicle optional
@@ -239,11 +238,10 @@ const BuyerAssignDriver = () => {
                 key={driver._id}
                 type="button"
                 onClick={() => setSelectedDriver(driver)}
-                className={`w-full p-4 bg-white rounded-2xl border-2 text-left ${
-                  (selectedDriver?._id || selectedDriver?.id) === driver._id
+                className={`w-full p-4 bg-white rounded-2xl border-2 text-left ${(selectedDriver?._id || selectedDriver?.id) === driver._id
                     ? 'border-blue-500'
                     : 'border-slate-100'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <User size={18} className="text-blue-600" />
