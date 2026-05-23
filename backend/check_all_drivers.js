@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { User } from './src/modules/users/user.model.js';
 import { DriverProfile } from './src/modules/drivers/driverProfile.model.js';
-
 dotenv.config();
+conso
 
 async function check() {
   await mongoose.connect(process.env.MONGODB_URI);
