@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { tapalService } from '../../../services/tapalService';
 import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../components/forms/PaperFormFrame';
+import AssignDriverPanel from '../shared/AssignDriverPanel';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -10,12 +11,16 @@ const TapalDetail = () => {
   const navigate = useNavigate();
   const [tapal, setTapal] = useState(null);
 
-  useEffect(() => {
+  const loadTapal = useCallback(() => {
     tapalService
       .getById(id)
       .then((res) => setTapal(res?.data?.tapal || res?.tapal || res))
       .catch(() => toast.error('Failed to load tapal'));
   }, [id]);
+
+  useEffect(() => {
+    loadTapal();
+  }, [loadTapal]);
 
   if (!tapal) return <p className="p-8 text-sm">Loading...</p>;
 
@@ -37,6 +42,10 @@ const TapalDetail = () => {
           <Printer size={14} /> Print Tapal
         </button>
       </div>
+      <div className="no-print mb-6">
+        <AssignDriverPanel tapal={tapal} onAssigned={loadTapal} />
+      </div>
+
       <div className="print-root">
       <PaperFormFrame title={`Tapal ${tapal.tpNo || tapal.tapalNumber}`} subtitle="Dispatch record">
         <PaperFieldRow label="Harvest Ref">

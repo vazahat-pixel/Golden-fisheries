@@ -48,7 +48,7 @@ export default function MobileShell() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/auth/init');
+    navigate('/auth/home');
   };
 
   return (

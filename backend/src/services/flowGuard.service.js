@@ -48,9 +48,10 @@ export const flowGuard = {
     const tapal = await Tapal.findById(tapalId);
     if (!tapal) throw new AppError('Tapal not found', 404);
 
-    if (tapal.status !== 'DRIVER_ASSIGNED') {
+    const startableTapal = ['DRIVER_ASSIGNED', 'DRIVER_ACCEPTED'];
+    if (!startableTapal.includes(tapal.status)) {
       throw new AppError(
-        `Trip cannot start. Tapal status is "${tapal.status}". Assign a driver first (DRIVER_ASSIGNED).`,
+        `Trip cannot start. Tapal status is "${tapal.status}". Assign a driver first.`,
         400
       );
     }
@@ -62,8 +63,8 @@ export const flowGuard = {
     const trip = await Trip.findOne({ tapalId: tapal._id });
     if (!trip) throw new AppError('Trip record not found for this Tapal.', 404);
 
-    if (trip.status !== 'ASSIGNED') {
-      throw new AppError(`Trip cannot start. Trip status is "${trip.status}". Expected ASSIGNED.`, 409);
+    if (!['ASSIGNED', 'ACCEPTED'].includes(trip.status)) {
+      throw new AppError(`Trip cannot start. Trip status is "${trip.status}".`, 409);
     }
   },
 

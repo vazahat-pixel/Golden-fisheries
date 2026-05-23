@@ -5,7 +5,7 @@ import { PanelLayout } from '../design-system/layouts/PanelLayout';
 import {
   LayoutDashboard, Utensils, ShoppingCart, Scale, Layers,
   ClipboardList, Settings, ChefHat, Wallet, BarChart2,
-  ClipboardCheck, AlertTriangle, FileText, Receipt, History
+  ClipboardCheck, AlertTriangle, FileText, Receipt, History, ArrowRightLeft
 } from 'lucide-react';
 
 // Auth
@@ -16,8 +16,10 @@ const FishMallAuth = React.lazy(() => import('../panels/auth/FishMallAuth'));
 // const BuyerAuth = React.lazy(() => import('../panels/auth/BuyerAuth'));
 
 // New Unified Auth Flow
-const InitPage = React.lazy(() => import('../pages/auth/InitPage'));
+const AuthHome = React.lazy(() => import('../pages/auth/AuthHome'));
 const NewAdminLogin = React.lazy(() => import('../pages/auth/AdminLogin'));
+const ErpWebLogin = React.lazy(() => import('../pages/auth/ErpWebLogin'));
+const LegacyBuyerRedirect = React.lazy(() => import('../pages/auth/LegacyBuyerRedirect'));
 const NewDriverLogin = React.lazy(() => import('../pages/auth/DriverLogin'));
 const Signup = React.lazy(() => import('../pages/auth/Signup'));
 const ForgotPassword = React.lazy(() => import('../pages/auth/ForgotPassword'));
@@ -53,6 +55,7 @@ const SalesApprovalDetail = React.lazy(() => import('../panels/admin/sales/Sales
 const OutletManagement = React.lazy(() => import('../panels/admin/outlets/OutletManagement'));
 const AccessControl = React.lazy(() => import('../panels/admin/access/AccessControl'));
 const DriverControlConsole = React.lazy(() => import('../panels/admin/logistics/DriverControlConsole'));
+const TapalAssignDriver = React.lazy(() => import('../panels/admin/logistics/TapalAssignDriver'));
 const ExpenseReviewPage = React.lazy(() => import('../panels/admin/expenses/ExpenseReviewPage'));
 
 // Vehicles
@@ -73,6 +76,7 @@ const FishMallDashboard = React.lazy(() => import('../panels/fishmall/FishMallDa
 const FishMallBilling = React.lazy(() => import('../panels/fishmall/FishMallBilling'));
 const FishMallRates = React.lazy(() => import('../panels/fishmall/FishMallRates'));
 const FishMallStock = React.lazy(() => import('../panels/fishmall/FishMallStock'));
+const FishMallInternalSupply = React.lazy(() => import('../panels/fishmall/FishMallInternalSupply'));
 const FishMallExpenses = React.lazy(() => import('../panels/fishmall/FishMallExpenses'));
 const FishMallReports = React.lazy(() => import('../panels/fishmall/FishMallReports'));
 const FishMallClosing = React.lazy(() => import('../panels/fishmall/FishMallClosing'));
@@ -105,7 +109,6 @@ const BuyerInvoiceHistory = React.lazy(() => import('../panels/buyer/BuyerInvoic
 const BuyerAssignDriver = React.lazy(() => import('../panels/buyer/BuyerAssignDriver'));
 const BuyerTripTracker = React.lazy(() => import('../panels/buyer/BuyerTripTracker'));
 const BuyerReconciliation = React.lazy(() => import('../panels/buyer/BuyerReconciliation'));
-import { BuyerLayout } from '../design-system/layouts/BuyerLayout';
 
 // Public
 const BuyerBilling = React.lazy(() => import('../panels/public/BuyerBilling'));
@@ -129,6 +132,7 @@ const fishMallNav = [
   { icon: AlertTriangle, label: 'Alerts', path: '/fishmall/alerts' },
   { icon: Layers, label: 'Current Rates', path: '/fishmall/rates' },
   { icon: ClipboardList, label: 'Stock Inflow', path: '/fishmall/stock' },
+  { icon: ArrowRightLeft, label: 'Bill Restaurant', path: '/fishmall/internal-supply' },
 ];
 
 const ADMIN_ROLES = [...WEB_ERP_ROLES, ROLES.PROCUREMENT_MANAGER, ROLES.VEHICLE_MANAGER];
@@ -137,18 +141,20 @@ const SUPER_ADMIN_ONLY = [...WEB_ERP_ROLES, ROLES.SUPER_ADMIN];
 const AppRouter = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/auth/init" replace />} />
+      <Route path="/" element={<Navigate to="/auth/home" replace />} />
 
       {/* ── Unified Auth Flow ── */}
       <Route path="/auth/*" element={
         <Routes>
-          <Route path="init" element={<InitPage />} />
-          <Route path="admin" element={<NewAdminLogin />} />
+          <Route path="home" element={<AuthHome />} />
+          <Route path="init" element={<Navigate to="/auth/home" replace />} />
+          <Route path="admin" element={<ErpWebLogin />} />
+          <Route path="erp" element={<Navigate to="/auth/admin" replace />} />
           <Route path="mobile" element={<MobileLogin />} />
           <Route path="driver" element={<NewDriverLogin />} />
           <Route path="signup" element={<Signup />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
-          <Route index element={<Navigate to="/auth/init" replace />} />
+          <Route index element={<Navigate to="/auth/home" replace />} />
         </Routes>
       } />
 
@@ -157,7 +163,7 @@ const AppRouter = () => {
         <Routes>
           <Route path="auth" element={<Navigate to="/auth/admin" replace />} />
           <Route element={
-            <ProtectedRoute allowedRoles={ADMIN_ROLES} requirePlatform={PLATFORM_ACCESS.WEB}>
+            <ProtectedRoute requireAdminErp requirePlatform={PLATFORM_ACCESS.WEB}>
               <AdminLayout><Outlet /></AdminLayout>
             </ProtectedRoute>
           }>
@@ -196,6 +202,7 @@ const AppRouter = () => {
               <Route path="logistics" element={<TripsAndExpenses />} />
               <Route path="logistics/drivers" element={<DriverManagement />} />
               <Route path="logistics/control" element={<DriverControlConsole />} />
+              <Route path="logistics/assign-driver" element={<TapalAssignDriver />} />
               <Route path="logistics/vehicles" element={<Navigate to="/admin/vehicles" replace />} />
               <Route path="vehicles" element={<VehicleDashboard />} />
               <Route path="vehicles/new" element={<AddVehicle />} />
@@ -225,6 +232,25 @@ const AppRouter = () => {
 
             <Route element={<ProtectedRoute module="settings"><Outlet /></ProtectedRoute>}>
               <Route path="settings" element={<UsersAndRoles />} />
+            </Route>
+
+            {/* Buyer workflows inside Admin ERP (permission-driven sidebar) */}
+            <Route element={<ProtectedRoute module="buyerDashboard"><Outlet /></ProtectedRoute>}>
+              <Route path="buyer/dashboard" element={<BuyerDashboard />} />
+            </Route>
+            <Route element={<ProtectedRoute module="buyerVerify"><Outlet /></ProtectedRoute>}>
+              <Route path="buyer/tapals" element={<BuyerIncomingTapals />} />
+              <Route path="buyer/bill/:tapalId" element={<BuyerBillView />} />
+              <Route path="buyer/assign-driver" element={<BuyerAssignDriver />} />
+            </Route>
+            <Route element={<ProtectedRoute module="buyerBills"><Outlet /></ProtectedRoute>}>
+              <Route path="buyer/invoices" element={<BuyerInvoiceHistory />} />
+            </Route>
+            <Route element={<ProtectedRoute module="buyerReturns"><Outlet /></ProtectedRoute>}>
+              <Route path="buyer/returns" element={<BuyerSalesReturn />} />
+            </Route>
+            <Route element={<ProtectedRoute module="buyerSettlement"><Outlet /></ProtectedRoute>}>
+              <Route path="buyer/reconciliation" element={<BuyerReconciliation />} />
             </Route>
           </Route>
         </Routes>
@@ -273,6 +299,7 @@ const AppRouter = () => {
               }
             />
             <Route path="stock" element={<FishMallStock />} />
+            <Route path="internal-supply" element={<FishMallInternalSupply />} />
           </Route>
         </Routes>
       } />
@@ -339,27 +366,8 @@ const AppRouter = () => {
         </Routes>
       } />
 
-      {/* ── Buyer Panel ── */}
-      <Route path="/buyer/*" element={
-        <Routes>
-          <Route path="auth" element={<Navigate to="/auth/init" replace />} />
-          <Route element={
-            <ProtectedRoute allowedRoles={[ROLES.BUYER, ...WEB_ERP_ROLES]} requirePlatform={PLATFORM_ACCESS.MOBILE}>
-              <BuyerLayout><Outlet /></BuyerLayout>
-            </ProtectedRoute>
-          }>
-            <Route path="dashboard" element={<BuyerDashboard />} />
-            <Route path="assign" element={<BuyerAssignDriver />} />
-            <Route path="trips" element={<BuyerTripTracker />} />
-            <Route path="tapals" element={<BuyerIncomingTapals />} />
-            <Route path="bill/:tapalId" element={<BuyerBillView />} />
-            <Route path="returns" element={<BuyerSalesReturn />} />
-            <Route path="invoices" element={<BuyerInvoiceHistory />} />
-            <Route path="reconciliation" element={<BuyerReconciliation />} />
-            <Route index element={<Navigate to="/buyer/dashboard" replace />} />
-          </Route>
-        </Routes>
-      } />
+      {/* Legacy buyer URLs → Admin ERP buyer module */}
+      <Route path="/buyer/*" element={<LegacyBuyerRedirect />} />
 
       {/* Public */}
       <Route path="/pay/:invoiceId" element={<BuyerBilling />} />

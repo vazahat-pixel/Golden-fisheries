@@ -43,8 +43,13 @@ const MobileLogin = () => {
       };
 
       const role = normalizeRole(user.role);
+      if (role === 'BUYER') {
+        toast.error('Buyers must use Admin Web ERP login.');
+        navigate('/auth/erp');
+        return;
+      }
       if (!isMobileRole(user.role)) {
-        toast.error('This login is for mobile field roles only. Use Web panel login.');
+        toast.error('This login is for mobile field roles only. Use Admin Web ERP login.');
         return;
       }
 
@@ -59,10 +64,10 @@ const MobileLogin = () => {
   };
 
   return (
-    <AuthLayout title="Mobile App Login" subtitle="Procurement · Buyer · Driver · Vehicles">
+    <AuthLayout title="Mobile App Login" subtitle="Procurement · Driver · Vehicles">
       <button
         type="button"
-        onClick={() => navigate('/auth/init')}
+        onClick={() => navigate('/auth/home')}
         className="text-white flex items-center gap-2 mb-6 hover:text-brand-yellow transition-colors"
       >
         <ArrowLeft size={16} /> Back

@@ -22,16 +22,27 @@ const BuyerDashboard = () => {
   const activeTrips = buyerTrips.filter((t) => !['DELIVERED', 'CLOSED'].includes(t.status)).length;
 
   const cards = [
+<<<<<<< HEAD
     { label: 'Active trips', value: activeTrips, icon: Truck, to: '/buyer/trips', color: 'text-accent-olive' },
     { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/buyer/tapals', color: 'text-brand-yellow' },
     { label: 'Bills', value: billCount, icon: FileText, to: '/buyer/invoices', color: 'text-black' },
     { label: 'Returns', value: '—', icon: RotateCcw, to: '/buyer/returns', color: 'text-slate-500' }
+=======
+    { label: 'Awaiting verify', value: pendingVerify, icon: Package, to: '/admin/buyer/tapals', color: 'text-amber-600' },
+    { label: 'Bills', value: billCount, icon: FileText, to: '/admin/buyer/invoices', color: 'text-slate-900' },
+    { label: 'Returns', value: '—', icon: RotateCcw, to: '/admin/buyer/returns', color: 'text-purple-600' },
+    { label: 'Settlement', value: '→', icon: Truck, to: '/admin/buyer/reconciliation', color: 'text-blue-600' },
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
   ];
 
   return (
     <div className="space-y-6 p-1">
       <div>
+<<<<<<< HEAD
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-accent-olive mb-1">Buyer Portal</p>
+=======
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer · Admin ERP</p>
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
         <h1 className="text-2xl font-serif italic font-black text-slate-900">Dashboard</h1>
       </div>
 
@@ -49,12 +60,15 @@ const BuyerDashboard = () => {
         ))}
       </div>
 
+<<<<<<< HEAD
       <Link
         to="/buyer/assign"
         className="block w-full py-4 bg-black text-white text-center rounded-none border border-black font-black text-[10px] uppercase tracking-[0.2em] shadow-subtle hover:bg-black/90 active:scale-95 transition-all"
       >
         Assign driver to tapal
       </Link>
+=======
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
     </div>
   );
 };

@@ -1,460 +1,511 @@
-import React, { useState, useEffect } from 'react';
-import { useRbacStore, ROLE_TEMPLATES, MODULE_META } from '../../../store/rbacStore';
-import { Shield, Users, Save, CheckCircle, XCircle, Info, UserCheck, Key } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  useRbacStore,
+  ROLE_TEMPLATES,
+  ERP_MANAGEABLE_ROLES,
+  isAdminErpTemplateRole,
+  modulesForRole,
+} from '../../../store/rbacStore';
+import PermissionToggle from '../../../components/rbac/PermissionToggle';
+import { generatePassword } from '../../../utils/generatePassword';
+import {
+  Shield,
+  Users,
+  Save,
+  Info,
+  Key,
+  UserPlus,
+  RefreshCw,
+  Copy,
+  Sparkles,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+const emptyPerms = () => ({ panels: { admin: true }, modules: {} });
+
+const togglePermission = (prev, moduleKey, action) => {
+  const copy = JSON.parse(JSON.stringify(prev || emptyPerms()));
+  if (!copy.modules) copy.modules = {};
+  if (!copy.modules[moduleKey]) {
+    copy.modules[moduleKey] = { read: false, write: false, delete: false };
+  }
+  const val = !copy.modules[moduleKey][action];
+  copy.modules[moduleKey][action] = val;
+  if ((action === 'write' || action === 'delete') && val) {
+    copy.modules[moduleKey].read = true;
+  }
+  if (!copy.panels) copy.panels = {};
+  if (copy.panels.admin !== false) copy.panels.admin = true;
+  return copy;
+};
+
 const AccessControl = () => {
-  const { users, fetchUsers, updateUser, loading } = useRbacStore();
-  const [activeTab, setActiveTab] = useState('roles'); // 'roles' | 'users'
-  
-  // Role permissions editing state
-  const [selectedRole, setSelectedRole] = useState('MANAGER');
+  const { users, fetchUsers, createUser, updateUser, loading } = useRbacStore();
+  const [mainTab, setMainTab] = useState('users');
+
+  // --- User account state ---
+  const [mode, setMode] = useState('edit');
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [formName, setFormName] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formRole, setFormRole] = useState('PROCUREMENT_MANAGER');
+  const [formPassword, setFormPassword] = useState('');
+  const [userPermissions, setUserPermissions] = useState(emptyPerms());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [lastCredentials, setLastCredentials] = useState(null);
+
+  // --- Role template state ---
+  const [selectedRole, setSelectedRole] = useState('VEHICLE_MANAGER');
   const [rolePermissions, setRolePermissions] = useState({});
 
-  // User permissions editing state
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [userPermissions, setUserPermissions] = useState({});
-  const [searchQuery, setSearchQuery] = useState('');
+  const adminRoleKeys = useMemo(
+    () => Object.keys(ROLE_TEMPLATES).filter(isAdminErpTemplateRole),
+    []
+  );
 
-  // Load active template permissions when selected role changes
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
   useEffect(() => {
     if (ROLE_TEMPLATES[selectedRole]) {
-      // Create a deep copy of permissions
       setRolePermissions(JSON.parse(JSON.stringify(ROLE_TEMPLATES[selectedRole].permissions)));
     }
   }, [selectedRole]);
 
-  // Load active user permissions when selected user changes
   useEffect(() => {
-    const userObj = users.find(u => u.id === selectedUserId || u._id === selectedUserId);
-    if (userObj) {
-      setUserPermissions(JSON.parse(JSON.stringify(userObj.permissions || { panels: {}, modules: {} })));
-    }
-  }, [selectedUserId, users]);
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // Sync selected user when users load if none is selected
-  useEffect(() => {
-    if (users.length > 0 && !selectedUserId) {
+    if (users.length > 0 && !selectedUserId && mode === 'edit') {
       setSelectedUserId(users[0].id || users[0]._id);
     }
-  }, [users, selectedUserId]);
+  }, [users, selectedUserId, mode]);
 
-  const handleRolePermissionToggle = (moduleKey, action) => {
-    setRolePermissions(prev => {
-      const copy = { ...prev };
-      if (!copy.modules) copy.modules = {};
-      if (!copy.modules[moduleKey]) {
-        copy.modules[moduleKey] = { read: false, write: false, delete: false };
-      }
-      
-      // Toggle
-      const val = !copy.modules[moduleKey][action];
-      copy.modules[moduleKey][action] = val;
-      
-      // Auto-toggle read if write or delete is toggled
-      if ((action === 'write' || action === 'delete') && val) {
-        copy.modules[moduleKey].read = true;
-      }
-      
-      // Auto-enable panel access
-      if (!copy.panels) copy.panels = {};
-      copy.panels.admin = true;
+  useEffect(() => {
+    if (mode !== 'edit' || !selectedUserId) return;
+    const userObj = users.find((u) => (u.id || u._id) === selectedUserId);
+    if (!userObj) return;
+    setFormName(userObj.name || userObj.fullName || '');
+    setFormPhone(userObj.phone || '');
+    setFormRole(userObj.role || 'PROCUREMENT_MANAGER');
+    setFormPassword('');
+    setUserPermissions(JSON.parse(JSON.stringify(userObj.permissions || emptyPerms())));
+  }, [selectedUserId, users, mode]);
 
-      return copy;
-    });
+  const applyRoleTemplateToUser = () => {
+    const t = ROLE_TEMPLATES[formRole];
+    if (!t) return;
+    setUserPermissions(JSON.parse(JSON.stringify(t.permissions)));
+    toast.success(`Applied ${t.label} default screens`);
   };
 
-  const handleUserPermissionToggle = (moduleKey, action) => {
-    setUserPermissions(prev => {
-      const copy = { ...prev };
-      if (!copy.modules) copy.modules = {};
-      if (!copy.modules[moduleKey]) {
-        copy.modules[moduleKey] = { read: false, write: false, delete: false };
-      }
-      
-      const val = !copy.modules[moduleKey][action];
-      copy.modules[moduleKey][action] = val;
-      
-      if ((action === 'write' || action === 'delete') && val) {
-        copy.modules[moduleKey].read = true;
-      }
-      
-      if (!copy.panels) copy.panels = {};
-      copy.panels.admin = true;
-      
-      return copy;
-    });
+  const resetNewUserForm = () => {
+    setMode('create');
+    setSelectedUserId('');
+    setFormName('');
+    setFormPhone('');
+    setFormRole('PROCUREMENT_MANAGER');
+    setFormPassword(generatePassword());
+    setUserPermissions(JSON.parse(JSON.stringify(ROLE_TEMPLATES.PROCUREMENT_MANAGER?.permissions || emptyPerms())));
   };
 
-  const saveRolePermissions = () => {
-    // Save to the in-memory static template object
-    if (ROLE_TEMPLATES[selectedRole]) {
-      ROLE_TEMPLATES[selectedRole].permissions = JSON.parse(JSON.stringify(rolePermissions));
-      
-      // Update all users who have this role to inherit new permissions immediately
-      const matchingUsers = users.filter(u => u.role === selectedRole);
-      
-      toast.promise(
-        Promise.all(matchingUsers.map(u => 
-          updateUser(u.id || u._id, { permissions: rolePermissions })
-        )),
-        {
-          loading: `Updating all ${ROLE_TEMPLATES[selectedRole].label} accounts...`,
-          success: `Successfully updated permissions for all ${ROLE_TEMPLATES[selectedRole].label}s!`,
-          error: 'Failed to update some user accounts.'
-        }
-      );
+  const handleCreateUser = async () => {
+    const phone = formPhone.replace(/\D/g, '').slice(-10);
+    if (!formName.trim() || phone.length !== 10) {
+      toast.error('Name and valid 10-digit phone required');
+      return;
+    }
+    if (!formPassword || formPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    try {
+      await createUser({
+        name: formName.trim(),
+        phone,
+        role: formRole,
+        password: formPassword,
+        permissions: userPermissions,
+      });
+      setLastCredentials({ phone, password: formPassword, name: formName.trim(), role: formRole });
+      toast.success('Account created — share login ID & password with user');
+      setMode('edit');
+      await fetchUsers();
+    } catch (err) {
+      toast.error(err?.message || 'Create failed');
     }
   };
 
-  const saveUserPermissions = () => {
-    const userObj = users.find(u => u.id === selectedUserId || u._id === selectedUserId);
-    if (!userObj) return;
+  const handleSaveUser = async () => {
+    if (!selectedUserId) return;
+    const payload = { permissions: userPermissions, role: formRole, name: formName.trim() };
+    if (formPassword && formPassword.length >= 6) {
+      payload.password = formPassword;
+    }
+    try {
+      await updateUser(selectedUserId, payload);
+      toast.success('User updated');
+      if (formPassword) setFormPassword('');
+    } catch (err) {
+      toast.error(err?.message || 'Update failed');
+    }
+  };
 
+  const saveRoleTemplate = () => {
+    if (!ROLE_TEMPLATES[selectedRole]) return;
+    ROLE_TEMPLATES[selectedRole].permissions = JSON.parse(JSON.stringify(rolePermissions));
+    const matching = users.filter((u) => u.role === selectedRole);
     toast.promise(
-      updateUser(selectedUserId, { permissions: userPermissions }),
+      Promise.all(matching.map((u) => updateUser(u.id || u._id, { permissions: rolePermissions }))),
       {
-        loading: `Updating permissions for ${userObj.name}...`,
-        success: `Successfully saved custom permissions for ${userObj.name}!`,
-        error: 'Failed to update user permissions.'
+        loading: `Updating ${ROLE_TEMPLATES[selectedRole].label} users…`,
+        success: 'Role template saved for all users with this role',
+        error: 'Some users failed to update',
       }
     );
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.phone?.includes(searchQuery) ||
-    u.role?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = users.filter(
+    (u) =>
+      ERP_MANAGEABLE_ROLES.includes(u.role) &&
+      (u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.phone?.includes(searchQuery) ||
+        u.role?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const getRoleLabel = (roleId) => {
-    return ROLE_TEMPLATES[roleId]?.label || roleId;
+  const userModules = modulesForRole(formRole);
+  const templateModules = modulesForRole(selectedRole);
+
+  const copyCredentials = () => {
+    if (!lastCredentials) return;
+    const text = `Golden Fisheries login\nPhone (ID): ${lastCredentials.phone}\nPassword: ${lastCredentials.password}\nRole: ${ROLE_TEMPLATES[lastCredentials.role]?.label || lastCredentials.role}`;
+    navigator.clipboard?.writeText(text);
+    toast.success('Copied to clipboard');
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 font-sans">
-      {/* Page Header */}
+    <div className="space-y-6 animate-in fade-in duration-500 font-sans max-w-7xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-card-border pb-5">
         <div>
           <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase flex items-center gap-3">
-            <Shield className="text-brand-yellow" size={26} /> Access Control Dashboard
+            <Shield className="text-brand-yellow" size={26} /> Access &amp; users
           </h1>
-          <p className="text-text-secondary text-sm mt-1">
-            Configure dynamic Role-Based Access Control (RBAC) permissions across administrative departments.
+          <p className="text-text-secondary text-sm mt-1 max-w-2xl">
+            <strong>Step 1 — User accounts:</strong> create login (phone + password), pick role, choose which menus they see.
+            <br />
+            <strong>Step 2 — Role templates (optional):</strong> default permissions for each job title — applied when you click &quot;Use role defaults&quot;.
           </p>
         </div>
-
-        {/* Tab Controls */}
-        <div className="flex bg-[#F5F5EC] p-1 border border-card-border">
+        <div className="flex bg-[#F5F5EC] p-1 border border-card-border shrink-0">
           <button
-            onClick={() => setActiveTab('roles')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
-              activeTab === 'roles'
-                ? 'bg-[#6A7051] text-white'
-                : 'text-text-secondary hover:text-brand-olive'
+            type="button"
+            onClick={() => setMainTab('users')}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
+              mainTab === 'users' ? 'bg-[#6A7051] text-white' : 'text-text-secondary'
             }`}
           >
-            <Key size={14} /> Role Templates
+            <Users size={14} /> 1. User accounts
           </button>
           <button
-            onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
-              activeTab === 'users'
-                ? 'bg-[#6A7051] text-white'
-                : 'text-text-secondary hover:text-brand-olive'
+            type="button"
+            onClick={() => setMainTab('templates')}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
+              mainTab === 'templates' ? 'bg-[#6A7051] text-white' : 'text-text-secondary'
             }`}
           >
-            <Users size={14} /> User Accounts
+            <Key size={14} /> 2. Role templates
           </button>
         </div>
       </div>
 
-      {activeTab === 'roles' ? (
-        /* ROLE TEMPLATES TAB */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left panel: Role list */}
-          <div className="lg:col-span-4 space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-widest text-[#6A7051] mb-2">Administrative Roles</h3>
-            <div className="space-y-2.5">
-              {Object.keys(ROLE_TEMPLATES)
-                .filter(key => ROLE_TEMPLATES[key].permissions.panels.admin) // Only show admin panel roles
-                .map(key => {
-                  const role = ROLE_TEMPLATES[key];
-                  const isSelected = selectedRole === key;
-                  return (
-                    <div
-                      key={key}
-                      onClick={() => setSelectedRole(key)}
-                      className={`p-4 border transition-all cursor-pointer flex items-center justify-between group ${
-                        isSelected 
-                          ? 'border-[#6A7051] bg-[#6A7051]/5 border-l-4 border-l-brand-yellow' 
-                          : 'border-card-border bg-white hover:border-[#6A7051]/40'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <p className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                          isSelected ? 'text-[#6A7051]' : 'text-text-primary group-hover:text-[#6A7051]'
-                        }`}>
-                          {role.label}
-                        </p>
-                        <p className="text-[10px] text-text-muted mt-1 truncate max-w-xs">{role.description}</p>
-                      </div>
-                      <div className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: role.color }}></div>
-                    </div>
-                  );
-                })}
+      {mainTab === 'users' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          <div className="xl:col-span-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-black uppercase tracking-widest text-[#6A7051]">Staff list</h3>
+              <button
+                type="button"
+                onClick={resetNewUserForm}
+                className="text-[10px] font-black uppercase bg-[#C5A021] text-brand-dark px-3 py-1.5 flex items-center gap-1 hover:bg-yellow-500"
+              >
+                <UserPlus size={12} /> New account
+              </button>
             </div>
-            
-            <div className="bg-[#F9FAFB] p-4 border border-card-border flex items-start gap-3">
-              <Info size={16} className="text-brand-olive shrink-0 mt-0.5" />
-              <p className="text-[10px] text-text-secondary leading-normal">
-                Modifying role templates instantly propagates to all users assigned to that role. Users inherit updated layouts upon saving.
-              </p>
+            <input
+              type="text"
+              placeholder="Search name, phone, role…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-[#6A7051] outline-none"
+            />
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+              {filteredUsers.map((u) => {
+                const id = u.id || u._id;
+                const isSelected = mode === 'edit' && selectedUserId === id;
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    onClick={() => {
+                      setMode('edit');
+                      setSelectedUserId(id);
+                    }}
+                    className={`w-full text-left p-3.5 border transition-all flex items-center gap-3 ${
+                      isSelected
+                        ? 'border-[#6A7051] bg-[#6A7051]/5 border-l-4 border-l-brand-yellow'
+                        : 'border-card-border bg-white hover:border-[#6A7051]/40'
+                    }`}
+                  >
+                    <div className="w-8 h-8 bg-brand-olive/10 text-brand-olive flex items-center justify-center font-black text-xs shrink-0">
+                      {(u.name || 'US').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black uppercase truncate">{u.name}</p>
+                      <p className="text-[9px] text-text-muted font-bold">{u.phone}</p>
+                      <p className="text-[9px] text-[#6A7051] font-black uppercase">
+                        {ROLE_TEMPLATES[u.role]?.label || u.role}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Right panel: Module checklist */}
-          <div className="lg:col-span-8 bg-white border border-card-border p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-card-border pb-4 mb-6 gap-4">
-              <div>
-                <h3 className="text-base font-black text-brand-olive uppercase tracking-tight">
-                  Permissions Grid: {ROLE_TEMPLATES[selectedRole]?.label}
-                </h3>
-                <p className="text-[11px] text-text-secondary">Toggle read, write, and delete rights per functional ERP module.</p>
+          <div className="xl:col-span-8 space-y-5">
+            <div className="bg-white border border-card-border p-5 shadow-sm">
+              <h3 className="text-sm font-black uppercase text-brand-olive tracking-tight mb-1">
+                {mode === 'create' ? 'Create new login' : 'Edit account'}
+              </h3>
+              <p className="text-[11px] text-text-secondary mb-4">
+                Login ID = <strong>10-digit phone</strong>. User signs in at Admin or Driver login with this phone and password.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-text-muted">Full name</label>
+                  <input
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full mt-1 border border-card-border px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#6A7051]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-text-muted">Phone (login ID)</label>
+                  <input
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    disabled={mode === 'edit'}
+                    className="w-full mt-1 border border-card-border px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#6A7051] disabled:bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-text-muted">Role</label>
+                  <select
+                    value={formRole}
+                    onChange={(e) => {
+                      setFormRole(e.target.value);
+                      const t = ROLE_TEMPLATES[e.target.value];
+                      if (t && mode === 'create') {
+                        setUserPermissions(JSON.parse(JSON.stringify(t.permissions)));
+                      }
+                    }}
+                    className="w-full mt-1 border border-card-border px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#6A7051]"
+                  >
+                    {ERP_MANAGEABLE_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_TEMPLATES[r]?.label || r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-text-muted">
+                    Password {mode === 'edit' ? '(leave blank to keep)' : ''}
+                  </label>
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={formPassword}
+                      onChange={(e) => setFormPassword(e.target.value)}
+                      placeholder={mode === 'edit' ? 'New password…' : 'Min 6 characters'}
+                      className="flex-1 border border-card-border px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#6A7051]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormPassword(generatePassword())}
+                      className="px-3 border border-card-border bg-[#F5F5EC] text-[10px] font-black uppercase hover:bg-[#6A7051]/10 flex items-center gap-1"
+                      title="Generate password"
+                    >
+                      <Sparkles size={14} /> Gen
+                    </button>
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={saveRolePermissions}
-                disabled={loading}
-                className="bg-[#C5A021] text-brand-dark px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-yellow-500 active:scale-[0.98] transition-all flex items-center gap-2 self-start sm:self-center"
-              >
-                <Save size={14} /> Save Template
-              </button>
+
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={applyRoleTemplateToUser}
+                  className="text-[10px] font-black uppercase border border-[#6A7051] text-[#6A7051] px-3 py-2 hover:bg-[#6A7051]/5 flex items-center gap-1"
+                >
+                  <RefreshCw size={12} /> Use role defaults
+                </button>
+                {mode === 'create' ? (
+                  <button
+                    type="button"
+                    onClick={handleCreateUser}
+                    disabled={loading}
+                    className="bg-[#C5A021] text-brand-dark px-4 py-2 text-[10px] font-black uppercase flex items-center gap-2 hover:bg-yellow-500 disabled:opacity-50"
+                  >
+                    <UserPlus size={14} /> Create account
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSaveUser}
+                    disabled={loading || !selectedUserId}
+                    className="bg-[#6A7051] text-white px-4 py-2 text-[10px] font-black uppercase flex items-center gap-2 hover:bg-[#5a6044] disabled:opacity-50"
+                  >
+                    <Save size={14} /> Save account &amp; access
+                  </button>
+                )}
+              </div>
+
+              {lastCredentials && (
+                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-xs flex flex-wrap justify-between gap-2 items-center">
+                  <span>
+                    Created: <strong>{lastCredentials.phone}</strong> / <strong>{lastCredentials.password}</strong> (
+                    {ROLE_TEMPLATES[lastCredentials.role]?.label})
+                  </span>
+                  <button type="button" onClick={copyCredentials} className="font-black uppercase text-[10px] flex items-center gap-1 text-emerald-800">
+                    <Copy size={12} /> Copy for WhatsApp
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Grid checklist */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-card-border bg-[#F5F5EC]/50">
-                    <th className="py-3 px-4 text-xs font-black uppercase tracking-wider text-text-primary">Module</th>
-                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Read</th>
-                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Write</th>
-                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Delete</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-card-border text-sm">
-                  {MODULE_META
-                    .filter(m => m.panel === 'Admin') // Show admin modules
-                    .map(m => {
-                      const modPerms = rolePermissions.modules?.[m.key] || { read: false, write: false, delete: false };
-                      return (
-                        <tr key={m.key} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="py-4 px-4">
-                            <p className="text-xs font-black text-brand-olive uppercase tracking-wider">{m.label}</p>
-                            <p className="text-[9px] text-text-muted mt-0.5">Key ID: {m.key}</p>
-                          </td>
-                          {/* Read Checkbox */}
-                          <td className="py-4 px-4 text-center">
-                            <label className="inline-flex items-center justify-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={modPerms.read}
-                                onChange={() => handleRolePermissionToggle(m.key, 'read')}
-                                className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
-                              />
-                            </label>
-                          </td>
-                          {/* Write Checkbox */}
-                          <td className="py-4 px-4 text-center">
-                            <label className="inline-flex items-center justify-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={modPerms.write}
-                                onChange={() => handleRolePermissionToggle(m.key, 'write')}
-                                className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
-                              />
-                            </label>
-                          </td>
-                          {/* Delete Checkbox */}
-                          <td className="py-4 px-4 text-center">
-                            <label className="inline-flex items-center justify-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={modPerms.delete}
-                                onChange={() => handleRolePermissionToggle(m.key, 'delete')}
-                                className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
-                              />
-                            </label>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
+            <div className="bg-white border border-card-border p-5 shadow-sm">
+              <h3 className="text-sm font-black uppercase text-brand-olive mb-1">Menus &amp; actions for this user</h3>
+              <p className="text-[11px] text-text-secondary mb-4">
+                Tick what this person can see (Read) and change (Write). Delete is rarely needed.
+              </p>
+              <PermissionsTable
+                modules={userModules}
+                permissions={userPermissions}
+                onToggle={(key, action) => setUserPermissions((p) => togglePermission(p, key, action))}
+              />
             </div>
           </div>
         </div>
       ) : (
-        /* USER ACCOUNTS TAB */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left panel: User List */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="space-y-3">
-              <h3 className="text-xs font-black uppercase tracking-widest text-[#6A7051]">Admin Users</h3>
-              
-              {/* Search user */}
-              <input
-                type="text"
-                placeholder="Search name, phone or role..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
-              />
-            </div>
-
-            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map(u => {
-                  const isSelected = selectedUserId === u.id || selectedUserId === u._id;
-                  const isSuspended = u.status === 'revoked' || u.status === 'paused';
-                  return (
-                    <div
-                      key={u.id || u._id}
-                      onClick={() => setSelectedUserId(u.id || u._id)}
-                      className={`p-3.5 border transition-all cursor-pointer flex items-center gap-3 relative overflow-hidden ${
-                        isSelected 
-                          ? 'border-[#6A7051] bg-[#6A7051]/5 border-l-4 border-l-brand-yellow' 
-                          : 'border-card-border bg-white hover:border-[#6A7051]/40'
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-none bg-brand-olive/10 text-brand-olive flex items-center justify-center font-black text-xs shrink-0">
-                        {u.name?.substring(0, 2).toUpperCase() || 'US'}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-black uppercase tracking-tight leading-tight truncate ${
-                          isSelected ? 'text-[#6A7051]' : 'text-text-primary'
-                        }`}>
-                          {u.name}
-                        </p>
-                        <p className="text-[9px] text-text-muted uppercase tracking-wider font-bold mt-0.5">{getRoleLabel(u.role)}</p>
-                      </div>
-                      
-                      {/* Suspended/Active indicator */}
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase shrink-0 ${
-                        isSuspended ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                      }`}>
-                        {u.status}
-                      </span>
+            <h3 className="text-xs font-black uppercase tracking-widest text-[#6A7051]">Job titles (defaults only)</h3>
+            <p className="text-[10px] text-text-secondary leading-relaxed">
+              These are <strong>starting templates</strong>, not individual logins. When you create a user, click &quot;Use role defaults&quot; on the Users tab.
+            </p>
+            <div className="space-y-2.5">
+              {adminRoleKeys.map((key) => {
+                const role = ROLE_TEMPLATES[key];
+                const isSelected = selectedRole === key;
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    onClick={() => setSelectedRole(key)}
+                    className={`w-full text-left p-4 border transition-all flex items-center justify-between ${
+                      isSelected
+                        ? 'border-[#6A7051] bg-[#6A7051]/5 border-l-4 border-l-brand-yellow'
+                        : 'border-card-border bg-white hover:border-[#6A7051]/40'
+                    }`}
+                  >
+                    <div>
+                      <p className="text-xs font-black uppercase text-[#6A7051]">{role.label}</p>
+                      <p className="text-[10px] text-text-muted mt-1">{role.description}</p>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="p-8 text-center text-xs text-text-muted bg-white border border-card-border">
-                  No admin users found matching your search.
-                </div>
-              )}
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: role.color }} />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="bg-[#F9FAFB] p-4 border border-card-border flex items-start gap-3">
+              <Info size={16} className="text-brand-olive shrink-0 mt-0.5" />
+              <p className="text-[10px] text-text-secondary leading-normal">
+                Saving a template updates every existing user who already has that role. New users still need to be created under User accounts.
+              </p>
             </div>
           </div>
 
-          {/* Right panel: User permissions customize */}
           <div className="lg:col-span-8 bg-white border border-card-border p-6 shadow-sm">
-            {selectedUserId && users.find(u => u.id === selectedUserId || u._id === selectedUserId) ? (
-              (() => {
-                const userObj = users.find(u => u.id === selectedUserId || u._id === selectedUserId);
-                return (
-                  <>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-card-border pb-4 mb-6 gap-4">
-                      <div>
-                        <h3 className="text-base font-black text-brand-olive uppercase tracking-tight flex items-center gap-2">
-                          <UserCheck size={18} className="text-brand-yellow" /> Customize Permissions: {userObj.name}
-                        </h3>
-                        <p className="text-[11px] text-text-secondary">
-                          Customize access specifically for this account. Inherits default role values if unchanged.
-                        </p>
-                      </div>
-                      <button
-                        onClick={saveUserPermissions}
-                        disabled={loading}
-                        className="bg-[#C5A021] text-brand-dark px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-yellow-500 active:scale-[0.98] transition-all flex items-center gap-2 self-start sm:self-center"
-                      >
-                        <Save size={14} /> Save User Access
-                      </button>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b-2 border-card-border bg-[#F5F5EC]/50">
-                            <th className="py-3 px-4 text-xs font-black uppercase tracking-wider text-text-primary">Module</th>
-                            <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Read</th>
-                            <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Write</th>
-                            <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-wider text-text-primary">Delete</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-card-border text-sm">
-                          {MODULE_META
-                            .filter(m => m.panel === 'Admin')
-                            .map(m => {
-                              const modPerms = userPermissions.modules?.[m.key] || { read: false, write: false, delete: false };
-                              return (
-                                <tr key={m.key} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="py-4 px-4">
-                                    <p className="text-xs font-black text-brand-olive uppercase tracking-wider">{m.label}</p>
-                                    <p className="text-[9px] text-text-muted mt-0.5">Key ID: {m.key}</p>
-                                  </td>
-                                  <td className="py-4 px-4 text-center">
-                                    <label className="inline-flex items-center justify-center cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={modPerms.read}
-                                        onChange={() => handleUserPermissionToggle(m.key, 'read')}
-                                        className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
-                                      />
-                                    </label>
-                                  </td>
-                                  <td className="py-4 px-4 text-center">
-                                    <label className="inline-flex items-center justify-center cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={modPerms.write}
-                                        onChange={() => handleUserPermissionToggle(m.key, 'write')}
-                                        className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
-                                      />
-                                    </label>
-                                  </td>
-                                  <td className="py-4 px-4 text-center">
-                                    <label className="inline-flex items-center justify-center cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={modPerms.delete}
-                                        onChange={() => handleUserPermissionToggle(m.key, 'delete')}
-                                        className="w-4 h-4 text-brand-olive bg-gray-100 border-gray-300 rounded focus:ring-brand-yellow focus:ring-2"
-                                      />
-                                    </label>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                );
-              })()
-            ) : (
-              <div className="p-12 text-center text-xs text-text-muted">
-                Select a user from the list to manage custom permissions.
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-card-border pb-4 mb-6 gap-4">
+              <div>
+                <h3 className="text-base font-black text-brand-olive uppercase">
+                  Default access: {ROLE_TEMPLATES[selectedRole]?.label}
+                </h3>
+                <p className="text-[11px] text-text-secondary">Click squares to toggle — green check = allowed.</p>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={saveRoleTemplate}
+                disabled={loading}
+                className="bg-[#C5A021] text-brand-dark px-4 py-2.5 text-[10px] font-black uppercase flex items-center gap-2 hover:bg-yellow-500"
+              >
+                <Save size={14} /> Save template for role
+              </button>
+            </div>
+            <PermissionsTable
+              modules={templateModules}
+              permissions={rolePermissions}
+              onToggle={(key, action) =>
+                setRolePermissions((p) => togglePermission(p, key, action))
+              }
+            />
           </div>
         </div>
       )}
     </div>
   );
 };
+
+function PermissionsTable({ modules, permissions, onToggle }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b-2 border-card-border bg-[#F5F5EC]/50">
+            <th className="py-3 px-4 text-xs font-black uppercase">Module / screen</th>
+            <th className="py-3 px-4 text-center text-xs font-black uppercase">Read</th>
+            <th className="py-3 px-4 text-center text-xs font-black uppercase">Write</th>
+            <th className="py-3 px-4 text-center text-xs font-black uppercase">Delete</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-card-border">
+          {modules.map((m) => {
+            const modPerms = permissions?.modules?.[m.key] || {
+              read: false,
+              write: false,
+              delete: false,
+            };
+            return (
+              <tr key={m.key} className="hover:bg-slate-50/50">
+                <td className="py-3 px-4">
+                  <p className="text-xs font-black text-brand-olive uppercase">{m.label}</p>
+                </td>
+                {['read', 'write', 'delete'].map((action) => (
+                  <td key={action} className="py-3 px-4 text-center">
+                    <PermissionToggle
+                      checked={!!modPerms[action]}
+                      onChange={() => onToggle(m.key, action)}
+                      title={`${action} — ${m.label}`}
+                    />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default AccessControl;

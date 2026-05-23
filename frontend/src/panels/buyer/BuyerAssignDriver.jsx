@@ -2,16 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Truck, User, MapPin, Package, CheckCircle2, Search, ArrowRight, ChevronDown } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
-import { useRbacStore } from '../../store/rbacStore';
 import { useAuthStore } from '../../store/authStore';
 import { tapalService } from '../../services/tapalService';
+import { userService } from '../../services/userService';
 import { toast } from 'react-hot-toast';
 
 const BuyerAssignDriver = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { tapals, fetchTapals, vehicles, fetchVehicles, fetchBuyerTrips } = useAdminStore();
-  const { users, fetchUsers } = useRbacStore();
+  const [drivers, setDrivers] = useState([]);
 
   const [selectedTapal, setSelectedTapal] = useState(null);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -24,26 +24,26 @@ const BuyerAssignDriver = () => {
   useEffect(() => {
     fetchTapals();
     fetchVehicles();
-    fetchUsers();
-  }, [fetchTapals, fetchVehicles, fetchUsers]);
+    userService.drivers().then((res) => {
+      setDrivers(Array.isArray(res?.data) ? res.data : []);
+    }).catch(() => setDrivers([]));
+  }, [fetchTapals, fetchVehicles]);
 
   // Filter tapals that belong to this buyer and are assignable
   const myTapals = tapals.filter(t => {
     const isBuyer = t.buyerName === (user?.fullName || user?.name) ||
                     t.buyerPhone === user?.phone ||
                     t.buyerId === (user?._id || user?.id);
-    const isAssignable = ['CREATED', 'CONFIRMED'].includes(t.status);
+    const isAssignable = ['CREATED', 'ASSIGNED', 'CONFIRMED'].includes((t.status || '').toUpperCase());
     return isBuyer && isAssignable;
   }).filter(t =>
     !searchTapal || t.tapalNumber?.toLowerCase().includes(searchTapal.toLowerCase()) ||
     t.partyName?.toLowerCase().includes(searchTapal.toLowerCase())
   );
 
-  // Available drivers (active DRIVER role users)
-  const availableDrivers = users.filter(u =>
-    u.role === 'DRIVER' && u.isActive && u.status === 'active'
-  ).filter(d =>
-    !searchDriver || d.fullName?.toLowerCase().includes(searchDriver.toLowerCase()) ||
+  const availableDrivers = drivers.filter((d) =>
+    !searchDriver ||
+    d.fullName?.toLowerCase().includes(searchDriver.toLowerCase()) ||
     d.phone?.includes(searchDriver)
   );
 
@@ -51,8 +51,8 @@ const BuyerAssignDriver = () => {
   const availableVehicles = vehicles.filter(v => v.status === 'AVAILABLE' || v.status === 'available');
 
   const handleAssign = async () => {
-    if (!selectedTapal || !selectedDriver || !selectedVehicle) {
-      toast.error('Please select tapal, driver, and vehicle');
+    if (!selectedTapal || !selectedDriver) {
+      toast.error('Please select tapal and driver');
       return;
     }
 
@@ -60,14 +60,14 @@ const BuyerAssignDriver = () => {
     try {
       await tapalService.assignDriver(
         selectedTapal.id || selectedTapal._id,
-        selectedDriver.id || selectedDriver._id,
-        selectedVehicle.id || selectedVehicle._id
+        selectedDriver._id || selectedDriver.id,
+        selectedVehicle?.id || selectedVehicle?._id || undefined
       );
-      toast.success('Driver assigned successfully!');
-      await fetchBuyerTrips();
-      navigate('/buyer/trips');
+      toast.success('Driver assigned — trip sent to driver app');
+      await fetchTapals();
+      navigate('/admin/logistics/assign-driver');
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to assign driver');
+      toast.error(err?.message || 'Failed to assign driver');
     } finally {
       setAssigning(false);
     }
@@ -176,10 +176,15 @@ const BuyerAssignDriver = () => {
               <button
                 key={driver.id || driver._id}
                 onClick={() => { setSelectedDriver(driver); setStep(3); }}
+<<<<<<< HEAD
                 className={`p-4 bg-white border-2 text-left transition-all hover:shadow-wapixo ${
                   selectedDriver?.id === driver.id
                     ? 'border-accent-olive shadow-glow'
                     : 'border-card-border hover:border-accent-olive'
+=======
+                className={`p-4 bg-white rounded-2xl border-2 text-left transition-all hover:shadow-md ${
+                  (selectedDriver?.id || selectedDriver?._id) === (driver.id || driver._id) ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-100 hover:border-blue-200'
+>>>>>>> 4e5aef310993ff2aebf762c63b40b849a93de9dd
                 }`}
               >
                 <div className="flex items-center gap-3">

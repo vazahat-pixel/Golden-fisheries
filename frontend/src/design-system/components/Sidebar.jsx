@@ -1,74 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
-import {
-  LayoutDashboard, ClipboardList, Sprout, Package, Truck,
-  IndianRupee, ReceiptText, Receipt, Settings, LogOut, Bell,
-  ChevronLeft, ChevronRight, UserPlus, Store, Shield,
-  AlertTriangle, ShoppingCart, FileText, Wallet
-} from 'lucide-react';
+import { LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
-import { useRbacStore } from '../../store/rbacStore';
-import { IS_DEV, isWebErpRole } from '../../constants/rbac';
-
-const allNavItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard', module: 'dashboard' },
-  { icon: Sprout, label: 'Harvest Slips', path: '/admin/procurement/harvest', module: 'procurement' },
-  { icon: FileText, label: 'Purchase Invoice', path: '/admin/procurement/net-rate', module: 'procurement' },
-  { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals', module: 'tapals' },
-  { icon: IndianRupee, label: 'Farmer Ledger', path: '/admin/procurement/farmer-ledger', module: 'procurement' },
-  { icon: Truck, label: 'Logistics', path: '/admin/logistics', module: 'logistics' },
-  { icon: Receipt, label: 'Expenses', path: '/admin/expenses', module: 'finance', badge: 'expenses' },
-  { icon: Wallet, label: 'Finance / P&L', path: '/admin/finance', module: 'finance' },
-  { icon: ReceiptText, label: 'Billing', path: '/admin/billing', module: 'billing' },
-  { icon: ShoppingCart, label: 'Return Approval', path: '/admin/sales-approval', module: 'tapals' },
-  { icon: Package, label: 'Inventory', path: '/admin/inventory', module: 'inventory' },
-  { icon: Store, label: 'Outlets', path: '/admin/outlets', module: 'outlets' },
-  { icon: Shield, label: 'Access Control', path: '/admin/access', highlight: true, module: 'accessControl' },
-];
+import { ADMIN_NAV_ITEMS } from '../../config/adminNavigation';
+import { hasModulePermission, isSuperAdminUser } from '../../utils/permissions';
+import { normalizeRole } from '../../constants/rbac';
 
 export const Sidebar = ({ onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, logout } = useAuthStore();
   const { expenses } = useAdminStore();
-  const { hasPermission } = useRbacStore();
 
   const userName = user?.name || user?.fullName || 'Admin';
   const userRole = user?.role || 'ADMIN';
+  const normalized = normalizeRole(userRole);
 
-  const pendingExpenseCount = expenses.filter(e => e.status === 'Pending').length;
-  
-  const userId = user?.id || user?._id;
-  
-  const filteredNavItems = allNavItems.filter(item => {
-    if (IS_DEV || isWebErpRole(userRole)) return true;
-    if (item.module && userId) {
-      return hasPermission(userId, item.module, 'read');
-    }
-    return true;
-  });
+  const pendingExpenseCount = expenses.filter((e) => e.status === 'Pending').length;
 
-  // Role-specific home label
-  const roleLabel = {
-    ADMIN: 'ADMIN',
-    MANAGER: 'MANAGER',
-    ACCOUNTANT: 'ACCOUNTANT',
-    PROCUREMENT_MANAGER: 'PROCUREMENT MGR',
-    VEHICLE_MANAGER: 'VEHICLE MGR',
-  }[userRole] || userRole;
+  const filteredNavItems = useMemo(() => {
+    if (!user) return [];
+    return ADMIN_NAV_ITEMS.filter((item) => {
+      if (isSuperAdminUser(user)) return true;
+      if (!item.module) return true;
+      return hasModulePermission(user, item.module, 'read');
+    });
+  }, [user]);
+
+  const roleLabel =
+    {
+      SUPER_ADMIN: 'SUPER ADMIN',
+      ADMIN: 'SUPER ADMIN',
+      PROCUREMENT_MANAGER: 'PROCUREMENT',
+      BUYER: 'BUYER',
+      VEHICLE_MANAGER: 'VEHICLE MGR',
+      MANAGER: 'MANAGER',
+      ACCOUNTANT: 'FINANCE',
+    }[normalized] || userRole;
 
   return (
-    <div className={twMerge(
-      'h-full bg-white flex flex-col text-text-primary overflow-y-auto border-r border-card-border transition-all duration-300',
-      isCollapsed ? 'w-20' : 'w-64'
-    )}>
+    <div
+      className={twMerge(
+        'h-full bg-white flex flex-col text-text-primary overflow-y-auto border-r border-card-border transition-all duration-300',
+        isCollapsed ? 'w-20' : 'w-64'
+      )}
+    >
       <div className="p-4 flex items-center justify-between border-b border-card-border">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="w-12 h-12 shrink-0 flex items-center justify-center overflow-hidden">
             <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
-          {!isCollapsed && <h1 className="text-xl font-serif italic font-black tracking-tight text-primary whitespace-nowrap">Golden</h1>}
+          {!isCollapsed && (
+            <h1 className="text-xl font-serif italic font-black tracking-tight text-primary whitespace-nowrap">
+              Golden
+            </h1>
+          )}
         </div>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -78,7 +65,6 @@ export const Sidebar = ({ onClose }) => {
         </button>
       </div>
 
-      {/* Role badge when not collapsed */}
       {!isCollapsed && (
         <div className="px-4 py-2 border-b border-card-border bg-slate-50">
           <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-400">{roleLabel}</span>
@@ -86,52 +72,95 @@ export const Sidebar = ({ onClose }) => {
       )}
 
       <nav className="flex-1 px-3 py-6 space-y-1 overflow-x-hidden">
-        {filteredNavItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => { if (window.innerWidth < 1024) onClose?.(); }}
-            title={isCollapsed ? item.label : undefined}
-            className={({ isActive }) => twMerge(
-              'flex items-center gap-4 py-4 rounded-none transition-all duration-300 group border-l-4 border-transparent',
-              isCollapsed ? 'px-0 justify-center' : 'px-6',
-              isActive
-                ? 'bg-black text-white border-black font-black'
-                : item.highlight
-                  ? 'text-[#6B7550] hover:bg-[#6B7550]/5 hover:text-[#6B7550]'
-                  : 'text-text-muted hover:bg-olive-50 hover:text-primary'
-            )}
-          >
-            {({ isActive }) => (
-              <>
-                <item.icon size={16} className={twMerge('shrink-0', isActive ? 'text-white' : item.highlight ? 'text-[#6B7550]' : 'text-text-muted group-hover:text-primary')} />
-                {!isCollapsed && <span className={twMerge('flex-1 text-[10px] uppercase tracking-widest font-black whitespace-nowrap', item.highlight && !isActive ? 'text-[#6B7550]' : '')}>{item.label}</span>}
-                {!isCollapsed && item.badge === 'expenses' && pendingExpenseCount > 0 && (
-                  <span className={twMerge('text-[8px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center', isActive ? 'bg-amber-400 text-black' : 'bg-amber-100 text-amber-700')}>
-                    {pendingExpenseCount}
-                  </span>
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
+        {filteredNavItems.length === 0 ? (
+          <p className="text-[10px] text-slate-400 px-3 uppercase tracking-widest">
+            No modules assigned. Contact admin.
+          </p>
+        ) : (
+          filteredNavItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={() => {
+                if (window.innerWidth < 1024) onClose?.();
+              }}
+              title={isCollapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                twMerge(
+                  'flex items-center gap-4 py-4 rounded-none transition-all duration-300 group border-l-4 border-transparent',
+                  isCollapsed ? 'px-0 justify-center' : 'px-6',
+                  isActive
+                    ? 'bg-black text-white border-black font-black'
+                    : item.highlight
+                      ? 'text-[#6B7550] hover:bg-[#6B7550]/5 hover:text-[#6B7550]'
+                      : 'text-text-muted hover:bg-olive-50 hover:text-primary'
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <item.icon
+                    size={16}
+                    className={twMerge(
+                      'shrink-0',
+                      isActive ? 'text-white' : item.highlight ? 'text-[#6B7550]' : 'text-text-muted group-hover:text-primary'
+                    )}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={twMerge(
+                        'flex-1 text-[10px] uppercase tracking-widest font-black whitespace-nowrap',
+                        item.highlight && !isActive ? 'text-[#6B7550]' : ''
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                  {!isCollapsed && item.badge === 'expenses' && pendingExpenseCount > 0 && (
+                    <span
+                      className={twMerge(
+                        'text-[8px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center',
+                        isActive ? 'bg-amber-400 text-black' : 'bg-amber-100 text-amber-700'
+                      )}
+                    >
+                      {pendingExpenseCount}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))
+        )}
       </nav>
 
       <div className="p-4 mt-auto border-t border-card-border space-y-4">
-        <div className={twMerge(
-          'flex items-center py-4 bg-white rounded-none border border-card-border shadow-subtle group hover:bg-olive-50 transition-all cursor-pointer overflow-hidden',
-          isCollapsed ? 'justify-center px-0' : 'px-3 gap-3'
-        )} title={isCollapsed ? `${userName} ${roleLabel}` : undefined}>
+        <div
+          className={twMerge(
+            'flex items-center py-4 bg-white rounded-none border border-card-border shadow-subtle group hover:bg-olive-50 transition-all cursor-pointer overflow-hidden',
+            isCollapsed ? 'justify-center px-0' : 'px-3 gap-3'
+          )}
+          title={isCollapsed ? `${userName} ${roleLabel}` : undefined}
+        >
           <div className="w-10 h-10 shrink-0 rounded-none bg-accent-olive flex items-center justify-center text-white font-black overflow-hidden shadow-sm border border-card-border">
-            <img src={`https://ui-avatars.com/api/?name=${userName}&background=5F6846&color=fff`} alt="User" />
+            <img
+              src={`https://ui-avatars.com/api/?name=${userName}&background=5F6846&color=fff`}
+              alt="User"
+            />
           </div>
           {!isCollapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-black truncate text-text-primary uppercase tracking-tight">{userName}</p>
-                <p className="text-[8px] text-text-muted truncate uppercase tracking-widest font-black">{roleLabel}</p>
+                <p className="text-[10px] font-black truncate text-text-primary uppercase tracking-tight">
+                  {userName}
+                </p>
+                <p className="text-[8px] text-text-muted truncate uppercase tracking-widest font-black">
+                  {roleLabel}
+                </p>
               </div>
-              <button onClick={() => logout()} className="p-1.5 text-text-muted hover:text-red-500 transition-colors">
+              <button
+                onClick={() => logout()}
+                className="p-1.5 text-text-muted hover:text-red-500 transition-colors"
+              >
                 <LogOut size={16} />
               </button>
             </>

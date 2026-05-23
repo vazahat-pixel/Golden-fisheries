@@ -120,7 +120,10 @@ class RestaurantInventoryService {
         }).session(session);
       }
       if (!item) {
-        continue;
+        throw new AppError(
+          `Restaurant kitchen stock not found for "${line.name}". Add inventory or link inventoryItemId.`,
+          400
+        );
       }
       const prev = item.quantity || 0;
       const next = prev - line.quantity;
@@ -146,6 +149,51 @@ class RestaurantInventoryService {
         session
       );
     }
+  }
+
+  /**
+   * Credit restaurant kitchen stock from Fish Mall internal bill (within caller's transaction).
+   * Creates SKU by name if it does not exist yet.
+   */
+  async receiveInternalTransfer(payload, userId, session, billId, invoiceNumber) {
+    const name = payload.name?.trim().toUpperCase();
+    if (!name) throw new AppError('Item name is required for internal transfer', 400);
+
+    let item = await RestaurantInventoryItem.findOne({ name, isActive: true }).session(
+      session
+    );
+    if (!item) {
+      item = new RestaurantInventoryItem({
+        name,
+        quantity: 0,
+        unit: payload.unit || 'KG',
+        rate: payload.rate ?? 0,
+        category: 'Kitchen Stock',
+        recordDate: new Date(),
+      });
+    }
+
+    const prev = item.quantity || 0;
+    const qty = parseFloat(payload.quantity);
+    const next = prev + qty;
+    item.quantity = next;
+    item.recordDate = new Date();
+    if (payload.rate != null) item.rate = payload.rate;
+    await item.save({ session });
+
+    await this._log(
+      item._id,
+      'INTERNAL_TRANSFER_IN',
+      qty,
+      prev,
+      next,
+      userId,
+      `Internal bill ${invoiceNumber} from Fish Mall`,
+      billId,
+      'InternalSupplyBill',
+      session
+    );
+    return { item };
   }
 
   async getLogs(query = {}) {

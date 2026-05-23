@@ -54,7 +54,7 @@ const restaurantInventoryLogSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['OPENING', 'SALE_OUT', 'ADJUSTMENT', 'RECEIPT'],
+      enum: ['OPENING', 'SALE_OUT', 'ADJUSTMENT', 'RECEIPT', 'INTERNAL_TRANSFER_IN'],
       required: true,
     },
     quantityChange: { type: Number, required: true },
@@ -63,7 +63,7 @@ const restaurantInventoryLogSchema = new mongoose.Schema(
     referenceId: { type: mongoose.Schema.Types.ObjectId, default: null },
     referenceModel: {
       type: String,
-      enum: ['RestaurantOrder', null],
+      enum: ['RestaurantOrder', 'InternalSupplyBill', null],
       default: null,
     },
     remarks: { type: String, default: '' },

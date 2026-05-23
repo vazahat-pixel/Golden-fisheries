@@ -211,10 +211,15 @@ export const useRestaurantStore = create(
         try {
           // 1. Create the order document on backend
           const res = await restaurantService.create(settleData);
-          const orderId = res?.data?._id || res?._id;
+          const order = res?.data?.order || res?.order;
+          const orderId = order?._id || order?.id;
+
+          if (!orderId) {
+            throw new Error('Order was not created on server — cannot settle payment');
+          }
 
           // 2. Settle the order (payment)
-          if (orderId) {
+          {
             const breakdown = settleData.paymentBreakdown || {};
             const cash = parseFloat(breakdown.cash) || 0;
             const upi = parseFloat(breakdown.upi) || 0;
@@ -229,7 +234,7 @@ export const useRestaurantStore = create(
           // Cross-post to Admin Finance
           useAdminStore.getState().addTransaction({
             date: new Date().toLocaleDateString('en-GB'),
-            desc: `RESTAURANT POS: #${res?.data?.orderNumber || res?.orderNumber || 'ORD'}`,
+            desc: `RESTAURANT POS: #${order?.orderNumber || 'ORD'}`,
             method: settleData.paymentMethod || 'CASH',
             type: 'income',
             amount: settleData.total,

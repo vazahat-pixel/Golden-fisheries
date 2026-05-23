@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Plus, Search, AlertTriangle, ArrowLeft, History, Package, DollarSign, Filter, MoreVertical, Trash2, Edit2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -6,10 +6,16 @@ import { Button } from '../../design-system/components/Button';
 import { Card } from '../../design-system/components/Card';
 import { Badge } from '../../design-system/components/Badge';
 import { useRestaurantStore } from '../../store/restaurantStore';
+import { restaurantService } from '../../services/restaurantService';
 
 const RestaurantInventory = () => {
   const navigate = useNavigate();
-  const { menuItems, updateMenuItem, addMenuItem, deleteMenuItem, updateStock } = useRestaurantStore();
+  const { menuItems, fetchMenu } = useRestaurantStore();
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchMenu();
+  }, [fetchMenu]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -28,24 +34,41 @@ const RestaurantInventory = () => {
 
   const lowStockItems = menuItems.filter(i => i.stock < 10);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = {
-      ...formData,
-      price: parseFloat(formData.price),
-      stock: parseInt(formData.stock)
-    };
-
-    if (editingItem) {
-      updateMenuItem({ ...data, id: editingItem.id });
-      toast.success('Item updated');
-    } else {
-      addMenuItem(data);
-      toast.success('Item added');
+    setSaving(true);
+    try {
+      if (editingItem) {
+        const itemId = editingItem.id || editingItem._id;
+        const prevQty = editingItem.stock ?? editingItem.quantity ?? 0;
+        const nextQty = parseFloat(formData.stock) || 0;
+        const delta = nextQty - prevQty;
+        if (delta !== 0) {
+          await restaurantService.adjustInventory(itemId, {
+            quantityChange: delta,
+            remarks: 'Kitchen stock update',
+          });
+        }
+        toast.success('Item updated');
+      } else {
+        await restaurantService.createInventoryItem({
+          name: formData.name,
+          rate: parseFloat(formData.price) || 0,
+          quantity: parseFloat(formData.stock) || 0,
+          category: formData.category,
+          unit: 'KG',
+        });
+        toast.success('Item added');
+      }
+      await fetchMenu();
+      setIsAdding(false);
+      setEditingItem(null);
+      setFormData({ name: '', price: '', category: 'Main Course', image: '🍛', stock: '' });
+    } catch (err) {
+      toast.error(err?.message || 'Failed to save item');
+    } finally {
+      setSaving(false);
     }
-    setIsAdding(false);
-    setEditingItem(null);
-    setFormData({ name: '', price: '', category: 'Main Course', image: '🍛', stock: '' });
   };
 
   return (
@@ -139,7 +162,15 @@ const RestaurantInventory = () => {
                       </button>
                       <button 
                         onClick={() => {
-                          if (window.confirm('Erase asset from registry?')) deleteMenuItem(item.id);
+                          if (window.confirm('Deactivate this item?')) {
+                            restaurantService
+                              .adjustInventory(item.id || item._id, {
+                                quantityChange: -(item.stock ?? item.quantity ?? 0),
+                                remarks: 'Deactivate item',
+                              })
+                              .then(() => fetchMenu())
+                              .catch((err) => toast.error(err?.message || 'Failed'));
+                          }
                         }}
                         className="w-7 h-7 bg-white border border-card-border flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm"
                       >

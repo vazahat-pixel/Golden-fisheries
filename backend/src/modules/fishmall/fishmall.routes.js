@@ -16,6 +16,7 @@ import {
   FISHMALL_MANAGER_ROLES,
 } from '../../constants/roleGroups.js';
 import { broadcastEvent } from '../../sockets/socket.js';
+import { internalSupplyController } from '../internal-supply/internalSupply.controller.js';
 
 export const fishmallController = {
   create: asyncWrapper(async (req, res) => {
@@ -92,6 +93,24 @@ router.get('/inventory', ...web, restrictTo(...FISHMALL_ALL), fishmallController
 router.post('/inventory', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.createInventoryItem);
 router.patch('/inventory/:id', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.updateInventoryItem);
 router.patch('/inventory/:id/adjust', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.adjustInventory);
+router.post(
+  '/internal-bill/restaurant',
+  ...web,
+  restrictTo(...FISHMALL_MANAGER_ROLES),
+  internalSupplyController.createRestaurantBill
+);
+router.get(
+  '/internal-bill',
+  ...web,
+  restrictTo(...FISHMALL_MANAGER_ROLES),
+  internalSupplyController.listBills
+);
+router.get(
+  '/internal-bill/:id',
+  ...web,
+  restrictTo(...FISHMALL_MANAGER_ROLES),
+  internalSupplyController.getBill
+);
 router.post('/create', ...web, restrictTo(...FISHMALL_ALL), fishmallController.create);
 router.get('/all', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.all);
 router.get('/:id', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.getById);

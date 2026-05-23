@@ -13,6 +13,7 @@ import {
   REST_MANAGER_ROLES,
   REST_CASHIER_ROLES,
 } from '../../constants/roleGroups.js';
+import { internalSupplyController } from '../internal-supply/internalSupply.controller.js';
 
 const router = Router();
 const web = [protect, requireWeb, requireBusinessUnit('REST'), enforcePlatformPolicy, blockMobileWrite];
@@ -25,6 +26,18 @@ router.get('/menu', ...web, restrictTo(...REST_ALL), restaurantController.getMen
 router.get('/tables', ...web, restrictTo(...REST_ALL), restaurantController.getTables);
 router.post('/menu', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.createMenuItem);
 router.post('/create', ...web, restrictTo(...REST_ALL), restaurantController.create);
+router.get(
+  '/internal-supplies',
+  ...web,
+  restrictTo(...REST_ALL),
+  internalSupplyController.listBills
+);
+router.get(
+  '/internal-supplies/:id',
+  ...web,
+  restrictTo(...REST_ALL),
+  internalSupplyController.getBill
+);
 router.get('/all', ...web, restrictTo(...REST_ALL), restaurantController.all);
 router.patch('/settle/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.settle);
 router.get('/:id', ...web, restrictTo(...REST_ALL), restaurantController.getById);

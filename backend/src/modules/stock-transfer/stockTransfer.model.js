@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 /**
  * Future: Admin-initiated transfers from procurement → restaurant / fishmall.
- * Not active in v1 — schema only for forward compatibility.
+ * Fish Mall → Restaurant uses InternalSupplyBill (see modules/internal-supply).
  */
 const stockTransferSchema = new mongoose.Schema(
   {

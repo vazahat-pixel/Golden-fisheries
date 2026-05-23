@@ -16,7 +16,7 @@ const PASS = process.env.E2E_PASSWORD || 'e2e_test_123';
 
 const USERS = [
   { phone: '9000000001', fullName: 'E2E Procurement', role: ROLES.PROCUREMENT_MANAGER, mobile: true, web: false, mobileViewOnly: false },
-  { phone: '9000000002', fullName: 'E2E Buyer', role: ROLES.BUYER, mobile: true, web: false, mobileViewOnly: false },
+  { phone: '9000000002', fullName: 'E2E Buyer', role: ROLES.BUYER, mobile: true, web: true, mobileViewOnly: false },
   { phone: '9000000003', fullName: 'E2E Driver', role: ROLES.DRIVER, mobile: true, web: false, mobileViewOnly: false },
   { phone: '9000000004', fullName: 'E2E Vehicle Mgr', role: ROLES.VEHICLE_MANAGER, mobile: true, web: false, mobileViewOnly: false },
   { phone: '9000000005', fullName: 'E2E Rest Manager', role: ROLES.REST_MANAGER, mobile: false, web: true, businessUnit: 'REST' },

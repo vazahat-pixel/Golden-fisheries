@@ -12,6 +12,7 @@ import {
 } from '../../middleware/auth.middleware.js';
 import {
   WEB_ERP,
+  DISPATCH_ROLES,
   PROCUREMENT,
   BUYER_ROLES,
   DRIVER_ROLES,
@@ -79,7 +80,7 @@ router.post(
 router.patch(
   '/assign-driver',
   ...web,
-  restrictTo(...WEB_ERP),
+  restrictTo(...DISPATCH_ROLES),
   validateBody(tapalValidators.assignDriver),
   tapalController.assignDriver
 );

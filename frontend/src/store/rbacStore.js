@@ -2,7 +2,24 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { userService } from '../services/userService';
 import { useAuthStore } from './authStore';
-import { IS_DEV, isWebErpRole } from '../constants/rbac';
+import { isWebErpRole, normalizeRole } from '../constants/rbac';
+
+function mergePermissions(stored, role) {
+  const template = ROLE_TEMPLATES[normalizeRole(role)] || ROLE_TEMPLATES[role];
+  const base = template?.permissions || { panels: {}, modules: {} };
+  const incoming = stored || {};
+  const mods = incoming.modules;
+  const flatMods =
+    mods && typeof mods === 'object' && !Array.isArray(mods)
+      ? mods instanceof Map
+        ? Object.fromEntries(mods.entries())
+        : { ...mods }
+      : {};
+  return {
+    panels: { ...base.panels, ...incoming.panels },
+    modules: { ...base.modules, ...flatMods },
+  };
+}
 
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
@@ -272,28 +289,30 @@ export const ROLE_TEMPLATES = {
   BUYER: {
     id: 'BUYER',
     label: 'Buyer (Channapa)',
-
-
-
-    description: 'Incoming tapals, buyer bills, sales return, invoice history, driver assignment, trip tracking',
+    description: 'Verify tapals, buyer billing, returns, settlement — Admin ERP only',
     color: '#2563EB',
-    loginPortal: '/buyer/auth',
+    loginPortal: '/auth/admin',
     permissions: {
-      panels: { restaurant: false, fishmall: false, driver: false, admin: false, buyer: true },
+      panels: { restaurant: false, fishmall: false, driver: false, admin: true, buyer: false },
       modules: {
-        pos: { read: false, write: false, delete: false },
-        orderHistory: { read: false, write: false, delete: false },
-        inventory: { read: false, write: false, delete: false },
-        restaurantSettings: { read: false, write: false, delete: false },
-        dashboard: { read: true, write: false, delete: false },
-        tapals: { read: true, write: true, delete: false },
-        finance: { read: false, write: false, delete: false },
+        dashboard: { read: false, write: false, delete: false },
         procurement: { read: false, write: false, delete: false },
-        logistics: { read: true, write: true, delete: false },
-        billing: { read: true, write: false, delete: false },
+        tapals: { read: false, write: false, delete: false },
+        logistics: { read: false, write: false, delete: false },
+        finance: { read: false, write: false, delete: false },
+        billing: { read: false, write: false, delete: false },
+        inventory: { read: false, write: false, delete: false },
         outlets: { read: false, write: false, delete: false },
         accessControl: { read: false, write: false, delete: false },
         settings: { read: false, write: false, delete: false },
+        buyerDashboard: { read: true, write: false, delete: false },
+        buyerVerify: { read: true, write: true, delete: false },
+        buyerBills: { read: true, write: true, delete: false },
+        buyerReturns: { read: true, write: true, delete: false },
+        buyerSettlement: { read: true, write: false, delete: false },
+        pos: { read: false, write: false, delete: false },
+        orderHistory: { read: false, write: false, delete: false },
+        restaurantSettings: { read: false, write: false, delete: false },
       },
     },
   },
@@ -325,20 +344,51 @@ export const ROLE_TEMPLATES = {
 };
 
 // Module display config
+/** Roles manageable from Admin ERP access control */
+export const ERP_MANAGEABLE_ROLES = [
+  'SUPER_ADMIN',
+  'ACCOUNTANT',
+  'MANAGER',
+  'PROCUREMENT_MANAGER',
+  'BUYER',
+  'VEHICLE_MANAGER',
+  'DRIVER',
+];
+
+export function isAdminErpTemplateRole(roleKey) {
+  const t = ROLE_TEMPLATES[roleKey];
+  if (!t) return false;
+  const panels = t.permissions?.panels || {};
+  const mods = t.permissions?.modules || {};
+  return panels.admin === true || Object.keys(mods).some((k) => k.startsWith('buyer'));
+}
+
+export function modulesForRole(roleKey) {
+  if (roleKey === 'BUYER') {
+    return MODULE_META.filter((m) => m.panel === 'Buyer (Admin)');
+  }
+  return MODULE_META.filter((m) => m.panel === 'Admin');
+}
+
 export const MODULE_META = [
   { key: 'dashboard', label: 'Dashboard', panel: 'Admin' },
-  { key: 'pos', label: 'POS Terminal', panel: 'Restaurant' },
-  { key: 'orderHistory', label: 'Order History', panel: 'Restaurant' },
-  { key: 'inventory', label: 'Inventory', panel: 'Admin' },
-  { key: 'restaurantSettings', label: 'Rest. Settings', panel: 'Restaurant' },
-  { key: 'billing', label: 'Billing', panel: 'Admin' },
-  { key: 'tapals', label: 'Tapals', panel: 'Admin' },
   { key: 'procurement', label: 'Procurement', panel: 'Admin' },
+  { key: 'tapals', label: 'Tapals', panel: 'Admin' },
   { key: 'logistics', label: 'Logistics', panel: 'Admin' },
   { key: 'finance', label: 'Finance', panel: 'Admin' },
+  { key: 'billing', label: 'Billing (Procurement)', panel: 'Admin' },
+  { key: 'inventory', label: 'Inventory', panel: 'Admin' },
   { key: 'outlets', label: 'Outlets', panel: 'Admin' },
   { key: 'accessControl', label: 'Access Control', panel: 'Admin' },
   { key: 'settings', label: 'Settings', panel: 'Admin' },
+  { key: 'buyerDashboard', label: 'Buyer Dashboard', panel: 'Buyer (Admin)' },
+  { key: 'buyerVerify', label: 'Buyer Verify Tapals', panel: 'Buyer (Admin)' },
+  { key: 'buyerBills', label: 'Buyer Bills', panel: 'Buyer (Admin)' },
+  { key: 'buyerReturns', label: 'Buyer Returns', panel: 'Buyer (Admin)' },
+  { key: 'buyerSettlement', label: 'Buyer Settlement', panel: 'Buyer (Admin)' },
+  { key: 'pos', label: 'POS Terminal', panel: 'Restaurant' },
+  { key: 'orderHistory', label: 'Order History', panel: 'Restaurant' },
+  { key: 'restaurantSettings', label: 'Rest. Settings', panel: 'Restaurant' },
 ];
 
 // Deep clone a template
@@ -399,7 +449,7 @@ export const useRbacStore = create(
               name: u.fullName || u.name || '',
               role: frontendRole,
               status: u.status || (u.isActive === false ? 'revoked' : 'active'),
-              permissions: u.permissions || template.permissions || { panels: {}, modules: {} }
+              permissions: mergePermissions(u.permissions, frontendRole)
             };
           });
           set({ users: mapped, loading: false });
@@ -413,6 +463,7 @@ export const useRbacStore = create(
         set({ loading: true });
         try {
           const backendRole = mapRoleToBackend(userData.role);
+          const frontendRole = mapRoleToFrontend(backendRole);
           const payload = {
             fullName: userData.name || userData.fullName || '',
             phone: userData.phone || '',
@@ -420,7 +471,14 @@ export const useRbacStore = create(
             password: userData.password || 'password123',
             isActive: userData.isActive !== undefined ? userData.isActive : true,
             status: userData.status || 'active',
-            permissions: userData.permissions || {}
+            platformAccess: userData.platformAccess || {
+              web: frontendRole !== 'DRIVER',
+              mobile: ['DRIVER', 'PROCUREMENT_MANAGER', 'BUYER', 'VEHICLE_MANAGER'].includes(frontendRole),
+            },
+            permissions:
+              userData.permissions ||
+              ROLE_TEMPLATES[frontendRole]?.permissions ||
+              {},
           };
           const newUser = await userService.register(payload);
           await get().fetchUsers();
@@ -449,6 +507,16 @@ export const useRbacStore = create(
           }
           await userService.update(userId, payload);
           await get().fetchUsers();
+          const session = useAuthStore.getState().user;
+          if (session && sameId(session.id, userId)) {
+            const updated = get().users.find((u) => sameId(u.id, userId));
+            if (updated) {
+              useAuthStore.getState().updateUser({
+                permissions: updated.permissions,
+                role: updated.role,
+              });
+            }
+          }
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });
@@ -543,23 +611,18 @@ export const useRbacStore = create(
         }
 
         const frontendRole = mapRoleToFrontend(sessionUser.role);
-        const template = ROLE_TEMPLATES[frontendRole];
-        const hasModulePerms = sessionUser.permissions?.modules != null;
 
         return {
           ...sessionUser,
           role: frontendRole,
           status: sessionUser.status || 'active',
-          permissions: hasModulePerms
-            ? sessionUser.permissions
-            : template?.permissions || { panels: {}, modules: {} },
+          permissions: mergePermissions(sessionUser.permissions, frontendRole),
         };
       },
 
       hasPermission: (userId, module, action) => {
         const user = get().resolveUserForAccess(userId);
         if (!user) return false;
-        if (IS_DEV) return true;
         if (isWebErpRole(user.role)) return true;
         return user.permissions?.modules?.[module]?.[action] === true;
       },
@@ -573,7 +636,6 @@ export const useRbacStore = create(
           }
         }
         if (!user || user.status !== 'active') return false;
-        if (IS_DEV) return true;
         if (isWebErpRole(user.role)) return true;
         return user.permissions?.panels?.[panel] === true;
       },

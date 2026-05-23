@@ -66,7 +66,7 @@ const AdminLogin = () => {
     <AuthLayout title="Admin Login" subtitle="Fleet Management System">
       <button
         type="button"
-        onClick={() => navigate('/auth/init')}
+        onClick={() => navigate('/auth/home')}
         className="text-white flex items-center gap-2 mb-6 hover:text-brand-yellow transition-colors"
       >
         <ArrowLeft size={16} /> Back

@@ -2,21 +2,28 @@ import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { ShoppingCart, FileText, RotateCcw, History, LogOut, LayoutDashboard, Truck, MapPin, Scale } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { ROLES } from '../../constants/rbac';
 
+/** Buyer portal: verification, billing, returns — no admin/procurement screens */
 const buyerNav = [
-  { icon: LayoutDashboard, label: 'Dashboard',        path: '/buyer/dashboard' },
-  { icon: Truck,           label: 'Assign Driver',    path: '/buyer/assign' },
-  { icon: MapPin,          label: 'Trip Tracker',     path: '/buyer/trips' },
-  { icon: ShoppingCart,    label: 'Incoming Tapals',  path: '/buyer/tapals' },
-  { icon: FileText,        label: 'My Bills',         path: '/buyer/invoices' },
-  { icon: History,         label: 'Ledger',          path: '/buyer/ledger' },
-  { icon: RotateCcw,       label: 'Sales Return',     path: '/buyer/returns' },
-  { icon: Scale,           label: 'Settlement',       path: '/buyer/reconciliation' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/buyer/dashboard' },
+  { icon: ShoppingCart, label: 'Verify Tapals', path: '/buyer/tapals' },
+  { icon: FileText, label: 'My Bills', path: '/buyer/invoices' },
+  { icon: RotateCcw, label: 'Sales Return', path: '/buyer/returns' },
+  { icon: Scale, label: 'Settlement', path: '/buyer/reconciliation' },
+];
+
+const buyerOpsNav = [
+  { icon: Truck, label: 'Assign Driver', path: '/buyer/assign' },
+  { icon: MapPin, label: 'Trip Tracker', path: '/buyer/trips' },
 ];
 
 export const BuyerLayout = ({ children }) => {
   const { user, logout } = useAuthStore();
   const userName = user?.fullName || user?.name || 'Buyer';
+  const role = user?.role;
+  const navItems =
+    role === ROLES.BUYER ? buyerNav : [...buyerNav, ...buyerOpsNav];
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans">
@@ -35,7 +42,7 @@ export const BuyerLayout = ({ children }) => {
 
         {/* Nav */}
         <nav className="flex-1 px-4 py-6 space-y-1">
-          {buyerNav.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}

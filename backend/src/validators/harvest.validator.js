@@ -78,8 +78,31 @@ export const harvestValidators = {
   }),
 
   patchStatus: Joi.object({
-    status: Joi.string().valid('DRAFT', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'CONVERTED_TO_TAPAL', 'COMPLETED').required().messages({
-      'any.only': 'Invalid harvest slip state requested'
-    })
-  })
+    status: Joi.string()
+      .valid(
+        'DRAFT',
+        'PENDING',
+        'SENT',
+        'PENDING_CONFIRMATION',
+        'CONFIRMED',
+        'REJECTED'
+      )
+      .required()
+      .messages({
+        'any.only': 'Invalid harvest slip state requested',
+      }),
+    reason: Joi.string().allow('', null),
+  }),
+
+  reject: Joi.object({
+    reason: Joi.string().allow('', null),
+  }),
+
+  /** Web ERP farmer approval — same allowed transitions as mobile patch */
+  approveStatus: Joi.object({
+    status: Joi.string()
+      .valid('PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED')
+      .required(),
+    reason: Joi.string().allow('', null),
+  }),
 };

@@ -53,7 +53,7 @@ const fishMallInventoryLogSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['OPENING', 'SALE_OUT', 'ADJUSTMENT', 'CLOSING'],
+      enum: ['OPENING', 'SALE_OUT', 'ADJUSTMENT', 'CLOSING', 'INTERNAL_TRANSFER_OUT'],
       required: true,
     },
     quantityChange: { type: Number, required: true },
@@ -62,7 +62,7 @@ const fishMallInventoryLogSchema = new mongoose.Schema(
     referenceId: { type: mongoose.Schema.Types.ObjectId, default: null },
     referenceModel: {
       type: String,
-      enum: ['FishMallSale', 'FishMallDailyClosing', null],
+      enum: ['FishMallSale', 'FishMallDailyClosing', 'InternalSupplyBill', null],
       default: null,
     },
     remarks: { type: String, default: '' },
