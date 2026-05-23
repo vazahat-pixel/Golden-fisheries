@@ -31,7 +31,8 @@ const inventoryTransactionSchema = new mongoose.Schema(
         'RESTAURANT_CONSUMPTION',
         'FISHMALL_SALE',
         'RETURN_IN',
-        'MANUAL_ADJUSTMENT'
+        'MANUAL_ADJUSTMENT',
+        'TRANSFER_OUT',
       ],
       index: true
     },
@@ -54,7 +55,17 @@ const inventoryTransactionSchema = new mongoose.Schema(
     },
     referenceModel: {
       type: String,
-      enum: ['Tapal', 'Billing', 'Harvest', 'BuyerBill', 'SalesReturn', 'FishMallSale', 'RestaurantOrder', null],
+      enum: [
+        'Tapal',
+        'Billing',
+        'Harvest',
+        'BuyerBill',
+        'SalesReturn',
+        'FishMallSale',
+        'RestaurantOrder',
+        'StockTransfer',
+        null,
+      ],
       default: null
     },
     performedBy: {

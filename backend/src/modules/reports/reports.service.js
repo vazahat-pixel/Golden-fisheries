@@ -5,6 +5,10 @@ import { Expense } from '../expenses/expense.model.js';
 import { Product } from '../products/product.model.js';
 import { Tapal } from '../tapals/tapal.model.js';
 import { User } from '../users/user.model.js';
+import { InventoryTransaction } from '../inventory/inventoryTransaction.model.js';
+import { FishMallInventoryLog, FishMallInventoryItem } from '../fishmall/fishMallInventory.model.js';
+import { StockTransfer } from '../stock-transfer/stockTransfer.model.js';
+import { INVENTORY_SCOPES } from '../../constants/inventoryScopes.js';
 import { logger } from '../../utils/logger.js';
 
 export const reportsService = {
@@ -285,7 +289,116 @@ export const reportsService = {
   generateConsolidatedPnL: async (dateStr) => {
     logger.info(`[Daily PnL] Consolidated snapshot date=${dateStr}`);
     return { ok: true, dateStr };
-  }
+  },
+
+  getProcurementStockLedger: async (query = {}) => {
+    const { page = 1, limit = 100, productId, from, to } = query;
+    const filter = { inventoryScope: INVENTORY_SCOPES.PROCUREMENT };
+    if (productId) filter.productId = productId;
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) filter.createdAt.$gte = new Date(from);
+      if (to) filter.createdAt.$lte = new Date(to);
+    }
+    const skip = (page - 1) * limit;
+    const docs = await InventoryTransaction.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit, 10))
+      .populate('productId performedBy', 'name baseUnit fullName');
+    const totalDocs = await InventoryTransaction.countDocuments(filter);
+    return {
+      scope: INVENTORY_SCOPES.PROCUREMENT,
+      docs,
+      meta: { totalDocs, page: parseInt(page, 10), limit: parseInt(limit, 10) },
+    };
+  },
+
+  getFishMallStockLedger: async (query = {}) => {
+    const { limit = 100, itemId, from, to } = query;
+    const filter = {};
+    if (itemId) filter.itemId = itemId;
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) filter.createdAt.$gte = new Date(from);
+      if (to) filter.createdAt.$lte = new Date(to);
+    }
+    const docs = await FishMallInventoryLog.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit, 10))
+      .populate('itemId performedBy', 'name unit rate fullName');
+    return { scope: INVENTORY_SCOPES.FISHMALL, docs };
+  },
+
+  getTransferReport: async (query = {}) => {
+    const { page = 1, limit = 50, status } = query;
+    const filter = { toScope: 'FISHMALL' };
+    if (status) filter.status = status;
+    const skip = (page - 1) * limit;
+    const docs = await StockTransfer.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit, 10))
+      .populate('createdBy approvedBy', 'fullName phone');
+    const totalDocs = await StockTransfer.countDocuments(filter);
+    const completed = docs.filter((d) => d.status === 'COMPLETED');
+    const totalQty = completed.reduce(
+      (sum, t) => sum + t.lines.reduce((s, l) => s + (l.quantity || 0), 0),
+      0
+    );
+    return {
+      docs,
+      meta: { totalDocs, page: parseInt(page, 10), limit: parseInt(limit, 10) },
+      summary: {
+        completedTransfers: completed.length,
+        totalQuantityMovedKg: totalQty,
+      },
+    };
+  },
+
+  getDailyStockReport: async (query = {}) => {
+    const date = query.date ? new Date(query.date) : new Date();
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+
+    const [procurementTxns, fishMallLogs, transfers] = await Promise.all([
+      InventoryTransaction.find({
+        inventoryScope: INVENTORY_SCOPES.PROCUREMENT,
+        createdAt: { $gte: start, $lte: end },
+      })
+        .populate('productId', 'name')
+        .sort({ createdAt: -1 }),
+      FishMallInventoryLog.find({ createdAt: { $gte: start, $lte: end } })
+        .populate('itemId', 'name')
+        .sort({ createdAt: -1 }),
+      StockTransfer.find({
+        status: 'COMPLETED',
+        completedAt: { $gte: start, $lte: end },
+      }),
+    ]);
+
+    const procurementProducts = await Product.find({ isActive: { $ne: false } });
+    const fishMallItems = await FishMallInventoryItem.find({ isActive: true });
+
+    return {
+      date: start,
+      procurement: {
+        openingStockTotalKg: procurementProducts.reduce((s, p) => s + (p.quantity || 0), 0),
+        movements: procurementTxns.length,
+        transactions: procurementTxns,
+        currentStockTotalKg: procurementProducts.reduce((s, p) => s + (p.quantity || 0), 0),
+      },
+      fishMall: {
+        currentStockTotalKg: fishMallItems.reduce((s, i) => s + (i.quantity || 0), 0),
+        movements: fishMallLogs.length,
+        logs: fishMallLogs,
+      },
+      transfersCompleted: transfers.length,
+      transfers,
+    };
+  },
 };
 
 export default reportsService;

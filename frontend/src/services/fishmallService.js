@@ -55,6 +55,18 @@ export const fishmallService = {
   getInternalBill: async (id) => {
     return await apiClient.get(`/fishmall/internal-bill/${id}`);
   },
+
+  getInternalBillSummary: async (params = {}) => {
+    return await apiClient.get('/fishmall/internal-bill/reports/summary', { params });
+  },
+
+  getInternalBillDaily: async (params = {}) => {
+    return await apiClient.get('/fishmall/internal-bill/reports/daily', { params });
+  },
+
+  getInternalSalesReport: async (params = {}) => {
+    return await apiClient.get('/fishmall/internal-bill/reports/sales', { params });
+  },
 };
 
 export default fishmallService;

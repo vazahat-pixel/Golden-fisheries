@@ -1,8 +1,10 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthButton from '../../components/auth/AuthButton';
 import { Shield, Truck } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import { getDefaultHomePath } from '../../utils/permissions';
 
 /**
  * Single entry screen: Admin ERP login (office + field roles) + Driver login.
@@ -10,6 +12,12 @@ import { Shield, Truck } from 'lucide-react';
  */
 const AuthHome = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
+
+  // If already logged in, send them to their dashboard
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultHomePath(user)} replace />;
+  }
 
   return (
     <AuthLayout title="Golden Fisheries ERP" subtitle="Choose how you want to sign in">

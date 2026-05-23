@@ -1,22 +1,45 @@
-import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { TrendingUp, ShoppingCart, Flame, Utensils, Activity, Plus, ArrowRight, LayoutGrid, History, Settings } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { TrendingUp, ShoppingCart, Flame, Utensils, Activity, Plus, LayoutGrid, History, Settings, Package } from 'lucide-react';
 import { Button } from '../../design-system/components/Button';
 import { Card } from '../../design-system/components/Card';
 import { StatCard } from '../../design-system/components/StatCard';
 import { Badge } from '../../design-system/components/Badge';
 import { useRestaurantStore } from '../../store/restaurantStore';
 
+const orderDisplayId = (order) => {
+  const raw = order?.orderNumber || order?.id || order?._id;
+  if (!raw) return '—';
+  const s = String(raw);
+  return s.startsWith('#') ? s : `#${s.length > 12 ? s.slice(-8) : s}`;
+};
+
 const RestaurantDashboard = () => {
-  const navigate = useNavigate();
-  const { orders, menuItems } = useRestaurantStore();
+  const { orders, menuItems, alerts, fetchOrders, fetchMenu, fetchKitchenStock, markAlertsRead } =
+    useRestaurantStore();
+
+  useEffect(() => {
+    fetchOrders?.();
+    fetchMenu?.();
+    fetchKitchenStock?.();
+  }, [fetchOrders, fetchMenu, fetchKitchenStock]);
+
+  const latestSupply = alerts.find((a) => a.type === 'INTERNAL_SUPPLY' && !a.read);
+
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeMenu = Array.isArray(menuItems) ? menuItems : [];
 
   const today = new Date().toISOString().split('T')[0];
-  const todayOrders = orders.filter(o => o.timestamp.startsWith(today));
-  const totalSales = todayOrders.reduce((acc, o) => acc + o.total, 0);
-  const criticalStock = menuItems.filter(i => i.stock < 10).length;
+  const todayOrders = safeOrders.filter((o) => {
+    const ts = o.timestamp || o.createdAt;
+    if (!ts) return false;
+    const day = typeof ts === 'string' ? ts.slice(0, 10) : new Date(ts).toISOString().slice(0, 10);
+    return day === today;
+  });
+  const totalSales = todayOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0);
+  const criticalStock = safeMenu.filter((i) => (i.stock ?? 999) < 10).length;
 
-  const recentOrders = orders.slice(0, 5);
+  const recentOrders = safeOrders.slice(0, 5);
 
   return (
     <div className="bg-[#F9FAFB] min-h-screen selection:bg-accent-olive selection:text-white animate-in fade-in duration-500 px-4 py-6 md:px-8 font-sans">
@@ -48,6 +71,22 @@ const RestaurantDashboard = () => {
         </div>
       </div>
 
+      {latestSupply && (
+        <Link
+          to="/restaurant/received-stock"
+          onClick={() => markAlertsRead?.()}
+          className="mb-4 block bg-emerald-50 border border-emerald-200 p-4 rounded-xl hover:border-emerald-400 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <Package size={20} className="text-emerald-700 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">{latestSupply.title}</p>
+              <p className="text-[9px] text-emerald-700 font-bold mt-1">{latestSupply.message}</p>
+            </div>
+          </div>
+        </Link>
+      )}
+
       <div className="space-y-6">
         {/* Compact Metric Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -78,22 +117,42 @@ const RestaurantDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {recentOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-accent-olive/[0.02] transition-all group">
-                        <td className="px-6 py-3">
-                          <span className="text-[10px] font-black text-black uppercase tracking-tight italic font-serif">#{order.id.slice(-8)}</span>
-                        </td>
-                        <td className="px-6 py-3 text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                          {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="px-6 py-3">
-                          <Badge variant="secondary" className="text-[7px] font-black bg-slate-100 border-none px-2 h-4">{order.items.length} UNITS</Badge>
-                        </td>
-                        <td className="px-6 py-3 text-right">
-                          <span className="text-[11px] font-black text-black italic font-serif">₹{order.total.toLocaleString()}</span>
+                    {recentOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          No orders yet today
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      recentOrders.map((order) => {
+                        const rowKey = order.id || order._id || order.orderNumber || Math.random();
+                        const ts = order.timestamp || order.createdAt;
+                        return (
+                          <tr key={rowKey} className="hover:bg-accent-olive/[0.02] transition-all group">
+                            <td className="px-6 py-3">
+                              <span className="text-[10px] font-black text-black uppercase tracking-tight italic font-serif">
+                                {orderDisplayId(order)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                              {ts
+                                ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                : '—'}
+                            </td>
+                            <td className="px-6 py-3">
+                              <Badge variant="secondary" className="text-[7px] font-black bg-slate-100 border-none px-2 h-4">
+                                {(order.items?.length ?? 0)} UNITS
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-3 text-right">
+                              <span className="text-[11px] font-black text-black italic font-serif">
+                                ₹{(Number(order.total) || 0).toLocaleString()}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

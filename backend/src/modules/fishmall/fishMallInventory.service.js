@@ -6,11 +6,22 @@ import {
 import { FishMallSale } from './fishmallSale.model.js';
 import { AppError } from '../../utils/appError.js';
 import { INVENTORY_SCOPES } from '../../constants/inventoryScopes.js';
+import { fishMallOutletService } from '../fishmall-outlet/fishMallOutlet.service.js';
 
 class FishMallInventoryService {
+  async _resolveOutletId(explicitId) {
+    if (explicitId) {
+      const outlet = await fishMallOutletService.getActiveById(explicitId);
+      return outlet._id;
+    }
+    const fallback = await fishMallOutletService.ensureDefaultOutlet();
+    return fallback._id;
+  }
+
   async list(query = {}) {
-    const { search, page = 1, limit = 200 } = query;
+    const { search, page = 1, limit = 200, outletId } = query;
     const filter = { isActive: true };
+    if (outletId) filter.outletId = await this._resolveOutletId(outletId);
     if (search) filter.name = new RegExp(search, 'i');
     const skip = (page - 1) * limit;
     const docs = await FishMallInventoryItem.find(filter)
@@ -25,15 +36,16 @@ class FishMallInventoryService {
   }
 
   async createItem(payload, userId) {
-    const existing = await FishMallInventoryItem.findOne({
-      name: payload.name?.trim().toUpperCase(),
-    });
+    const outletId = await this._resolveOutletId(payload.outletId);
+    const name = payload.name?.trim().toUpperCase();
+    const existing = await FishMallInventoryItem.findOne({ outletId, name });
     if (existing) {
-      throw new AppError('Fish Mall item with this name already exists', 409);
+      throw new AppError('Fish Mall item with this name already exists at this outlet', 409);
     }
     const qty = payload.quantity ?? payload.openingStock ?? 0;
     const item = await FishMallInventoryItem.create({
-      name: payload.name.trim().toUpperCase(),
+      outletId,
+      name,
       quantity: qty,
       openingStock: payload.openingStock ?? qty,
       rate: payload.rate ?? 0,
@@ -183,6 +195,61 @@ class FishMallInventoryService {
   /**
    * Deduct Fish Mall stock for internal supply to Restaurant (within caller's transaction).
    */
+  /**
+   * Receive stock from procurement transfer (within caller's Mongo transaction).
+   */
+  async receiveProcurementTransfer(payload, userId, session, transferId, transferNumber) {
+    const name = payload.name?.trim().toUpperCase();
+    if (!name) throw new AppError('Item name is required for Fish Mall receipt', 400);
+    const outletId = await this._resolveOutletId(payload.outletId);
+
+    let item = await FishMallInventoryItem.findOne({ outletId, name, isActive: true }).session(session);
+    if (!item) {
+      const [created] = await FishMallInventoryItem.create(
+        [
+          {
+            outletId,
+            name,
+            quantity: 0,
+            openingStock: 0,
+            rate: payload.rate ?? 0,
+            unit: payload.unit || 'KG',
+            recordDate: new Date(),
+          },
+        ],
+        { session }
+      );
+      item = created;
+    }
+
+    const qty = parseFloat(payload.quantity);
+    if (!qty || qty <= 0) {
+      throw new AppError('Receive quantity must be greater than zero', 400);
+    }
+
+    const prev = item.quantity || 0;
+    const next = prev + qty;
+    item.quantity = next;
+    if (payload.rate != null && payload.rate > 0) item.rate = payload.rate;
+    item.recordDate = new Date();
+    await item.save({ session });
+
+    await this._log(
+      item._id,
+      'PROCUREMENT_TRANSFER_IN',
+      qty,
+      prev,
+      next,
+      userId,
+      `Procurement transfer ${transferNumber} → Fish Mall outlet`,
+      transferId,
+      'StockTransfer',
+      session
+    );
+
+    return { item };
+  }
+
   async transferOutForInternal(itemId, quantity, userId, session, billId, invoiceNumber) {
     const item = await FishMallInventoryItem.findById(itemId).session(session);
     if (!item || !item.isActive) {
@@ -215,8 +282,11 @@ class FishMallInventoryService {
   }
 
   async getLogs(query = {}) {
-    const { limit = 50 } = query;
-    return FishMallInventoryLog.find()
+    const { limit = 50, type, referenceModel } = query;
+    const filter = {};
+    if (type) filter.type = type;
+    if (referenceModel) filter.referenceModel = referenceModel;
+    return FishMallInventoryLog.find(filter)
       .sort({ createdAt: -1 })
       .limit(parseInt(limit, 10))
       .populate('itemId', 'name unit rate');

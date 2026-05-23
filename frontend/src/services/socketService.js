@@ -184,6 +184,115 @@ class SocketService {
       useFishMallStore.getState().fetchStock?.();
     });
 
+    this.socket.on('fishmall:inventory_updated', () => {
+      useFishMallStore.getState().fetchStock?.();
+    });
+
+    const shouldNotifyFishMall = (data) => {
+      const user = useAuthStore.getState().user;
+      const role = (user?.role || '').toUpperCase();
+      const fishRoles = ['FISHMALL_MANAGER', 'FISHMALL_CASHIER', 'FISHMALL'];
+      if (!fishRoles.includes(role)) return false;
+      const myOutlet = user?.fishMallOutletId;
+      if (!myOutlet || !data?.outletId) return true;
+      return String(myOutlet) === String(data.outletId);
+    };
+
+    this.socket.on('fishmall:transfer_pending', (data) => {
+      if (!shouldNotifyFishMall(data)) return;
+      console.log('[Socket] Fish Mall transfer pending:', data);
+      useFishMallStore.getState().addProcurementTransferAlert?.(data, 'pending');
+      toast(
+        `Transfer ${data.transferNumber} queued from admin → ${data.outletName || 'Fish Mall'}`,
+        { icon: '📦', duration: 6000 }
+      );
+    });
+
+    this.socket.on('fishmall:procurement_transfer', (data) => {
+      if (!shouldNotifyFishMall(data)) return;
+      console.log('[Socket] Fish Mall procurement transfer received:', data);
+      const store = useFishMallStore.getState();
+      store.addProcurementTransferAlert?.(data, 'received');
+      store.fetchStock?.();
+      const lines = (data.lines || [])
+        .map((l) => `${l.productName} ${l.quantity}${l.unit || 'KG'}`)
+        .join(', ');
+      toast.success(
+        `Stock received: ${data.transferNumber}${lines ? ` — ${lines}` : ''}`,
+        { duration: 7000 }
+      );
+      try {
+        const audio = new Audio('/notification.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {});
+      } catch {
+        /* optional sound */
+      }
+    });
+
+    const shouldNotifyRestaurant = () => {
+      const user = useAuthStore.getState().user;
+      const role = (user?.role || '').toUpperCase();
+      return ['REST_MANAGER', 'REST_CASHIER', 'RESTAURANT', 'SUPER_ADMIN'].includes(role);
+    };
+
+    const handleRestaurantSupply = (data) => {
+      if (!shouldNotifyRestaurant()) return;
+      const store = useRestaurantStore.getState();
+      store.addInternalSupplyAlert?.(data);
+      store.fetchKitchenStock?.();
+      store.fetchMenu?.();
+      const lines = (data?.lines || [])
+        .map((l) => `${l.itemName} ${l.quantity}${l.unit || 'KG'}`)
+        .join(', ');
+      toast.success(
+        `Kitchen stock received: ${data.invoiceNumber || 'INT'}${lines ? ` — ${lines}` : ''}`,
+        { duration: 7000, icon: '📦' }
+      );
+    };
+
+    this.socket.on('restaurant:internal_supply_received', handleRestaurantSupply);
+
+    this.socket.on('restaurant:inventory_updated', (data) => {
+      if (!shouldNotifyRestaurant()) return;
+      const store = useRestaurantStore.getState();
+      store.fetchKitchenStock?.();
+      store.fetchMenu?.();
+      if (data?.invoiceNumber) {
+        handleRestaurantSupply(data);
+      }
+    });
+
+    this.socket.on('restaurant:kot_created', () => {
+      useRestaurantStore.getState().fetchKitchenTickets?.();
+    });
+
+    this.socket.on('restaurant:kot_updated', () => {
+      useRestaurantStore.getState().fetchKitchenTickets?.();
+    });
+
+    this.socket.on('restaurant:order_settled', () => {
+      const store = useRestaurantStore.getState();
+      store.fetchMenu?.();
+      store.fetchOrders?.();
+      store.fetchKitchenTickets?.();
+    });
+
+    this.socket.on('internal:bill_issued', (data) => {
+      console.log('[Socket Received - Internal Bill]:', data);
+      useFishMallStore.getState().fetchStock?.();
+      handleRestaurantSupply(data);
+    });
+
+    this.socket.on('inventory:transfer_completed', (data) => {
+      console.log('[Socket Received - Procurement Transfer]:', data);
+      const adminStore = useAdminStore.getState();
+      if (data?.scope === 'PROCUREMENT') {
+        adminStore.fetchInventory?.();
+      }
+      useFishMallStore.getState().fetchStock?.();
+    });
+
     // 4. Driver Assignment Notification
     this.socket.on('trip:new_assignment', (data) => {
       console.log('[Socket Received - New Trip Assignment]:', data);

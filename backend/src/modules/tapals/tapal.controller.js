@@ -56,13 +56,15 @@ export const tapalController = {
     const limit = Math.min(100, parseInt(req.query.limit, 10) || 20);
     const skip = (page - 1) * limit;
 
+    const filter = req.user.role === 'SUPER_ADMIN' ? {} : { driverId: req.user.id };
+
     const [trips, total] = await Promise.all([
-      Trip.find({ driverId: req.user.id })
+      Trip.find(filter)
         .populate('tapalId vehicleId')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Trip.countDocuments({ driverId: req.user.id })
+      Trip.countDocuments(filter)
     ]);
 
     const rows = trips.map((t) => aliasTripResponse(t));
@@ -180,21 +182,42 @@ export const tapalController = {
   // Driver starts the trip journey
   startTrip: asyncWrapper(async (req, res) => {
     const { tapalId } = req.body;
-    const result = await tapalService.startTrip(tapalId, req.user.id);
+    let executionDriverId = req.user.id;
+    if (req.user.role === 'SUPER_ADMIN') {
+      const tapal = await Tapal.findById(tapalId);
+      if (tapal && tapal.driverId) {
+        executionDriverId = tapal.driverId.toString();
+      }
+    }
+    const result = await tapalService.startTrip(tapalId, executionDriverId);
     new ApiResponse(200, aliasTapalTripPair(result), 'Trip started successfully').send(res);
   }),
 
   // Driver records cargo pickup scale weight
   pickup: asyncWrapper(async (req, res) => {
     const { tapalId, actualPickupQty } = req.body;
-    const result = await tapalService.pickupCargo(tapalId, req.user.id, actualPickupQty);
+    let executionDriverId = req.user.id;
+    if (req.user.role === 'SUPER_ADMIN') {
+      const tapal = await Tapal.findById(tapalId);
+      if (tapal && tapal.driverId) {
+        executionDriverId = tapal.driverId.toString();
+      }
+    }
+    const result = await tapalService.pickupCargo(tapalId, executionDriverId, actualPickupQty);
     new ApiResponse(200, aliasTapalTripPair(result), 'Cargo pickup recorded successfully').send(res);
   }),
 
   // Driver records final delivery scale weight with Proof uploads
   deliver: asyncWrapper(async (req, res) => {
     const { tapalId, actualDeliveredQty, proofPhotoUrl, signatureUrl } = req.body;
-    const result = await tapalService.deliverCargo(tapalId, req.user.id, actualDeliveredQty, proofPhotoUrl, signatureUrl);
+    let executionDriverId = req.user.id;
+    if (req.user.role === 'SUPER_ADMIN') {
+      const tapal = await Tapal.findById(tapalId);
+      if (tapal && tapal.driverId) {
+        executionDriverId = tapal.driverId.toString();
+      }
+    }
+    const result = await tapalService.deliverCargo(tapalId, executionDriverId, actualDeliveredQty, proofPhotoUrl, signatureUrl);
     new ApiResponse(200, aliasTapalTripPair(result), 'Cargo delivery recorded. POD saved.').send(res);
   }),
 
@@ -208,7 +231,14 @@ export const tapalController = {
   // Driver logs fuel/toll expenses
   logExpense: asyncWrapper(async (req, res) => {
     const { tripId, expenseType, amount, receiptUrl, remarks } = req.body;
-    const result = await tapalService.logExpense(tripId, req.user.id, {
+    let executionDriverId = req.user.id;
+    if (req.user.role === 'SUPER_ADMIN') {
+      const trip = await Trip.findById(tripId);
+      if (trip && trip.driverId) {
+        executionDriverId = trip.driverId.toString();
+      }
+    }
+    const result = await tapalService.logExpense(tripId, executionDriverId, {
       expenseType,
       amount,
       receiptUrl,
@@ -220,7 +250,17 @@ export const tapalController = {
   // Driver submits detailed post-trip expenses form
   submitPostTripExpense: asyncWrapper(async (req, res) => {
     const { tripId } = req.params;
-    const result = await tapalService.submitPostTripExpense(tripId, req.user.id, req.body);
+    let executionDriverId = req.user.id;
+    if (req.user.role === 'SUPER_ADMIN') {
+      const query = mongoose.Types.ObjectId.isValid(tripId)
+        ? { $or: [{ _id: tripId }, { tapalId: tripId }] }
+        : { tripNumber: tripId };
+      const trip = await Trip.findOne(query);
+      if (trip && trip.driverId) {
+        executionDriverId = trip.driverId.toString();
+      }
+    }
+    const result = await tapalService.submitPostTripExpense(tripId, executionDriverId, req.body);
     new ApiResponse(200, { trip: aliasTripResponse(result) }, 'Post-trip expenses submitted successfully').send(res);
   }),
 

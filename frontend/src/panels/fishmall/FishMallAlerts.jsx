@@ -1,10 +1,14 @@
-import React from 'react';
-import { AlertTriangle, Bell, Clock, CheckCircle2, ShieldAlert, Trash2, Settings, Zap } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { AlertTriangle, Bell, Clock, CheckCircle2, ShieldAlert, Settings, Zap, Package } from 'lucide-react';
 import { useFishMallStore } from '../../store/fishMallStore';
 import { Button } from '../../design-system/components/Button';
 
 const FishMallAlerts = () => {
-  const { alerts, dismissAlert, generateAlerts } = useFishMallStore();
+  const { alerts, dismissAlert, generateAlerts, markAlertsRead } = useFishMallStore();
+
+  useEffect(() => {
+    markAlertsRead?.();
+  }, [markAlertsRead]);
 
   const getSeverityStyles = (severity) => {
     switch(severity) {
@@ -19,6 +23,7 @@ const FishMallAlerts = () => {
       case 'LOW_STOCK': return AlertTriangle;
       case 'RATE_CHANGE': return Zap;
       case 'DEAD_STOCK': return ShieldAlert;
+      case 'PROCUREMENT_TRANSFER': return Package;
       default: return Bell;
     }
   };
@@ -92,9 +97,9 @@ const FishMallAlerts = () => {
              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b border-gray-50 pb-3">Alert Distribution</h4>
              <div className="space-y-4">
                 {[
+                  { label: 'Procurement In', count: alerts.filter(a => a.type === 'PROCUREMENT_TRANSFER').length, color: 'bg-emerald-500' },
                   { label: 'Low Stock', count: alerts.filter(a => a.type === 'LOW_STOCK').length, color: 'bg-amber-500' },
-                  { label: 'Rate Changes', count: 0, color: 'bg-blue-500' },
-                  { label: 'System Faults', count: 0, color: 'bg-red-500' }
+                  { label: 'Rate Changes', count: alerts.filter(a => a.type === 'RATE_CHANGE').length, color: 'bg-blue-500' },
                 ].map((stat, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">

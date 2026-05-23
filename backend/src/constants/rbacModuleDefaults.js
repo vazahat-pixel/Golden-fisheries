@@ -55,6 +55,7 @@ export const ROLE_MODULE_DEFAULTS = {
     dashboard: readOnly(),
     procurement: readWrite(),
     tapals: readWrite(),
+    inventory: readWrite(),
   }),
   [ROLES.VEHICLE_MANAGER]: withModules({
     dashboard: readOnly(),

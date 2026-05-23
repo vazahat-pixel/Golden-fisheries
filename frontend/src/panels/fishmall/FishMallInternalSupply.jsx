@@ -1,42 +1,87 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { ArrowRightLeft, Plus, Trash2, FileText, History } from 'lucide-react';
+import {
+  ArrowRightLeft,
+  Plus,
+  Trash2,
+  FileText,
+  History,
+  BarChart2,
+  Store,
+  Eye,
+} from 'lucide-react';
 import { useFishMallStore } from '../../store/fishMallStore';
 import { fishmallService } from '../../services/fishmallService';
 import { Button } from '../../design-system/components/Button';
 
+const DESTINATIONS = [{ id: 'RESTAURANT', label: 'GF Restaurant Kitchen' }];
+
 const emptyLine = () => ({ fishMallItemId: '', quantity: '', rate: '' });
+
+const formatQty = (n) => {
+  const v = Number(n);
+  if (Number.isNaN(v)) return '—';
+  return v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+};
+
+const formatDate = (d) => {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 const FishMallInternalSupply = () => {
   const { stock, fetchStock } = useFishMallStore();
   const [lines, setLines] = useState([emptyLine()]);
   const [remarks, setRemarks] = useState('');
+  const [destination, setDestination] = useState(DESTINATIONS[0].label);
   const [submitting, setSubmitting] = useState(false);
   const [history, setHistory] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [daily, setDaily] = useState(null);
   const [tab, setTab] = useState('bill');
+  const [selectedBill, setSelectedBill] = useState(null);
 
   useEffect(() => {
     fetchStock();
   }, [fetchStock]);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
-      const res = await fishmallService.listInternalBills({ limit: 30 });
-      const payload = res?.data?.data ?? res?.data;
+      const res = await fishmallService.listInternalBills({ limit: 50 });
+      const payload = res?.data ?? res;
       setHistory(Array.isArray(payload) ? payload : payload?.docs || []);
     } catch {
       toast.error('Could not load internal bill history');
     }
-  };
+  }, []);
+
+  const loadReports = useCallback(async () => {
+    try {
+      const [sumRes, dayRes] = await Promise.all([
+        fishmallService.getInternalBillSummary(),
+        fishmallService.getInternalBillDaily(),
+      ]);
+      setSummary(sumRes?.data ?? sumRes);
+      setDaily(dayRes?.data ?? dayRes);
+    } catch {
+      setSummary(null);
+      setDaily(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (tab === 'history') loadHistory();
-  }, [tab]);
+    if (tab === 'reports') loadReports();
+  }, [tab, loadHistory, loadReports]);
 
   const updateLine = (idx, field, value) => {
-    setLines((prev) =>
-      prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
-    );
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
   };
 
   const addLine = () => setLines((prev) => [...prev, emptyLine()]);
@@ -47,13 +92,21 @@ const FishMallInternalSupply = () => {
     const item = stock.find((s) => String(s.id) === String(line.fishMallItemId));
     const qty = parseFloat(line.quantity) || 0;
     const rate = parseFloat(line.rate) || item?.rate || 0;
-    return { item, amount: qty * rate };
+    const available = item?.qty ?? 0;
+    const over = qty > available;
+    return { item, amount: Math.round(qty * rate * 100) / 100, available, over };
   };
 
   const total = lines.reduce((sum, l) => sum + linePreview(l).amount, 0);
+  const hasOverStock = lines.some((l) => linePreview(l).over);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (hasOverStock) {
+      toast.error('One or more lines exceed available Fish Mall stock');
+      return;
+    }
+
     const items = lines
       .map((l) => ({
         fishMallItemId: l.fishMallItemId,
@@ -72,8 +125,9 @@ const FishMallInternalSupply = () => {
       const res = await fishmallService.createInternalBillToRestaurant({
         items,
         remarks: remarks || undefined,
+        destinationName: destination,
       });
-      const bill = res?.data?.data?.bill || res?.data?.bill;
+      const bill = res?.data?.data?.bill ?? res?.data?.bill;
       toast.success(
         bill?.invoiceNumber
           ? `Internal bill ${bill.invoiceNumber} issued — Restaurant stock updated`
@@ -82,11 +136,22 @@ const FishMallInternalSupply = () => {
       setLines([emptyLine()]);
       setRemarks('');
       await fetchStock();
-      if (tab === 'history') loadHistory();
+      setTab('history');
+      loadHistory();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to issue internal bill');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openBill = async (id) => {
+    try {
+      const res = await fishmallService.getInternalBill(id);
+      const bill = res?.data?.bill ?? res?.data?.data?.bill;
+      setSelectedBill(bill);
+    } catch {
+      toast.error('Could not load invoice');
     }
   };
 
@@ -95,50 +160,73 @@ const FishMallInternalSupply = () => {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <ArrowRightLeft className="text-emerald-600" />
-          Bill Restaurant (Internal Supply)
+          Internal Bill — Restaurant
         </h1>
         <p className="text-sm text-slate-600 mt-1">
-          Fish Mall stock decreases; Restaurant kitchen stock increases. Procurement inventory is
-          not affected.
+          Fish Mall stock decreases; Restaurant kitchen stock increases atomically. Procurement
+          inventory is never used.
         </p>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-200">
-        <button
-          type="button"
-          onClick={() => setTab('bill')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-            tab === 'bill'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-slate-500'
-          }`}
-        >
-          New Bill
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('history')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px flex items-center gap-1 ${
-            tab === 'history'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-slate-500'
-          }`}
-        >
-          <History size={16} /> History
-        </button>
+      <div className="flex flex-wrap gap-2 border-b border-slate-200">
+        {[
+          { id: 'bill', label: 'New bill', icon: FileText },
+          { id: 'history', label: 'History', icon: History },
+          { id: 'reports', label: 'Reports', icon: BarChart2 },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px flex items-center gap-1 ${
+              tab === id
+                ? 'border-emerald-600 text-emerald-700'
+                : 'border-transparent text-slate-500'
+            }`}
+          >
+            <Icon size={16} /> {label}
+          </button>
+        ))}
       </div>
 
-      {tab === 'bill' ? (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+      {tab === 'bill' && (
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-xl border border-slate-200 p-6 space-y-4"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                <Store size={12} /> Restaurant destination
+              </label>
+              <select
+                className="w-full mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+              >
+                {DESTINATIONS.map((d) => (
+                  <option key={d.id} value={d.label}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <p className="text-xs text-slate-500 pb-2">
+                Invoice number is auto-generated (INT-####) on issue.
+              </p>
+            </div>
+          </div>
+
           {lines.map((line, idx) => {
-            const { item, amount } = linePreview(line);
+            const { item, amount, available, over } = linePreview(line);
             return (
               <div
                 key={idx}
                 className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border-b border-slate-100 pb-4"
               >
                 <div className="md:col-span-5">
-                  <label className="text-xs font-medium text-slate-500">Fish Mall SKU</label>
+                  <label className="text-xs font-medium text-slate-500">Fish Mall product</label>
                   <select
                     className="w-full mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
                     value={line.fishMallItemId}
@@ -148,7 +236,7 @@ const FishMallInternalSupply = () => {
                     <option value="">Select item</option>
                     {stock.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name} — {s.qty} KG @ ₹{s.rate}
+                        {s.name} — {formatQty(s.qty)} KG @ ₹{s.rate}
                       </option>
                     ))}
                   </select>
@@ -159,27 +247,30 @@ const FishMallInternalSupply = () => {
                     type="number"
                     step="0.01"
                     min="0.01"
-                    className="w-full mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"
                     value={line.quantity}
                     onChange={(e) => updateLine(idx, 'quantity', e.target.value)}
                     required
                   />
-                  {item && parseFloat(line.quantity) > item.qty && (
-                    <p className="text-xs text-red-600 mt-1">Exceeds available {item.qty} KG</p>
+                  {item && (
+                    <p className={`text-xs mt-1 ${over ? 'text-red-600 font-bold' : 'text-emerald-700'}`}>
+                      Available: {formatQty(available)} KG
+                    </p>
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-slate-500">Rate (₹/KG)</label>
+                  <label className="text-xs font-medium text-slate-500">Internal rate (₹/KG)</label>
                   <input
                     type="number"
                     step="0.01"
-                    placeholder={item?.rate ?? ''}
-                    className="w-full mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    min="0"
+                    placeholder={item?.rate != null ? String(item.rate) : ''}
+                    className="w-full mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"
                     value={line.rate}
                     onChange={(e) => updateLine(idx, 'rate', e.target.value)}
                   />
                 </div>
-                <div className="md:col-span-2 text-sm font-semibold text-slate-700">
+                <div className="md:col-span-2 text-sm font-semibold text-slate-700 font-mono">
                   ₹{amount.toFixed(2)}
                 </div>
                 <div className="md:col-span-1">
@@ -201,38 +292,44 @@ const FishMallInternalSupply = () => {
           </Button>
 
           <div>
-            <label className="text-xs font-medium text-slate-500">Remarks</label>
+            <label className="text-xs font-medium text-slate-500">Notes</label>
             <input
               className="w-full mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Optional note for kitchen / accounts"
+              placeholder="Kitchen / accounts note"
             />
           </div>
 
           <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-            <span className="text-lg font-bold text-slate-900">Total: ₹{total.toFixed(2)}</span>
-            <Button type="submit" disabled={submitting}>
+            <span className="text-lg font-bold text-slate-900 font-mono">
+              Total: ₹{total.toFixed(2)}
+            </span>
+            <Button type="submit" disabled={submitting || hasOverStock}>
               <FileText size={16} className="mr-2" />
               {submitting ? 'Issuing…' : 'Issue internal bill'}
             </Button>
           </div>
         </form>
-      ) : (
+      )}
+
+      {tab === 'history' && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="text-left p-3">Invoice</th>
+                <th className="text-left p-3">Destination</th>
                 <th className="text-left p-3">Date</th>
                 <th className="text-right p-3">Amount</th>
                 <th className="text-left p-3">Lines</th>
+                <th className="p-3" />
               </tr>
             </thead>
             <tbody>
               {history.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-6 text-center text-slate-500">
+                  <td colSpan={6} className="p-6 text-center text-slate-500">
                     No internal bills yet
                   </td>
                 </tr>
@@ -240,18 +337,82 @@ const FishMallInternalSupply = () => {
                 history.map((b) => (
                   <tr key={b._id} className="border-t border-slate-100">
                     <td className="p-3 font-mono font-medium">{b.invoiceNumber}</td>
-                    <td className="p-3">
-                      {b.createdAt ? new Date(b.createdAt).toLocaleString() : '—'}
-                    </td>
-                    <td className="p-3 text-right">₹{(b.totalAmount || 0).toFixed(2)}</td>
-                    <td className="p-3 text-slate-600">
+                    <td className="p-3">{b.destinationName || 'Restaurant'}</td>
+                    <td className="p-3">{formatDate(b.billDate || b.createdAt)}</td>
+                    <td className="p-3 text-right font-mono">₹{formatQty(b.totalAmount)}</td>
+                    <td className="p-3 text-slate-600 text-xs">
                       {(b.lines || []).map((l) => l.itemName).join(', ')}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        type="button"
+                        onClick={() => openBill(b._id)}
+                        className="text-emerald-700 hover:underline flex items-center gap-1 text-xs font-bold"
+                      >
+                        <Eye size={14} /> View
+                      </button>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {tab === 'reports' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-bold text-slate-800 mb-3">All-time summary</h3>
+            {summary ? (
+              <ul className="space-y-2 text-sm font-mono">
+                <li>Bills issued: {summary.totalBills ?? 0}</li>
+                <li>Total value: ₹{formatQty(summary.totalInternalSupplyValue)}</li>
+                <li>Total qty: {formatQty(summary.totalQuantityKg)} KG</li>
+              </ul>
+            ) : (
+              <p className="text-slate-500 text-sm">Loading…</p>
+            )}
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-bold text-slate-800 mb-3">Today</h3>
+            {daily ? (
+              <ul className="space-y-2 text-sm font-mono">
+                <li>Date: {formatDate(daily.date)}</li>
+                <li>Bills: {daily.billCount ?? 0}</li>
+                <li>Amount: ₹{formatQty(daily.totalAmount)}</li>
+                <li>Qty: {formatQty(daily.totalQuantityKg)} KG</li>
+              </ul>
+            ) : (
+              <p className="text-slate-500 text-sm">Loading…</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {selectedBill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white max-w-lg w-full rounded-xl border p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between mb-4">
+              <h2 className="text-lg font-bold font-mono">{selectedBill.invoiceNumber}</h2>
+              <button type="button" onClick={() => setSelectedBill(null)} className="text-2xl text-slate-400">
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 mb-4">
+              To: {selectedBill.destinationName} · ₹{formatQty(selectedBill.totalAmount)}
+            </p>
+            <ul className="text-sm space-y-2 border-t pt-3">
+              {(selectedBill.lines || []).map((l, i) => (
+                <li key={i} className="flex justify-between font-mono">
+                  <span>
+                    {l.itemName} {formatQty(l.quantity)} {l.unit}
+                  </span>
+                  <span>₹{formatQty(l.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
     </div>

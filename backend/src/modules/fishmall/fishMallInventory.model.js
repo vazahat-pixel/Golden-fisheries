@@ -2,12 +2,17 @@ import mongoose from 'mongoose';
 
 const fishMallInventoryItemSchema = new mongoose.Schema(
   {
+    outletId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FishMallOutlet',
+      required: false,
+      index: true,
+    },
     name: {
       type: String,
       required: true,
       trim: true,
       uppercase: true,
-      unique: true,
       index: true,
     },
     quantity: {
@@ -43,6 +48,8 @@ const fishMallInventoryItemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+fishMallInventoryItemSchema.index({ outletId: 1, name: 1 }, { unique: true });
+
 const fishMallInventoryLogSchema = new mongoose.Schema(
   {
     itemId: {
@@ -53,7 +60,14 @@ const fishMallInventoryLogSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['OPENING', 'SALE_OUT', 'ADJUSTMENT', 'CLOSING', 'INTERNAL_TRANSFER_OUT'],
+      enum: [
+        'OPENING',
+        'SALE_OUT',
+        'ADJUSTMENT',
+        'CLOSING',
+        'INTERNAL_TRANSFER_OUT',
+        'PROCUREMENT_TRANSFER_IN',
+      ],
       required: true,
     },
     quantityChange: { type: Number, required: true },
@@ -62,7 +76,7 @@ const fishMallInventoryLogSchema = new mongoose.Schema(
     referenceId: { type: mongoose.Schema.Types.ObjectId, default: null },
     referenceModel: {
       type: String,
-      enum: ['FishMallSale', 'FishMallDailyClosing', 'InternalSupplyBill', null],
+      enum: ['FishMallSale', 'FishMallDailyClosing', 'InternalSupplyBill', 'StockTransfer', null],
       default: null,
     },
     remarks: { type: String, default: '' },

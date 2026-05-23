@@ -43,11 +43,17 @@ export function canAccessAdminPanel(user) {
   return perms.panels?.admin === true;
 }
 
+const PANEL_ROLES = [ROLES.REST_MANAGER, ROLES.REST_CASHIER, ROLES.FISHMALL_MANAGER, ROLES.FISHMALL_CASHIER];
+
 /** Unified Admin Login — office staff + field roles (buyer, procurement, vehicles). */
 export function canLoginViaAdminErp(user) {
   if (!user || user.status === 'revoked' || user.isActive === false) return false;
   const role = normalizeRole(user.role);
   if (role === ROLES.DRIVER) return false;
+  // Restaurant and FishMall panel roles can log in via their own auth pages
+  if (PANEL_ROLES.includes(role)) {
+    return user.platformAccess?.web !== false;
+  }
   if (MOBILE_FIELD_ROLES.includes(role)) {
     return user.platformAccess?.mobile !== false;
   }
@@ -69,6 +75,8 @@ export function getDefaultHomePath(user) {
   if (role === ROLES.BUYER) return '/mobile/buyer/dashboard';
   if (role === ROLES.PROCUREMENT_MANAGER) return '/mobile/procurement/harvest';
   if (role === ROLES.VEHICLE_MANAGER) return '/mobile/vehicles';
+  if (role === ROLES.REST_MANAGER || role === ROLES.REST_CASHIER) return '/restaurant/dashboard';
+  if (role === ROLES.FISHMALL_MANAGER || role === ROLES.FISHMALL_CASHIER) return '/fishmall/dashboard';
   if (canAccessAdminPanel(user)) return '/admin/dashboard';
   return '/auth/home';
 }

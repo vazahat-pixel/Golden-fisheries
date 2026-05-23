@@ -3,6 +3,7 @@ import {
   RestaurantInventoryItem,
   RestaurantInventoryLog,
 } from './restaurantInventory.model.js';
+import { RestaurantMenuItem } from './restaurantMenu.model.js';
 import { AppError } from '../../utils/appError.js';
 import { INVENTORY_SCOPES } from '../../constants/inventoryScopes.js';
 
@@ -102,52 +103,128 @@ class RestaurantInventoryService {
   }
 
   /**
-   * Deduct restaurant kitchen stock when POS order is settled.
-   * Matches by inventoryItemId or item name (case-insensitive).
+   * Deduct kitchen stock when POS order is settled.
+   * Uses menu recipe mapping when menuItemId is set; otherwise direct SKU deduction.
    */
   async deductForOrder(order, userId, session) {
+    const consumptionMap = new Map();
+
     for (const line of order.items) {
-      let item = null;
-      if (line.inventoryItemId) {
-        item = await RestaurantInventoryItem.findById(line.inventoryItemId).session(
-          session
-        );
+      const servings = parseFloat(line.quantity) || 1;
+      let menu = null;
+
+      if (line.menuItemId) {
+        menu = await RestaurantMenuItem.findById(line.menuItemId).session(session);
       }
-      if (!item && line.name) {
-        item = await RestaurantInventoryItem.findOne({
+      if (!menu && line.name) {
+        menu = await RestaurantMenuItem.findOne({
           name: line.name.trim().toUpperCase(),
           isActive: true,
         }).session(session);
       }
-      if (!item) {
-        throw new AppError(
-          `Restaurant kitchen stock not found for "${line.name}". Add inventory or link inventoryItemId.`,
-          400
-        );
+
+      if (menu?.recipe?.length) {
+        for (const ing of menu.recipe) {
+          const deductQty = Math.round(ing.quantityPerServe * servings * 1000) / 1000;
+          const key = ing.inventoryItemId.toString();
+          consumptionMap.set(key, (consumptionMap.get(key) || 0) + deductQty);
+        }
+      } else {
+        let item = null;
+        if (line.inventoryItemId) {
+          item = await RestaurantInventoryItem.findById(line.inventoryItemId).session(session);
+        }
+        if (!item && line.name) {
+          item = await RestaurantInventoryItem.findOne({
+            name: line.name.trim().toUpperCase(),
+            isActive: true,
+          }).session(session);
+        }
+        if (!item) {
+          throw new AppError(
+            `No recipe or kitchen stock for "${line.name}". Configure menu recipe or inventory link.`,
+            400
+          );
+        }
+        const key = item._id.toString();
+        consumptionMap.set(key, (consumptionMap.get(key) || 0) + servings);
       }
-      const prev = item.quantity || 0;
-      const next = prev - line.quantity;
-      if (next < 0) {
-        throw new AppError(
-          `Insufficient restaurant stock for ${item.name}. Available: ${prev} ${item.unit}`,
-          400
-        );
-      }
-      item.quantity = next;
-      item.recordDate = new Date();
-      await item.save({ session });
-      await this._log(
-        item._id,
-        'SALE_OUT',
-        -line.quantity,
-        prev,
-        next,
+    }
+
+    for (const [itemId, totalDeduct] of consumptionMap.entries()) {
+      await this._deductItem(
+        itemId,
+        totalDeduct,
         userId,
-        `Restaurant POS ${order.orderNumber}`,
+        session,
+        `Recipe/POS consumption ${order.orderNumber}`,
         order._id,
         'RestaurantOrder',
-        session
+        'RECIPE_CONSUMPTION'
       );
+    }
+  }
+
+  async _deductItem(
+    itemId,
+    quantity,
+    userId,
+    session,
+    remarks,
+    referenceId,
+    referenceModel,
+    logType = 'RECIPE_CONSUMPTION'
+  ) {
+    const item = await RestaurantInventoryItem.findById(itemId).session(session);
+    if (!item) throw new AppError('Restaurant inventory item not found', 404);
+
+    const prev = item.quantity || 0;
+    const next = Math.round((prev - quantity) * 1000) / 1000;
+    if (next < 0) {
+      throw new AppError(
+        `Insufficient kitchen stock for ${item.name}. Available: ${prev} ${item.unit}, required: ${quantity}`,
+        400
+      );
+    }
+    item.quantity = next;
+    item.recordDate = new Date();
+    await item.save({ session });
+    await this._log(
+      item._id,
+      logType,
+      -quantity,
+      prev,
+      next,
+      userId,
+      remarks,
+      referenceId,
+      referenceModel,
+      session
+    );
+    return item;
+  }
+
+  async recordWastage(itemId, quantity, userId, remarks = 'Kitchen wastage') {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      await this._deductItem(
+        itemId,
+        quantity,
+        userId,
+        session,
+        remarks,
+        null,
+        null,
+        'WASTAGE'
+      );
+      await session.commitTransaction();
+      return { ok: true };
+    } catch (e) {
+      await session.abortTransaction();
+      throw e;
+    } finally {
+      session.endSession();
     }
   }
 
@@ -163,14 +240,20 @@ class RestaurantInventoryService {
       session
     );
     if (!item) {
-      item = new RestaurantInventoryItem({
-        name,
-        quantity: 0,
-        unit: payload.unit || 'KG',
-        rate: payload.rate ?? 0,
-        category: 'Kitchen Stock',
-        recordDate: new Date(),
-      });
+      const [created] = await RestaurantInventoryItem.create(
+        [
+          {
+            name,
+            quantity: 0,
+            unit: payload.unit || 'KG',
+            rate: payload.rate ?? 0,
+            category: 'Kitchen Stock',
+            recordDate: new Date(),
+          },
+        ],
+        { session }
+      );
+      item = created;
     }
 
     const prev = item.quantity || 0;
@@ -197,11 +280,14 @@ class RestaurantInventoryService {
   }
 
   async getLogs(query = {}) {
-    const { limit = 50 } = query;
-    return RestaurantInventoryLog.find()
+    const { limit = 50, type, referenceModel } = query;
+    const filter = {};
+    if (type) filter.type = type;
+    if (referenceModel) filter.referenceModel = referenceModel;
+    return RestaurantInventoryLog.find(filter)
       .sort({ createdAt: -1 })
       .limit(parseInt(limit, 10))
-      .populate('itemId', 'name unit')
+      .populate('itemId', 'name unit rate category')
       .populate('performedBy', 'fullName phone');
   }
 

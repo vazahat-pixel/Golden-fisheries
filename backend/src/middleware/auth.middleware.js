@@ -112,6 +112,27 @@ export const requireMobile = (req, res, next) => {
 /**
  * Restaurant vs FishMall panel isolation.
  */
+/**
+ * Attach Fish Mall outlet scope for panel inventory/sales (per-outlet stock).
+ */
+export const resolveFishMallOutlet = async (req, res, next) => {
+  try {
+    const { fishMallOutletService } = await import(
+      '../modules/fishmall-outlet/fishMallOutlet.service.js'
+    );
+    if (isSuperAdmin(req.user.role) && req.query.outletId) {
+      req.fishMallOutletId = (await fishMallOutletService.getActiveById(req.query.outletId))._id;
+    } else if (req.user.fishMallOutletId) {
+      req.fishMallOutletId = req.user.fishMallOutletId;
+    } else {
+      req.fishMallOutletId = (await fishMallOutletService.ensureDefaultOutlet())._id;
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const requireBusinessUnit = (...units) => {
   return (req, res, next) => {
     if (isSuperAdmin(req.user.role)) return next();
@@ -139,7 +160,16 @@ export const blockMobileWrite = (req, res, next) => {
   const viewOnly = req.user?.platformAccess?.mobileViewOnly === true;
 
   if (isMobileClient && isSuperAdmin(req.user.role) && viewOnly && writeMethods.includes(req.method)) {
-    return sendError(res, 'Write operations are not allowed in mobile view-only mode.', 403);
+    const isDriverBypass = req.originalUrl && (
+      req.originalUrl.includes('/start-trip') ||
+      req.originalUrl.includes('/pickup') ||
+      req.originalUrl.includes('/deliver') ||
+      req.originalUrl.includes('/expense') ||
+      req.originalUrl.includes('/post-trip-expense')
+    );
+    if (!isDriverBypass) {
+      return sendError(res, 'Write operations are not allowed in mobile view-only mode.', 403);
+    }
   }
   next();
 };

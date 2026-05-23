@@ -32,7 +32,9 @@ export const setupSockets = (httpServer) => {
       }
 
       const decoded = jwt.verify(token, config.jwt.accessSecret);
-      const user = await User.findById(decoded.id);
+      const user = await User.findById(decoded.id).select(
+        'phone role fullName isActive businessUnit fishMallOutletId'
+      );
 
       if (!user) {
         logger.warn(`[Socket Auth Error]: Connection attempt refused. User ${decoded.id} not found.`);
@@ -49,7 +51,8 @@ export const setupSockets = (httpServer) => {
         id: user._id.toString(),
         phone: user.phone,
         role: user.role,
-        fullName: user.fullName
+        fullName: user.fullName,
+        fishMallOutletId: user.fishMallOutletId?.toString() || null,
       };
 
       next();
@@ -81,6 +84,19 @@ export const setupSockets = (httpServer) => {
 
     if (normalizedRole === 'BUYER') {
       socket.join('buyer:updates');
+    }
+
+    const fishMallRoles = ['FISHMALL_MANAGER', 'FISHMALL_CASHIER', 'FISHMALL'];
+    if (fishMallRoles.includes(normalizedRole)) {
+      socket.join('fishmall:updates');
+      if (socket.user.fishMallOutletId) {
+        socket.join(`fishmall:outlet:${socket.user.fishMallOutletId}`);
+      }
+    }
+
+    const restaurantRoles = ['REST_MANAGER', 'REST_CASHIER', 'RESTAURANT'];
+    if (restaurantRoles.includes(normalizedRole)) {
+      socket.join('restaurant:updates');
     }
 
     // Driver location tracking broadcast

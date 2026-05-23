@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import { Tapal } from '../tapals/tapal.model.js';
+import { InventoryTransaction } from '../inventory/inventoryTransaction.model.js';
 import { Trip } from '../trips/trip.model.js';
 import { Buyer } from '../buyers/buyer.model.js';
 import { BuyerVerification } from './buyerVerification.model.js';
@@ -190,55 +192,106 @@ export const buyerPortalService = {
     const totalAmount = parseFloat((grossAmount + taxAmount).toFixed(2));
 
     const primaryItem = tapal.products?.[0]?.name || body.item || 'SEAFOOD';
+    const billLines =
+      body.items?.length > 0
+        ? body.items.map((line) => ({
+            item: line.item || primaryItem,
+            quantity: parseFloat(line.quantity) || finalWeight,
+            ratePerKg: parseFloat(line.ratePerKg) || ratePerKg,
+            amount:
+              (parseFloat(line.quantity) || finalWeight) *
+              (parseFloat(line.ratePerKg) || ratePerKg),
+          }))
+        : [
+            {
+              item: primaryItem,
+              quantity: finalWeight,
+              ratePerKg,
+              amount: grossAmount,
+            },
+          ];
 
-    const bill = await BuyerBill.create({
-      tapal: tapalId,
-      buyer: user._id,
-      item: primaryItem,
-      finalWeight,
-      ratePerKg,
-      grossAmount,
-      taxRate,
-      taxAmount,
-      totalAmount,
-      items: (body.items || []).map((line) => ({
-        item: line.item || primaryItem,
-        quantity: line.quantity || finalWeight,
-        ratePerKg: line.ratePerKg || ratePerKg,
-        amount: (line.quantity || finalWeight) * (line.ratePerKg || ratePerKg)
-      })),
-      status: 'ISSUED',
-      date: body.date ? new Date(body.date) : new Date(),
-      createdBy: user._id
-    });
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Inventory — sales out
-    const product = await Product.findOne({ name: new RegExp(`^${primaryItem}$`, 'i') });
-    if (product) {
-      await inventoryService.adjustStock(
-        product._id,
-        -finalWeight,
-        'SALES_OUT',
-        { referenceId: bill._id, referenceModel: 'BuyerBill' },
-        user._id,
-        `Buyer bill ${bill.billNo}`
+    try {
+      const bill = await BuyerBill.create(
+        [
+          {
+            tapal: tapalId,
+            buyer: user._id,
+            item: primaryItem,
+            finalWeight,
+            ratePerKg,
+            grossAmount,
+            taxRate,
+            taxAmount,
+            totalAmount,
+            items: billLines,
+            status: 'ISSUED',
+            date: body.date ? new Date(body.date) : new Date(),
+            createdBy: user._id,
+          },
+        ],
+        { session }
       );
+      const savedBill = bill[0];
+
+      const existingStockTx = await InventoryTransaction.findOne({
+        referenceId: savedBill._id,
+        referenceModel: 'BuyerBill',
+        type: 'PROCUREMENT_IN',
+      }).session(session);
+
+      if (!existingStockTx) {
+        for (const line of billLines) {
+          const qtyIn = parseFloat(line.quantity) || 0;
+          if (qtyIn <= 0) continue;
+
+          const product = await Product.findOne({
+            name: new RegExp(`^${line.item}$`, 'i'),
+            isActive: { $ne: false },
+          }).session(session);
+
+          if (product) {
+            await inventoryService.adjustStock(
+              product._id,
+              qtyIn,
+              'PROCUREMENT_IN',
+              { referenceId: savedBill._id, referenceModel: 'BuyerBill', session },
+              user._id,
+              `Buyer billing complete — stock available (${savedBill.billNo})`
+            );
+          }
+        }
+      }
+
+      tapal.status = 'BILLING_DONE';
+      await tapal.save({ session });
+
+      await session.commitTransaction();
+
+      if (user.phone) {
+        await notificationService.sendBuyerBillCreated({
+          phone: user.phone,
+          billNo: savedBill.billNo,
+          amount: totalAmount,
+        });
+      }
+
+      broadcastEvent(
+        'buyer:bill_created',
+        { billNo: savedBill.billNo, tapalId },
+        'dashboard:updates'
+      );
+
+      return savedBill;
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
     }
-
-    tapal.status = 'BILLING_DONE';
-    await tapal.save();
-
-    if (user.phone) {
-      await notificationService.sendBuyerBillCreated({
-        phone: user.phone,
-        billNo: bill.billNo,
-        amount: totalAmount
-      });
-    }
-
-    broadcastEvent('buyer:bill_created', { billNo: bill.billNo, tapalId }, 'dashboard:updates');
-
-    return bill;
   },
 
   async listBills(user, query = {}) {
@@ -359,11 +412,11 @@ export const buyerPortalService = {
       if (product) {
         await inventoryService.adjustStock(
           product._id,
-          qtyIn,
-          'RETURN_IN',
+          -qtyIn,
+          'SALES_OUT',
           { referenceId: salesReturn._id, referenceModel: 'SalesReturn' },
           approverId,
-          `Sales return ${salesReturn.returnNo}: ${retItem.damageReason || retItem.reason}`
+          `Sales return ${salesReturn.returnNo}: stock reversed (${retItem.damageReason || retItem.reason})`
         );
         totalRestored += qtyIn;
         primaryProductId = product._id;
@@ -376,7 +429,7 @@ export const buyerPortalService = {
       applied: totalRestored > 0,
       quantity: totalRestored,
       productId: primaryProductId,
-      transactionType: 'RETURN_IN',
+      transactionType: 'SALES_OUT',
     };
     salesReturn.settlementImpact = {
       balanceAdjustment: salesReturn.settlementImpact?.balanceAdjustment ?? 0,

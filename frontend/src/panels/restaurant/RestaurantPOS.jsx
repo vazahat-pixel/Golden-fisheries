@@ -17,14 +17,21 @@ const RestaurantPOS = () => {
   const { user } = useAuthStore();
   const { 
     menuItems, tables, kots, coupons,
-    createKOT, settleOrderAsync, fetchOrders, fetchMenu, fetchTables, updateTableStatus, loading 
+    createKOTAsync,
+    settleOrderAsync,
+    fetchOrders,
+    fetchMenu,
+    fetchTables,
+    fetchKitchenTickets,
+    loading,
   } = useRestaurantStore();
 
   React.useEffect(() => {
     fetchOrders();
     fetchMenu();
     fetchTables();
-  }, [fetchOrders, fetchMenu, fetchTables]);
+    fetchKitchenTickets();
+  }, [fetchOrders, fetchMenu, fetchTables, fetchKitchenTickets]);
 
   const [orderType, setOrderType] = useState('Dine In');
   const [tableLabel, setTableLabel] = useState('');
@@ -48,11 +55,22 @@ const RestaurantPOS = () => {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const addToCart = (item) => {
-    const existing = cart.find(i => i.id === item.id);
+    const menuId = item.menuItemId || item._id || item.id;
+    const cartKey = String(menuId || item.name);
+    const existing = cart.find((i) => String(i.id) === cartKey || i.name === item.name);
     if (existing) {
-      setCart(cart.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i));
+      setCart(cart.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + 1 } : i)));
     } else {
-      setCart([...cart, { ...item, qty: 1, notes: '' }]);
+      setCart([
+        ...cart,
+        {
+          ...item,
+          id: cartKey,
+          menuItemId: menuId,
+          qty: 1,
+          notes: '',
+        },
+      ]);
     }
   };
 
@@ -88,21 +106,29 @@ const RestaurantPOS = () => {
     return Math.round(total);
   };
 
-  const handleSendToKitchen = () => {
+  const handleSendToKitchen = async () => {
     if (cart.length === 0) return;
     if (orderType === 'Dine In' && !tableLabel) {
       toast.error('Please select or enter a Table Number');
       return;
     }
-    createKOT({
-      tableId: tableLabel || 'COUNTER',
-      tableLabel: tableLabel || 'COUNTER',
-      orderType,
-      items: cart,
-      staffName: user?.name || 'Staff',
-      notes: ''
-    });
-    toast.success(`KOT Generated for ${tableLabel || 'COUNTER'}`);
+    try {
+      const kot = await createKOTAsync({
+        tableId: tableLabel || 'COUNTER',
+        tableLabel: tableLabel || 'COUNTER',
+        orderType,
+        items: cart,
+        staffName: user?.fullName || user?.name || 'Staff',
+        notes: '',
+      });
+      toast.success(
+        kot?.ticketNumber
+          ? `KOT ${kot.ticketNumber} sent to kitchen`
+          : `KOT sent for ${tableLabel || 'COUNTER'}`
+      );
+    } catch {
+      toast.error('Failed to send kitchen ticket');
+    }
   };
 
   const handleApplyCoupon = () => {
@@ -125,14 +151,17 @@ const RestaurantPOS = () => {
       tableId: tableLabel || 'COUNTER',
       tableLabel: tableLabel || 'COUNTER',
       orderType,
-      items: cart.map(item => ({
-        inventoryItemId: item.id,
+      items: cart.map((item) => ({
+        menuItemId: item.menuItemId || item.id,
+        inventoryItemId: item.inventoryItemId,
         name: item.name,
         quantity: item.qty,
         rate: item.price,
-        gstRate: item.gstRate,
-        notes: item.notes
+        gstRate: item.gstRate ?? 5,
+        notes: item.notes,
       })),
+      discountAmount: calculateDiscount(),
+      mixedPayment: isMixedPayment ? mixedPayment : undefined,
       subtotal: calculateSubtotal(),
       gstAmount: calculateTax(),
       discount: calculateDiscount(),
@@ -145,15 +174,19 @@ const RestaurantPOS = () => {
 
     try {
       const res = await settleOrderAsync(orderData);
-      setLastOrder({ 
-        ...orderData, 
-        invoiceNo: res?.data?.orderNumber || res?.orderNumber || res?.invoiceNo || `ORD-${Date.now()}`, 
-        timestamp: new Date().toISOString() 
+      const settled = res?.data?.order ?? res?.order;
+      setLastOrder({
+        ...orderData,
+        invoiceNo: settled?.orderNumber || res?.orderNumber || `ORD-${Date.now()}`,
+        total: settled?.totalAmount ?? orderData.total,
+        subtotal: settled?.subtotal ?? orderData.subtotal,
+        gstAmount: (settled?.cgst || 0) + (settled?.sgst || 0) || orderData.gstAmount,
+        timestamp: new Date().toISOString(),
       });
       setShowInvoice(true);
       toast.success('Order Settled Successfully!');
     } catch (err) {
-      toast.error('Failed to settle order');
+      toast.error(err?.message || 'Failed to settle order', { duration: 6000 });
     }
   };
 

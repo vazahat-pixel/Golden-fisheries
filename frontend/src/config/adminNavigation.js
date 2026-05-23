@@ -3,6 +3,7 @@ import {
   ClipboardList,
   Sprout,
   Package,
+  ArrowRightLeft,
   Truck,
   IndianRupee,
   Receipt,
@@ -30,6 +31,12 @@ export const ADMIN_NAV_ITEMS = [
   { icon: ReceiptText, label: 'Billing', path: '/admin/billing', module: 'billing' },
   { icon: ShoppingCart, label: 'Return Approval', path: '/admin/sales-approval', module: 'tapals' },
   { icon: Package, label: 'Inventory', path: '/admin/inventory', module: 'inventory' },
+  {
+    icon: ArrowRightLeft,
+    label: 'Transfer to Fish Mall',
+    path: '/admin/inventory/transfer-fishmall',
+    module: 'inventory',
+  },
   { icon: Store, label: 'Outlets', path: '/admin/outlets', module: 'outlets' },
   { icon: Shield, label: 'Access Control', path: '/admin/access', module: 'accessControl', highlight: true },
   // Buyer workflows inside main admin ERP

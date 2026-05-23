@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 const internalSupplyLineSchema = new mongoose.Schema(
   {
@@ -41,6 +42,16 @@ const internalSupplyBillSchema = new mongoose.Schema(
       enum: ['RESTAURANT'],
       default: 'RESTAURANT',
     },
+    destinationName: {
+      type: String,
+      default: 'GF Restaurant Kitchen',
+      trim: true,
+    },
+    billDate: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
     lines: [internalSupplyLineSchema],
     subtotal: { type: Number, required: true, min: 0 },
     totalAmount: { type: Number, required: true, min: 0 },
@@ -60,19 +71,16 @@ const internalSupplyBillSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-internalSupplyBillSchema.pre('validate', async function (next) {
+internalSupplyBillSchema.index({ status: 1, billDate: -1 });
+internalSupplyBillSchema.index({ createdAt: -1 });
+
+internalSupplyBillSchema.pre('validate', async function assignInvoiceNumber(next) {
   if (this.invoiceNumber) return next();
   try {
-    const last = await this.constructor.findOne().sort({ createdAt: -1 });
-    let n = 1;
-    if (last?.invoiceNumber) {
-      const m = last.invoiceNumber.match(/INT-(\d+)/);
-      if (m) n = parseInt(m[1], 10) + 1;
-    }
-    this.invoiceNumber = `INT-${String(n).padStart(4, '0')}`;
+    this.invoiceNumber = await formatSequentialDocNo('internal-supply', 'INT', 4);
     next();
-  } catch (e) {
-    next(e);
+  } catch (err) {
+    next(err);
   }
 });
 

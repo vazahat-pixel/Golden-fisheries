@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { restaurantController } from './restaurant.controller.js';
+import { restaurantValidators } from '../../validators/restaurant.validator.js';
+import { validateBody } from '../../validators/auth.validator.js';
 import {
   protect,
   restrictTo,
@@ -11,7 +13,6 @@ import {
 import {
   REST_ALL,
   REST_MANAGER_ROLES,
-  REST_CASHIER_ROLES,
 } from '../../constants/roleGroups.js';
 import { internalSupplyController } from '../internal-supply/internalSupply.controller.js';
 
@@ -21,11 +22,101 @@ const web = [protect, requireWeb, requireBusinessUnit('REST'), enforcePlatformPo
 router.get('/inventory/summary', ...web, restrictTo(...REST_ALL), restaurantController.inventorySummary);
 router.get('/inventory/logs', ...web, restrictTo(...REST_ALL), restaurantController.inventoryLogs);
 router.get('/inventory', ...web, restrictTo(...REST_ALL), restaurantController.listInventory);
-router.patch('/inventory/:id/adjust', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.adjustInventory);
+router.patch(
+  '/inventory/:id/adjust',
+  ...web,
+  restrictTo(...REST_MANAGER_ROLES),
+  restaurantController.adjustInventory
+);
+router.post(
+  '/inventory/wastage',
+  ...web,
+  restrictTo(...REST_MANAGER_ROLES),
+  validateBody(restaurantValidators.wastage),
+  restaurantController.recordWastage
+);
+
 router.get('/menu', ...web, restrictTo(...REST_ALL), restaurantController.getMenu);
+router.get('/menu/catalog', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.listMenuAdmin);
+router.post(
+  '/menu',
+  ...web,
+  restrictTo(...REST_MANAGER_ROLES),
+  validateBody(restaurantValidators.createMenu),
+  restaurantController.createMenuItem
+);
+router.patch('/menu/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.updateMenuItem);
+
 router.get('/tables', ...web, restrictTo(...REST_ALL), restaurantController.getTables);
-router.post('/menu', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.createMenuItem);
-router.post('/create', ...web, restrictTo(...REST_ALL), restaurantController.create);
+
+router.get(
+  '/kitchen-tickets',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.listKitchenTickets
+);
+router.post(
+  '/kitchen-tickets',
+  ...web,
+  restrictTo(...REST_ALL),
+  validateBody(restaurantValidators.kitchenTicket),
+  restaurantController.createKitchenTicket
+);
+router.get(
+  '/kitchen-tickets/:id',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.getKitchenTicket
+);
+router.patch(
+  '/kitchen-tickets/:ticketId/lines/:lineId/advance',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.advanceKitchenLine
+);
+router.patch(
+  '/kitchen-tickets/:ticketId/lines/:lineId',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.updateKitchenLine
+);
+
+router.get('/reports/daily-sales', ...web, restrictTo(...REST_ALL), restaurantController.reportDailySales);
+router.get('/reports/item-sales', ...web, restrictTo(...REST_ALL), restaurantController.reportItemSales);
+router.get('/reports/consumption', ...web, restrictTo(...REST_ALL), restaurantController.reportConsumption);
+router.get('/reports/wastage', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.reportWastage);
+router.get('/reports/tables', ...web, restrictTo(...REST_ALL), restaurantController.reportTables);
+router.get('/reports/profit', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.reportProfit);
+
+router.post(
+  '/create',
+  ...web,
+  restrictTo(...REST_ALL),
+  validateBody(restaurantValidators.createOrder),
+  restaurantController.create
+);
+router.get('/all', ...web, restrictTo(...REST_ALL), restaurantController.all);
+router.patch(
+  '/settle/:id',
+  ...web,
+  restrictTo(...REST_ALL),
+  validateBody(restaurantValidators.settle),
+  restaurantController.settle
+);
+router.patch('/:id/status', ...web, restrictTo(...REST_ALL), restaurantController.updateStatus);
+
+router.get(
+  '/internal-supplies/reports/receives',
+  ...web,
+  restrictTo(...REST_ALL),
+  internalSupplyController.restaurantReceiveReport
+);
+router.get(
+  '/internal-supplies/reports/daily',
+  ...web,
+  restrictTo(...REST_ALL),
+  internalSupplyController.dailyTransferSummary
+);
 router.get(
   '/internal-supplies',
   ...web,
@@ -38,8 +129,7 @@ router.get(
   restrictTo(...REST_ALL),
   internalSupplyController.getBill
 );
-router.get('/all', ...web, restrictTo(...REST_ALL), restaurantController.all);
-router.patch('/settle/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.settle);
+
 router.get('/:id', ...web, restrictTo(...REST_ALL), restaurantController.getById);
 
 export default router;

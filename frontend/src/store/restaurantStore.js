@@ -14,6 +14,54 @@ const COUPONS = {
   'FEAST20':  { type: 'percent', value: 20, description: '20% off — Family Feast Special' },
 };
 
+const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(String(id || ''));
+
+const ORDER_TYPE_TO_API = {
+  'Dine In': 'DINE_IN',
+  Takeaway: 'TAKEAWAY',
+  Parcel: 'TAKEAWAY',
+  'Online Order': 'DELIVERY',
+  'Bulk Order': 'TAKEAWAY',
+};
+
+const mapOrderFromApi = (order) => {
+  const id = order._id || order.id;
+  const ts = order.createdAt || order.timestamp;
+  return {
+    ...order,
+    id,
+    _id: id,
+    orderNumber: order.orderNumber,
+    total: order.totalAmount ?? order.total ?? 0,
+    timestamp: ts ? (typeof ts === 'string' ? ts : new Date(ts).toISOString()) : new Date().toISOString(),
+    items: Array.isArray(order.items) ? order.items : [],
+    status: order.status,
+  };
+};
+
+const mapTicketToKot = (ticket) => ({
+  id: ticket._id,
+  _id: ticket._id,
+  ticketNumber: ticket.ticketNumber,
+  tableId: ticket.tableNumber,
+  tableLabel: ticket.tableNumber,
+  orderType: ticket.orderType,
+  items: (ticket.items || []).map((line) => ({
+    id: line._id,
+    _id: line._id,
+    menuItemId: line.menuItemId,
+    name: line.name,
+    qty: line.quantity,
+    quantity: line.quantity,
+    notes: line.notes,
+    kotStatus: (line.lineStatus || 'PENDING').toLowerCase(),
+  })),
+  staffName: ticket.createdBy?.fullName || 'Staff',
+  notes: ticket.remarks || '',
+  createdAt: ticket.createdAt,
+  status: ticket.status === 'ACTIVE' ? 'active' : ticket.status?.toLowerCase(),
+});
+
 let invoiceCounter = 1;
 const getInvoiceNo = () => {
   const date = new Date();
@@ -29,6 +77,8 @@ export const useRestaurantStore = create(
       tables: INITIAL_TABLES,
       kots: [],       // Kitchen Order Tickets
       orders: [],     // Settled orders / invoices
+      alerts: [],
+      kitchenStock: [],
       coupons: COUPONS,
 
       // ── Menu Actions ────────────────────────────────────────────────────────
@@ -66,31 +116,59 @@ export const useRestaurantStore = create(
 
       // ── KOT Actions ──────────────────────────────────────────────────────────
       createKOT: ({ tableId, tableLabel, orderType, items, staffName, notes }) => {
-        const kot = {
-          id: `KOT-${Date.now()}`,
-          tableId,
-          tableLabel,
-          orderType,
-          items: items.map(item => ({ ...item, kotStatus: 'preparing' })),
-          staffName,
-          notes: notes || '',
-          createdAt: new Date().toISOString(),
-          status: 'active', // active | completed | cancelled
-        };
-        set((state) => ({ kots: [kot, ...state.kots] }));
-        return kot;
+        get().createKOTAsync({ tableId, tableLabel, orderType, items, staffName, notes });
+        return null;
       },
 
-      updateKOTItemStatus: (kotId, itemId, status) => set((state) => ({
-        kots: state.kots.map(kot => {
-          if (kot.id !== kotId) return kot;
-          const updatedItems = kot.items.map(item =>
-            item.id === itemId ? { ...item, kotStatus: status } : item
-          );
-          const allDelivered = updatedItems.every(i => i.kotStatus === 'delivered');
-          return { ...kot, items: updatedItems, status: allDelivered ? 'completed' : 'active' };
-        })
-      })),
+      createKOTAsync: async ({ tableId, tableLabel, orderType, items, staffName, notes }) => {
+        const res = await restaurantService.createKitchenTicket({
+          tableNumber: tableLabel || tableId || 'COUNTER',
+          orderType: ORDER_TYPE_TO_API[orderType] || orderType,
+          items: items.map((item) => ({
+            menuItemId: item.menuItemId || item.id,
+            name: item.name,
+            quantity: item.qty || item.quantity || 1,
+            notes: item.notes || '',
+          })),
+          remarks: notes || '',
+        });
+        const ticket = res?.data?.ticket ?? res?.data?.data?.ticket;
+        if (ticket) {
+          const kot = mapTicketToKot(ticket);
+          set((state) => ({ kots: [kot, ...state.kots] }));
+          return kot;
+        }
+        await get().fetchKitchenTickets();
+        return null;
+      },
+
+      fetchKitchenTickets: async () => {
+        try {
+          const res = await restaurantService.listKitchenTickets({ active: 'true' });
+          const list = res?.data ?? res;
+          const docs = Array.isArray(list) ? list : [];
+          set({ kots: docs.map(mapTicketToKot) });
+        } catch (err) {
+          console.error('Failed to fetch kitchen tickets', err);
+        }
+      },
+
+      advanceKitchenLineAsync: async (kotId, lineId) => {
+        const res = await restaurantService.advanceKitchenLine(kotId, lineId);
+        const ticket = res?.data?.ticket ?? res?.data?.data?.ticket;
+        if (ticket) {
+          const kot = mapTicketToKot(ticket);
+          set((state) => ({
+            kots: state.kots.map((k) => (k.id === kotId ? kot : k)),
+          }));
+        } else {
+          await get().fetchKitchenTickets();
+        }
+      },
+
+      updateKOTItemStatus: (kotId, itemId) => {
+        get().advanceKitchenLineAsync(kotId, itemId);
+      },
 
       updateKOTStatus: (kotId, status) => set((state) => ({
         kots: state.kots.map(kot => kot.id === kotId ? { ...kot, status } : kot)
@@ -161,12 +239,56 @@ export const useRestaurantStore = create(
         orders: [{ ...order, id: `ORD-${Date.now()}`, timestamp: new Date().toISOString(), status: 'COMPLETED' }, ...state.orders]
       })),
 
+      addInternalSupplyAlert: (payload) => {
+        const lines = payload?.lines || [];
+        const itemsSummary = lines
+          .map((l) => `${l.itemName} (${l.quantity} ${l.unit || 'KG'})`)
+          .join(', ');
+        const alert = {
+          id: `INT-${payload.invoiceNumber}-${Date.now()}`,
+          type: 'INTERNAL_SUPPLY',
+          title: `Stock received — ${payload.invoiceNumber || 'INT'}`,
+          message: itemsSummary
+            ? `Fish Mall sent: ${itemsSummary}. Total ₹${payload.totalAmount ?? 0}.`
+            : `New internal supply from Fish Mall (₹${payload.totalAmount ?? 0}).`,
+          severity: 'info',
+          timestamp: new Date().toISOString(),
+          read: false,
+          invoiceNumber: payload.invoiceNumber,
+        };
+        set((state) => ({
+          alerts: [alert, ...state.alerts.filter((a) => a.invoiceNumber !== payload.invoiceNumber)].slice(0, 50),
+        }));
+        return alert;
+      },
+
+      dismissAlert: (id) =>
+        set((state) => ({
+          alerts: state.alerts.filter((a) => a.id !== id),
+        })),
+
+      markAlertsRead: () =>
+        set((state) => ({
+          alerts: state.alerts.map((a) => ({ ...a, read: true })),
+        })),
+
+      fetchKitchenStock: async () => {
+        try {
+          const res = await restaurantService.getInventory({ limit: 500 });
+          const list = res?.data || (Array.isArray(res) ? res : []);
+          set({ kitchenStock: Array.isArray(list) ? list : [] });
+        } catch (err) {
+          console.error('Failed to fetch kitchen stock', err);
+        }
+      },
+
       // Async Actions
       fetchOrders: async () => {
         set({ loading: true });
         try {
           const res = await restaurantService.all();
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const raw = res?.docs || res?.data || (Array.isArray(res) ? res : []);
+          const list = (Array.isArray(raw) ? raw : []).map(mapOrderFromApi);
           set({ orders: list, loading: false });
         } catch (err) {
           console.error('Failed to fetch orders', err);
@@ -179,10 +301,15 @@ export const useRestaurantStore = create(
         try {
           const res = await restaurantService.getMenu();
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          const mapped = list.map(item => ({
-            ...item,
-            id: item._id || item.id
-          }));
+          const mapped = list
+            .filter((item) => isValidObjectId(item._id || item.id || item.menuItemId))
+            .map((item) => ({
+              ...item,
+              id: item._id || item.id,
+              menuItemId: item.menuItemId || item._id || item.id,
+              price: item.price ?? item.sellingPrice ?? item.rate ?? 0,
+              stock: item.stock ?? item.quantity ?? 0,
+            }));
           set({ menuItems: mapped, loading: false });
         } catch (err) {
           console.error('Failed to fetch menu', err);
@@ -209,46 +336,70 @@ export const useRestaurantStore = create(
       settleOrderAsync: async (settleData) => {
         set({ loading: true });
         try {
-          // 1. Create the order document on backend
-          const res = await restaurantService.create(settleData);
-          const order = res?.data?.order || res?.order;
+          const breakdown = settleData.paymentBreakdown || {};
+          const cash = parseFloat(breakdown.cash ?? settleData.mixedPayment?.cash) || 0;
+          const upi = parseFloat(breakdown.upi ?? settleData.mixedPayment?.upi) || 0;
+          const pm = (settleData.paymentMethod || 'CASH').toUpperCase();
+          const isSplit = pm === 'SPLIT' || (cash > 0 && upi > 0);
+
+          const payload = {
+            orderType: ORDER_TYPE_TO_API[settleData.orderType] || settleData.orderType || 'DINE_IN',
+            tableNumber: settleData.tableLabel || settleData.tableId || 'COUNTER',
+            items: (settleData.items || []).map((item) => {
+              const line = {
+                name: item.name,
+                quantity: item.qty ?? item.quantity,
+                rate: item.rate ?? item.price,
+              };
+              const menuId = item.menuItemId || item.id;
+              if (isValidObjectId(menuId)) line.menuItemId = menuId;
+              if (isValidObjectId(item.inventoryItemId)) line.inventoryItemId = item.inventoryItemId;
+              return line;
+            }),
+            discountAmount: settleData.discount ?? settleData.discountAmount ?? 0,
+            coupon: settleData.coupon ? String(settleData.coupon) : '',
+          };
+          if (isValidObjectId(settleData.kitchenTicketId)) {
+            payload.kitchenTicketId = settleData.kitchenTicketId;
+          }
+
+          const res = await restaurantService.create(payload);
+          const order = res?.data?.order ?? res?.order;
           const orderId = order?._id || order?.id;
 
           if (!orderId) {
             throw new Error('Order was not created on server — cannot settle payment');
           }
 
-          // 2. Settle the order (payment)
-          {
-            const breakdown = settleData.paymentBreakdown || {};
-            const cash = parseFloat(breakdown.cash) || 0;
-            const upi = parseFloat(breakdown.upi) || 0;
-            const isSplit = settleData.paymentMethod?.toUpperCase() === 'SPLIT' || (cash > 0 && upi > 0);
-            await restaurantService.settle(orderId, {
-              paymentMethod: isSplit ? 'SPLIT' : (settleData.paymentMethod || 'CASH').toUpperCase(),
-              cashAmount: isSplit ? cash : undefined,
-              upiAmount: isSplit ? upi : undefined,
-            });
-          }
+          await restaurantService.settle(orderId, {
+            paymentMethod: isSplit ? 'SPLIT' : pm,
+            cashAmount: isSplit ? cash : undefined,
+            upiAmount: isSplit ? upi : undefined,
+          });
 
-          // Cross-post to Admin Finance
           useAdminStore.getState().addTransaction({
             date: new Date().toLocaleDateString('en-GB'),
             desc: `RESTAURANT POS: #${order?.orderNumber || 'ORD'}`,
-            method: settleData.paymentMethod || 'CASH',
+            method: isSplit ? 'SPLIT' : pm,
             type: 'income',
-            amount: settleData.total,
-            source: 'RESTAURANT'
+            amount: order?.totalAmount ?? settleData.total,
+            source: 'RESTAURANT',
           });
 
-          // 3. Refresh local state
           await get().fetchOrders();
           await get().fetchMenu();
+          await get().fetchKitchenTickets();
           set({ loading: false });
-          return res;
+          return { data: { order }, order };
         } catch (err) {
-          set({ error: err.message, loading: false });
-          throw err;
+          const msg =
+            err?.response?.data?.message ||
+            err?.message ||
+            'Failed to settle order';
+          set({ error: msg, loading: false });
+          const wrapped = new Error(msg);
+          wrapped.cause = err;
+          throw wrapped;
         }
       },
     }),

@@ -2,11 +2,12 @@
 
 ## Summary
 
-Three **isolated** inventory domains. The **only automated cross-domain stock bridge** in production is:
+Three **isolated** inventory domains. Cross-domain stock bridges in production:
 
-**Fish Mall → Restaurant** via **Internal Supply Bill** (`InternalSupplyBill`).
+1. **Procurement → Fish Mall** via **Stock Transfer** (`StockTransfer`, `PT-####`) — admin approval, Mongo transaction.
+2. **Fish Mall → Restaurant** via **Internal Supply Bill** (`InternalSupplyBill`, `INT-####`).
 
-Procurement inventory is **never** reduced when Restaurant or Fish Mall sell stock.
+Procurement inventory is **never** reduced when Restaurant or Fish Mall sell at retail/POS.
 
 | Domain | Model | Scope constant |
 |--------|--------|----------------|
@@ -19,8 +20,8 @@ Procurement inventory is **never** reduced when Restaurant or Fish Mall sell sto
 ## Business chain (client view)
 
 ```
-Procurement Inventory  (warehouse / ERP — manual ops only)
-        ↓  (no auto-sync — separate books)
+Procurement Inventory  (warehouse — stock in after buyer billing `PROCUREMENT_IN`)
+        ↓  Stock Transfer (`PT-####`, approve → atomic move)
 Fish Mall Inventory    (retail counter + internal supplier)
         ↓  Internal Supply Bill (INT-####)
 Restaurant Inventory   (kitchen / POS stock)
@@ -28,15 +29,15 @@ Restaurant Inventory   (kitchen / POS stock)
 Restaurant Sales       (customer orders)
 ```
 
-**Procurement → Fish Mall** is a future **admin transfer** (`StockTransfer` placeholder). It is not auto-linked today.
+**Procurement → Fish Mall:** `POST /api/v1/stock-transfers` → `PATCH .../approve` (Super Admin approves; Procurement Manager can create/cancel).
 
 ---
 
-## Procurement flow (unchanged)
+## Procurement flow
 
-Harvest → Confirmation → Net Rate → Tapal → Driver → Buyer Billing.
+Harvest → Confirmation → Net Rate → Tapal → Driver → Buyer verify → **Buyer Billing** → `PROCUREMENT_IN` (stock available in warehouse).
 
-Ledger types: `PROCUREMENT_IN`, `SALES_OUT`, `RETURN_IN`, `MANUAL_ADJUSTMENT`.
+Ledger types: `PROCUREMENT_IN`, `SALES_OUT`, `RETURN_IN`, `MANUAL_ADJUSTMENT`, `TRANSFER_OUT`.
 
 Blocked on central ledger: `RESTAURANT_CONSUMPTION`, `FISHMALL_SALE`.
 
@@ -46,27 +47,38 @@ API: `/api/v1/inventory/*`
 
 ## Fish Mall flow
 
+- **Procurement transfer in** → `receiveProcurementTransfer()` (`PROCUREMENT_TRANSFER_IN`)
 - Retail POS → `fishMallInventoryService.deductForSale()` (`SALE_OUT`)
 - **Internal bill to Restaurant** → `internalSupplyService.createFishMallToRestaurantBill()`
+  - Mongo **transaction** — rollback on any failure
   - Fish Mall: `INTERNAL_TRANSFER_OUT` log, qty −
   - Restaurant: `INTERNAL_TRANSFER_IN` log, qty + (creates kitchen SKU by name if missing)
+  - Invoice `INT-####` via sequence service (no duplicate invoice race)
 - Daily P&L includes `internalSupplyTotal` (internal revenue to restaurant)
 
 APIs:
 
 | Method | Path | Role |
 |--------|------|------|
-| POST | `/fishmall/internal-bill/restaurant` | Fish Mall Manager |
-| GET | `/fishmall/internal-bill` | Fish Mall Manager |
-| GET | `/fishmall/internal-bill/:id` | Fish Mall Manager |
+| POST | `/fishmall/internal-bill/restaurant` | Fish Mall (manager + cashier) |
+| GET | `/fishmall/internal-bill` | Fish Mall all |
+| GET | `/fishmall/internal-bill/:id` | Fish Mall all |
+| GET | `/fishmall/internal-bill/reports/*` | Fish Mall manager |
+| GET | `/restaurant/internal-supplies` | Restaurant all (read-only) |
+| GET | `/restaurant/internal-supplies/reports/receives` | Restaurant receive ledger |
+| GET | `/api/v1/internal-supply/*` | Super Admin (full visibility) |
 
 ---
 
 ## Restaurant flow
 
-- POS settle → `restaurantInventoryService.deductForOrder()` (`SALE_OUT`)
-- Incoming stock only via internal bills (or manual `ADJUSTMENT` / `OPENING`)
-- View bills: `GET /restaurant/internal-supplies`
+- Stock in **only** via Fish Mall internal bills (`INTERNAL_TRANSFER_IN`) or manual `OPENING` / `ADJUSTMENT`
+- **Never** reads procurement inventory
+- **Menu + recipes** (`RestaurantMenuItem`) — POS dishes map to kitchen ingredient consumption per serve
+- **Kitchen tickets** (`KitchenTicket`, `KOT-####`) — queue with PENDING → PREPARING → READY → SERVED
+- **POS settle** → `deductForOrder()` expands recipes → `RECIPE_CONSUMPTION` ledger lines (atomic with payment)
+- **Wastage** → `WASTAGE` log type on manual record
+- APIs: `/restaurant/kitchen-tickets`, `/restaurant/menu`, `/restaurant/reports/*`
 
 ---
 
@@ -104,7 +116,14 @@ erDiagram
 
 ## Affected modules / files (v3)
 
-### Backend (new)
+### Backend (procurement transfer)
+
+- `modules/stock-transfer/stockTransfer.model.js`
+- `modules/stock-transfer/stockTransfer.service.js`
+- `modules/stock-transfer/stockTransfer.controller.js`
+- `modules/stock-transfer/stockTransfer.routes.js`
+
+### Backend (internal supply)
 
 - `modules/internal-supply/internalSupplyBill.model.js`
 - `modules/internal-supply/internalSupply.service.js`
@@ -137,7 +156,7 @@ erDiagram
 2. Deploy internal supply API (no procurement changes).
 3. Deploy Fish Mall UI “Bill Restaurant”.
 4. Train ops: restaurant kitchen stock comes from internal bills, not procurement.
-5. (Optional) Admin `StockTransfer` procurement → fish mall later.
+5. Use **Transfer to Fish Mall** in admin inventory after buyer billing puts stock in procurement.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   restrictTo,
   requireWeb,
   requireBusinessUnit,
+  resolveFishMallOutlet,
   enforcePlatformPolicy,
   blockMobileWrite,
 } from '../../middleware/auth.middleware.js';
@@ -17,6 +18,8 @@ import {
 } from '../../constants/roleGroups.js';
 import { broadcastEvent } from '../../sockets/socket.js';
 import { internalSupplyController } from '../internal-supply/internalSupply.controller.js';
+import { internalSupplyValidators } from '../../validators/internalSupply.validator.js';
+import { validateBody } from '../../validators/auth.validator.js';
 
 export const fishmallController = {
   create: asyncWrapper(async (req, res) => {
@@ -36,12 +39,18 @@ export const fishmallController = {
   }),
 
   listInventory: asyncWrapper(async (req, res) => {
-    const result = await fishMallInventoryService.list(req.query);
+    const result = await fishMallInventoryService.list({
+      ...req.query,
+      outletId: req.fishMallOutletId,
+    });
     new ApiResponse(200, result.docs, 'Fish Mall inventory fetched', result.meta).send(res);
   }),
 
   createInventoryItem: asyncWrapper(async (req, res) => {
-    const item = await fishMallInventoryService.createItem(req.body, req.user.id);
+    const item = await fishMallInventoryService.createItem(
+      { ...req.body, outletId: req.fishMallOutletId },
+      req.user.id
+    );
     new ApiResponse(201, item, 'Fish Mall inventory item created').send(res);
   }),
 
@@ -83,7 +92,14 @@ export const fishmallController = {
 };
 
 const router = Router();
-const web = [protect, requireWeb, requireBusinessUnit('FISHMALL'), enforcePlatformPolicy, blockMobileWrite];
+const web = [
+  protect,
+  requireWeb,
+  requireBusinessUnit('FISHMALL'),
+  resolveFishMallOutlet,
+  enforcePlatformPolicy,
+  blockMobileWrite,
+];
 
 router.get('/inventory/summary', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.inventorySummary);
 router.get('/inventory/logs', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.inventoryLogs);
@@ -96,19 +112,38 @@ router.patch('/inventory/:id/adjust', ...web, restrictTo(...FISHMALL_MANAGER_ROL
 router.post(
   '/internal-bill/restaurant',
   ...web,
-  restrictTo(...FISHMALL_MANAGER_ROLES),
+  restrictTo(...FISHMALL_ALL),
+  validateBody(internalSupplyValidators.createRestaurantBill),
   internalSupplyController.createRestaurantBill
 );
 router.get(
   '/internal-bill',
   ...web,
-  restrictTo(...FISHMALL_MANAGER_ROLES),
+  restrictTo(...FISHMALL_ALL),
   internalSupplyController.listBills
+);
+router.get(
+  '/internal-bill/reports/summary',
+  ...web,
+  restrictTo(...FISHMALL_MANAGER_ROLES),
+  internalSupplyController.summary
+);
+router.get(
+  '/internal-bill/reports/daily',
+  ...web,
+  restrictTo(...FISHMALL_MANAGER_ROLES),
+  internalSupplyController.dailyTransferSummary
+);
+router.get(
+  '/internal-bill/reports/sales',
+  ...web,
+  restrictTo(...FISHMALL_MANAGER_ROLES),
+  internalSupplyController.fishMallSalesReport
 );
 router.get(
   '/internal-bill/:id',
   ...web,
-  restrictTo(...FISHMALL_MANAGER_ROLES),
+  restrictTo(...FISHMALL_ALL),
   internalSupplyController.getBill
 );
 router.post('/create', ...web, restrictTo(...FISHMALL_ALL), fishmallController.create);

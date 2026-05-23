@@ -11,6 +11,7 @@ export const PROCUREMENT_TX_TYPES = [
   'SALES_OUT',
   'RETURN_IN',
   'MANUAL_ADJUSTMENT',
+  'TRANSFER_OUT',
 ];
 
 /** Deprecated on central ledger — kept in DB enum for legacy rows only */

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthInput from '../../components/auth/AuthInput';
 import AuthButton from '../../components/auth/AuthButton';
@@ -18,6 +18,12 @@ const ErpWebLogin = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { isAuthenticated, user } = useAuthStore();
+
+  // If already authenticated, redirect to their dashboard (prevents back-button loop)
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultHomePath(user)} replace />;
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault();

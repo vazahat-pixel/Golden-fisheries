@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { useAuthStore } from '../../store/authStore';
 import { useRbacStore, ROLE_TEMPLATES } from '../../store/rbacStore';
 import { useOutletStore } from '../../store/outletStore';
 import { authService } from '../../services/authService';
+import { normalizeRole } from '../../constants/rbac';
 import { 
   ShieldCheck, Smartphone, Lock, ArrowRight, ArrowLeft,
   KeyRound, UserPlus, Mail, CheckCircle2, Globe, RotateCcw as RotateIcon
@@ -14,24 +15,28 @@ import { toast } from 'react-hot-toast';
 
 const FishMallAuth = () => {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { login, isAuthenticated, user } = useAuthStore();
   const { registerFishMall, getOutletByPhone } = useOutletStore();
   const { getUserByPhone, sendOtp: rbacSendOtp, verifyOtp: rbacVerifyOtp, clearOtpSession } = useRbacStore();
 
   const [rbacDevOtp, setRbacDevOtp] = useState(null);
   const [pendingRbacUser, setPendingRbacUser] = useState(null);
-  
   const [view, setView] = useState('login');
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(0);
-
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     password: '',
     email: ''
   });
+
+  // Already authenticated? Redirect to fishmall dashboard
+  if (isAuthenticated && user) {
+    return <Navigate to="/fishmall/dashboard" replace />;
+  }
+
 
   // OTP Timer logic
   useEffect(() => {
@@ -69,8 +74,16 @@ const FishMallAuth = () => {
       } else if (view === 'otp-rbac' || view === 'otp') {
         const res = await authService.verifyOtp(formData.phone, otp.join(''));
         if (res && res.user) {
-          login(res.user, res.accessToken);
-          toast.success(`Welcome back, ${res.user.fullName}!`);
+          const raw = res.user;
+          const user = {
+            ...raw,
+            id: raw._id || raw.id,
+            name: raw.fullName || raw.name,
+            role: normalizeRole(raw.role),
+            platformAccess: raw.platformAccess || { web: true, mobile: false },
+          };
+          login(user, res.accessToken);
+          toast.success(`Welcome back, ${user.name || 'Staff'}!`);
           navigate('/fishmall/dashboard');
         } else {
           toast.error('Invalid response payload structure');

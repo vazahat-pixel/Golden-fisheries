@@ -27,6 +27,10 @@ import reportsRoutes from './modules/reports/reports.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import farmerLedgerRoutes from './modules/farmer-ledger/farmerLedger.routes.js';
 import buyerPortalRoutes from './modules/buyer-portal/buyerPortal.routes.js';
+import stockTransferRoutes from './modules/stock-transfer/stockTransfer.routes.js';
+import fishMallOutletRoutes from './modules/fishmall-outlet/fishMallOutlet.routes.js';
+import restaurantOutletRoutes from './modules/restaurant-outlet/restaurantOutlet.routes.js';
+import internalSupplyAdminRoutes from './modules/internal-supply/internalSupply.routes.js';
 import mapsRoutes from './modules/maps/maps.routes.js';
 import integrationsRoutes from './modules/integrations/integrations.routes.js';
 
@@ -101,6 +105,10 @@ app.use('/api/v1/harvests', harvestRoutes);
 app.use('/api/v1/tapals', tapalRoutes);
 
 app.use('/api/v1/inventory', inventoryRoutes);
+app.use('/api/v1/stock-transfers', stockTransferRoutes);
+app.use('/api/v1/fishmall-outlets', fishMallOutletRoutes);
+app.use('/api/v1/restaurant-outlets', restaurantOutletRoutes);
+app.use('/api/v1/internal-supply', internalSupplyAdminRoutes);
 app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/restaurant', restaurantRoutes);
 app.use('/api/v1/fishmall', fishmallRoutes);
