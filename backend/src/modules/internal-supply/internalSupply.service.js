@@ -8,6 +8,9 @@ import { AppError } from '../../utils/appError.js';
 import { logger } from '../../utils/logger.js';
 import { broadcastEvent } from '../../sockets/socket.js';
 import { INVENTORY_SCOPES } from '../../constants/inventoryScopes.js';
+import { User } from '../users/user.model.js';
+import { notificationService } from '../notifications/notification.service.js';
+
 
 /**
  * Fish Mall → Restaurant internal billing (invoice + paired atomic stock movement).
@@ -78,7 +81,7 @@ class InternalSupplyService {
         lines: [],
         subtotal: 0,
         totalAmount: 0,
-        status: 'ISSUED',
+        status: 'PENDING_ACCEPTANCE',
         remarks: payload.remarks || 'Internal supply to restaurant kitchen',
         destinationName: payload.destinationName || 'GF Restaurant Kitchen',
         billDate: payload.billDate ? new Date(payload.billDate) : new Date(),
@@ -105,6 +108,7 @@ class InternalSupplyService {
         );
         const v = revalidated[0];
 
+        // Deduct Fish Mall stock immediately (stock in-transit)
         await fishMallInventoryService.transferOutForInternal(
           v.fishMallItemId,
           v.quantity,
@@ -114,18 +118,24 @@ class InternalSupplyService {
           bill.invoiceNumber
         );
 
-        const { item: restItem } = await restaurantInventoryService.receiveInternalTransfer(
-          {
-            name: v.itemName,
-            quantity: v.quantity,
-            unit: v.unit,
-            rate: v.rate,
-          },
-          userId,
-          session,
-          bill._id,
-          bill.invoiceNumber
-        );
+        // Fetch/simulate a restaurant item ID for mapping (do not increase its stock yet)
+        let restItem = await mongoose.model('RestaurantInventoryItem').findOne({ name: v.itemName, isActive: true }).session(session);
+        if (!restItem) {
+          restItem = await mongoose.model('RestaurantInventoryItem').create(
+            [
+              {
+                name: v.itemName,
+                quantity: 0,
+                openingStock: 0,
+                unit: v.unit,
+                rate: v.rate,
+                category: 'RAW_MATERIAL',
+                recordDate: new Date(),
+              },
+            ],
+            { session }
+          ).then(res => res[0]);
+        }
 
         billLines.push({
           fishMallItemId: v.fishMallItemId,
@@ -153,25 +163,203 @@ class InternalSupplyService {
         destinationName: bill.destinationName,
         fromScope: INVENTORY_SCOPES.FISHMALL,
         toScope: INVENTORY_SCOPES.RESTAURANT,
+        lineCount: billLines.length,
+        status: 'PENDING_ACCEPTANCE',
         lines: billLines.map((l) => ({
           itemName: l.itemName,
           quantity: l.quantity,
           unit: l.unit || 'KG',
           amount: l.amount,
         })),
+        createdAt: bill.createdAt,
       };
 
       broadcastEvent('internal:bill_issued', supplyPayload, 'fishmall:updates');
       broadcastEvent('restaurant:internal_supply_received', supplyPayload, 'restaurant:updates');
       broadcastEvent('fishmall:inventory_updated', { scope: INVENTORY_SCOPES.FISHMALL }, 'fishmall:updates');
-      broadcastEvent(
-        'restaurant:inventory_updated',
-        { scope: INVENTORY_SCOPES.RESTAURANT, invoiceNumber: bill.invoiceNumber },
-        'restaurant:updates'
-      );
+
+      // Save in-app notification for Restaurant Manager
+      await notificationService.createInAppNotification({
+        role: 'REST_MANAGER',
+        title: 'New Internal Supply Dispatched',
+        message: `New internal stock transfer ${bill.invoiceNumber} of ${billLines.length} item(s) received from Fish Mall.`,
+        type: 'INTERNAL_SUPPLY',
+        referenceId: bill._id,
+        referenceModel: 'InternalSupplyBill',
+      });
 
       logger.info(
-        `[Internal Supply]: ${bill.invoiceNumber} Fish Mall → ${bill.destinationName} (${billLines.length} lines, ₹${bill.totalAmount})`
+        `[Internal Supply]: ${bill.invoiceNumber} Fish Mall → ${bill.destinationName} (${billLines.length} lines, ₹${bill.totalAmount}) - Pending Acceptance`
+      );
+      return bill;
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async acceptInternalBill(billId, userId, payload) {
+    const { status, remarks, lines } = payload;
+    if (!['ACCEPTED', 'PARTIAL_ACCEPTED', 'REJECTED'].includes(status)) {
+      throw new AppError('Invalid acceptance status', 400);
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const bill = await InternalSupplyBill.findById(billId).session(session);
+      if (!bill) throw new AppError('Internal supply bill not found', 404);
+      if (bill.status !== 'PENDING_ACCEPTANCE') {
+        throw new AppError(`Cannot accept internal bill with status: ${bill.status}`, 400);
+      }
+
+      const receiverUser = await User.findById(userId).session(session);
+
+      if (status === 'REJECTED') {
+        // RESTORE stock back to Fish Mall
+        for (const line of bill.lines) {
+          const fmItem = await FishMallInventoryItem.findById(line.fishMallItemId).session(session);
+          if (fmItem) {
+            const prev = fmItem.quantity || 0;
+            const next = prev + line.quantity;
+            fmItem.quantity = next;
+            await fmItem.save({ session });
+
+            await fishMallInventoryService._log(
+              fmItem._id,
+              'INTERNAL_TRANSFER_VOID',
+              line.quantity,
+              prev,
+              next,
+              userId,
+              `Internal bill ${bill.invoiceNumber} REJECTED by Restaurant`,
+              bill._id,
+              'InternalSupplyBill',
+              session
+            );
+          }
+        }
+
+        bill.status = 'REJECTED';
+        bill.remarks = remarks || 'Supply rejected by restaurant';
+        bill.receiverId = userId;
+        bill.receiverName = receiverUser?.fullName || 'Restaurant Kitchen';
+        bill.acceptedAt = new Date();
+        await bill.save({ session });
+
+        await session.commitTransaction();
+
+        // Notify Fish Mall Manager
+        await notificationService.createInAppNotification({
+          role: 'FISHMALL_MANAGER',
+          title: `Supply ${bill.invoiceNumber} Rejected`,
+          message: `GF Restaurant Kitchen rejected internal supply ${bill.invoiceNumber}. Reason: ${remarks}`,
+          type: 'INTERNAL_SUPPLY',
+          referenceId: bill._id,
+          referenceModel: 'InternalSupplyBill',
+        });
+
+        broadcastEvent('restaurant:supply_rejected', {
+          billId: bill._id,
+          invoiceNumber: bill.invoiceNumber,
+        }, 'fishmall:updates');
+
+        return bill;
+      }
+
+      // ACCEPTED or PARTIAL_ACCEPTED
+      const linesMap = new Map((lines || []).map((l) => [l.productId?.toString() || l.fishMallItemId?.toString(), l.receivedQuantity]));
+      const completedLines = [];
+      let consolidatedSubtotal = 0;
+
+      for (const line of bill.lines) {
+        const key = line.fishMallItemId?.toString();
+        const receivedQty = linesMap.has(key) && linesMap.get(key) !== null
+          ? parseFloat(linesMap.get(key))
+          : line.quantity;
+
+        if (Number.isNaN(receivedQty) || receivedQty < 0 || receivedQty > line.quantity) {
+          throw new AppError(`Invalid received quantity for ${line.itemName}: ${receivedQty}`, 400);
+        }
+
+        const diff = Math.max(0, line.quantity - receivedQty);
+
+        // Receive verified stock in Restaurant inventory
+        const { item: restItem } = await restaurantInventoryService.receiveInternalTransfer(
+          {
+            name: line.itemName,
+            quantity: receivedQty,
+            unit: line.unit,
+            rate: line.rate,
+          },
+          userId,
+          session,
+          bill._id,
+          bill.invoiceNumber
+        );
+
+        const lineAmount = Math.round(receivedQty * line.rate * 100) / 100;
+
+        completedLines.push({
+          fishMallItemId: line.fishMallItemId,
+          restaurantItemId: restItem._id,
+          itemName: line.itemName,
+          quantity: line.quantity, // Sent quantity remains as original
+          receivedQuantity: receivedQty,
+          differenceQuantity: diff,
+          unit: line.unit,
+          rate: line.rate,
+          amount: lineAmount,
+          _id: line._id,
+        });
+
+        consolidatedSubtotal += lineAmount;
+      }
+
+      bill.lines = completedLines;
+      bill.subtotal = Math.round(consolidatedSubtotal * 100) / 100;
+      bill.totalAmount = bill.subtotal;
+      bill.status = status;
+      bill.remarks = remarks || '';
+      bill.receiverId = userId;
+      bill.receiverName = receiverUser?.fullName || 'Restaurant Kitchen';
+      bill.acceptedAt = new Date();
+
+      await bill.save({ session });
+
+      await session.commitTransaction();
+
+      // Trigger socket events and notifications
+      const supplyPayload = {
+        billId: bill._id,
+        invoiceNumber: bill.invoiceNumber,
+        totalAmount: bill.totalAmount,
+        destinationName: bill.destinationName,
+        status: bill.status,
+        acceptedAt: bill.acceptedAt,
+      };
+
+      broadcastEvent('restaurant:inventory_updated', {
+        scope: INVENTORY_SCOPES.RESTAURANT,
+        invoiceNumber: bill.invoiceNumber,
+      }, 'restaurant:updates');
+
+      broadcastEvent('restaurant:internal_supply_received', supplyPayload, 'restaurant:updates');
+
+      await notificationService.createInAppNotification({
+        role: 'FISHMALL_MANAGER',
+        title: `Supply ${bill.invoiceNumber} Received`,
+        message: `GF Restaurant Kitchen accepted internal supply ${bill.invoiceNumber} (${bill.status}). Remarks: ${remarks}`,
+        type: 'INTERNAL_SUPPLY',
+        referenceId: bill._id,
+        referenceModel: 'InternalSupplyBill',
+      });
+
+      logger.info(
+        `[Internal Supply]: ${bill.invoiceNumber} received/accepted by GF Restaurant Kitchen as ${bill.status}`
       );
       return bill;
     } catch (err) {
@@ -186,7 +374,7 @@ class InternalSupplyService {
     const { page = 1, limit = 50, toScope = 'RESTAURANT', status, from, to } = query;
     const filter = { toScope };
     if (status) filter.status = status;
-    else filter.status = 'ISSUED';
+    else filter.status = { $ne: 'CANCELLED' };
     if (from || to) {
       filter.billDate = {};
       if (from) filter.billDate.$gte = new Date(from);

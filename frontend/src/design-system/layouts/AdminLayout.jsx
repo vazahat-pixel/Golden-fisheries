@@ -7,6 +7,8 @@ import { useAdminStore } from '../../store/adminStore';
 import { useNavigate } from 'react-router-dom';
 import { LoadingFallback } from '../components/LoadingFallback';
 import { IS_DEV } from '../../constants/rbac';
+import { NotificationDropdown } from '../components/NotificationDropdown';
+
 
 // Context for mobile detection — child components can use this to hide action buttons
 const AdminLayoutContext = createContext({ isMobile: false });
@@ -192,55 +194,57 @@ export const AdminLayout = ({ children }) => {
 
       {/* Sidebar */}
       <div className={clsx(
-        "fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto bg-white",
+        "fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto bg-transparent lg:h-screen lg:sticky lg:top-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <header className="h-16 flex items-center justify-between px-6 md:px-12 bg-white border-b border-card-border sticky top-0 z-30">
-          <div className="flex items-center gap-3 md:gap-4">
+        <header className="h-11 shrink-0 flex items-center justify-between px-3 md:px-4 bg-white border-b border-card-border sticky top-0 z-30">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
+              type="button"
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 text-text-muted hover:bg-white hover:text-primary rounded-none lg:hidden transition-colors"
+              className="p-1.5 text-text-muted hover:bg-surface-hover rounded-erp lg:hidden"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
 
-            <div className="relative w-48 md:w-[450px] max-w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" size={14} />
               <input
-                type="text"
-                placeholder="Search system..."
-                className="w-full bg-white border border-card-border rounded-none py-2.5 pl-10 pr-4 text-[11px] focus:ring-1 focus:ring-accent-olive transition-all outline-none"
+                type="search"
+                placeholder="Search…"
+                className="w-full h-8 bg-white border border-card-border rounded-erp pl-8 pr-3 text-xs outline-none focus:border-accent focus:ring-1 focus:ring-accent/25"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 shrink-0">
             {isMobile && !IS_DEV && (
-              <span className="text-[8px] font-black bg-amber-50 text-amber-700 px-2 py-1 rounded-lg border border-amber-200 uppercase tracking-widest">
-                Read Only
+              <span className="text-[10px] font-medium bg-amber-50 text-amber-800 px-2 py-0.5 rounded-erp border border-amber-200">
+                Read only
               </span>
             )}
             {IS_DEV && (
-              <span className="text-[8px] font-black bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 uppercase tracking-widest">
-                Dev Mode
+              <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-erp border border-emerald-200">
+                Dev
               </span>
             )}
-            <div className="flex flex-col text-right hidden md:block">
-              <p className="text-[11px] font-black text-text-primary leading-tight uppercase tracking-tight">{user?.name || 'Mahesh'}</p>
-              <p className="text-[9px] text-text-muted font-black uppercase tracking-widest">{user?.role || 'ADMIN'}</p>
+            <NotificationDropdown />
+            <div className="hidden md:block text-right">
+              <p className="text-xs font-medium text-text-primary leading-tight">{user?.name || 'Admin'}</p>
+              <p className="text-[10px] text-text-muted">{user?.role || 'ADMIN'}</p>
             </div>
-            <div className="w-10 h-10 rounded-none bg-[#5F6846] flex items-center justify-center font-black text-white shadow-sm border border-card-border">
-              {user?.name?.substring(0, 2).toUpperCase() || 'MA'}
+            <div className="w-8 h-8 rounded-erp bg-accent flex items-center justify-center text-xs font-semibold text-white">
+              {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-page-bg">
-          <div className="max-w-[1600px] mx-auto">
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-page-bg">
+          <div className="max-w-[1600px] mx-auto erp-page">
             <React.Suspense fallback={<LoadingFallback type="content" />}>
               {children}
             </React.Suspense>

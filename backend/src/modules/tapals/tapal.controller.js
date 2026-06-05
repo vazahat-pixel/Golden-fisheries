@@ -299,6 +299,13 @@ export const tapalController = {
     new ApiResponse(200, { trip: aliasTripResponse(result) }, `Post-trip expenses ${status.toLowerCase()} successfully`).send(res);
   }),
 
+  // Admin/Accountant confirms payment for approved post-trip expenses
+  confirmPostTripPayment: asyncWrapper(async (req, res) => {
+    const { tripId } = req.params;
+    const result = await tapalService.confirmPostTripPayment(tripId, req.user.id, req.body);
+    new ApiResponse(200, { trip: aliasTripResponse(result) }, 'Trip payment confirmed and trip completed successfully').send(res);
+  }),
+
   // Get Trip Details by ID
   getTripById: asyncWrapper(async (req, res) => {
     const { id } = req.params;

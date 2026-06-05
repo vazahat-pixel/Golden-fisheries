@@ -25,36 +25,36 @@ const Dashboard = () => {
     fetchTrips();
   }, [fetchHarvestSlips, fetchTapals, fetchTrips]);
 
-  // Mock data for beautiful charts if database is sparse
-  const weeklyData = [
-    { name: 'Mon', procurement: 1200, sales: 800 },
-    { name: 'Tue', procurement: 1800, sales: 1300 },
-    { name: 'Wed', procurement: 2400, sales: 1900 },
-    { name: 'Thu', procurement: 1500, sales: 1100 },
-    { name: 'Fri', procurement: 2900, sales: 2500 },
-    { name: 'Sat', procurement: 2100, sales: 1600 },
-    { name: 'Sun', procurement: 900, sales: 500 },
-  ];
+  const totalProcurementWeight = harvestSlips?.reduce(
+    (sum, s) => sum + (parseFloat(s.totalWeight) || 0),
+    0
+  );
+  const totalSalesCount = tapals?.length ?? 0;
+  const activeTripsCount =
+    trips?.filter((t) => ['In Transit', 'Assigned', 'IN_TRANSIT', 'ASSIGNED'].includes(t.status))
+      .length ?? 0;
+  const pendingApprovalsCount =
+    harvestSlips?.filter((s) =>
+      ['Pending', 'Pending Approval', 'PENDING', 'PENDING_APPROVAL'].includes(s.status)
+    ).length ?? 0;
 
-  const distributionData = [
-    { name: 'Prawns', value: 4500, color: '#6A7051' },
-    { name: 'Seabass', value: 2800, color: '#A3A886' },
-    { name: 'Tuna', value: 1800, color: '#C0C4AB' },
-    { name: 'Others', value: 1200, color: '#E4E6D9' },
-  ];
+  const hasChartData = (harvestSlips?.length ?? 0) > 0 || (tapals?.length ?? 0) > 0;
 
-  // Calculate dynamic metrics
-  const totalProcurementWeight = harvestSlips?.reduce((sum, s) => sum + (parseFloat(s.totalWeight) || 0), 0) || 775;
-  const totalSalesCount = tapals?.length || 12;
-  const activeTripsCount = trips?.filter(t => t.status === 'In Transit' || t.status === 'Assigned').length || 2;
-  const pendingApprovalsCount = harvestSlips?.filter(s => s.status === 'Pending Approval').length || 2;
-
-  // Active fleets simulation
   const recentActivities = [
-    { id: 1, type: 'HARVEST', title: 'New Harvest Slip Created', desc: 'Farmer Appanna Gowda - Slip #1001', time: '10 mins ago', highlight: true },
-    { id: 2, type: 'DISPATCH', title: 'Sales Tapal Dispatched', desc: 'Driver Suresh Gowda assigned to KA-19-F-9876', time: '45 mins ago', highlight: false },
-    { id: 3, type: 'APPROVAL', title: 'Procurement Verified', desc: 'Slip #1002 approved by Admin', time: '2 hours ago', highlight: false },
-    { id: 4, type: 'TRIP', title: 'Cargo Delivered', desc: 'Driver Ramesh Patil completed trip to Karwar Cold Storage', time: '3 hours ago', highlight: false }
+    ...(harvestSlips ?? []).slice(0, 3).map((s, i) => ({
+      id: `h-${s._id || i}`,
+      type: 'HARVEST',
+      title: 'Harvest slip',
+      desc: `${s.farmerName || 'Farmer'} — ${s.harvestNumber || s.tpNo || s._id}`,
+      highlight: i === 0,
+    })),
+    ...(tapals ?? []).slice(0, 2).map((t, i) => ({
+      id: `t-${t._id || i}`,
+      type: 'DISPATCH',
+      title: 'Tapal',
+      desc: `${t.tapalNumber || t.tpNo || '—'} · ${t.status || ''}`,
+      highlight: false,
+    })),
   ];
 
   return (
@@ -93,8 +93,8 @@ const Dashboard = () => {
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-brand-olive">Harvest Volume (GRN)</p>
             <p className="text-3xl font-black text-brand-olive mt-1.5">{totalProcurementWeight.toLocaleString()} kg</p>
-            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5 mt-1">
-              <TrendingUp size={12} /> +12.4% this week
+            <span className="text-[10px] text-text-muted font-bold block mt-1">
+              From live harvest slips
             </span>
           </div>
           <div className="w-12 h-12 bg-[#F5F5EC] text-[#6A7051] flex items-center justify-center rounded-sm group-hover:bg-[#6A7051] group-hover:text-white transition-all">
@@ -168,10 +168,15 @@ const Dashboard = () => {
               <Calendar size={12} /> Last 7 Days
             </span>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {!hasChartData ? (
+              <p className="erp-caption text-center px-6">
+                No volume data yet. Create a harvest slip to see trends here.
+              </p>
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={weeklyData}
+                data={[]}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <defs>
@@ -209,6 +214,7 @@ const Dashboard = () => {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -219,33 +225,9 @@ const Dashboard = () => {
             <p className="text-[10px] text-text-secondary mt-0.5">Fish and shrimp category ratio in current stock volumes</p>
           </div>
           <div className="h-[200px] w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={distributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {distributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `${value} kg`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-card-border pt-4">
-            {distributionData.map((item) => (
-              <div key={item.name} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: item.color }}></span>
-                <span className="font-extrabold uppercase text-brand-olive">{item.name}</span>
-                <span className="text-text-secondary font-medium">({((item.value / 10300) * 100).toFixed(0)}%)</span>
-              </div>
-            ))}
+            <p className="erp-caption text-center px-4">
+              Stock mix chart appears when inventory has movement data.
+            </p>
           </div>
         </div>
 

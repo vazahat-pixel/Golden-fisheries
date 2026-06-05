@@ -23,6 +23,13 @@ const ProtectedRoute = ({
   const location = useLocation();
 
   if (!isAuthenticated || !user) {
+    const path = location.pathname;
+    if (path.startsWith('/mobile/buyer')) {
+      return <Navigate to="/auth/admin" replace />;
+    }
+    if (path.startsWith('/driver')) {
+      return <Navigate to="/auth/driver" replace />;
+    }
     return <Navigate to="/auth/home" replace />;
   }
 

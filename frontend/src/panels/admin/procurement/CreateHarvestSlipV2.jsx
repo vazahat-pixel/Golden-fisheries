@@ -1,18 +1,77 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
 import { masterService } from '../../../services/masterService';
 import { Sprout, Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Modal } from '../../../design-system';
 
 const CreateHarvestSlipV2 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addHarvestSlip, harvestSlips } = useAdminStore();
+
+  const isEditing = location.state?.isEditing;
 
   const [farmers, setFarmers] = useState([]);
   const [products, setProducts] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
+
+  // Farmer creation modal states
+  const [isFarmerModalOpen, setIsFarmerModalOpen] = useState(false);
+  const [newFarmerName, setNewFarmerName] = useState('');
+  const [newFarmerPhone, setNewFarmerPhone] = useState('');
+  const [newFarmerLocation, setNewFarmerLocation] = useState('');
+  const [newFarmerVillage, setNewFarmerVillage] = useState('');
+  const [newFarmerPondCount, setNewFarmerPondCount] = useState(1);
+  const [newFarmerHasWhatsapp, setNewFarmerHasWhatsapp] = useState(true);
+  const [isAddingFarmer, setIsAddingFarmer] = useState(false);
+
+  const handleAddFarmerSubmit = async (e) => {
+    e.preventDefault();
+    if (!newFarmerName.trim() || !newFarmerPhone.trim() || !newFarmerLocation.trim()) {
+      toast.error('Name, Phone, and Location are required!');
+      return;
+    }
+    setIsAddingFarmer(true);
+    try {
+      const res = await masterService.farmers.create({
+        fullName: newFarmerName.trim().toUpperCase(),
+        phone: newFarmerPhone.trim(),
+        location: newFarmerLocation.trim().toUpperCase(),
+        village: newFarmerVillage.trim().toUpperCase(),
+        pondCount: newFarmerPondCount,
+        hasWhatsapp: newFarmerHasWhatsapp
+      });
+      const newFarmer = res?.data?.farmer || res?.farmer || res;
+      if (newFarmer) {
+        toast.success('Farmer added successfully!');
+        const fRes = await masterService.farmers.getAll({ limit: 200 });
+        const list = fRes?.data || fRes?.docs || (Array.isArray(fRes) ? fRes : []);
+        setFarmers(list);
+        
+        const createdId = newFarmer._id || newFarmer.id;
+        setFarmerId(createdId);
+        setFarmerName(newFarmer.fullName || '');
+        setFarmerMobile(newFarmer.phone || '');
+        
+        setNewFarmerName('');
+        setNewFarmerPhone('');
+        setNewFarmerLocation('');
+        setNewFarmerVillage('');
+        setNewFarmerPondCount(1);
+        setNewFarmerHasWhatsapp(true);
+        setIsFarmerModalOpen(false);
+      } else {
+        toast.error('Failed to create farmer.');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to create farmer');
+    } finally {
+      setIsAddingFarmer(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -56,6 +115,46 @@ const CreateHarvestSlipV2 = () => {
   const [damageNotes, setDamageNotes] = useState('THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT');
   const [iceRentDeducted, setIceRentDeducted] = useState(false);
   const [inWords, setInWords] = useState('');
+
+  // Load draft data on edit/preview redirect, or clear if starting fresh
+  useEffect(() => {
+    if (isEditing) {
+      const savedData = sessionStorage.getItem('current_harvest_slip_creation');
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          if (parsed.farmerId) setFarmerId(parsed.farmerId);
+          if (parsed.farmerName) setFarmerName(parsed.farmerName);
+          if (parsed.farmerMobile) setFarmerMobile(parsed.farmerMobile);
+          if (parsed.date) setDate(parsed.date);
+          if (parsed.vehicleNo) setVehicleNo(parsed.vehicleNo);
+          if (parsed.driverName) setDriverName(parsed.driverName);
+          if (parsed.graderName) setGraderName(parsed.graderName);
+          if (parsed.notes) setNotes(parsed.notes);
+          if (parsed.damageNotes) setDamageNotes(parsed.damageNotes);
+          if (parsed.iceRentDeducted !== undefined) setIceRentDeducted(parsed.iceRentDeducted);
+          if (parsed.inWords) setInWords(parsed.inWords);
+          
+          if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+            setItems(parsed.items.map((item, idx) => ({
+              id: item.id || String(idx + 1),
+              hsnCode: item.hsnCode || '',
+              particulars: item.particulars || '',
+              count: item.count || '',
+              noOfBoxes: item.noOfBoxes || '',
+              boxWeight: item.boxWeight || '',
+              totalWeight: item.totalWeight || ''
+            })));
+          }
+        } catch (err) {
+          console.warn('Failed to parse saved harvest slip draft data:', err);
+        }
+      }
+    } else {
+      // Clear any previous draft when opening a fresh creation form
+      sessionStorage.removeItem('current_harvest_slip_creation');
+    }
+  }, [isEditing]);
 
   // Recalculate row total weight and totals automatically
   const handleItemChange = (id, field, value) => {
@@ -174,7 +273,16 @@ const CreateHarvestSlipV2 = () => {
 
           {/* Farmer */}
           <div className="flex flex-col md:col-span-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Farmer Name</label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive">Farmer Name</label>
+              <button
+                type="button"
+                onClick={() => setIsFarmerModalOpen(true)}
+                className="text-[10px] font-black uppercase tracking-widest text-brand-yellow hover:text-brand-olive transition-colors flex items-center gap-1 font-bold"
+              >
+                <Plus size={12} /> Add Farmer
+              </button>
+            </div>
             <select
               className="bg-[#F5F5EC]/40 border border-card-border px-4 py-3 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
               value={farmerId}
@@ -474,6 +582,107 @@ const CreateHarvestSlipV2 = () => {
           </button>
         </div>
       </form>
+
+      {/* Standard Design System Modal for On-the-fly Farmer Creation */}
+      <Modal
+        isOpen={isFarmerModalOpen}
+        onClose={() => setIsFarmerModalOpen(false)}
+        title="Add New Farmer"
+        size="md"
+      >
+        <form onSubmit={handleAddFarmerSubmit} className="space-y-4 font-sans">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1">Farmer Full Name *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. MOHAMMED KHAN"
+              value={newFarmerName}
+              onChange={(e) => setNewFarmerName(e.target.value)}
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none uppercase"
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1">Phone Number *</label>
+            <input
+              type="tel"
+              required
+              placeholder="e.g. 9876543210"
+              value={newFarmerPhone}
+              onChange={(e) => setNewFarmerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="bg-[#F5F5EC]/40 border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              maxLength={10}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1">Location *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. KARWAR"
+                value={newFarmerLocation}
+                onChange={(e) => setNewFarmerLocation(e.target.value)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none uppercase"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1">Village</label>
+              <input
+                type="text"
+                placeholder="e.g. KODIBAG"
+                value={newFarmerVillage}
+                onChange={(e) => setNewFarmerVillage(e.target.value)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none uppercase"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 items-center pt-2">
+            <div className="flex flex-col">
+              <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1">Pond Count</label>
+              <input
+                type="number"
+                min="1"
+                value={newFarmerPondCount}
+                onChange={(e) => setNewFarmerPondCount(parseInt(e.target.value) || 1)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-4 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-4">
+              <input
+                type="checkbox"
+                id="modal-whatsapp"
+                checked={newFarmerHasWhatsapp}
+                onChange={(e) => setNewFarmerHasWhatsapp(e.target.checked)}
+                className="w-4 h-4 text-brand-olive border-card-border rounded focus:ring-brand-olive"
+              />
+              <label htmlFor="modal-whatsapp" className="text-[10px] font-black uppercase tracking-widest text-brand-olive cursor-pointer">
+                Has WhatsApp
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-card-border">
+            <button
+              type="button"
+              onClick={() => setIsFarmerModalOpen(false)}
+              className="border border-card-border text-text-secondary px-4 py-2 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isAddingFarmer}
+              className="bg-[#6A7051] text-white px-4 py-2 text-xs font-black uppercase tracking-widest hover:bg-[#5F6846] transition-all flex items-center gap-1 shadow-md disabled:opacity-50"
+            >
+              {isAddingFarmer ? 'Saving...' : 'Add Farmer'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

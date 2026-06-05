@@ -31,7 +31,20 @@ export const stockTransferController = {
     new ApiResponse(
       200,
       { transfer },
-      'Transfer approved — procurement stock reduced, Fish Mall stock increased'
+      'Transfer approved and dispatched — procurement stock reduced, awaiting receiver acceptance'
+    ).send(res);
+  }),
+
+  accept: asyncWrapper(async (req, res) => {
+    const transfer = await stockTransferService.acceptTransfer(
+      req.params.id,
+      req.user.id,
+      req.body
+    );
+    new ApiResponse(
+      200,
+      { transfer },
+      `Transfer resolved successfully as ${transfer.status}`
     ).send(res);
   }),
 
@@ -55,3 +68,4 @@ export const stockTransferController = {
 };
 
 export default stockTransferController;
+

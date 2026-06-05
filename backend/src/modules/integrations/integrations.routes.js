@@ -26,7 +26,12 @@ router.get('/status', (req, res) => {
       sms: {
         enabled: config.integrations.sms.enabled,
         provider: config.integrations.sms.provider,
-        forceSendInDev: config.integrations.sms.forceSendInDev
+        forceSendInDev: config.integrations.sms.forceSendInDev,
+        dltReady: Boolean(
+          config.integrations.sms.senderId &&
+            config.integrations.sms.entityId &&
+            config.integrations.sms.dltTemplateId
+        )
       },
       whatsapp: {
         enabled: config.integrations.whatsapp.enabled,
@@ -52,7 +57,11 @@ router.post(
       throw new AppError('phone and message are required', 400);
     }
     if (!smsService.isConfigured()) {
-      throw new AppError('SMS_API_KEY is not set in .env', 503);
+      const hint =
+        config.integrations.sms.provider === 'smsindiahub'
+          ? 'Configure SMS_API_KEY, SMS_SENDER_ID, SMS_ENTITY_ID, SMS_DLT_TEMPLATE_ID, and SMS_OTP_TEMPLATE (must match DLT-approved text)'
+          : 'SMS_API_KEY is not set in .env';
+      throw new AppError(hint, 503);
     }
     const result = await smsService.sendMessage(phone, message);
     new ApiResponse(200, result, 'SMS test dispatched').send(res);

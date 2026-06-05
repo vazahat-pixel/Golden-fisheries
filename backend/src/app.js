@@ -33,6 +33,9 @@ import restaurantOutletRoutes from './modules/restaurant-outlet/restaurantOutlet
 import internalSupplyAdminRoutes from './modules/internal-supply/internalSupply.routes.js';
 import mapsRoutes from './modules/maps/maps.routes.js';
 import integrationsRoutes from './modules/integrations/integrations.routes.js';
+import notificationRoutes from './modules/notifications/notification.routes.js';
+import systemSettingsRoutes from './modules/system-settings/systemSettings.routes.js';
+
 
 const app = express();
 
@@ -119,6 +122,9 @@ app.use('/api/v1/farmer-ledger', farmerLedgerRoutes);
 app.use('/api/v1/buyer-portal', buyerPortalRoutes);
 app.use('/api/v1/maps', mapsRoutes);
 app.use('/api/v1/integrations', integrationsRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/system-settings', systemSettingsRoutes);
+
 
 
 // ==========================================

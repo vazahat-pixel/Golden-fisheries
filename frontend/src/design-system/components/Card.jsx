@@ -1,21 +1,32 @@
 import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../utils/cn';
 
-export const Card = ({ children, className, padding = 'md' }) => {
-  const paddings = {
-    none: 'p-0',
-    sm: 'p-1 md:p-2',
-    md: 'p-2 md:p-3',
-    lg: 'p-3 md:p-4',
-  };
-
-  return (
-    <div className={twMerge(
-      'bg-card-bg border border-card-border shadow-sm rounded-none',
-      paddings[padding],
-      className
-    )}>
-      {children}
-    </div>
-  );
+const paddings = {
+  none: '',
+  sm: 'p-2',
+  md: 'p-3',
+  lg: 'p-4',
 };
+
+export const Card = ({ children, className, padding = 'md', as: Tag = 'div', ...props }) => (
+  <Tag
+    className={cn(
+      'bg-card-bg border border-card-border rounded-erp shadow-erp-sm',
+      paddings[padding] ?? paddings.md,
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </Tag>
+);
+
+export const CardHeader = ({ title, subtitle, actions, className }) => (
+  <div className={cn('flex flex-wrap items-start justify-between gap-2 mb-2', className)}>
+    <div className="min-w-0">
+      {title && <h3 className="erp-h3">{title}</h3>}
+      {subtitle && <p className="erp-caption mt-0.5">{subtitle}</p>}
+    </div>
+    {actions && <div className="flex flex-wrap items-center gap-1.5 shrink-0">{actions}</div>}
+  </div>
+);

@@ -1,0 +1,157 @@
+/**
+ * Golden Fisheries ERP — global typography & layout utilities
+ * Use these classes instead of ad-hoc font sizes / spacing.
+ */
+
+/* Page shell */
+.erp-page {
+  @apply space-y-4;
+}
+
+.erp-page-dense {
+  @apply space-y-3;
+}
+
+/* Typography hierarchy */
+.erp-eyebrow {
+  @apply text-[10px] font-semibold uppercase tracking-wide text-text-muted;
+}
+
+.erp-h1 {
+  @apply text-lg font-semibold text-text-primary leading-tight tracking-tight;
+}
+
+.erp-h2 {
+  @apply text-base font-semibold text-text-primary leading-snug;
+}
+
+.erp-h3 {
+  @apply text-sm font-semibold text-text-primary;
+}
+
+.erp-body {
+  @apply text-sm text-text-secondary leading-normal;
+}
+
+.erp-caption {
+  @apply text-xs text-text-muted;
+}
+
+.erp-table-header {
+  @apply text-[10px] font-semibold uppercase tracking-wide text-text-muted;
+}
+
+.erp-table-cell {
+  @apply text-xs text-text-primary;
+}
+
+.erp-label {
+  @apply text-xs font-medium text-text-secondary;
+}
+
+/* Layout grids */
+.erp-grid-kpi {
+  @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3;
+}
+
+.erp-grid-2 {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-3;
+}
+
+.erp-grid-3 {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-3;
+}
+
+/* Section chrome */
+.erp-section {
+  @apply bg-card-bg border border-card-border rounded-erp shadow-erp-sm;
+}
+
+.erp-section-header {
+  @apply flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-card-border bg-surface-muted;
+}
+
+.erp-section-body {
+  @apply p-3;
+}
+
+/* Toolbar row (filters + actions) */
+.erp-toolbar {
+  @apply flex flex-wrap items-center gap-2 mb-3;
+}
+
+/* Shimmer */
+@keyframes erp-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.erp-skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: erp-shimmer 1.2s ease-in-out infinite;
+}
+
+/* Table sticky header helper */
+.erp-table-wrap {
+  @apply overflow-x-auto overflow-y-auto max-h-[calc(100vh-12rem)];
+}
+
+.erp-table-wrap thead th {
+  @apply sticky top-0 z-10 bg-surface-muted;
+}
+
+/* Print */
+@media print {
+  .erp-print-root {
+    font-size: 10pt;
+    color: #000;
+  }
+  .erp-print-root table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .erp-print-root th,
+  .erp-print-root td {
+    border: 1px solid #ccc;
+    padding: 4px 6px;
+    font-size: 9pt;
+  }
+}
+
+/* Smooth interactions — preserves existing color identity */
+.erp-interactive {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .erp-page {
+    animation: erp-fade-in 0.2s ease-out;
+  }
+
+  @keyframes erp-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+*:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 50%, transparent);
+  outline-offset: 1px;
+}

@@ -74,7 +74,7 @@ const HarvestSlipPreview = () => {
   };
 
   const handleWhatsAppShare = () => {
-    const phone = slip.mobNumber || slip.farmerPhone || '';
+    const phone = slip.mobNumber || slip.farmerMobile || slip.farmerPhone || '';
     if (!phone) {
       toast.error('No farmer mobile number available');
       return;
@@ -152,7 +152,7 @@ const HarvestSlipPreview = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-card-border pb-5 print:hidden">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate('/admin/procurement/harvest/new')} 
+            onClick={() => navigate('/admin/procurement/harvest/new', { state: { isEditing: true } })} 
             className="text-text-muted hover:text-[#6A7051] transition-all p-1"
           >
             <ArrowLeft size={20} />
@@ -167,7 +167,7 @@ const HarvestSlipPreview = () => {
 
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <button
-            onClick={() => navigate('/admin/procurement/harvest/new')}
+            onClick={() => navigate('/admin/procurement/harvest/new', { state: { isEditing: true } })}
             className="flex-1 sm:flex-none border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
           >
             <Edit3 size={14} /> Edit
@@ -245,7 +245,7 @@ const HarvestSlipPreview = () => {
                   </div>
                   <div className="flex h-1/4 items-center">
                     <span className="font-semibold pl-1 w-24 uppercase">MOB NUMBER</span>
-                    <span className="pl-1 w-full">{slip.mobNumber}</span>
+                    <span className="pl-1 w-full">{slip.mobNumber || slip.farmerMobile || ''}</span>
                   </div>
                 </div>
 

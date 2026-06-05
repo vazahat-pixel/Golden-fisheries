@@ -166,12 +166,12 @@ const ProcurementToFishMallTransfer = () => {
         destinationOutletId,
         lines: payloadLines,
         notes: notes || undefined,
-        status: 'PENDING_APPROVAL',
+        status: 'CREATED',
       });
       const transfer = res?.data?.transfer ?? res?.data?.data?.transfer;
       toast.success(
         transfer?.transferNumber
-          ? `Transfer ${transfer.transferNumber} created — pending approval`
+          ? `Transfer ${transfer.transferNumber} created — pending dispatch`
           : 'Transfer note created'
       );
       setLines([emptyLine()]);
@@ -187,14 +187,14 @@ const ProcurementToFishMallTransfer = () => {
   };
 
   const handleApprove = async (id, transferNumber) => {
-    if (!window.confirm(`Approve transfer ${transferNumber}? Stock will move to Fish Mall.`)) return;
+    if (!window.confirm(`Dispatch transfer ${transferNumber}? Stock will be deducted from Procurement.`)) return;
     try {
-      await stockTransferService.approve(id);
-      toast.success(`Transfer ${transferNumber} approved`);
+      await stockTransferService.dispatch(id);
+      toast.success(`Transfer ${transferNumber} dispatched to Fish Mall`);
       loadTransfers();
       loadProducts();
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Approval failed');
+      toast.error(err?.response?.data?.message || 'Dispatch failed');
     }
   };
 
@@ -252,14 +252,14 @@ const ProcurementToFishMallTransfer = () => {
       key: 'actions',
       label: '',
       render: (row) =>
-        row.status === 'PENDING_APPROVAL' || row.status === 'DRAFT' ? (
+        ['CREATED', 'PENDING_APPROVAL', 'DRAFT'].includes(row.status) ? (
           <div className="flex gap-1">
             <AdminBtn
               variant="primary"
               className="!py-1 !px-2 text-[9px]"
               onClick={() => handleApprove(row._id || row.id, row.transferNumber)}
             >
-              <CheckCircle2 className="w-3 h-3 inline" /> Approve
+              <CheckCircle2 className="w-3 h-3 inline" /> Dispatch
             </AdminBtn>
             <AdminBtn
               variant="ghost"

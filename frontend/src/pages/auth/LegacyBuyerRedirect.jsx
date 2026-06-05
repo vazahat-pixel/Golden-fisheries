@@ -9,8 +9,8 @@ export default function LegacyBuyerRedirect() {
     '/buyer/invoices': '/mobile/buyer/invoices',
     '/buyer/returns': '/mobile/buyer/returns',
     '/buyer/reconciliation': '/mobile/buyer/reconciliation',
-    '/buyer/assign': '/mobile/buyer/assign-driver',
-    '/buyer/assign-driver': '/mobile/buyer/assign-driver',
+    '/buyer/assign': '/mobile/buyer/tapals',
+    '/buyer/assign-driver': '/mobile/buyer/tapals',
     '/buyer/trips': '/mobile/buyer/dashboard',
   };
   let target = map[pathname];

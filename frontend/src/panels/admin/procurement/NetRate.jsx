@@ -88,7 +88,7 @@ const NetRate = () => {
   };
 
   const confirmedHarvests = harvestSlips.filter((h) =>
-    ['CONFIRMED', 'PARTIALLY_CONVERTED', 'PENDING', 'SENT', 'PENDING_CONFIRMATION'].includes(h.status)
+    ['CONFIRMED', 'PARTIALLY_CONVERTED', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'OPEN', 'PARTIAL_USED'].includes(h.status)
   );
 
   return (

@@ -82,16 +82,16 @@ const ErpWebLogin = () => {
   };
 
   return (
-    <AuthLayout title="Admin Login" subtitle="Access is controlled by your Admin-assigned role">
+    <AuthLayout title="Admin Login" subtitle="Role-based ERP access">
       <button
         type="button"
         onClick={() => navigate('/auth/home')}
-        className="text-white flex items-center gap-2 mb-6 hover:text-brand-yellow transition-colors"
+        className="text-white/70 flex items-center gap-2 mb-5 text-xs font-semibold uppercase tracking-wider hover:text-brand-yellow transition-colors"
       >
-        <ArrowLeft size={16} /> Back
+        <ArrowLeft size={14} /> Back to sign-in options
       </button>
 
-      <form onSubmit={handleLogin} className="flex flex-col w-full">
+      <form onSubmit={handleLogin} className="flex flex-col w-full -mt-1">
         <AuthInput
           type="tel"
           inputMode="numeric"
@@ -111,13 +111,12 @@ const ErpWebLogin = () => {
           required
         />
 
-        <p className="text-[10px] text-white/50 mb-4 leading-relaxed">
-          Super Admin, Procurement Manager, Buyer, and Vehicle Manager use this screen. You will only see
-          modules your Admin has enabled.
+        <p className="text-[11px] text-white/45 mb-5 leading-relaxed">
+          Use the mobile number and password shared by your administrator. Modules shown match your assigned role.
         </p>
 
         <AuthButton type="submit" disabled={loading}>
-          {loading ? 'Signing in...' : 'Login to Admin ERP'}
+          {loading ? 'Signing in…' : 'Sign in'}
         </AuthButton>
       </form>
     </AuthLayout>

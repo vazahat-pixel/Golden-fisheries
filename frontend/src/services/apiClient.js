@@ -78,8 +78,9 @@ apiClient.interceptors.response.use(
 
       try {
         // Trigger sliding session refresh
+        const base = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
         const refreshResponse = await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/refresh`,
+          `${base}/auth/refresh`,
           {},
           { withCredentials: true }
         );

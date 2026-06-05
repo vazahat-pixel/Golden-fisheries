@@ -21,6 +21,9 @@ process.on('uncaughtException', (err) => {
 // ==========================================
 await connectDB();
 
+const { ensureSystemSettings } = await import('./modules/system-settings/systemSettings.service.js');
+await ensureSystemSettings();
+
 // ==========================================
 // 3. Start Express HTTP Server
 // ==========================================
@@ -74,4 +77,6 @@ const gracefulShutdown = (signal) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Trigger nodemon reload
 

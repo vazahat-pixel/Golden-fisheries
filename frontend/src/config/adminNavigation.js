@@ -15,17 +15,30 @@ import {
   FileText,
   RotateCcw,
   Scale,
+  Car,
+  Users,
+  Radio,
+  Settings,
+  Sliders,
+  UtensilsCrossed,
+  Fish,
 } from 'lucide-react';
 
-/** All admin ERP sidebar entries — visibility driven by permissions.modules[module].read */
+/**
+ * Core admin ERP sidebar (procurement, logistics, finance, inventory…).
+ * Super Admin / office staff also get BUYER_ADMIN_NAV_ITEMS merged in Sidebar.
+ */
 export const ADMIN_NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard', module: 'dashboard' },
   { icon: Sprout, label: 'Harvest Slips', path: '/admin/procurement/harvest', module: 'procurement' },
   { icon: FileText, label: 'Purchase Invoice', path: '/admin/procurement/net-rate', module: 'procurement' },
   { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals', module: 'tapals' },
   { icon: IndianRupee, label: 'Farmer Ledger', path: '/admin/procurement/farmer-ledger', module: 'procurement' },
-  { icon: Truck, label: 'Logistics', path: '/admin/logistics', module: 'logistics' },
+  { icon: Truck, label: 'Logistics & Trips', path: '/admin/logistics', module: 'logistics' },
+  { icon: Car, label: 'Vehicle Management', path: '/admin/vehicles', module: 'logistics' },
+  { icon: Users, label: 'Driver Management', path: '/admin/logistics/drivers', module: 'logistics' },
   { icon: Truck, label: 'Assign Driver', path: '/admin/logistics/assign-driver', module: 'logistics' },
+  { icon: Radio, label: 'Fleet Control', path: '/admin/logistics/control', module: 'logistics' },
   { icon: Receipt, label: 'Expenses', path: '/admin/expenses', module: 'finance', badge: 'expenses' },
   { icon: Wallet, label: 'Finance / P&L', path: '/admin/finance', module: 'finance' },
   { icon: ReceiptText, label: 'Billing', path: '/admin/billing', module: 'billing' },
@@ -39,19 +52,38 @@ export const ADMIN_NAV_ITEMS = [
   },
   { icon: Store, label: 'Outlets', path: '/admin/outlets', module: 'outlets' },
   { icon: Shield, label: 'Access Control', path: '/admin/access', module: 'accessControl', highlight: true },
-  // Buyer workflows inside main admin ERP
-  { icon: LayoutDashboard, label: 'Buyer Dashboard', path: '/admin/buyer/dashboard', module: 'buyerDashboard' },
-  { icon: ShoppingCart, label: 'Verify Tapals', path: '/admin/buyer/tapals', module: 'buyerVerify' },
-  { icon: Truck, label: 'Assign Driver', path: '/admin/buyer/assign-driver', module: 'buyerVerify' },
-  { icon: FileText, label: 'My Bills', path: '/admin/buyer/invoices', module: 'buyerBills' },
-  { icon: RotateCcw, label: 'Sales Return', path: '/admin/buyer/returns', module: 'buyerReturns' },
-  { icon: Scale, label: 'Settlement', path: '/admin/buyer/reconciliation', module: 'buyerSettlement' },
+  {
+    icon: Sliders,
+    label: 'System Control',
+    path: '/admin/system-control',
+    module: 'systemControl',
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+  },
+  { icon: Settings, label: 'Users & Roles', path: '/admin/settings', module: 'settings' },
+  {
+    icon: UtensilsCrossed,
+    label: 'Restaurant Panel',
+    path: '/restaurant/dashboard',
+    roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'ACCOUNTANT'],
+  },
+  {
+    icon: Fish,
+    label: 'Fish Mall Panel',
+    path: '/fishmall/dashboard',
+    roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'ACCOUNTANT'],
+  },
 ];
 
-export const BUYER_NAV_MODULES = [
-  'buyerDashboard',
-  'buyerVerify',
-  'buyerBills',
-  'buyerReturns',
-  'buyerSettlement',
+/** Buyer workflows inside admin ERP (visible to Super Admin + BUYER role) */
+export const BUYER_ADMIN_NAV_ITEMS = [
+  { icon: LayoutDashboard, label: 'Buyer Dashboard', path: '/admin/buyer/dashboard', module: 'buyerDashboard' },
+  { icon: ShoppingCart, label: 'Buyer — Verify Tapals', path: '/admin/buyer/tapals', module: 'buyerVerify' },
+  { icon: FileText, label: 'Buyer — My Bills', path: '/admin/buyer/invoices', module: 'buyerBills' },
+  { icon: RotateCcw, label: 'Buyer — Sales Return', path: '/admin/buyer/returns', module: 'buyerReturns' },
+  { icon: Scale, label: 'Buyer — Settlement', path: '/admin/buyer/reconciliation', module: 'buyerSettlement' },
 ];
+
+export const BUYER_NAV_MODULES = BUYER_ADMIN_NAV_ITEMS.map((i) => i.module);
+
+/** Full sidebar for office / Super Admin (no duplicate paths) */
+export const FULL_ADMIN_NAV_ITEMS = [...ADMIN_NAV_ITEMS, ...BUYER_ADMIN_NAV_ITEMS];

@@ -130,7 +130,7 @@ const FishMallInternalSupply = () => {
       const bill = res?.data?.data?.bill ?? res?.data?.bill;
       toast.success(
         bill?.invoiceNumber
-          ? `Internal bill ${bill.invoiceNumber} issued — Restaurant stock updated`
+          ? `Internal bill ${bill.invoiceNumber} issued — Awaiting Restaurant acceptance`
           : 'Internal bill issued'
       );
       setLines([emptyLine()]);

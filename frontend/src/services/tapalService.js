@@ -87,6 +87,15 @@ export const tapalService = {
     return await apiClient.patch(`/tapals/trip/${tripId}/post-trip-expense/review`, { status, rejectionReason });
   },
 
+  // 8.3 Admin confirms payout and closes trip
+  confirmPostTripPayment: async (tripId, paidAmount, upiTransactionId, paymentMethod = 'UPI') => {
+    return await apiClient.patch(`/tapals/trip/${tripId}/post-trip-expense/confirm-payment`, {
+      paidAmount,
+      upiTransactionId,
+      paymentMethod,
+    });
+  },
+
   // 9. Fetch active Trip details
   getTripById: async (id) => {
     return await apiClient.get(`/tapals/trip/${id}`);

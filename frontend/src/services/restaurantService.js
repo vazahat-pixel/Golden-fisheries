@@ -55,6 +55,10 @@ export const restaurantService = {
     return await apiClient.get(`/restaurant/internal-supplies/${id}`);
   },
 
+  acceptInternalSupply: async (id, data) => {
+    return await apiClient.post(`/internal-supply/bills/${id}/accept`, data);
+  },
+
   getReceiveReport: async (params = {}) => {
     return await apiClient.get('/restaurant/internal-supplies/reports/receives', { params });
   },

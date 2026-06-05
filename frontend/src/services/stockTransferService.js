@@ -21,6 +21,16 @@ export const stockTransferService = {
     return res;
   },
 
+  dispatch: async (id, notes = '') => {
+    const res = await apiClient.post(`/stock-transfers/${id}/dispatch`, { notes });
+    return res;
+  },
+
+  accept: async (id, payload) => {
+    const res = await apiClient.post(`/stock-transfers/${id}/accept`, payload);
+    return res;
+  },
+
   cancel: async (id, cancelReason) => {
     const res = await apiClient.patch(`/stock-transfers/${id}/cancel`, { cancelReason });
     return res;

@@ -15,6 +15,10 @@ build/
 .env.local
 .env.*.local
 
+# Firebase / cloud credentials (never commit)
+backend/config/firebase-service-account.json
+**/firebase-service-account.json
+
 # Editor
 .vscode/
 .idea/

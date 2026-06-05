@@ -153,18 +153,21 @@ export const requireBusinessUnit = (...units) => {
   };
 };
 
-/** SUPER_ADMIN mobile: monitor only — no create/update/delete */
+/** SUPER_ADMIN on mobile: monitor only — no create/update/delete on ERP APIs */
 export const blockMobileWrite = (req, res, next) => {
   const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
   const isMobileClient = req.clientPlatform === PLATFORM_ACCESS.MOBILE;
-  const viewOnly = req.user?.platformAccess?.mobileViewOnly === true;
 
+<<<<<<< HEAD
+  if (isMobileClient && isSuperAdmin(req.user.role) && writeMethods.includes(req.method)) {
+=======
   if (isMobileClient && isSuperAdmin(req.user.role) && viewOnly && writeMethods.includes(req.method)) {
     // In development mode, allow SUPER_ADMIN to perform write operations for E2E testing
     if (config.env === 'development') {
       return next();
     }
 
+>>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
     const isDriverBypass = req.originalUrl && (
       req.originalUrl.includes('/start-trip') ||
       req.originalUrl.includes('/pickup') ||

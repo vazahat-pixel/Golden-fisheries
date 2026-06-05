@@ -1,0 +1,277 @@
+/* Field app — premium dark (charcoal + muted gold) */
+.field-app {
+  --fa-bg: #000000;
+  --fa-bg-gradient: radial-gradient(ellipse 90% 60% at 50% -20%, rgba(201, 169, 98, 0.05), transparent 55%),
+    #000000;
+  --fa-surface: #161618;
+  --fa-surface-elevated: #1f1f22;
+  --fa-action-tile: #1a1a1d;
+  --fa-accent: #c9a962;
+  --fa-accent-soft: #8b7d5a;
+  --fa-accent-dim: rgba(201, 169, 98, 0.12);
+  --fa-accent-glow: rgba(201, 169, 98, 0.22);
+  --fa-text: #f4f4f5;
+  --fa-muted: #71717a;
+  --fa-border: rgba(255, 255, 255, 0.07);
+  --fa-danger: #e07a7a;
+  --fa-radius-lg: 22px;
+  --fa-radius-md: 14px;
+  --fa-radius-sm: 10px;
+  --fa-shadow-card: 0 10px 40px rgba(0, 0, 0, 0.5);
+  color: var(--fa-text);
+  background: var(--fa-bg-gradient);
+  min-height: 100dvh;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.field-app .fa-surface {
+  background: linear-gradient(160deg, #1c1c1f 0%, #141416 100%);
+  border: 1px solid var(--fa-border);
+  border-radius: var(--fa-radius-lg);
+  box-shadow: var(--fa-shadow-card);
+}
+
+.field-app .fa-hero-card {
+  background: linear-gradient(145deg, #1f1f23 0%, #141416 55%, #1a1814 100%);
+  color: var(--fa-text);
+  border-radius: var(--fa-radius-lg);
+  border: 1px solid rgba(201, 169, 98, 0.35);
+  box-shadow: var(--fa-shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.field-app .fa-hero-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 45%;
+  height: 100%;
+  background: radial-gradient(circle at 100% 0%, rgba(201, 169, 98, 0.12) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+/* Driver dispatch card */
+.field-app .fa-trip-hero {
+  background: linear-gradient(155deg, #1a1a1e 0%, #121214 50%, #18160f 100%);
+  color: var(--fa-text);
+  border-radius: var(--fa-radius-lg);
+  border: 1px solid rgba(201, 169, 98, 0.28);
+  box-shadow: var(--fa-shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.field-app .fa-trip-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(201, 169, 98, 0.14) 0%, transparent 28%),
+    radial-gradient(ellipse 70% 80% at 100% 20%, rgba(201, 169, 98, 0.08), transparent 55%);
+  pointer-events: none;
+}
+
+.field-app .fa-trip-icon-wrap {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--fa-radius-sm);
+  background: var(--fa-accent-dim);
+  border: 1px solid rgba(201, 169, 98, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fa-accent);
+}
+
+.field-app .fa-trip-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--fa-border);
+  background: var(--fa-surface-elevated);
+  color: var(--fa-muted);
+}
+
+.field-app .fa-trip-status--active {
+  color: var(--fa-accent);
+  border-color: rgba(201, 169, 98, 0.45);
+  background: var(--fa-accent-dim);
+}
+
+.field-app .fa-trip-status--assigned {
+  color: #e8d9a8;
+  border-color: rgba(201, 169, 98, 0.35);
+}
+
+.field-app .fa-trip-status--idle {
+  color: var(--fa-muted);
+}
+
+.field-app .fa-hero-card .fa-hero-accent {
+  color: var(--fa-accent);
+}
+
+.field-app .fa-action-tile {
+  background: var(--fa-action-tile);
+  border: 1px solid var(--fa-border);
+  border-radius: var(--fa-radius-md);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.field-app .fa-action-tile:hover {
+  border-color: rgba(201, 169, 98, 0.2);
+}
+.field-app .fa-action-tile:active {
+  transform: scale(0.96);
+}
+
+.field-app .fa-muted {
+  color: var(--fa-muted);
+}
+
+.field-app .fa-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.field-app .fa-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fa-accent);
+}
+
+.field-app .fa-page-enter {
+  animation: fa-slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.field-app .fa-stagger > * {
+  animation: fa-slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.field-app .fa-stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.field-app .fa-stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.field-app .fa-stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.field-app .fa-stagger > *:nth-child(4) { animation-delay: 0.16s; }
+.field-app .fa-stagger > *:nth-child(5) { animation-delay: 0.2s; }
+
+@keyframes fa-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.field-app .fa-nav-active .fa-nav-icon-wrap {
+  background: rgba(201, 169, 98, 0.08);
+  color: var(--fa-accent);
+  border: 1px solid rgba(201, 169, 98, 0.45);
+  box-shadow: 0 0 20px var(--fa-accent-glow), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.field-app .fa-page-fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.field-app .fa-page-body-grow {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0.25rem;
+}
+
+.field-app .fa-empty-state {
+  background: linear-gradient(160deg, #141416 0%, #101012 100%);
+  border: 1px solid var(--fa-border);
+  border-radius: var(--fa-radius-lg);
+  padding: 2.5rem 1.75rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.field-app .fa-empty-state--fill {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  margin-top: 0.75rem;
+}
+
+.field-app .fa-empty-state .fa-empty-icon {
+  color: #52525b;
+  margin: 0 auto 1rem;
+}
+
+.field-app .fa-pill {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fa-muted);
+  background: var(--fa-surface);
+  border: 1px solid var(--fa-border);
+  transition: all 0.25s ease;
+}
+.field-app .fa-pill-active {
+  background: var(--fa-surface-elevated);
+  color: var(--fa-accent);
+  border-color: rgba(201, 169, 98, 0.4);
+}
+
+.field-app .fa-tap {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.field-app .fa-tap:active {
+  transform: scale(0.96);
+}
+
+.field-app .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.field-app .no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.field-app .fa-input {
+  width: 100%;
+  background: var(--fa-surface-elevated);
+  border: 1px solid var(--fa-border);
+  border-radius: var(--fa-radius-md);
+  padding: 0.75rem 1rem;
+  color: var(--fa-text);
+  font-size: 0.875rem;
+  outline: none;
+}
+.field-app .fa-input:focus {
+  border-color: rgba(201, 169, 98, 0.45);
+  box-shadow: 0 0 0 2px var(--fa-accent-dim);
+}
+
+.field-app .fa-btn-primary {
+  background: linear-gradient(180deg, #d4b96e 0%, #a88b4a 100%);
+  color: #0a0a0c;
+  font-weight: 700;
+  border-radius: var(--fa-radius-md);
+  border: 1px solid rgba(201, 169, 98, 0.5);
+}
+.field-app .fa-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.field-app .fa-amount-positive {
+  color: var(--fa-accent);
+  font-weight: 600;
+}

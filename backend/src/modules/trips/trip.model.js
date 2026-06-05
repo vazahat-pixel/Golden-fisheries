@@ -65,6 +65,20 @@ const postTripExpensesSchema = new mongoose.Schema({
     enum: ['PENDING', 'APPROVED', 'REJECTED'],
     default: 'PENDING'
   },
+  paymentStatus: {
+    type: String,
+    enum: ['UNPAID', 'PAID'],
+    default: 'UNPAID'
+  },
+  paidAmount: { type: Number, default: 0 },
+  paymentMethod: {
+    type: String,
+    enum: ['UPI', 'CASH', 'BANK'],
+    default: 'UPI'
+  },
+  upiTransactionId: { type: String, trim: true, default: '' },
+  paymentConfirmedBy: { type: String, default: null },
+  paymentConfirmedAt: { type: Date, default: null },
   reviewedBy: { type: String, default: null },
   reviewedAt: { type: Date, default: null },
   rejectionReason: { type: String, default: '' }
@@ -109,7 +123,7 @@ const tripSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED', 'CLOSED'],
+      enum: ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED', 'PAYMENT_PENDING', 'CLOSED'],
       default: 'ASSIGNED',
       index: true
     },

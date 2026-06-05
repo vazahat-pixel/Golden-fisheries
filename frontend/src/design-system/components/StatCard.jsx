@@ -1,30 +1,55 @@
 import React from 'react';
 import { Card } from './Card';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../utils/cn';
 
-export const StatCard = ({ title, value, icon: Icon, trend, trendType = 'up', variant = 'info' }) => {
+export const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  trend,
+  trendType = 'up',
+  variant = 'default',
+  className,
+  onClick,
+}) => {
+  const variantBorder = {
+    default: 'border-card-border',
+    accent: 'border-accent/30',
+    warning: 'border-amber-200',
+    danger: 'border-red-200',
+  };
+
   return (
-    <Card className="p-4 md:p-5 bg-white border border-card-border shadow-subtle">
-      <div className="flex justify-between items-start mb-4">
-        <div className="w-8 h-8 border border-card-border bg-olive-100/50 flex items-center justify-center text-accent-olive">
-          {Icon && <Icon size={16} />}
-        </div>
-        {trend && (
-          <div className={twMerge(
-            "text-[9px] font-bold uppercase tracking-widest px-2 py-1",
-            trendType === 'up' ? "text-green-600" : "text-red-600"
-          )}>
-            {trend}
+    <Card
+      padding="md"
+      className={cn(
+        variantBorder[variant] ?? variantBorder.default,
+        onClick && 'cursor-pointer hover:bg-surface-hover transition-colors',
+        className
+      )}
+      onClick={onClick}
+    >
+      <div className="flex justify-between items-start gap-2 mb-2">
+        {Icon && (
+          <div className="w-8 h-8 flex items-center justify-center rounded-erp bg-surface-muted text-accent border border-card-border shrink-0">
+            <Icon size={15} strokeWidth={2} />
           </div>
         )}
+        {trend && (
+          <span
+            className={cn(
+              'text-[10px] font-semibold',
+              trendType === 'up' ? 'text-success' : 'text-danger'
+            )}
+          >
+            {trend}
+          </span>
+        )}
       </div>
-      <div className="space-y-1">
-        <p className="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">{title}</p>
-        <p className="text-2xl font-serif italic font-bold text-primary tracking-tight">
-          {value}
-        </p>
-      </div>
+      <p className="erp-eyebrow">{title}</p>
+      <p className="text-xl font-semibold text-text-primary tracking-tight mt-0.5 tabular-nums">
+        {value}
+      </p>
     </Card>
   );
 };

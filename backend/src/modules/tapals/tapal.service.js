@@ -94,6 +94,8 @@ class TapalService extends BaseService {
 
       if (tapal.type === 'Sale') {
         deliveryLocation = tapal.unloadingPoint || tapal.destination || 'BUYER SITE';
+      } else if (tapal.destination || tapal.unloadingPoint) {
+        deliveryLocation = tapal.destination || tapal.unloadingPoint;
       }
 
       if (tapal.pickupLocation) pickupLocation = tapal.pickupLocation;
@@ -139,9 +141,11 @@ class TapalService extends BaseService {
       broadcastEvent('trip:status_change', tripPayload, 'dashboard:updates');
       broadcastEvent('trip:status_change', tripPayload, 'role:BUYER');
 
-      // 8. Emit explicitly to the specific driver's room
-      broadcastEvent('trip:new_assignment', {
+      const driverUserId = driver._id.toString();
+      const assignmentPayload = {
         tapalId: tapal._id,
+        tripId: trip._id,
+        tripNumber: trip.tripNumber,
         tapalNumber: tapal.tapalNumber,
         type: tapal.type,
         partyName: tapal.partyName,
@@ -151,7 +155,9 @@ class TapalService extends BaseService {
         deliveryLocation,
         products: tapal.products,
         assignedAt: new Date()
-      }, `user:${driver._id}`);
+      };
+      broadcastEvent('trip:new_assignment', assignmentPayload, `user:${driverUserId}`);
+      broadcastEvent('trip:new_assignment', assignmentPayload, 'drivers:updates');
 
       logger.info(`[Logistics Engine]: Driver ${driver.fullName} assigned to Tapal ${tapal.tapalNumber}. Trip ${trip.tripNumber} spawned.`);
 
@@ -164,6 +170,15 @@ class TapalService extends BaseService {
             tapalNo: tapal.tapalNumber
           })
           .catch((e) => logger.warn(`[Notify] Driver SMS failed: ${e.message}`));
+
+        notificationService.createInAppNotification({
+          userId: driver._id,
+          title: 'New Trip Assigned 🚀',
+          message: `Trip #${tapal.tapalNumber} assigned. Vehicle: ${vehicle?.vehicleNumber || 'N/A'}. Pickup: ${pickupLocation}.`,
+          type: 'ALERT',
+          referenceId: trip._id,
+          referenceModel: 'Trip'
+        }).catch(e => logger.warn(`[Notify] Driver InApp/Push failed: ${e.message}`));
       }
 
       mapsService
@@ -670,6 +685,15 @@ class TapalService extends BaseService {
       driverName: driverName
     }, 'dashboard:updates');
 
+    notificationService.createInAppNotification({
+      role: 'SUPER_ADMIN',
+      title: 'New Expense Claim 💵',
+      message: `New expense logged for Trip #${trip.tripNumber} by ${driverName}. Amount: ₹${newExpense.amount}.`,
+      type: 'ALERT',
+      referenceId: newExpense._id,
+      referenceModel: 'Expense'
+    }).catch(e => logger.warn(`[Notify] Expense push failed: ${e.message}`));
+
     // Broadcast the full post-trip completion details for real-time admin popup notification
     broadcastEvent('trip:ended', {
       tripId: trip._id,
@@ -694,6 +718,15 @@ class TapalService extends BaseService {
       remarks: data.remarks || '',
       endedAt: new Date()
     }, 'dashboard:updates');
+
+    notificationService.createInAppNotification({
+      role: 'SUPER_ADMIN',
+      title: 'Trip Completed 🏁',
+      message: `Trip #${trip.tripNumber} completed by ${driverName}. KMs run: ${parseFloat(data.endingKms) - parseFloat(data.startingKms) || 0}.`,
+      type: 'ALERT',
+      referenceId: trip._id,
+      referenceModel: 'Trip'
+    }).catch(e => logger.warn(`[Notify] Trip completion push failed: ${e.message}`));
 
     logger.info(`[Driver Flow]: Rich post-trip expenses logged for Trip ${trip.tripNumber} with matching Expense entry.`);
     return trip;
@@ -728,8 +761,9 @@ class TapalService extends BaseService {
     }
 
     if (upperStatus === 'APPROVED' && trip.status === 'DELIVERED') {
-      trip.status = 'CLOSED';
-      trip.timeline.push({ status: 'CLOSED', timestamp: new Date() });
+      trip.status = 'PAYMENT_PENDING';
+      trip.timeline.push({ status: 'PAYMENT_PENDING', timestamp: new Date() });
+      trip.postTripExpenses.paymentStatus = 'UNPAID';
 
       // Lock Tapal into Bill Pending State
       const TapalModel = mongoose.model('Tapal');
@@ -748,18 +782,10 @@ class TapalService extends BaseService {
         }
       }
 
-      // Release Vehicle back to available fleet
-      const VehicleModel = mongoose.model('Vehicle');
-      const vehicle = await VehicleModel.findById(trip.vehicleId);
-      if (vehicle) {
-        vehicle.status = 'AVAILABLE';
-        await vehicle.save();
-      }
-
       broadcastEvent('trip:status_change', {
         tripId: trip._id,
         tripNumber: trip.tripNumber,
-        status: 'CLOSED'
+        status: 'PAYMENT_PENDING'
       }, 'dashboard:updates');
     }
 
@@ -773,6 +799,75 @@ class TapalService extends BaseService {
     );
 
     logger.info(`[Admin Flow]: Post-trip expenses for Trip ${trip.tripNumber} marked as ${upperStatus} and trip status updated.`);
+    return trip;
+  }
+
+  /**
+   * Admin confirms trip expense payment; this is the final closure step.
+   */
+  async confirmPostTripPayment(tripId, reviewerId, payload = {}) {
+    const query = mongoose.Types.ObjectId.isValid(tripId)
+      ? { $or: [{ _id: tripId }, { tapalId: tripId }] }
+      : { tripNumber: tripId };
+
+    const trip = await Trip.findOne(query);
+    if (!trip) throw new AppError('Trip not found', 404);
+    if (!trip.postTripExpenses) throw new AppError('No post-trip expenses found on this trip', 400);
+    if (trip.postTripExpenses.status !== 'APPROVED') {
+      throw new AppError('Post-trip expenses must be approved before payment', 400);
+    }
+    if (trip.postTripExpenses.paymentStatus === 'PAID') {
+      throw new AppError('Trip payment already confirmed', 409);
+    }
+
+    const paidAmount = parseFloat(payload.paidAmount);
+    const computedPayable = parseFloat(trip.postTripExpenses.balancePayable) || 0;
+    const finalPaidAmount = Number.isFinite(paidAmount) ? paidAmount : computedPayable;
+    if (!finalPaidAmount || finalPaidAmount <= 0) {
+      throw new AppError('Valid paid amount is required', 400);
+    }
+
+    const upiTransactionId = (payload.upiTransactionId || '').trim();
+    if (!upiTransactionId) {
+      throw new AppError('UPI transaction ID is required', 400);
+    }
+
+    const duplicate = await Trip.findOne({
+      _id: { $ne: trip._id },
+      'postTripExpenses.upiTransactionId': upiTransactionId,
+      'postTripExpenses.paymentStatus': 'PAID'
+    }).select('_id tripNumber');
+    if (duplicate) {
+      throw new AppError(`UPI transaction ID already used in trip ${duplicate.tripNumber}`, 409);
+    }
+
+    trip.postTripExpenses.paymentStatus = 'PAID';
+    trip.postTripExpenses.paidAmount = finalPaidAmount;
+    trip.postTripExpenses.paymentMethod = (payload.paymentMethod || 'UPI').toUpperCase();
+    trip.postTripExpenses.upiTransactionId = upiTransactionId;
+    trip.postTripExpenses.paymentConfirmedBy = reviewerId;
+    trip.postTripExpenses.paymentConfirmedAt = new Date();
+
+    trip.status = 'CLOSED';
+    trip.timeline.push({ status: 'CLOSED', timestamp: new Date() });
+
+    // Release Vehicle back to available fleet
+    const VehicleModel = mongoose.model('Vehicle');
+    const vehicle = await VehicleModel.findById(trip.vehicleId);
+    if (vehicle) {
+      vehicle.status = 'AVAILABLE';
+      await vehicle.save();
+    }
+
+    await trip.save();
+
+    broadcastEvent('trip:status_change', {
+      tripId: trip._id,
+      tripNumber: trip.tripNumber,
+      status: 'CLOSED'
+    }, 'dashboard:updates');
+
+    logger.info(`[Admin Flow]: Payment confirmed for Trip ${trip.tripNumber}. UPI Txn: ${upiTransactionId}`);
     return trip;
   }
 }

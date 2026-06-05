@@ -8,12 +8,51 @@ import {
 import { toast } from 'react-hot-toast';
 import { socketService } from '../../services/socketService';
 import { mapsService } from '../../services/mapsService';
+import { FieldPageWrap } from '../../design-system/field-app';
+import { useSystemSettingsStore } from '../../store/systemSettingsStore';
+
+/** Cargo totals from linked purchase tapal (driver should confirm, not re-enter). */
+function getTapalCargoSummary(trip) {
+  if (!trip) return { boxes: 0, weightKg: 0, tapalNumber: '—', partyName: '', productLines: [] };
+  const tapal =
+    trip.tapalId && typeof trip.tapalId === 'object'
+      ? trip.tapalId
+      : trip.tapal && typeof trip.tapal === 'object'
+        ? trip.tapal
+        : null;
+  const products = tapal?.products || [];
+  const boxesFromTapal = products.reduce((s, p) => s + (Number(p.boxQty) || 0), 0);
+  const weightFromLines = products.reduce(
+    (s, p) => s + (Number(p.totalWeight) || Number(p.numericQty) || 0),
+    0
+  );
+  const weightKg =
+    Number(trip.expectedQty) ||
+    Number(tapal?.numericQty) ||
+    weightFromLines ||
+    parseFloat(String(tapal?.qty || trip.qty || '').replace(/[^\d.]/g, '')) ||
+    0;
+
+  return {
+    tapalNumber: tapal?.tapalNumber || trip.tapalNumber || '—',
+    partyName: tapal?.partyName || trip.partyName || '',
+    boxes: trip.expectedBoxes ?? boxesFromTapal ?? 0,
+    weightKg,
+    qtyLabel: tapal?.qty || trip.qty || (weightKg ? `${weightKg} KG` : '—'),
+    productLines: products.map((p) => ({
+      name: p.name,
+      boxes: p.boxQty,
+      weight: p.totalWeight || p.qty,
+    })),
+  };
+}
 
 const ActiveTrip = () => {
   const navigate = useNavigate();
   const {
     myTrips, fetchMyTrips, startTripAsync, pickupAsync, deliverAsync
   } = useDriverStore();
+  const driverPanel = useSystemSettingsStore((s) => s.settings?.panels?.driver);
 
   const [trip, setTrip] = useState(null);
 
@@ -25,6 +64,7 @@ const ActiveTrip = () => {
 
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [allowManualLoadEdit, setAllowManualLoadEdit] = useState(false);
 
   // Signature canvas simulation
   const sigCanvasRef = useRef(null);
@@ -32,62 +72,6 @@ const ActiveTrip = () => {
 
   const [proofPhotoData, setProofPhotoData] = useState('');
   const fileInputRef = useRef(null);
-
-  // Beautiful brand-aligned receipt image generator using HTML canvas
-  const generateMockReceipt = (tripId) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 300;
-    const ctx = canvas.getContext('2d');
-    
-    // Background gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, '#6A7051'); // Olive
-    grad.addColorStop(1, '#4E533C');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 400, 300);
-    
-    // Border
-    ctx.strokeStyle = '#EAB308'; // Gold
-    ctx.lineWidth = 8;
-    ctx.strokeRect(10, 10, 380, 280);
-    
-    // Gold Inner Accent Line
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.4)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(16, 16, 368, 268);
-    
-    // Title
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 20px "Inter", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('GOLDEN FISHERIES', 200, 60);
-    
-    ctx.fillStyle = '#EAB308';
-    ctx.font = 'bold 12px "Inter", sans-serif';
-    ctx.fillText('OFFICIAL CARGO DELIVERY PROOF', 200, 85);
-    
-    // Divider
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(50, 105, 300, 2);
-    
-    // Trip Info
-    ctx.fillStyle = '#F5F5EC';
-    ctx.font = '13px "Inter", sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Trip Ref: #${tripId || 'N/A'}`, 60, 140);
-    ctx.fillText(`Status: DELIVERED & SECURED`, 60, 170);
-    ctx.fillText(`Scale Qty: ${trip?.actualQty || loadWeight || '450'} KG`, 60, 200);
-    ctx.fillText(`Date: ${new Date().toLocaleString()}`, 60, 230);
-    
-    // Badge
-    ctx.fillStyle = '#EAB308';
-    ctx.font = 'bold 15px "Inter", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('★ POD VERIFIED ★', 200, 270);
-    
-    return canvas.toDataURL('image/png');
-  };
 
   const handlePhotoFileChange = (e) => {
     const file = e.target.files[0];
@@ -132,57 +116,64 @@ const ActiveTrip = () => {
     };
 
     ping();
-    const timer = setInterval(ping, 15000);
+    const ms = Math.max(5, Number(driverPanel?.gpsPingIntervalSec) || 15) * 1000;
+    const timer = setInterval(ping, ms);
     return () => clearInterval(timer);
-  }, [trip?._id, trip?.id, trip?.status]);
+  }, [trip?._id, trip?.id, trip?.status, driverPanel?.gpsPingIntervalSec]);
 
   if (!trip) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 text-center max-w-md mx-auto border-x border-slate-200">
-        <div className="space-y-4">
-          <AlertTriangle className="text-amber-500 mx-auto" size={48} />
-          <h2 className="text-sm font-black uppercase text-brand-olive tracking-wider">No Active Trip Console</h2>
-          <p className="text-xs text-text-secondary max-w-[280px]">
-            You must have an assigned trip in your queue to execute live cargo steps.
+      <FieldPageWrap subtitle="Active trip">
+        <div className="fa-surface p-8 text-center space-y-4">
+          <AlertTriangle className="text-[var(--fa-accent)] mx-auto" size={48} />
+          <h2 className="text-sm font-bold uppercase tracking-wider">No active trip</h2>
+          <p className="text-xs fa-muted max-w-[280px] mx-auto">
+            You need an assigned trip in your queue to run live cargo steps.
           </p>
           <button
+            type="button"
             onClick={() => navigate('/driver/dashboard')}
-            className="bg-[#6A7051] text-white px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest"
+            className="fa-btn-primary px-5 py-2.5 text-xs font-bold uppercase fa-tap"
           >
-            Go to Dashboard
+            Go to dashboard
           </button>
         </div>
-      </div>
+      </FieldPageWrap>
     );
   }
 
   const handleStartTrip = async () => {
     const loadToast = toast.loading('Starting transit...');
     try {
-      await startTripAsync(trip._id || trip.id);
+      await startTripAsync(trip);
       setTrip(prev => prev ? { ...prev, status: 'In Transit' } : null);
       toast.success('Trip started! Drive safe.', { id: loadToast });
     } catch (err) {
-      console.warn('Backend call failed, simulated offline start.');
-      setTrip(prev => prev ? { ...prev, status: 'In Transit' } : null);
-      toast.success('Trip started (offline mode)! Drive safe.', { id: loadToast });
+      toast.error(err?.message || 'Failed to start trip', { id: loadToast });
     }
   };
 
+  const cargoSummary = getTapalCargoSummary(trip);
+
   const handleOpenPickup = () => {
+    const cargo = getTapalCargoSummary(trip);
+    setLoadBoxes(cargo.boxes ? String(cargo.boxes) : '');
+    setLoadWeight(cargo.weightKg ? String(cargo.weightKg) : '');
+    setAllowManualLoadEdit(false);
     setShowLoadModal(true);
   };
 
   const handleConfirmPickup = async (e) => {
     e.preventDefault();
-    if (!loadWeight) {
-      toast.error('Please enter loaded weight');
+    const weight = parseFloat(loadWeight);
+    if (!weight || Number.isNaN(weight) || weight <= 0) {
+      toast.error('Tapal load weight missing — contact dispatch');
       return;
     }
 
     const loadToast = toast.loading('Logging loaded cargo...');
     try {
-      await pickupAsync(trip._id || trip.id, parseFloat(loadWeight));
+      await pickupAsync(trip, weight);
       setTrip(prev => prev ? {
         ...prev,
         status: 'Picked',
@@ -192,14 +183,7 @@ const ActiveTrip = () => {
       setShowLoadModal(false);
       toast.success('Cargo loading verified & reported!', { id: loadToast });
     } catch (err) {
-      setTrip(prev => prev ? {
-        ...prev,
-        status: 'Picked',
-        actualQty: `${loadWeight} KG`,
-        loadBoxes: loadBoxes
-      } : null);
-      setShowLoadModal(false);
-      toast.success('Cargo loading verified (offline mode)!', { id: loadToast });
+      toast.error(err?.message || 'Failed to log pickup', { id: loadToast });
     }
   };
 
@@ -219,20 +203,25 @@ const ActiveTrip = () => {
 
     const canvas = sigCanvasRef.current;
     const finalSignatureData = canvas ? canvas.toDataURL('image/png') : 'sig_data';
-    const tripId = trip._id || trip.id;
-    const finalProofPhoto = proofPhotoData || generateMockReceipt(tripId);
+    if (!proofPhotoData) {
+      toast.error('Delivery proof photo is required');
+      return;
+    }
 
     const loadToast = toast.loading('Finalizing delivery data...');
+    const qty = parseFloat(String(trip.actualQty || loadWeight).replace(/[^\d.]/g, ''));
+    if (!qty || Number.isNaN(qty) || qty <= 0) {
+      toast.error('Valid delivered quantity is required');
+      return;
+    }
     try {
-      await deliverAsync(tripId, parseFloat(trip.actualQty || loadWeight || 450), finalProofPhoto, finalSignatureData);
-      setTrip(prev => prev ? { ...prev, status: 'Delivered' } : null);
+      await deliverAsync(trip, qty, proofPhotoData, finalSignatureData);
+      await fetchMyTrips();
       setShowDeliveryModal(false);
       toast.success('Trip successfully completed! Great job.', { id: loadToast });
     } catch (err) {
       console.error('[ActiveTrip] deliver error:', err);
-      setTrip(prev => prev ? { ...prev, status: 'Delivered' } : null);
-      setShowDeliveryModal(false);
-      toast.success('Trip completed!', { id: loadToast });
+      toast.error(err?.message || 'Failed to complete delivery', { id: loadToast });
     }
   };
 
@@ -300,25 +289,27 @@ const ActiveTrip = () => {
   const isPicked = status === 'PICKED';
   const isDelivered = status === 'DELIVERED' || status === 'CLOSED' || status === 'COMPLETED';
 
+  const tapalRef = trip.tapalId && typeof trip.tapalId === 'object' ? trip.tapalId : trip.tapal;
+  const deliveryLabel =
+    trip.deliveryLocation && trip.deliveryLocation !== 'BUYER'
+      ? trip.deliveryLocation
+      : tapalRef?.destination || tapalRef?.unloadingPoint || trip.deliveryLocation || '—';
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24 animate-in fade-in duration-500 max-w-md mx-auto relative shadow-2xl border-x border-slate-200">
+    <FieldPageWrap subtitle={`Trip #${trip.tripNumber || trip.id || '—'}`}>
+      <button
+        type="button"
+        onClick={() => navigate('/driver/dashboard')}
+        className="fa-muted flex items-center gap-2 text-xs font-semibold uppercase mb-2 fa-tap"
+      >
+        <ArrowLeft size={16} /> Back
+      </button>
+      <h1 className="text-lg font-bold mb-4">Transit console</h1>
 
-      {/* Mobile Top Header bar */}
-      <div className="bg-white border-b border-card-border p-4 flex items-center gap-3 sticky top-0 z-30">
-        <button onClick={() => navigate('/driver/dashboard')} className="text-text-muted hover:text-[#6A7051] p-1">
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h1 className="text-sm font-black uppercase text-brand-olive tracking-wider">Transit Console</h1>
-          <p className="text-[9px] text-text-secondary uppercase">Trip #{trip.tripNumber || trip.id}</p>
-        </div>
-      </div>
-
-      {/* Main Console Content */}
-      <div className="p-4 space-y-5">
+      <div className="space-y-5">
 
         {/* Status Stepper Tracker */}
-        <div className="bg-white border border-card-border p-4 rounded-xl shadow-sm space-y-4">
+        <div className="fa-surface p-4 space-y-4">
           <h2 className="text-[10px] font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-1.5">Trip Milestones</h2>
 
           <div className="flex items-center justify-between text-center relative px-2">
@@ -433,7 +424,7 @@ const ActiveTrip = () => {
               <Navigation size={14} className="text-brand-yellow animate-pulse" />
               <div>
                 <span className="text-[8px] font-black text-text-muted tracking-widest block">Delivery Site</span>
-                <span className="font-extrabold text-brand-olive">{trip.deliveryLocation || '—'}</span>
+                <span className="font-extrabold text-brand-olive">{deliveryLabel}</span>
               </div>
             </div>
           </div>
@@ -442,49 +433,95 @@ const ActiveTrip = () => {
 
       {/* Cargo Loading Modal */}
       {showLoadModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl p-5 space-y-4">
-            <h3 className="text-xs font-black uppercase text-brand-olive tracking-wider border-b border-card-border pb-2 flex items-center gap-1.5">
-              <Scale size={16} /> Confirm loaded Cargo weight
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white text-gray-900 w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl p-5 space-y-4 [&_input]:text-gray-900 [&_input]:bg-white">
+            <h3 className="text-xs font-black uppercase text-[#5f6846] tracking-wider border-b border-gray-200 pb-2 flex items-center gap-1.5">
+              <Scale size={16} /> Confirm load from tapal
             </h3>
 
             <form onSubmit={handleConfirmPickup} className="space-y-4">
-              <div className="flex flex-col">
-                <label className="text-[9px] font-black uppercase text-brand-olive mb-1">Loaded Box Count</label>
-                <input
-                  type="number"
-                  value={loadBoxes}
-                  onChange={e => setLoadBoxes(e.target.value)}
-                  placeholder="e.g. 15 boxes"
-                  className="bg-slate-50 border border-card-border px-3 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
-                />
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2 text-sm">
+                <p className="text-[10px] font-bold uppercase text-gray-500">Purchase tapal</p>
+                <p className="font-bold text-[#1a1a1a]">
+                  #{cargoSummary.tapalNumber}
+                  {cargoSummary.partyName ? ` · ${cargoSummary.partyName}` : ''}
+                </p>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase text-gray-500">Boxes</p>
+                    <p className="text-lg font-bold text-[#1a1a1a]">{cargoSummary.boxes || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase text-gray-500">Weight</p>
+                    <p className="text-lg font-bold text-[#1a1a1a]">
+                      {cargoSummary.weightKg ? `${cargoSummary.weightKg} kg` : cargoSummary.qtyLabel}
+                    </p>
+                  </div>
+                </div>
+                {cargoSummary.productLines.length > 0 && (
+                  <ul className="text-[11px] text-gray-600 border-t border-gray-200 pt-2 space-y-1">
+                    {cargoSummary.productLines.map((line, i) => (
+                      <li key={i}>
+                        {line.name}
+                        {line.boxes ? ` · ${line.boxes} boxes` : ''}
+                        {line.weight ? ` · ${line.weight}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-[10px] text-gray-500 leading-relaxed">
+                  Loaded qty comes from admin tapal. Tap confirm if it matches the dock weighment.
+                </p>
               </div>
 
-              <div className="flex flex-col">
-                <label className="text-[9px] font-black uppercase text-brand-olive mb-1">Total Weight (KG)</label>
-                <input
-                  type="number"
-                  value={loadWeight}
-                  onChange={e => setLoadWeight(e.target.value)}
-                  placeholder="e.g. 450"
-                  className="bg-slate-50 border border-card-border px-3 py-2.5 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
-                  required
-                />
-              </div>
+              {allowManualLoadEdit ? (
+                <>
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-black uppercase text-[#5f6846] mb-1">Box count (override)</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={loadBoxes}
+                      onChange={(e) => setLoadBoxes(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white outline-none focus:ring-2 focus:ring-[#6A7051]/40"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-black uppercase text-[#5f6846] mb-1">Weight kg (override)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      value={loadWeight}
+                      onChange={(e) => setLoadWeight(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-bold text-gray-900 bg-white outline-none focus:ring-2 focus:ring-[#6A7051]/40"
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAllowManualLoadEdit(true)}
+                  className="text-[10px] font-semibold text-[#6A7051] underline fa-tap"
+                >
+                  Weight at dock is different? Override
+                </button>
+              )}
 
-              <div className="flex gap-2 border-t border-card-border pt-3">
+              <div className="flex gap-2 border-t border-gray-200 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowLoadModal(false)}
-                  className="flex-1 border border-card-border py-2.5 text-xs font-black uppercase text-text-secondary"
+                  className="flex-1 border border-gray-300 rounded-lg py-2.5 text-xs font-black uppercase text-gray-600"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#6A7051] text-white py-2.5 text-xs font-black uppercase text-center shadow-md"
+                  className="flex-1 bg-[#6A7051] text-white rounded-lg py-2.5 text-xs font-black uppercase text-center shadow-md"
                 >
-                  Confirm & Load
+                  Confirm & load
                 </button>
               </div>
             </form>
@@ -526,32 +563,14 @@ const ActiveTrip = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        fileInputRef.current?.click();
-                      }}
-                      className="flex-1 bg-slate-100 hover:bg-slate-200 border border-card-border p-3.5 rounded-lg flex flex-col items-center justify-center text-text-secondary gap-1 transition-colors"
-                    >
-                      <Camera size={18} className="text-brand-olive" />
-                      <span className="text-[8px] font-black uppercase tracking-wider">Take Snap / File</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tripId = trip.tripNumber || trip.id;
-                        const mockData = generateMockReceipt(tripId);
-                        setProofPhotoData(mockData);
-                        setPhotoSnapped(true);
-                        toast.success('Simulated delivery receipt generated!');
-                      }}
-                      className="flex-1 bg-slate-100 hover:bg-slate-200 border border-card-border p-3.5 rounded-lg flex flex-col items-center justify-center text-text-secondary gap-1 transition-colors"
-                    >
-                      <Check size={18} className="text-amber-500" />
-                      <span className="text-[8px] font-black uppercase tracking-wider">Simulate Receipt</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-slate-100 hover:bg-slate-200 border border-card-border p-3.5 rounded-lg flex flex-col items-center justify-center text-text-secondary gap-1 transition-colors erp-interactive"
+                  >
+                    <Camera size={18} className="text-brand-olive" />
+                    <span className="text-[8px] font-black uppercase tracking-wider">Take photo / upload file</span>
+                  </button>
                 )}
                 <input
                   type="file"
@@ -620,7 +639,7 @@ const ActiveTrip = () => {
         </div>
       )}
 
-    </div>
+    </FieldPageWrap>
   );
 };
 

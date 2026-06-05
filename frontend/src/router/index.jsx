@@ -38,6 +38,7 @@ const AddInventoryItem = React.lazy(() => import('../panels/admin/inventory/AddI
 const ProcurementToFishMallTransfer = React.lazy(
   () => import('../panels/admin/inventory/ProcurementToFishMallTransfer')
 );
+const SystemControlCenter = React.lazy(() => import('../panels/admin/settings/SystemControlCenter'));
 const DriverManagement = React.lazy(() => import('../panels/admin/logistics/DriverManagement'));
 const TripsAndExpenses = React.lazy(() => import('../panels/admin/logistics/TripsAndExpenses'));
 const VehicleDocuments = React.lazy(() => import('../panels/admin/logistics/VehicleDocuments'));
@@ -92,6 +93,7 @@ const FishMallAlerts = React.lazy(() => import('../panels/fishmall/FishMallAlert
 // Driver
 import { MobileLayout } from '../design-system/layouts/MobileLayout';
 const DriverDashboard = React.lazy(() => import('../panels/driver/DriverDashboard'));
+const DriverFieldStats = React.lazy(() => import('../panels/driver/DriverFieldStats'));
 const DriverTasks = React.lazy(() => import('../panels/driver/DriverTasks'));
 const ActiveTrip = React.lazy(() => import('../panels/driver/ActiveTrip'));
 const DriverHistory = React.lazy(() => import('../panels/driver/DriverHistory'));
@@ -161,6 +163,9 @@ const AppRouter = () => {
           <Route path="erp" element={<Navigate to="/auth/admin" replace />} />
           <Route path="mobile" element={<MobileLogin />} />
           <Route path="driver" element={<NewDriverLogin />} />
+          <Route path="restaurant" element={<Navigate to="/restaurant/auth" replace />} />
+          <Route path="fishmall" element={<Navigate to="/fishmall/auth" replace />} />
+          <Route path="buyer" element={<Navigate to="/auth/admin" replace />} />
           <Route path="signup" element={<Signup />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route index element={<Navigate to="/auth/home" replace />} />
@@ -240,6 +245,10 @@ const AppRouter = () => {
               <Route path="access" element={<AccessControl />} />
             </Route>
 
+            <Route element={<ProtectedRoute allowedRoles={SUPER_ADMIN_ONLY} module="systemControl"><Outlet /></ProtectedRoute>}>
+              <Route path="system-control" element={<SystemControlCenter />} />
+            </Route>
+
             <Route element={<ProtectedRoute module="settings"><Outlet /></ProtectedRoute>}>
               <Route path="settings" element={<UsersAndRoles />} />
             </Route>
@@ -268,6 +277,7 @@ const AppRouter = () => {
       {/* ── Restaurant Panel ── */}
       <Route path="/restaurant/*" element={
         <Routes>
+          <Route index element={<Navigate to="/restaurant/auth" replace />} />
           <Route path="auth" element={<RestaurantAuth />} />
           <Route element={<ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ...REST_ROLES]} requirePlatform={PLATFORM_ACCESS.WEB}><Outlet /></ProtectedRoute>}>
             <Route path="pos" element={<RestaurantPOS />} />
@@ -304,6 +314,7 @@ const AppRouter = () => {
       {/* ── Fish Mall Panel ── */}
       <Route path="/fishmall/*" element={
         <Routes>
+          <Route index element={<Navigate to="/fishmall/auth" replace />} />
           <Route path="auth" element={<FishMallAuth />} />
           <Route element={
             <ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ...FISHMALL_ROLES]} requirePlatform={PLATFORM_ACCESS.WEB}>
@@ -396,6 +407,7 @@ const AppRouter = () => {
           }>
             <Route element={<MobileLayout />}>
               <Route path="dashboard" element={<DriverDashboard />} />
+              <Route path="stats" element={<DriverFieldStats />} />
               <Route path="tasks" element={<DriverTasks />} />
               <Route path="active-trip" element={<ActiveTrip />} />
               <Route path="history" element={<DriverHistory />} />

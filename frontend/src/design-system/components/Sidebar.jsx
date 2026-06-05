@@ -4,9 +4,9 @@ import { twMerge } from 'tailwind-merge';
 import { LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
-import { ADMIN_NAV_ITEMS } from '../../config/adminNavigation';
+import { BUYER_ADMIN_NAV_ITEMS, FULL_ADMIN_NAV_ITEMS } from '../../config/adminNavigation';
 import { hasModulePermission, isSuperAdminUser } from '../../utils/permissions';
-import { normalizeRole } from '../../constants/rbac';
+import { normalizeRole, ROLES } from '../../constants/rbac';
 
 export const Sidebar = ({ onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -21,12 +21,24 @@ export const Sidebar = ({ onClose }) => {
 
   const filteredNavItems = useMemo(() => {
     if (!user) return [];
-    return ADMIN_NAV_ITEMS.filter((item) => {
+    const role = normalizeRole(user.role);
+    const isBuyerOnly = role === ROLES.BUYER;
+    const pool = isBuyerOnly ? BUYER_ADMIN_NAV_ITEMS : FULL_ADMIN_NAV_ITEMS;
+    const seen = new Set();
+
+    return pool.filter((item) => {
+      if (seen.has(item.path)) return false;
+      seen.add(item.path);
+
+      if (item.roles?.length && !item.roles.includes(role) && !item.roles.includes(userRole)) {
+        return false;
+      }
+
       if (isSuperAdminUser(user)) return true;
       if (!item.module) return true;
       return hasModulePermission(user, item.module, 'read');
     });
-  }, [user]);
+  }, [user, userRole]);
 
   const roleLabel =
     {
@@ -42,19 +54,15 @@ export const Sidebar = ({ onClose }) => {
   return (
     <div
       className={twMerge(
-        'h-full bg-white flex flex-col text-text-primary overflow-y-auto border-r border-card-border transition-all duration-300',
-        isCollapsed ? 'w-20' : 'w-64'
+        'h-full bg-[#fcfcf9]/75 backdrop-blur-xl flex flex-col text-text-primary overflow-y-auto border-r border-black/5 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 overscroll-contain',
+        isCollapsed ? 'w-[56px]' : 'w-56'
       )}
     >
-      <div className="p-4 flex items-center justify-between border-b border-card-border">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-12 h-12 shrink-0 flex items-center justify-center overflow-hidden">
-            <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-full h-full object-contain" />
-          </div>
+      <div className="h-12 px-3 flex items-center justify-between border-b border-black/5">
+        <div className="flex items-center gap-2 overflow-hidden min-w-0">
+          <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-8 h-8 object-contain shrink-0" />
           {!isCollapsed && (
-            <h1 className="text-xl font-serif italic font-black tracking-tight text-primary whitespace-nowrap">
-              Golden
-            </h1>
+            <h1 className="text-sm font-semibold text-text-primary truncate">Golden Fisheries</h1>
           )}
         </div>
         <button
@@ -66,12 +74,12 @@ export const Sidebar = ({ onClose }) => {
       </div>
 
       {!isCollapsed && (
-        <div className="px-4 py-2 border-b border-card-border bg-slate-50">
-          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-400">{roleLabel}</span>
+        <div className="px-3 py-1.5 border-b border-black/5 bg-[#6A7051]/5">
+          <span className="text-[10px] font-medium text-text-muted">{roleLabel}</span>
         </div>
       )}
 
-      <nav className="flex-1 px-3 py-6 space-y-1 overflow-x-hidden">
+      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-x-hidden">
         {filteredNavItems.length === 0 ? (
           <p className="text-[10px] text-slate-400 px-3 uppercase tracking-widest">
             No modules assigned. Contact admin.
@@ -87,34 +95,21 @@ export const Sidebar = ({ onClose }) => {
               title={isCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 twMerge(
-                  'flex items-center gap-4 py-4 rounded-none transition-all duration-300 group border-l-4 border-transparent',
-                  isCollapsed ? 'px-0 justify-center' : 'px-6',
+                  'flex items-center rounded-erp transition-colors text-erp-sm font-medium border-l-2',
+                  isCollapsed ? 'justify-center px-2 py-2' : 'gap-2.5 px-2.5 py-2',
                   isActive
-                    ? 'bg-black text-white border-black font-black'
+                    ? 'bg-accent/10 text-accent border-accent'
                     : item.highlight
-                      ? 'text-[#6B7550] hover:bg-[#6B7550]/5 hover:text-[#6B7550]'
-                      : 'text-text-muted hover:bg-olive-50 hover:text-primary'
+                      ? 'text-accent hover:bg-accent/5 border-transparent'
+                      : 'text-text-muted hover:bg-[#6A7051]/5 hover:text-text-primary border-transparent'
                 )
               }
             >
               {({ isActive }) => (
                 <>
-                  <item.icon
-                    size={16}
-                    className={twMerge(
-                      'shrink-0',
-                      isActive ? 'text-white' : item.highlight ? 'text-[#6B7550]' : 'text-text-muted group-hover:text-primary'
-                    )}
-                  />
+                  <item.icon size={16} className="shrink-0" />
                   {!isCollapsed && (
-                    <span
-                      className={twMerge(
-                        'flex-1 text-[10px] uppercase tracking-widest font-black whitespace-nowrap',
-                        item.highlight && !isActive ? 'text-[#6B7550]' : ''
-                      )}
-                    >
-                      {item.label}
-                    </span>
+                    <span className="flex-1 truncate">{item.label}</span>
                   )}
                   {!isCollapsed && item.badge === 'expenses' && pendingExpenseCount > 0 && (
                     <span
@@ -133,35 +128,32 @@ export const Sidebar = ({ onClose }) => {
         )}
       </nav>
 
-      <div className="p-4 mt-auto border-t border-card-border space-y-4">
+      <div className="p-2 mt-auto border-t border-black/5">
         <div
           className={twMerge(
-            'flex items-center py-4 bg-white rounded-none border border-card-border shadow-subtle group hover:bg-olive-50 transition-all cursor-pointer overflow-hidden',
-            isCollapsed ? 'justify-center px-0' : 'px-3 gap-3'
+            'flex items-center rounded-erp border border-black/5 bg-white/50 backdrop-blur-sm p-1.5',
+            isCollapsed ? 'justify-center' : 'gap-2'
           )}
           title={isCollapsed ? `${userName} ${roleLabel}` : undefined}
         >
-          <div className="w-10 h-10 shrink-0 rounded-none bg-accent-olive flex items-center justify-center text-white font-black overflow-hidden shadow-sm border border-card-border">
-            <img
-              src={`https://ui-avatars.com/api/?name=${userName}&background=5F6846&color=fff`}
-              alt="User"
-            />
-          </div>
+          <img
+            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=5F6846&color=fff&size=32`}
+            alt=""
+            className="w-8 h-8 shrink-0 rounded-erp"
+          />
           {!isCollapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-black truncate text-text-primary uppercase tracking-tight">
-                  {userName}
-                </p>
-                <p className="text-[8px] text-text-muted truncate uppercase tracking-widest font-black">
-                  {roleLabel}
-                </p>
+                <p className="text-xs font-medium truncate">{userName}</p>
+                <p className="text-[10px] text-text-muted truncate">{roleLabel}</p>
               </div>
               <button
+                type="button"
                 onClick={() => logout()}
-                className="p-1.5 text-text-muted hover:text-red-500 transition-colors"
+                className="p-1 text-text-muted hover:text-danger"
+                aria-label="Sign out"
               >
-                <LogOut size={16} />
+                <LogOut size={14} />
               </button>
             </>
           )}

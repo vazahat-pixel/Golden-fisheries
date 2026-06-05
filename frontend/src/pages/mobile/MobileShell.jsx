@@ -3,16 +3,18 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeRole, ROLES } from '../../constants/rbac';
 import { LogOut } from 'lucide-react';
+import { FieldAppShell, BUYER_NAV } from '../../design-system/field-app';
 
 const MENU = {
   [ROLES.SUPER_ADMIN]: [
     { label: 'Dashboard', path: '/admin/dashboard' },
-    { label: 'Harvest Monitor', path: '/admin/procurement/harvest' },
+    { label: 'Harvest', path: '/admin/procurement/harvest' },
     { label: 'Tapals', path: '/admin/tapals' },
-    { label: 'Trips', path: '/admin/logistics' },
-    { label: 'Buyer Portal', path: '/buyer/dashboard' },
-    { label: 'Fish Mall', path: '/fishmall/dashboard' },
+    { label: 'Logistics', path: '/admin/logistics' },
+    { label: 'Vehicles', path: '/admin/vehicles' },
+    { label: 'Buyer', path: '/admin/buyer/dashboard' },
     { label: 'Restaurant', path: '/restaurant/dashboard' },
+    { label: 'Fish Mall', path: '/fishmall/dashboard' },
   ],
   [ROLES.PROCUREMENT_MANAGER]: [
     { label: 'Harvest Slips', path: '/mobile/procurement/harvest' },
@@ -24,43 +26,22 @@ const MENU = {
     { label: 'Vehicles', path: '/mobile/vehicles' },
     { label: 'Add Vehicle', path: '/mobile/vehicles/new' },
   ],
-  [ROLES.BUYER]: [
-    { label: 'Dashboard', path: '/mobile/buyer/dashboard' },
-    { label: 'Tapals', path: '/mobile/buyer/tapals' },
-    { label: 'Assign Driver', path: '/mobile/buyer/assign-driver' },
-    { label: 'Bills', path: '/mobile/buyer/invoices' },
-    { label: 'Returns', path: '/mobile/buyer/returns' },
-    { label: 'Settlement', path: '/mobile/buyer/reconciliation' },
-  ],
-  [ROLES.DRIVER]: [
-    { label: 'Dashboard', path: '/driver/dashboard' },
-    { label: 'Active Trip', path: '/driver/active-trip' },
-    { label: 'History', path: '/driver/history' },
-    { label: 'Expenses', path: '/driver/expenses' },
-  ],
 };
 
-export default function MobileShell() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
-  const role = normalizeRole(user?.role);
-  const items = MENU[role] || [];
-  const viewOnly = role === ROLES.SUPER_ADMIN && user?.platformAccess?.mobileViewOnly;
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/auth/home');
-  };
-
+/** Legacy shell for procurement / admin mobile preview — buyer uses FieldAppShell */
+function LegacyMobileShell({ user, role, items, viewOnly, onLogout }) {
   return (
     <div className="min-h-screen bg-[#f4f4f0] flex flex-col max-w-lg mx-auto border-x border-gray-300">
       <header className="bg-[#6A7051] text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
         <div>
           <p className="text-[10px] uppercase opacity-80">Golden Fisheries</p>
           <p className="font-bold text-sm">{user?.name || user?.fullName}</p>
-          <p className="text-[10px]">{role.replace(/_/g, ' ')}{viewOnly ? ' · VIEW ONLY' : ''}</p>
+          <p className="text-[10px]">
+            {role.replace(/_/g, ' ')}
+            {viewOnly ? ' · VIEW ONLY' : ''}
+          </p>
         </div>
-        <button type="button" onClick={handleLogout} className="p-2" aria-label="Logout">
+        <button type="button" onClick={onLogout} className="p-2" aria-label="Logout">
           <LogOut size={20} />
         </button>
       </header>
@@ -70,7 +51,7 @@ export default function MobileShell() {
             <Link
               key={m.path}
               to={m.path}
-              className="text-center text-xs font-semibold uppercase py-3 px-2 border border-[#6A7051] text-[#6A7051] active:bg-[#6A7051] active:text-white"
+              className="text-center text-xs font-semibold uppercase py-3 px-2 border border-[#6A7051] text-[#6A7051]"
             >
               {m.label}
             </Link>
@@ -81,5 +62,33 @@ export default function MobileShell() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+export default function MobileShell() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+  const role = normalizeRole(user?.role);
+  const isBuyer = role === ROLES.BUYER;
+  const viewOnly = role === ROLES.SUPER_ADMIN && user?.platformAccess?.mobileViewOnly;
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/auth/home');
+  };
+
+  if (isBuyer) {
+    return <FieldAppShell navItems={BUYER_NAV} />;
+  }
+
+  const items = MENU[role] || [];
+  return (
+    <LegacyMobileShell
+      user={user}
+      role={role}
+      items={items}
+      viewOnly={viewOnly}
+      onLogout={handleLogout}
+    />
   );
 }

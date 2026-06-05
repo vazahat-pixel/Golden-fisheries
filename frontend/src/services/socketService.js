@@ -4,13 +4,28 @@ import { useAdminStore } from '../store/adminStore';
 import { useDriverStore } from '../store/driverStore';
 import { useRestaurantStore } from '../store/restaurantStore';
 import { useFishMallStore } from '../store/fishMallStore';
+import { useNotificationStore } from '../store/notificationStore';
+import { useSystemSettingsStore } from '../store/systemSettingsStore';
 import { toast } from 'react-hot-toast';
+import { playTripAlertSound, vibrateTripAlert } from '../utils/notificationSound';
+import { ROLES, normalizeRole } from '../constants/rbac';
+
 
 class SocketService {
   constructor() {
     this.socket = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
+  }
+
+  playNotificationSound() {
+    playTripAlertSound();
+    vibrateTripAlert();
+  }
+
+  isDriverUser() {
+    const role = normalizeRole(useAuthStore.getState().user?.role);
+    return role === ROLES.DRIVER;
   }
 
   /**
@@ -57,6 +72,14 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log(`[Socket Connected]: Tunnel established. Socket ID: ${this.socket.id}`);
       this.reconnectAttempts = 0;
+    });
+
+    this.socket.on('settings:updated', (data) => {
+      const settings = data?.settings;
+      if (settings) {
+        useSystemSettingsStore.getState().applyFromPayload(settings);
+        toast.success('System settings updated live', { duration: 2500, id: 'settings-live' });
+      }
     });
 
     this.socket.on('connect_error', async (error) => {
@@ -221,13 +244,7 @@ class SocketService {
         `Stock received: ${data.transferNumber}${lines ? ` — ${lines}` : ''}`,
         { duration: 7000 }
       );
-      try {
-        const audio = new Audio('/notification.mp3');
-        audio.volume = 0.5;
-        audio.play().catch(() => {});
-      } catch {
-        /* optional sound */
-      }
+      this.playNotificationSound();
     });
 
     const shouldNotifyRestaurant = () => {
@@ -293,32 +310,9 @@ class SocketService {
       useFishMallStore.getState().fetchStock?.();
     });
 
-    // 4. Driver Assignment Notification
+    // 4. Driver Assignment Notification (drivers only)
     this.socket.on('trip:new_assignment', (data) => {
       console.log('[Socket Received - New Trip Assignment]:', data);
-      
-      // Play notification sound
-      try {
-        const audio = new Audio('/notification.mp3');
-        audio.play().catch(e => console.warn('[Socket] Audio play blocked by browser:', e.message));
-      } catch (err) {
-        console.warn('[Socket] Failed to play audio:', err.message);
-      }
-
-      // Display a beautiful top toast notification for driver
-      toast.success(`NEW TRIP ASSIGNED: #${data.tapalNumber}! Ready for start.`, {
-        duration: 8000,
-        position: 'top-center',
-        style: {
-          background: '#6A7051',
-          color: '#ffffff',
-          fontWeight: '900',
-          borderRadius: '0px',
-          border: '2px solid #FAF8F5',
-          fontSize: '11px',
-          letterSpacing: '0.05em'
-        }
-      });
 
       const driverStore = useDriverStore.getState();
       if (driverStore.setIncomingAssignment) {
@@ -327,19 +321,31 @@ class SocketService {
       if (driverStore.fetchMyTrips) {
         driverStore.fetchMyTrips();
       }
+
+      if (!this.isDriverUser()) return;
+
+      this.playNotificationSound();
+
+      toast.success(`NEW TRIP: #${data.tapalNumber} — tap Active Trip to start`, {
+        duration: 10000,
+        position: 'top-center',
+        style: {
+          background: '#6A7051',
+          color: '#ffffff',
+          fontWeight: '900',
+          borderRadius: '12px',
+          border: '2px solid #C5A021',
+          fontSize: '12px',
+          letterSpacing: '0.05em',
+        },
+      });
     });
 
     // Real-Time Trip Completion Notification
     this.socket.on('trip:ended', (data) => {
       console.log('[Socket Received - Trip Ended]:', data);
       
-      // Play a beautiful audio alert
-      try {
-        const audio = new Audio('/notification.mp3');
-        audio.play().catch(e => console.warn('[Socket] Audio play blocked by browser:', e.message));
-      } catch (err) {
-        console.warn('[Socket] Failed to play audio:', err.message);
-      }
+      this.playNotificationSound();
 
       // Display a beautiful top toast notification for Admin
       toast.success(`TRIP COMPLETED: #${data.tripNumber} by ${data.driverName}!`, {
@@ -392,6 +398,43 @@ class SocketService {
       
       // Optional: Refresh slips to reflect conversion status
       adminStore.fetchHarvestSlips?.();
+    });
+
+    // 6. In-App Notification Socket Sync
+    this.socket.on('notification:received', (data) => {
+      console.log('[Socket] In-app notification received:', data);
+      useNotificationStore.getState().addNotification?.(data);
+
+      const isTripAlert =
+        this.isDriverUser() &&
+        (data?.type === 'ALERT' ||
+          /trip|assigned/i.test(`${data?.title || ''} ${data?.message || ''}`));
+
+      if (isTripAlert) {
+        this.playNotificationSound();
+        toast(data.message || data.title, {
+          icon: '🔔',
+          duration: 8000,
+          position: 'top-center',
+          style: {
+            background: '#6A7051',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '12px',
+          },
+        });
+        return;
+      }
+
+      toast(data.message || data.title, {
+        icon: data.type === 'STOCK_TRANSFER' ? '📦' : '🔔',
+        duration: 6000,
+        position: 'top-right',
+      });
+    });
+
+    this.socket.on('notification:badge_update', () => {
+      useNotificationStore.getState().fetchNotifications?.();
     });
 
     this.socket.on('disconnect', (reason) => {

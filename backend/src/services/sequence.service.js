@@ -1,4 +1,5 @@
 import { Sequence } from '../models/sequence.model.js';
+import { getNumberingConfig } from '../modules/system-settings/systemSettings.service.js';
 
 /**
  * Returns next monotonic number for a logical series key (global, not per-day,
@@ -19,6 +20,10 @@ export async function nextSequence(key) {
  * @param {number} pad - zero pad width
  */
 export async function formatSequentialDocNo(key, prefix, pad = 4) {
-  const n = await nextSequence(key);
-  return `${prefix}-${String(n).padStart(pad, '0')}`;
+  const cfg = await getNumberingConfig(key);
+  const seqKey = cfg.key || key;
+  const pref = cfg.prefix || prefix;
+  const padding = cfg.pad ?? pad;
+  const n = await nextSequence(seqKey);
+  return `${pref}-${String(n).padStart(padding, '0')}`;
 }

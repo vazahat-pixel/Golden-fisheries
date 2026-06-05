@@ -5,6 +5,7 @@ import { ApiResponse } from '../../utils/apiResponse.js';
 import { AppError } from '../../utils/appError.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { logger } from '../../utils/logger.js';
+import { config } from '../../config/config.js';
 
 // ─────────────────────────────────────────────
 // Helper: Upload a single file buffer to Cloudinary
@@ -25,6 +26,13 @@ export const driverController = {
   // Creates User (isActive: false) + DriverProfile with Cloudinary URLs
   // ─────────────────────────────────────────────────────────────────────────
   register: asyncWrapper(async (req, res) => {
+    if (!config.auth.allowDriverSelfRegister) {
+      throw new AppError(
+        'Driver self-registration is disabled. Please contact Admin to add your account.',
+        403
+      );
+    }
+
     const {
       fullName,
       phone: phoneField,
@@ -143,40 +151,72 @@ export const driverController = {
   // GET /api/v1/drivers/all
   // ─────────────────────────────────────────────────────────────────────────
   all: asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 20, status, search } = req.query;
-    const filter = {};
+    const { page = 1, limit = 100, status, search } = req.query;
 
-    if (status) filter.registrationStatus = status;
-
-    // If search provided, find matching users first
+    const userFilter = { role: 'DRIVER' };
     if (search) {
       const regex = new RegExp(search, 'i');
-      const matchingUsers = await User.find({
-        $or: [{ fullName: regex }, { phone: regex }]
-      }).select('_id');
-      const userIds = matchingUsers.map(u => u._id);
-      filter.$or = [
-        { userId: { $in: userIds } },
-        { licenseNumber: regex },
-        { vehicleNumber: regex }
-      ];
+      userFilter.$or = [{ fullName: regex }, { phone: regex }];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const [docs, total] = await Promise.all([
-      DriverProfile.find(filter)
+    const [driverUsers, profiles] = await Promise.all([
+      User.find(userFilter).select('fullName phone isActive status createdAt').sort({ createdAt: -1 }).lean(),
+      DriverProfile.find()
         .populate('userId', 'fullName phone isActive createdAt')
         .populate('vehicleId', 'vehicleNumber vehicleType')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit)),
-      DriverProfile.countDocuments(filter)
+        .lean(),
     ]);
 
-    new ApiResponse(200, docs, 'Drivers fetched successfully', {
-      total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit))
+    const profileByUserId = new Map(
+      profiles.map((p) => [String(p.userId?._id || p.userId), p])
+    );
+
+    let merged = driverUsers.map((user) => {
+      const profile = profileByUserId.get(String(user._id));
+      if (profile) {
+        const u = profile.userId || user;
+        return {
+          _id: profile._id,
+          userId: u,
+          fullName: u.fullName || user.fullName,
+          phone: u.phone || user.phone,
+          status: profile.registrationStatus,
+          registrationStatus: profile.registrationStatus,
+          vehicleNumber: profile.vehicleNumber || profile.vehicleId?.vehicleNumber,
+          licenseNumber: profile.licenseNumber,
+          isActive: u.isActive ?? user.isActive,
+          createdAt: profile.createdAt || user.createdAt,
+          source: 'profile',
+        };
+      }
+      return {
+        _id: user._id,
+        userId: user,
+        fullName: user.fullName,
+        phone: user.phone,
+        status: user.isActive ? 'active' : 'pending_verification',
+        registrationStatus: user.isActive ? 'active' : 'pending_verification',
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        source: 'access_control',
+      };
+    });
+
+    if (status) {
+      merged = merged.filter(
+        (d) => d.registrationStatus === status || d.status === status
+      );
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 100));
+    const skip = (pageNum - 1) * limitNum;
+    const paginated = merged.slice(skip, skip + limitNum);
+
+    new ApiResponse(200, paginated, 'Drivers fetched successfully', {
+      total: merged.length,
+      page: pageNum,
+      totalPages: Math.ceil(merged.length / limitNum) || 1,
     }).send(res);
   }),
 
@@ -246,30 +286,57 @@ export const driverController = {
   // ─────────────────────────────────────────────────────────────────────────
   approve: asyncWrapper(async (req, res) => {
     const profile = await DriverProfile.findById(req.params.id);
-    if (!profile) throw new AppError('Driver profile not found.', 404);
 
-    if (profile.registrationStatus === 'active') {
+    if (profile) {
+      if (profile.registrationStatus === 'active') {
+        throw new AppError('This driver is already approved and active.', 400);
+      }
+
+      await User.findByIdAndUpdate(profile.userId, { isActive: true, status: 'active' });
+
+      profile.registrationStatus = 'active';
+      profile.rejectionReason = null;
+      profile.verifiedBy = req.user.phone || 'ADMIN';
+      profile.verifiedAt = new Date();
+      await profile.save();
+
+      logger.info(`[Driver Approval]: Driver profile ${profile._id} approved by ${req.user.phone}`);
+
+      return new ApiResponse(
+        200,
+        {
+          driverProfileId: profile._id,
+          registrationStatus: 'active',
+          verifiedBy: profile.verifiedBy,
+          verifiedAt: profile.verifiedAt,
+        },
+        'Driver approved and activated successfully.'
+      ).send(res);
+    }
+
+    const user = await User.findOne({ _id: req.params.id, role: 'DRIVER' });
+    if (!user) throw new AppError('Driver not found.', 404);
+
+    if (user.isActive) {
       throw new AppError('This driver is already approved and active.', 400);
     }
 
-    // Activate the User account so driver can OTP-login
-    await User.findByIdAndUpdate(profile.userId, { isActive: true });
+    user.isActive = true;
+    user.status = 'active';
+    await user.save();
 
-    // Update profile status
-    profile.registrationStatus = 'active';
-    profile.rejectionReason = null;
-    profile.verifiedBy = req.user.phone || 'ADMIN';
-    profile.verifiedAt = new Date();
-    await profile.save();
+    logger.info(`[Driver Approval]: Driver user ${user._id} (${user.phone}) approved by ${req.user.phone}`);
 
-    logger.info(`[Driver Approval]: Driver profile ${profile._id} approved by ${req.user.phone}`);
-
-    new ApiResponse(200, {
-      driverProfileId: profile._id,
-      registrationStatus: 'active',
-      verifiedBy: profile.verifiedBy,
-      verifiedAt: profile.verifiedAt
-    }, 'Driver approved and activated successfully.').send(res);
+    new ApiResponse(
+      200,
+      {
+        userId: user._id,
+        registrationStatus: 'active',
+        verifiedBy: req.user.phone || 'ADMIN',
+        verifiedAt: new Date(),
+      },
+      'Driver approved and activated successfully.'
+    ).send(res);
   }),
 
 

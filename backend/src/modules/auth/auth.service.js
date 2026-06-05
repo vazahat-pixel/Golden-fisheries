@@ -5,15 +5,13 @@ import { userService } from '../users/user.service.js';
 import { User } from '../users/user.model.js';
 import { logger } from '../../utils/logger.js';
 import { smsService } from '../../services/sms.service.js';
+import { isRoleAllowedForPortal } from '../../constants/authPortals.js';
 
 /**
  * High-performance Authentication and Access Token service.
  * Standardizes authentication flows and token issuance.
  */
 class AuthService {
-  /**
-   * Generates a stateless JWT Access Token
-   */
   generateAccessToken(user) {
     return jwt.sign(
       { id: user._id, role: user.role, phone: user.phone },
@@ -22,9 +20,6 @@ class AuthService {
     );
   }
 
-  /**
-   * Generates a stateless JWT Refresh Token
-   */
   generateRefreshToken(user) {
     return jwt.sign(
       { id: user._id },
@@ -33,9 +28,6 @@ class AuthService {
     );
   }
 
-  /**
-   * Registers a new user inside the system database.
-   */
   async register(registrationData) {
     const isTaken = await userService.isPhoneTaken(registrationData.phone);
     if (isTaken) {
@@ -47,9 +39,6 @@ class AuthService {
     return user;
   }
 
-  /**
-   * Verifies standard login credentials and generates authorization keys.
-   */
   async login(phone, password) {
     const user = await userService.findByPhoneWithPassword(phone);
     if (!user) {
@@ -68,50 +57,72 @@ class AuthService {
     const accessToken = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);
 
-    // Save refresh token to user model for token rotation and revoke tracking
     user.refreshToken = refreshToken;
     await user.save();
 
     return { user, accessToken, refreshToken };
   }
 
+  assertPortalAccess(user, loginPortal) {
+    if (!loginPortal) return;
+
+    if (!isRoleAllowedForPortal(user.role, loginPortal)) {
+      throw new AppError(
+        'This phone number is not authorized for this login screen. Use the correct app or contact Admin.',
+        403
+      );
+    }
+  }
+
+  assertAccountActiveForOtp(user) {
+    if (user.role === 'DRIVER' && !user.isActive) {
+      throw new AppError(
+        'Your registration is pending admin approval. Please wait for verification.',
+        403
+      );
+    }
+    if (!user.isActive) {
+      throw new AppError('Your account is inactive. Please contact Admin.', 403);
+    }
+  }
+
   /**
-   * Simulates dispatching a secure 6-digit OTP code to driver/staff mobile numbers.
-   * Leverages a mock fallback in development, while storing real expiration in DB.
+   * Send OTP to a pre-registered user (invite-only). Optional loginPortal restricts role.
    */
-  async sendOtp(phone) {
+  async sendOtp(phone, loginPortal) {
     let user = await User.findOne({ phone });
-    
-    // Auto-create test user if not found (Quality of life for dev testing)
-    if (!user && config.env === 'development') {
+
+    if (!user && config.env === 'development' && config.auth.allowDevOtpBootstrap) {
       user = await User.create({
         phone,
         fullName: 'DEVELOPER ADMIN',
         role: 'SUPER_ADMIN',
-        password: 'dev_password_123', // Mandatory field in schema
+        password: 'dev_password_123',
         phoneVerified: false
       });
-      logger.info(`[OTP Service]: Auto-registered unknown number ${phone} as DEVELOPER ADMIN`);
+      logger.info(`[OTP Service]: Dev bootstrap user created for ${phone}`);
     }
 
     if (!user) {
-      throw new AppError('No registered user was found with that phone number.', 404);
+      throw new AppError(
+        'No account found for this mobile number. Ask Admin to create your user first.',
+        404
+      );
     }
 
-    // Block inactive drivers from logging in (pending admin approval)
-    if (user.role === 'DRIVER' && !user.isActive) {
-      throw new AppError('Your registration is pending admin approval. Please wait for verification.', 403);
-    }
+    this.assertPortalAccess(user, loginPortal);
+    this.assertAccountActiveForOtp(user);
 
-    // Generate random 6-digit OTP (Fixed to 123456 in dev for ease)
-    const otpCode = config.env === 'development' ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // Expiration set to 5 minutes
+    const useRealOtpInDev = config.integrations.sms.forceSendInDev && config.integrations.sms.enabled;
+    const otpCode =
+      config.env === 'development' && !useRealOtpInDev
+        ? '123456'
+        : Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Save encrypted or secure details
     user.otp = { code: otpCode, expiresAt };
     await user.save();
 
-    // Send actual SMS via Gateway
     try {
       await smsService.sendOtp(phone, otpCode);
     } catch (err) {
@@ -119,19 +130,22 @@ class AuthService {
       throw new AppError(`Failed to send SMS: ${err.message}`, 500);
     }
 
-    logger.info(`[OTP Service]: Sent OTP: ${otpCode} to ${phone}. Valid for 5 minutes.`);
-    
-    const message = config.env === 'development' 
-      ? `OTP sent successfully (Dev OTP: ${otpCode})` 
-      : 'OTP sent successfully';
-      
-    return { success: true, message };
+    logger.info(`[OTP Service]: Sent OTP to ${phone} (portal: ${loginPortal || 'any'})`);
+
+    const payload = {
+      success: true,
+      message:
+        config.env === 'development'
+          ? `OTP sent successfully (Dev OTP: ${otpCode})`
+          : 'OTP sent successfully'
+    };
+    if (config.env === 'development') {
+      payload.devOtp = otpCode;
+    }
+    return payload;
   }
 
-  /**
-   * Validates OTP code and returns access tokens.
-   */
-  async verifyOtp(phone, code) {
+  async verifyOtp(phone, code, loginPortal) {
     const user = await userService.findByPhoneWithOtp(phone);
     if (!user) {
       throw new AppError('Invalid OTP verification attempt.', 404);
@@ -149,7 +163,9 @@ class AuthService {
       throw new AppError('Incorrect OTP entered. Verification failed.', 400);
     }
 
-    // Verify user, clear OTP parameters
+    this.assertPortalAccess(user, loginPortal);
+    this.assertAccountActiveForOtp(user);
+
     user.phoneVerified = true;
     user.otp = undefined;
 
@@ -171,23 +187,25 @@ class AuthService {
       let decoded;
       try {
         decoded = jwt.verify(tokenValue, config.jwt.refreshSecret);
-      } catch (jwtErr) {
+      } catch {
         throw new AppError('Session expired. Please log in again.', 401);
       }
-      
+
       const user = await User.findById(decoded.id).select('+refreshToken');
       if (!user) {
         throw new AppError('User session not found.', 401);
       }
 
-      // RTR Reuse Detection:
       if (user.refreshToken && user.refreshToken !== tokenValue) {
-        // Someone is presenting an old refresh token that was already rotated.
-        // Revoke user access completely as a defensive posture!
         user.refreshToken = undefined;
         await user.save();
-        logger.error(`[SECURITY ALERT]: Refresh token reuse attempt detected for User [ID: ${user._id}, Name: ${user.fullName}]. Revoking all current session families.`);
-        throw new AppError('Security Warning: Session hijacked or token replayed. Access entirely revoked.', 401);
+        logger.error(
+          `[SECURITY ALERT]: Refresh token reuse attempt detected for User [ID: ${user._id}]`
+        );
+        throw new AppError(
+          'Security Warning: Session hijacked or token replayed. Access entirely revoked.',
+          401
+        );
       }
 
       if (!user.refreshToken) {
@@ -197,7 +215,6 @@ class AuthService {
       const accessToken = this.generateAccessToken(user);
       const refreshToken = this.generateRefreshToken(user);
 
-      // Rotate token values in DB
       user.refreshToken = refreshToken;
       await user.save();
 
@@ -208,10 +225,6 @@ class AuthService {
     }
   }
 
-
-  /**
-   * Logs out user and revokes refresh tokens.
-   */
   async logout(userId) {
     await User.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
     logger.info(`[Auth Module]: User logged out, refresh token revoked. ID: ${userId}`);

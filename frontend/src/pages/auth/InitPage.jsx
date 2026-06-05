@@ -23,18 +23,9 @@ const InitPage = () => {
         </AuthButton>
       </div>
 
-      <div className="mt-8 text-center">
-        <p className="text-white text-sm">
-          NEW DRIVER?{' '}
-          <button
-            type="button"
-            onClick={() => navigate('/auth/signup')}
-            className="text-brand-yellow hover:underline font-bold"
-          >
-            Register Here
-          </button>
-        </p>
-      </div>
+      <p className="mt-6 text-center text-white/50 text-xs">
+        New driver accounts are created by Admin in Logistics.
+      </p>
     </AuthLayout>
   );
 };

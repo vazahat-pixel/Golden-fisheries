@@ -4,6 +4,19 @@ import { tapalService } from '../services/tapalService';
 import { expenseService } from '../services/expenseService';
 import { apiClient } from '../services/apiClient';
 
+/** Trip rows from /my-trips use trip _id; tapal APIs need tapalId */
+export function resolveTapalIdFromTrip(tripOrTapalId) {
+  if (!tripOrTapalId) return null;
+  if (typeof tripOrTapalId === 'string') return tripOrTapalId;
+  const ref = tripOrTapalId.tapalId ?? tripOrTapalId.tapal;
+  if (ref && typeof ref === 'object') {
+    const id = ref._id || ref.id;
+    return id ? String(id) : null;
+  }
+  if (ref) return String(ref);
+  return null;
+}
+
 export const useDriverStore = create(
   persist(
     (set, get) => ({
@@ -110,7 +123,9 @@ export const useDriverStore = create(
         }
       },
 
-      startTripAsync: async (tapalId) => {
+      startTripAsync: async (tripOrTapalId) => {
+        const tapalId = resolveTapalIdFromTrip(tripOrTapalId);
+        if (!tapalId) throw new Error('Tapal link missing on this trip');
         set({ loading: true });
         try {
           await tapalService.startTrip(tapalId);
@@ -122,7 +137,9 @@ export const useDriverStore = create(
         }
       },
 
-      pickupAsync: async (tapalId, qty) => {
+      pickupAsync: async (tripOrTapalId, qty) => {
+        const tapalId = resolveTapalIdFromTrip(tripOrTapalId);
+        if (!tapalId) throw new Error('Tapal link missing on this trip');
         set({ loading: true });
         try {
           await tapalService.pickup(tapalId, qty);
@@ -134,7 +151,9 @@ export const useDriverStore = create(
         }
       },
 
-      deliverAsync: async (tapalId, qty, proof, sig) => {
+      deliverAsync: async (tripOrTapalId, qty, proof, sig) => {
+        const tapalId = resolveTapalIdFromTrip(tripOrTapalId);
+        if (!tapalId) throw new Error('Tapal link missing on this trip');
         set({ loading: true });
         try {
           await tapalService.deliver(tapalId, qty, proof, sig);
@@ -160,7 +179,8 @@ export const useDriverStore = create(
       },
     }),
     {
-      name: 'golden-fisheries-drivers',
+      name: 'golden-fisheries-drivers-v2',
+      partialize: () => ({}),
     }
   )
 );

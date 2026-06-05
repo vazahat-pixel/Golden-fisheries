@@ -7,6 +7,7 @@ import { useRbacStore, ROLE_TEMPLATES } from '../../store/rbacStore';
 import { useOutletStore } from '../../store/outletStore';
 import { authService } from '../../services/authService';
 import { normalizeRole } from '../../constants/rbac';
+import { AUTH_PORTALS } from '../../constants/authPortals';
 import { 
   ShieldCheck, Smartphone, Lock, ArrowRight, ArrowLeft,
   KeyRound, UserPlus, Mail, CheckCircle2, Globe, Loader, RotateCcw as RotateIcon
@@ -64,16 +65,17 @@ const RestaurantAuth = () => {
     
     try {
       if (view === 'login') {
-        const res = await authService.requestOtp(formData.phone);
-        if (res && res.devOtp) {
-          setRbacDevOtp(res.devOtp);
+        const res = await authService.requestOtp(formData.phone, AUTH_PORTALS.RESTAURANT);
+        const otpPayload = res?.data ?? res;
+        if (otpPayload?.devOtp) {
+          setRbacDevOtp(otpPayload.devOtp);
         }
         setView('otp-rbac');
         toast.success('Verification OTP code sent');
       } else if (view === 'otp-rbac' || view === 'otp') {
-        const res = await authService.verifyOtp(formData.phone, otp.join(''));
-        if (res && res.user) {
-          const raw = res.user;
+        const res = await authService.verifyOtp(formData.phone, otp.join(''), AUTH_PORTALS.RESTAURANT);
+        const raw = res?.user || res?.data?.user;
+        if (raw) {
           const user = {
             ...raw,
             id: raw._id || raw.id,
@@ -81,7 +83,7 @@ const RestaurantAuth = () => {
             role: normalizeRole(raw.role),
             platformAccess: raw.platformAccess || { web: true, mobile: false },
           };
-          login(user, res.accessToken);
+          login(user, res?.accessToken || res?.data?.accessToken);
           toast.success(`Welcome back, ${user.name || 'Staff'}!`);
           navigate('/restaurant/dashboard');
         } else {

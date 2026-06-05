@@ -10,11 +10,18 @@ import { Button } from '../../design-system/components/Button';
 import { Card } from '../../design-system/components/Card';
 import { Badge } from '../../design-system/components/Badge';
 import { useAuthStore } from '../../store/authStore';
+import { socketService } from '../../services/socketService';
 
 const RestaurantSettings = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const [activeTab, setActiveTab] = useState('GENERAL');
+
+  const handleSignOut = async () => {
+    await logout();
+    socketService.disconnect();
+    navigate('/restaurant/auth', { replace: true });
+  };
 
   const tabs = [
     { id: 'GENERAL', label: 'Identity', icon: Store, desc: 'MASTER_PROFILE' },
@@ -163,8 +170,9 @@ const RestaurantSettings = () => {
           ))}
           
           <div className="pt-10">
-             <button 
-              onClick={() => navigate('/login')}
+             <button
+              type="button"
+              onClick={handleSignOut}
               className="w-full flex items-center gap-4 p-4 text-red-500 hover:bg-red-50 transition-all group"
              >
                 <LogOut size={18} className="opacity-50 group-hover:opacity-100" />

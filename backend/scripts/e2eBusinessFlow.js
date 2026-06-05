@@ -562,10 +562,40 @@ async function main() {
     body: {
       orderType: 'DINE_IN',
       tableNumber: 'T1',
-      items: [{ name: 'FISH THALI', quantity: 2, rate: 350, productId: productId?.toString() }],
+      items: [{ name: 'FISH THALI', quantity: 2, rate: 350 }],
     },
   });
   log(restOrder.status === 201 || restOrder.status === 200, 'Restaurant', 'POS bill create', restOrder.json?.message);
+
+  await api('POST', '/fishmall/accounting/session/close', {
+    token: fishWeb,
+    platform: 'WEB',
+    body: { closingCash: 5000, closingNotes: 'E2E auto-close before open' },
+  });
+
+  const fmShiftOpen = await api('POST', '/fishmall/accounting/session/open', {
+    token: fishWeb,
+    platform: 'WEB',
+    body: { openingCash: 5000, openingNotes: 'E2E test shift' },
+  });
+  const shiftOk =
+    fmShiftOpen.status === 201 ||
+    fmShiftOpen.status === 200 ||
+    (fmShiftOpen.status === 400 && String(fmShiftOpen.json?.message).includes('active open shift'));
+  log(shiftOk, 'FishMall', 'Shift session opened', fmShiftOpen.json?.message);
+
+  const fmFishName = `E2E PRAWNS ${Date.now().toString().slice(-6)}`;
+  const fmInv = await api('POST', '/fishmall/inventory', {
+    token: fishWeb,
+    platform: 'WEB',
+    body: { name: fmFishName, quantity: 100, rate: 550, unit: 'KG' },
+  });
+  log(
+    fmInv.status === 201 || fmInv.status === 200,
+    'FishMall',
+    'Retail stock seeded',
+    fmInv.json?.message
+  );
 
   const fishSale = await api('POST', '/fishmall/create', {
     token: fishWeb,
@@ -574,8 +604,7 @@ async function main() {
       paymentMethod: 'CASH',
       items: [
         {
-          productId: productId?.toString(),
-          fishName: 'PRAWNS',
+          fishName: fmFishName,
           scaleWeight: 2.5,
           rate: 550,
         },

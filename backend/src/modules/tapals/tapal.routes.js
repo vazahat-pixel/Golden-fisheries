@@ -93,6 +93,12 @@ router.patch(
   restrictTo(...WEB_ERP),
   tapalController.reviewPostTripExpense
 );
+router.patch(
+  '/trip/:tripId/post-trip-expense/confirm-payment',
+  ...web,
+  restrictTo(...WEB_ERP),
+  tapalController.confirmPostTripPayment
+);
 
 // Buyer read (mobile)
 router.get('/my-buyer-trips', ...mobile, restrictTo(...BUYER_ROLES), tapalController.myBuyerTrips);

@@ -45,14 +45,55 @@ export const config = {
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
     credentials: process.env.CORS_CREDENTIALS === 'true'
   },
+  auth: {
+    allowDriverSelfRegister: process.env.ALLOW_DRIVER_SELF_REGISTER === 'true',
+    allowDevOtpBootstrap: process.env.ALLOW_DEV_OTP_BOOTSTRAP === 'true'
+  },
   integrations: {
-    sms: {
-      enabled: Boolean(process.env.SMS_API_KEY?.trim()),
-      provider: 'fast2sms',
-      gatewayUrl: process.env.SMS_GATEWAY_URL || 'https://www.fast2sms.com/dev/bulkV2',
-      forceSendInDev: process.env.SMS_FORCE_SEND === 'true',
-      senderId: process.env.SMS_SENDER_ID || null
-    },
+    sms: (() => {
+      const provider = (process.env.SMS_PROVIDER || 'smsindiahub').toLowerCase();
+      const apiKey = process.env.SMS_API_KEY?.trim() || '';
+      const senderId = process.env.SMS_SENDER_ID?.trim() || null;
+      const entityId = process.env.SMS_ENTITY_ID?.trim() || process.env.SMS_PE_ID?.trim() || null;
+      const dltTemplateId = process.env.SMS_DLT_TEMPLATE_ID?.trim() || null;
+      const otpTemplate =
+        process.env.SMS_OTP_TEMPLATE?.trim() ||
+        'Welcome to ##var## Powered by IIDMTB. Use OTP ##var## to verify your login.';
+      const otpBrandName = process.env.SMS_OTP_BRAND_NAME?.trim() || 'Golden Fisheries';
+      const isIndiaHub = provider === 'smsindiahub';
+      const indiaHubReady = Boolean(
+        apiKey && senderId && entityId && dltTemplateId && otpTemplate
+      );
+      const rawChannel = (process.env.SMS_CHANNEL?.trim() || 'Trans').toLowerCase();
+      const channel =
+        rawChannel === 'transactional' || rawChannel === 'trans' ? 'Trans'
+        : rawChannel === 'promotional' || rawChannel === 'promo' ? 'Promo'
+        : rawChannel === 'otp' ? 'OTP'
+        : process.env.SMS_CHANNEL?.trim() || 'Trans';
+      const legacyHubUrl = process.env.SMS_INDIA_HUB_URL?.trim() || '';
+      const indiaHubGateway =
+        process.env.SMS_GATEWAY_URL?.trim() ||
+        (legacyHubUrl && !/pushsms\.aspx/i.test(legacyHubUrl) ? legacyHubUrl : null) ||
+        'https://cloud.smsindiahub.in/api/mt/SendSMS';
+      return {
+        provider: isIndiaHub ? 'smsindiahub' : 'fast2sms',
+        apiKey,
+        user: process.env.SMS_USER?.trim() || null,
+        password: process.env.SMS_PASSWORD?.trim() || null,
+        gatewayUrl: isIndiaHub
+          ? indiaHubGateway
+          : process.env.SMS_GATEWAY_URL || 'https://www.fast2sms.com/dev/bulkV2',
+        forceSendInDev: process.env.SMS_FORCE_SEND === 'true',
+        senderId,
+        entityId,
+        dltTemplateId,
+        otpTemplate,
+        otpBrandName,
+        channel,
+        route: process.env.SMS_ROUTE?.trim() || null,
+        enabled: isIndiaHub ? indiaHubReady : Boolean(apiKey)
+      };
+    })(),
     whatsapp: {
       enabled: Boolean(
         process.env.WHATSAPP_ACCESS_TOKEN?.trim() && process.env.WHATSAPP_PHONE_NUMBER_ID?.trim()

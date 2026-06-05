@@ -1,49 +1,62 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
-// Force reload to clear HMR cache
 import AppRouter from './router';
 import { Toaster } from 'react-hot-toast';
 import { LoadingFallback } from './design-system/components/LoadingFallback';
+import { ErrorBoundary } from './design-system/components/ErrorBoundary';
 import { OfflineIndicator } from './design-system/components/OfflineIndicator';
+import { erpToastOptions } from './design-system/toast';
 import { useAuthStore } from './store/authStore';
 import { socketService } from './services/socketService';
 
+import { useNotificationStore } from './store/notificationStore';
+import { useSystemSettingsStore } from './store/systemSettingsStore';
+
 function App() {
   const { isAuthenticated, token } = useAuthStore();
+  const { setupPushNotifications } = useNotificationStore();
+  const fetchPublicSettings = useSystemSettingsStore((s) => s.fetchPublic);
+  const fetchSettings = useSystemSettingsStore((s) => s.fetchSettings);
+
+  useEffect(() => {
+    fetchPublicSettings();
+  }, [fetchPublicSettings]);
 
   useEffect(() => {
     if (isAuthenticated && token) {
-      // Connect to Socket server when user is logged in
+      fetchSettings().catch(() => {});
+    }
+  }, [isAuthenticated, token, fetchSettings]);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
       socketService.connect();
+      // Setup FCM push notifications in background
+      setupPushNotifications().catch((err) =>
+        console.error('Push notification registration skipped:', err)
+      );
     } else {
-      // Sever socket connection when logged out
       socketService.disconnect();
     }
-
-    return () => {
-      socketService.disconnect();
-    };
-  }, [isAuthenticated, token]);
+    return () => socketService.disconnect();
+  }, [isAuthenticated, token, setupPushNotifications]);
 
   return (
     <BrowserRouter>
-      <React.Suspense fallback={<LoadingFallback type="full" />}>
-        <AppRouter />
-      </React.Suspense>
+      <ErrorBoundary>
+        <React.Suspense fallback={<LoadingFallback type="full" />}>
+          <AppRouter />
+        </React.Suspense>
+      </ErrorBoundary>
       <OfflineIndicator />
-      <Toaster 
-        position="top-right"
+      <Toaster
+        position={erpToastOptions.position}
         toastOptions={{
-          style: {
-            borderRadius: '0px',
-            background: '#000000',
-            color: '#fff',
-            border: '2px solid #000000',
-            fontSize: '11px',
-            fontWeight: '900',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em'
-          },
+          duration: erpToastOptions.duration,
+          style: erpToastOptions.style,
+          success: erpToastOptions.success,
+          error: erpToastOptions.error,
+          loading: erpToastOptions.loading,
         }}
       />
     </BrowserRouter>
@@ -51,4 +64,3 @@ function App() {
 }
 
 export default App;
-

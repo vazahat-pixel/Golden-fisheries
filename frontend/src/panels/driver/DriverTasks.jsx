@@ -1,31 +1,68 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverStore } from '../../store/driverStore';
+import { Loader2, Truck } from 'lucide-react';
+import { FieldPageWrap } from '../../design-system/field-app';
+import { FieldTransactionList } from '../../design-system/field-app';
+
+const LIVE_STATUSES = ['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED', 'ACCEPTED'];
 
 const DriverTasks = () => {
   const navigate = useNavigate();
-  const { activeTrip, fetchMyTrips } = useDriverStore();
+  const { myTrips, fetchMyTrips, loading } = useDriverStore();
 
   useEffect(() => {
     fetchMyTrips();
   }, [fetchMyTrips]);
 
-  useEffect(() => {
-    if (activeTrip) navigate('/driver/active-trip', { replace: true });
-  }, [activeTrip, navigate]);
+  const { live, upcoming } = useMemo(() => {
+    const list = myTrips || [];
+    const liveList = list.filter((t) => LIVE_STATUSES.includes(t.status));
+    const rest = list.filter((t) => !LIVE_STATUSES.includes(t.status));
+    return { live: liveList, upcoming: rest };
+  }, [myTrips]);
+
+  const rows = [...live, ...upcoming].slice(0, 12).map((t) => ({
+    id: t._id || t.id,
+    title: `Trip #${t.tripNumber || t.tapalNumber || '—'}`,
+    subtitle: `${t.pickupLocation || 'Pickup'} → ${t.deliveryLocation || 'Delivery'}`,
+    amount: t.status,
+    amountPositive: LIVE_STATUSES.includes(t.status),
+    type: LIVE_STATUSES.includes(t.status) ? 'Active' : 'Queued',
+    initials: 'TR',
+    onClick: () => navigate('/driver/active-trip'),
+  }));
 
   return (
-    <div className="p-4">
-      <h1 className="text-lg font-black uppercase mb-2">My trips</h1>
-      <p className="text-sm text-gray-600 mb-4">No active assignment. Check history or wait for dispatch.</p>
-      <button
-        type="button"
-        onClick={() => navigate('/driver/history')}
-        className="w-full py-3 bg-[#6A7051] text-white font-bold text-xs uppercase"
-      >
-        Trip history
-      </button>
-    </div>
+    <FieldPageWrap fill subtitle="My assignments">
+      <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
+      <p className="text-sm fa-muted mb-4">Tap a trip to open the transit console</p>
+
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center min-h-[40vh]">
+          <Loader2 className="animate-spin text-[var(--fa-accent)]" size={28} />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="fa-empty-state fa-empty-state--fill space-y-4">
+          <Truck className="fa-empty-icon" size={44} strokeWidth={1.5} />
+          <p className="text-sm fa-muted">No trips in your queue</p>
+          <button
+            type="button"
+            onClick={() => navigate('/driver/dashboard')}
+            className="fa-btn-primary w-full max-w-[220px] mx-auto py-3 text-[11px] font-bold uppercase tracking-wider fa-tap"
+          >
+            Back to home
+          </button>
+        </div>
+      ) : (
+        <FieldTransactionList
+          title={`${live.length} active · ${upcoming.length} other`}
+          onViewAll={() => navigate('/driver/history')}
+          items={rows}
+          emptyMessage="No tasks"
+        />
+      )}
+    </FieldPageWrap>
   );
 };
 

@@ -12,17 +12,17 @@ export const authService = {
   /**
    * Request an OTP code
    */
-  requestOtp: async (phone) => {
-    const response = await apiClient.post('/auth/otp/send', { phone });
-    return response.data; // { devOtp } in staging/dev modes
+  requestOtp: async (phone, loginPortal) => {
+    const response = await apiClient.post('/auth/otp/send', { phone, loginPortal });
+    return response.data;
   },
 
   /**
    * Verify OTP and complete login session
    */
-  verifyOtp: async (phone, otp) => {
-    const response = await apiClient.post('/auth/otp/verify', { phone, otp });
-    return response.data; // { user, accessToken }
+  verifyOtp: async (phone, otp, loginPortal) => {
+    const response = await apiClient.post('/auth/otp/verify', { phone, otp, loginPortal });
+    return response.data;
   },
 
   /**

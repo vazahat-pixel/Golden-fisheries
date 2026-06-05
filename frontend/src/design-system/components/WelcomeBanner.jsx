@@ -1,6 +1,7 @@
 import React from 'react';
 
-export const WelcomeBanner = ({ name = 'Mahesh' }) => {
+export const WelcomeBanner = ({ name = 'Operator' }) => {
+  const displayName = name?.split(' ')[0] || 'Operator';
   const today = new Date().toLocaleDateString('en-IN', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -15,7 +16,7 @@ export const WelcomeBanner = ({ name = 'Mahesh' }) => {
           SYSTEM OVERVIEW • {today}
         </p>
         <h1 className="text-3xl md:text-4xl font-serif italic font-black text-black tracking-tight mb-2">
-          Hello, <span className="text-[#5F6846]">Mahesh.</span>
+          Hello, <span className="text-[#5F6846]">{displayName}.</span>
         </h1>
         <p className="text-text-muted font-black text-[9px] md:text-[10px] uppercase tracking-[0.3em] max-w-4xl leading-loose">
           ARCHITECT AND MANAGE YOUR SEAFOOD OPERATIONS WITH PRECISION.

@@ -11,7 +11,20 @@ export const internalSupplyController = {
     new ApiResponse(
       201,
       { bill },
-      'Internal bill issued — Fish Mall stock reduced, Restaurant kitchen stock increased'
+      'Internal bill issued — Fish Mall stock reduced, pending Restaurant acceptance'
+    ).send(res);
+  }),
+
+  acceptBill: asyncWrapper(async (req, res) => {
+    const bill = await internalSupplyService.acceptInternalBill(
+      req.params.id,
+      req.user.id,
+      req.body
+    );
+    new ApiResponse(
+      200,
+      { bill },
+      `Internal supply transfer resolved successfully as ${bill.status}`
     ).send(res);
   }),
 

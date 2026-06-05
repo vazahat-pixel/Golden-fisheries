@@ -320,7 +320,8 @@ export const useFishMallStore = create(
       },
     }),
     {
-      name: 'golden-fisheries-fishmall',
+      name: 'golden-fisheries-fishmall-v2',
+      partialize: () => ({}),
     }
   )
 );

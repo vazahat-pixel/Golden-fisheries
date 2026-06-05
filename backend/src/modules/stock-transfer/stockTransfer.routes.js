@@ -35,6 +35,20 @@ router.patch(
   stockTransferController.approve
 );
 
+router.post(
+  '/:id/dispatch',
+  ...transferWrite,
+  restrictTo(...WEB_ERP),
+  stockTransferController.approve
+);
+
+router.post(
+  '/:id/accept',
+  ...web,
+  restrictTo(...WEB_ERP, 'FISHMALL_MANAGER', 'FISHMALL'),
+  stockTransferController.accept
+);
+
 router.patch(
   '/:id/cancel',
   ...transferWrite,
@@ -45,3 +59,4 @@ router.patch(
 router.patch('/:id', ...transferWrite, stockTransferController.update);
 
 export default router;
+

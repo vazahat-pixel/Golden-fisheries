@@ -1,72 +1,33 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthLayout from '../../components/auth/AuthLayout';
-import AuthInput from '../../components/auth/AuthInput';
 import AuthButton from '../../components/auth/AuthButton';
-import { User, Smartphone, Lock, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
+/** Public driver self-registration is disabled — admin creates drivers. */
 const Signup = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '',
-    mobile: '',
-    password: '',
-  });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSignup = (e) => {
-    e.preventDefault();
-    // Implementation for signup goes here
-    console.log('Driver signup', formData);
-  };
+  useEffect(() => {
+    document.title = 'Registration disabled';
+  }, []);
 
   return (
-    <AuthLayout title="Driver Signup" subtitle="Fleet Management System">
-      <button 
+    <AuthLayout title="Registration closed" subtitle="Driver onboarding is managed by Admin">
+      <button
+        type="button"
         onClick={() => navigate('/auth/home')}
         className="text-white flex items-center gap-2 mb-6 hover:text-brand-yellow transition-colors"
       >
         <ArrowLeft size={16} /> Back
       </button>
-
-      <form onSubmit={handleSignup} className="flex flex-col w-full">
-        <AuthInput 
-          name="name"
-          type="text" 
-          placeholder="Full Name" 
-          icon={User}
-          value={formData.name}
-          onChange={handleChange}
-          required
-        />
-        <AuthInput 
-          name="mobile"
-          type="tel" 
-          placeholder="Mobile Number" 
-          icon={Smartphone}
-          value={formData.mobile}
-          onChange={handleChange}
-          required
-        />
-        <AuthInput 
-          name="password"
-          type="password" 
-          placeholder="Create Password" 
-          icon={Lock}
-          value={formData.password}
-          onChange={handleChange}
-          required
-        />
-        
-        <div className="mt-4 mb-2">
-          <AuthButton type="submit">
-            Register
-          </AuthButton>
-        </div>
-      </form>
+      <p className="text-white/80 text-sm mb-6 leading-relaxed">
+        New drivers are added by Admin in <strong>Logistics → Drivers</strong>. After approval,
+        sign in with <strong>Driver Login (OTP)</strong> using your registered mobile number.
+      </p>
+      <AuthButton onClick={() => navigate('/auth/driver')} variant="primary">
+        Go to Driver Login
+      </AuthButton>
     </AuthLayout>
   );
 };

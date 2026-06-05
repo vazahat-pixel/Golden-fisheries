@@ -14,7 +14,9 @@ const internalSupplyLineSchema = new mongoose.Schema(
       required: true,
     },
     itemName: { type: String, required: true, uppercase: true, trim: true },
-    quantity: { type: Number, required: true, min: 0.01 },
+    quantity: { type: Number, required: true, min: 0.01 }, // Sent quantity
+    receivedQuantity: { type: Number, default: null }, // Received quantity entered by receiver
+    differenceQuantity: { type: Number, default: null }, // Shortage or excess
     unit: { type: String, default: 'KG' },
     rate: { type: Number, required: true, min: 0 },
     amount: { type: Number, required: true, min: 0 },
@@ -57,8 +59,15 @@ const internalSupplyBillSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true, min: 0 },
     status: {
       type: String,
-      enum: ['ISSUED', 'CANCELLED'],
-      default: 'ISSUED',
+      enum: [
+        'ISSUED',
+        'CANCELLED',
+        'PENDING_ACCEPTANCE',
+        'ACCEPTED',
+        'PARTIAL_ACCEPTED',
+        'REJECTED'
+      ],
+      default: 'PENDING_ACCEPTANCE',
       index: true,
     },
     remarks: { type: String, default: '' },
@@ -67,6 +76,13 @@ const internalSupplyBillSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    receiverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    receiverName: { type: String, default: '' },
+    acceptedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

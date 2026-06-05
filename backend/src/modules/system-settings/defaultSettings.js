@@ -1,0 +1,141 @@
+/** Default ERP configuration — single source of truth for seeding & reset. */
+export const SETTINGS_SINGLETON_ID = 'global';
+
+export const DEFAULT_SYSTEM_SETTINGS = {
+  branding: {
+    companyName: 'Golden Fisheries',
+    legalName: 'Golden Fisheries Pvt Ltd',
+    tagline: 'Enterprise operations platform',
+    logoUrl: '/logo.PNG',
+    supportPhone: '',
+    supportEmail: '',
+    address: '',
+  },
+  numbering: {
+    harvest: { key: 'harvest', prefix: 'HSL', pad: 4, label: 'Harvest slip' },
+    'tapal-purchase': { key: 'tapal-purchase', prefix: 'PUR', pad: 4, label: 'Purchase tapal' },
+    'tapal-sale': { key: 'tapal-sale', prefix: 'SAL', pad: 4, label: 'Sales tapal' },
+    trip: { key: 'trip', prefix: 'TRP', pad: 4, label: 'Driver trip' },
+    billing: { key: 'billing', prefix: 'INV', pad: 4, label: 'Billing invoice' },
+    'buyer-bill': { key: 'buyer-bill', prefix: 'BB', pad: 4, label: 'Buyer bill' },
+    'sales-return': { key: 'sales-return', prefix: 'SR', pad: 4, label: 'Sales return' },
+    'procurement-transfer': { key: 'procurement-transfer', prefix: 'PT', pad: 4, label: 'Procurement transfer' },
+    'internal-supply': { key: 'internal-supply', prefix: 'INT', pad: 4, label: 'Internal supply bill' },
+    'fishmall-sale': { key: 'fishmall-sale', prefix: 'FML', pad: 4, label: 'Fish mall sale' },
+    'fishmall-outlet': { key: 'fishmall-outlet', prefix: 'FM', pad: 4, label: 'Fish mall outlet' },
+    'fishmall-session': { key: 'fishmall-session', prefix: 'FMS', pad: 4, label: 'Fish mall session' },
+    'fishmall-cashbook': { key: 'fishmall-cashbook', prefix: 'FMCB', pad: 4, label: 'Fish mall cashbook' },
+    'fishmall-expense': { key: 'fishmall-expense', prefix: 'FME', pad: 4, label: 'Fish mall expense' },
+    'restaurant-order': { key: 'restaurant-order', prefix: 'RST', pad: 4, label: 'Restaurant order' },
+    'restaurant-outlet': { key: 'restaurant-outlet', prefix: 'RES', pad: 4, label: 'Restaurant outlet' },
+    'restaurant-session': { key: 'restaurant-session', prefix: 'RSS', pad: 4, label: 'Restaurant session' },
+    'restaurant-cashbook': { key: 'restaurant-cashbook', prefix: 'RSCB', pad: 4, label: 'Restaurant cashbook' },
+    'restaurant-expense': { key: 'restaurant-expense', prefix: 'RSE', pad: 4, label: 'Restaurant expense' },
+    'kitchen-ticket': { key: 'kitchen-ticket', prefix: 'KOT', pad: 4, label: 'Kitchen ticket' },
+  },
+  themes: {
+    admin: {
+      primary: '#6A7051',
+      accent: '#C5A021',
+      pageBg: '#f4f5f7',
+      sidebarBg: '#ffffff',
+      cardBorder: '#e2e6eb',
+    },
+    driver: {
+      accent: '#c9a962',
+      accentSoft: '#8b7d5a',
+      background: '#000000',
+      surface: '#161618',
+    },
+    restaurant: {
+      primary: '#6A7051',
+      accent: '#C5A021',
+      pageBg: '#F9FAFB',
+      headerBg: '#6A7051',
+    },
+    fishmall: {
+      primary: '#6A7051',
+      accent: '#C5A021',
+      pageBg: '#F9FAFB',
+      headerBg: '#1e293b',
+    },
+  },
+  print: {
+    harvestSlip: {
+      layout: 'grid',
+      columns: 3,
+      showRates: true,
+      showHsn: true,
+      paperSize: 'A4',
+      fontSize: '12px',
+    },
+    tapalSlip: {
+      layout: 'grid',
+      columns: 4,
+      hideRatesInTransit: true,
+      paperSize: 'A4',
+    },
+    invoice: {
+      layout: 'standard',
+      showGstBreakdown: true,
+      footerNote: 'Thank you for your business.',
+    },
+    kot: {
+      layout: 'compact',
+      columns: 2,
+      showTimer: true,
+    },
+    driverTripSheet: {
+      layout: 'standard',
+      showSignatureBlocks: true,
+    },
+  },
+  panels: {
+    driver: {
+      gpsPingIntervalSec: 15,
+      enableTripAlertSound: true,
+      enableVibration: true,
+      showMaskedTripNo: false,
+    },
+    restaurant: {
+      posGridColumns: 4,
+      defaultServiceChargePercent: 0,
+      enableKitchenTickets: true,
+      orderPrefixDisplay: true,
+    },
+    fishmall: {
+      billingGridColumns: 3,
+      defaultGstPercent: 0,
+      requireShiftOpen: true,
+      stockAlertThresholdKg: 5,
+    },
+    procurement: {
+      requireFarmerApproval: true,
+      autoSyncInventory: true,
+    },
+  },
+};
+
+/** Map sequence.service `key` arg → numbering config id */
+export const SEQUENCE_KEY_ALIASES = {
+  harvest: 'harvest',
+  'tapal-purchase': 'tapal-purchase',
+  'tapal-sale': 'tapal-sale',
+  trip: 'trip',
+  billing: 'billing',
+  'buyer-bill': 'buyer-bill',
+  'sales-return': 'sales-return',
+  'procurement-transfer': 'procurement-transfer',
+  'internal-supply': 'internal-supply',
+  'fishmall-sale': 'fishmall-sale',
+  'fishmall-outlet': 'fishmall-outlet',
+  'fishmall-session': 'fishmall-session',
+  'fishmall-cashbook': 'fishmall-cashbook',
+  'fishmall-expense': 'fishmall-expense',
+  'restaurant-order': 'restaurant-order',
+  'restaurant-outlet': 'restaurant-outlet',
+  'restaurant-session': 'restaurant-session',
+  'restaurant-cashbook': 'restaurant-cashbook',
+  'restaurant-expense': 'restaurant-expense',
+  'kitchen-ticket': 'kitchen-ticket',
+};

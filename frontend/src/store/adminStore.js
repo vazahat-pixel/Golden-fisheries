@@ -108,6 +108,7 @@ export const useAdminStore = create(
           const list = Array.isArray(res?.data) ? res.data : [];
           const mapped = list.map(t => ({
             id: t._id,
+            _id: t._id,
             tripNumber: t.tripNumber,
             tapalId: t.tapalId?._id || t.tapalId,
             driverId: t.driverId?._id || t.driverId,
@@ -121,7 +122,8 @@ export const useAdminStore = create(
             actualQty: t.actualDeliveredQty || t.actualPickupQty,
             createdAt: new Date(t.createdAt).toLocaleTimeString(),
             expenses: t.expenses || [],
-            timeline: t.timeline || []
+            timeline: t.timeline || [],
+            postTripExpenses: t.postTripExpenses || null
           }));
           set({ trips: mapped, loading: false });
         } catch (err) {
@@ -391,6 +393,19 @@ export const useAdminStore = create(
         try {
           const upperStatus = status.toUpperCase(); // Convert to UPPERCASE for backend enum
           await expenseService.approve(id, upperStatus);
+          await get().fetchExpenses();
+          set({ loading: false });
+        } catch (err) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      confirmTripPaymentAsync: async (tripId, paidAmount, upiTransactionId, paymentMethod = 'UPI') => {
+        set({ loading: true });
+        try {
+          await tapalService.confirmPostTripPayment(tripId, paidAmount, upiTransactionId, paymentMethod);
+          await get().fetchTrips();
           await get().fetchExpenses();
           set({ loading: false });
         } catch (err) {
@@ -884,15 +899,21 @@ export const useAdminStore = create(
         try {
           const res = await masterService.drivers.getAll({ search });
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          const mapped = list.map(d => ({
-            id: d._id,
-            name: d.fullName || '',
-            phone: d.phone || d.mobile || '',
-            vehicle: d.vehicleNumber || 'MH-12-AS-4567',
-            status: d.status || 'active',
-            rating: d.rating || 4.5,
-            trips: d.totalTrips || 0
-          }));
+          const mapped = list.map((d) => {
+            const u = d.userId && typeof d.userId === 'object' ? d.userId : null;
+            return {
+              id: d._id,
+              name: d.fullName || u?.fullName || '',
+              phone: d.phone || u?.phone || d.mobile || '',
+              vehicle: d.vehicleNumber || 'MH-12-AS-4567',
+              status:
+                d.registrationStatus ||
+                d.status ||
+                (d.isActive || u?.isActive ? 'active' : 'pending_verification'),
+              rating: d.rating || 4.5,
+              trips: d.totalTrips || 0,
+            };
+          });
           set({ drivers: mapped, loading: false });
         } catch (err) {
           console.warn('Backend fetchDrivers failed:', err.message);
@@ -1044,7 +1065,10 @@ export const useAdminStore = create(
       clearActiveTripNotification: () => set({ activeTripNotification: null }),
     }),
     {
-      name: 'golden-fisheries-admin-v2',
+      name: 'golden-fisheries-admin-v3',
+      partialize: (state) => ({
+        activeTripNotification: state.activeTripNotification,
+      }),
     }
   )
 );

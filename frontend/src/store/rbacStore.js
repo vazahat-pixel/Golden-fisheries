@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { userService } from '../services/userService';
 import { useAuthStore } from './authStore';
 import { isWebErpRole, normalizeRole } from '../constants/rbac';
+import { masterService } from '../services/masterService';
 
 function mergePermissions(stored, role) {
   const template = ROLE_TEMPLATES[normalizeRole(role)] || ROLE_TEMPLATES[role];
@@ -53,6 +54,7 @@ export const ROLE_TEMPLATES = {
         outlets: { read: true, write: true, delete: true },
         accessControl: { read: true, write: true, delete: true },
         settings: { read: true, write: true, delete: true },
+        systemControl: { read: true, write: true, delete: true },
       },
     },
   },
@@ -380,7 +382,8 @@ export const MODULE_META = [
   { key: 'inventory', label: 'Inventory', panel: 'Admin' },
   { key: 'outlets', label: 'Outlets', panel: 'Admin' },
   { key: 'accessControl', label: 'Access Control', panel: 'Admin' },
-  { key: 'settings', label: 'Settings', panel: 'Admin' },
+  { key: 'settings', label: 'Users & roles', panel: 'Admin' },
+  { key: 'systemControl', label: 'System control', panel: 'Admin' },
   { key: 'buyerDashboard', label: 'Buyer Dashboard', panel: 'Buyer (Admin)' },
   { key: 'buyerVerify', label: 'Buyer Verify Tapals', panel: 'Buyer (Admin)' },
   { key: 'buyerBills', label: 'Buyer Bills', panel: 'Buyer (Admin)' },
@@ -481,6 +484,21 @@ export const useRbacStore = create(
               {},
           };
           const newUser = await userService.register(payload);
+          
+          // Auto-sync: If user role is BUYER, automatically register them as a master Buyer customer to prevent double entry
+          if (frontendRole === 'BUYER') {
+            try {
+              await masterService.buyers.create({
+                buyerName: (userData.name || userData.fullName || '').toUpperCase(),
+                phone: userData.phone || '',
+                buyerType: 'EXTERNAL',
+                deliveryAddress: 'MAIN ERP OFFICE' // default placeholder
+              });
+            } catch (buyerErr) {
+              console.warn('Auto-registering master buyer customer failed (might already exist):', buyerErr.message);
+            }
+          }
+
           await get().fetchUsers();
           set({ loading: false });
           return newUser;

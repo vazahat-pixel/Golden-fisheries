@@ -10,9 +10,15 @@
     "lint": "eslint src/**/*.js",
     "seed:admin": "node seedAdmin.js",
     "seed:e2e": "node scripts/seedE2ETestUsers.js",
+    "db:reset": "node scripts/resetOperationalData.js",
+    "trip:quick": "node scripts/quickDriverTrip.js",
+    "db:reset-operational": "node scripts/resetOperationalData.js",
     "test:e2e": "node scripts/e2eBusinessFlow.js",
     "test:e2e:full": "node scripts/e2e_test.js",
-    "test:e2e:phases": "node scripts/e2e_inventory_phases.js"
+    "test:e2e:phases": "node scripts/e2e_inventory_phases.js",
+    "test:sms": "node scripts/testSms.js",
+    "test:qa": "node scripts/qaFullAudit.js",
+    "test:qa:full": "node scripts/seedE2ETestUsers.js && node scripts/qaFullAudit.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -22,6 +28,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "express-rate-limit": "^8.5.1",
+    "firebase-admin": "^13.10.0",
     "helmet": "^8.0.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",

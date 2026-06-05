@@ -1,12 +1,34 @@
 import React, { useState } from 'react';
-import { NavLink, Link } from 'react-router-dom';
-import { Menu, X, Bell, Search, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
-import { twMerge } from 'tailwind-merge';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Menu, Search, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { socketService } from '../../services/socketService';
+import { cn } from '../utils/cn';
 import { LoadingFallback } from '../components/LoadingFallback';
 import { useFishMallStore } from '../../store/fishMallStore';
 import { useRestaurantStore } from '../../store/restaurantStore';
+import { NotificationDropdown } from '../components/NotificationDropdown';
+import { SearchInput } from '../components/Input';
+import { useAuthStore } from '../../store/authStore';
 
-export const PanelLayout = ({ children, navItems, panelName, userName, alertsHref = null, panelKind = 'fishmall' }) => {
+export const PanelLayout = ({
+  children,
+  navItems,
+  panelName,
+  userName: userNameProp,
+  panelKind = 'fishmall',
+}) => {
+  const navigate = useNavigate();
+  const authUser = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const userName = userNameProp || authUser?.name || authUser?.fullName || 'Operator';
+
+  const handleSignOut = async () => {
+    await logout();
+    socketService.disconnect();
+    if (panelKind === 'restaurant') navigate('/restaurant/auth', { replace: true });
+    else if (panelKind === 'fishmall') navigate('/fishmall/auth', { replace: true });
+    else navigate('/auth/home', { replace: true });
+  };
   const fishUnread = useFishMallStore((s) => s.alerts.filter((a) => !a.read).length);
   const restUnread = useRestaurantStore((s) => s.alerts.filter((a) => !a.read).length);
   const unreadAlerts = panelKind === 'restaurant' ? restUnread : fishUnread;
@@ -15,118 +37,140 @@ export const PanelLayout = ({ children, navItems, panelName, userName, alertsHre
 
   return (
     <div className="flex min-h-screen bg-page-bg">
-      {/* Desktop Sidebar */}
-      <aside className={twMerge(
-        "hidden lg:flex bg-white flex-col border-r border-card-border sticky top-0 h-screen transition-all duration-300",
-        isCollapsed ? "w-20" : "w-72"
-      )}>
-        <div className="p-4 md:p-6 flex items-center justify-between border-b border-card-border gap-2">
-          <div className="flex items-center gap-4 overflow-hidden">
-            <div className="w-12 h-12 shrink-0 flex items-center justify-center overflow-hidden">
-              <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-full h-full object-contain" />
-            </div>
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={cn(
+          'fixed lg:sticky top-0 z-50 lg:z-auto h-screen shrink-0 bg-sidebar-bg flex flex-col border-r border-card-border transition-all duration-200',
+          isCollapsed ? 'w-[56px]' : 'w-56',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+      >
+        <div className="h-12 px-3 flex items-center justify-between border-b border-card-border gap-2">
+          <div className="flex items-center gap-2 overflow-hidden min-w-0">
+            <img
+              src="/IMG_8643-removebg-preview.png"
+              alt="Logo"
+              className="w-8 h-8 object-contain shrink-0"
+            />
             {!isCollapsed && (
-              <div className="flex flex-col whitespace-nowrap">
-                <h1 className="text-xl font-serif italic font-black tracking-tight text-primary leading-none">{panelName}</h1>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted mt-1">Operational Portal</span>
+              <div className="min-w-0">
+                <h1 className="text-sm font-semibold text-text-primary truncate">{panelName}</h1>
+                <span className="erp-caption block">Operations</span>
               </div>
             )}
           </div>
-          <button 
-            onClick={() => setIsCollapsed(!isCollapsed)} 
-            className="hidden lg:flex p-1 text-text-muted hover:text-black transition-colors"
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="hidden lg:flex p-1 text-text-muted hover:text-text-primary"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-x-hidden">
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               title={isCollapsed ? item.label : undefined}
-              className={({ isActive }) => twMerge(
-                'flex items-center py-4 rounded-none transition-all duration-300 group border-l-4 border-transparent',
-                isCollapsed ? 'px-0 justify-center' : 'px-6 gap-4',
-                isActive 
-                  ? 'bg-olive-100 text-primary border-accent-olive font-black shadow-sm' 
-                  : 'text-text-muted hover:bg-olive-50 hover:text-primary'
-              )}
+              onClick={() => setIsSidebarOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center rounded-erp transition-colors text-erp-sm font-medium',
+                  isCollapsed ? 'justify-center px-2 py-2' : 'gap-2.5 px-2.5 py-2',
+                  isActive
+                    ? 'bg-accent/10 text-accent border-l-2 border-accent'
+                    : 'text-text-muted hover:bg-surface-hover hover:text-text-primary border-l-2 border-transparent'
+                )
+              }
             >
-              <item.icon size={18} className={twMerge("shrink-0", "transition-transform group-hover:scale-110")} />
-              {!isCollapsed && <span className="text-[10px] uppercase tracking-[0.2em] font-black whitespace-nowrap">{item.label}</span>}
+              <item.icon size={16} className="shrink-0" />
+              {!isCollapsed && <span className="truncate">{item.label}</span>}
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-4 mt-auto border-t border-card-border">
-          <div className={twMerge(
-            "flex items-center py-4 bg-white rounded-none border border-card-border shadow-subtle group hover:bg-olive-50 transition-all cursor-pointer overflow-hidden",
-            isCollapsed ? "justify-center px-0" : "px-3 gap-3"
-          )} title={isCollapsed ? userName : undefined}>
-            <div className="w-10 h-10 shrink-0 rounded-none bg-accent-olive flex items-center justify-center text-white font-black border border-card-border">
-              <img src={`https://ui-avatars.com/api/?name=${userName}&background=5F6846&color=fff`} alt="User" />
-            </div>
-            {!isCollapsed && (
-              <>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black truncate text-text-primary uppercase tracking-tight">{userName}</p>
-                  <p className="text-[8px] text-text-muted truncate uppercase tracking-widest font-black">Operator</p>
-                </div>
-                <Link to="/launchpad" className="p-1.5 text-text-muted hover:text-red-500 transition-colors">
-                  <LogOut size={16} />
-                </Link>
-              </>
+        <div className="p-2 border-t border-card-border">
+          <div
+            className={cn(
+              'flex items-center rounded-erp border border-card-border bg-white p-1.5',
+              isCollapsed ? 'justify-center' : 'gap-2'
             )}
+          >
+            <img
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=5F6846&color=fff&size=32`}
+              alt=""
+              className="w-8 h-8 shrink-0 rounded-erp"
+            />
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{userName}</p>
+                <p className="text-[10px] text-text-muted">Operator</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="p-1.5 text-text-muted hover:text-danger hover:bg-red-50 rounded-erp shrink-0"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 min-h-screen">
-        <header className="h-16 flex items-center justify-between px-6 md:px-12 bg-white border-b border-card-border sticky top-0 z-30">
-          <div className="flex items-center gap-4 md:gap-8">
-            <button className="lg:hidden p-2 text-text-muted hover:bg-olive-50 rounded-none">
-              <Menu size={22} />
+        <header className="h-11 shrink-0 flex items-center justify-between px-3 md:px-4 bg-white border-b border-card-border sticky top-0 z-30">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="lg:hidden p-1.5 text-text-muted hover:bg-surface-hover rounded-erp"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu size={20} />
             </button>
-            <h2 className="text-sm md:text-md font-serif italic font-black text-black uppercase tracking-widest">
-              Management <span className="text-accent-olive">Console</span>
-            </h2>
+            <span className="erp-h3 hidden sm:block">Console</span>
           </div>
-          
-          <div className="flex items-center gap-4 md:gap-8">
+
+          <div className="flex items-center gap-2">
             <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
-              <input 
-                type="text" 
-                placeholder="SEARCH OPERATIONS..." 
-                className="bg-white border border-card-border rounded-none py-2.5 pl-10 pr-6 text-[10px] font-black focus:ring-1 focus:ring-accent-olive outline-none uppercase tracking-widest w-64 transition-all"
+              <Search
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                size={14}
+              />
+              <SearchInput
+                placeholder="Search…"
+                className="w-48 pl-8 h-8 text-xs"
               />
             </div>
-            <div className="w-[1px] h-6 bg-card-border mx-2"></div>
-            {alertsHref ? (
-              <Link
-                to={alertsHref}
-                className="relative p-2 text-black hover:bg-olive-50 rounded-none transition-colors"
-                title="Notifications"
-              >
-                <Bell size={18} />
-                {unreadAlerts > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-600 text-white text-[9px] font-black rounded-full">
-                    {unreadAlerts > 9 ? '9+' : unreadAlerts}
-                  </span>
-                )}
-              </Link>
-            ) : null}
-            <button className="p-2 text-black hover:bg-olive-50 rounded-none transition-colors">
-              <Settings size={18} />
+            <NotificationDropdown />
+            {unreadAlerts > 0 && (
+              <span className="hidden sm:inline erp-caption text-warning font-medium">
+                {unreadAlerts} alert{unreadAlerts !== 1 ? 's' : ''}
+              </span>
+            )}
+            <button
+              type="button"
+              className="p-1.5 text-text-muted hover:bg-surface-hover rounded-erp"
+              aria-label="Settings"
+            >
+              <Settings size={16} />
             </button>
           </div>
         </header>
-        
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-          <div className="max-w-[1400px] mx-auto">
+
+        <div className="flex-1 p-3 md:p-4 overflow-y-auto">
+          <div className="max-w-[1400px] mx-auto erp-page">
             <React.Suspense fallback={<LoadingFallback type="content" />}>
               {children}
             </React.Suspense>

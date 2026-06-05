@@ -78,6 +78,11 @@ const userSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    deviceTokens: {
+      type: [String],
+      default: [],
+      index: true,
+    },
     refreshToken: {
       type: String,
       select: false

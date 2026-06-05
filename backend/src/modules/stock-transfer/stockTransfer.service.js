@@ -9,6 +9,9 @@ import { logger } from '../../utils/logger.js';
 import { broadcastEvent } from '../../sockets/socket.js';
 import { INVENTORY_SCOPES } from '../../constants/inventoryScopes.js';
 import { fishMallOutletService } from '../fishmall-outlet/fishMallOutlet.service.js';
+import { User } from '../users/user.model.js';
+import { notificationService } from '../notifications/notification.service.js';
+
 
 class StockTransferService {
   async _validateLines(lines, session = null) {
@@ -86,8 +89,8 @@ class StockTransferService {
     try {
       const transfer = await StockTransfer.findById(transferId).session(session);
       if (!transfer) throw new AppError('Stock transfer not found', 404);
-      if (transfer.status === 'COMPLETED') {
-        throw new AppError(`Transfer ${transfer.transferNumber} is already completed`, 409);
+      if (['IN_TRANSIT', 'PENDING_ACCEPTANCE', 'ACCEPTED', 'PARTIAL_ACCEPTED', 'COMPLETED'].includes(transfer.status)) {
+        throw new AppError(`Transfer ${transfer.transferNumber} has already been dispatched/completed`, 409);
       }
       if (transfer.status === 'CANCELLED') {
         throw new AppError(`Transfer ${transfer.transferNumber} was cancelled`, 400);
@@ -116,8 +119,6 @@ class StockTransferService {
         session
       );
 
-      const completedLines = [];
-
       for (const line of validatedLines) {
         await inventoryService.adjustStock(
           line.productId,
@@ -131,12 +132,152 @@ class StockTransferService {
           userId,
           `Procurement → Fish Mall transfer ${transfer.transferNumber}`
         );
+      }
 
+      transfer.status = 'IN_TRANSIT';
+      transfer.approvedBy = userId;
+      transfer.approvedAt = new Date();
+      if (extraNotes) {
+        transfer.notes = transfer.notes
+          ? `${transfer.notes}\n[Dispatch] ${extraNotes}`
+          : `[Dispatch] ${extraNotes}`;
+      }
+      await transfer.save({ session });
+
+      await session.commitTransaction();
+
+      // Trigger socket events
+      broadcastEvent('inventory:transfer_completed', {
+        transferId: transfer._id,
+        transferNumber: transfer.transferNumber,
+        scope: INVENTORY_SCOPES.PROCUREMENT,
+        status: 'IN_TRANSIT',
+      }, 'dashboard:updates');
+
+      const transferPayload = {
+        transferId: transfer._id,
+        transferNumber: transfer.transferNumber,
+        outletId: destinationOutlet._id,
+        outletName: destinationOutlet.name,
+        outletCode: destinationOutlet.outletCode,
+        lineCount: transfer.lines.length,
+        status: 'IN_TRANSIT',
+        createdAt: transfer.createdAt,
+      };
+
+      broadcastEvent('fishmall:transfer_pending', transferPayload, `fishmall:outlet:${destinationOutlet._id}`);
+      broadcastEvent('fishmall:transfer_pending', transferPayload, 'fishmall:updates');
+
+      // Save in-app notification for Fish Mall Manager
+      await notificationService.createInAppNotification({
+        role: 'FISHMALL_MANAGER',
+        outletId: destinationOutlet._id,
+        title: 'New Inventory Transfer Dispatched',
+        message: `New inventory transfer ${transfer.transferNumber} received from Procurement. Please verify and accept stock.`,
+        type: 'STOCK_TRANSFER',
+        referenceId: transfer._id,
+        referenceModel: 'StockTransfer',
+      });
+
+      logger.info(
+        `[Stock Transfer]: ${transfer.transferNumber} dispatched to ${destinationOutlet.name}`
+      );
+      return transfer;
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async acceptTransfer(transferId, userId, payload) {
+    const { status, remarks, lines } = payload;
+    if (!['ACCEPTED', 'PARTIAL_ACCEPTED', 'REJECTED'].includes(status)) {
+      throw new AppError('Invalid acceptance status', 400);
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const transfer = await StockTransfer.findById(transferId).session(session);
+      if (!transfer) throw new AppError('Stock transfer not found', 404);
+      if (!['IN_TRANSIT', 'PENDING_ACCEPTANCE', 'PENDING_APPROVAL'].includes(transfer.status)) {
+        throw new AppError(`Cannot accept transfer with status: ${transfer.status}`, 400);
+      }
+
+      const receiverUser = await User.findById(userId).session(session);
+      const destinationOutlet = await fishMallOutletService.getActiveById(transfer.destinationOutletId);
+
+      if (status === 'REJECTED') {
+        // RESTORE stock back to Procurement warehouse
+        for (const line of transfer.lines) {
+          await inventoryService.adjustStock(
+            line.productId,
+            line.quantity, // Restore positive qty
+            'TRANSFER_CANCELLED',
+            {
+              referenceId: transfer._id,
+              referenceModel: 'StockTransfer',
+              session,
+            },
+            userId,
+            `Procurement ← Fish Mall transfer ${transfer.transferNumber} REJECTED`
+          );
+        }
+
+        transfer.status = 'REJECTED';
+        transfer.remarks = remarks || 'Shipment rejected';
+        transfer.receiverId = userId;
+        transfer.receiverName = receiverUser?.fullName || 'Receiver';
+        transfer.acceptedAt = new Date();
+        await transfer.save({ session });
+
+        await session.commitTransaction();
+
+        // Notify Admins
+        await notificationService.createInAppNotification({
+          role: 'SUPER_ADMIN',
+          title: `Transfer ${transfer.transferNumber} Rejected`,
+          message: `Fish Mall outlet ${destinationOutlet.name} rejected transfer ${transfer.transferNumber}. Reason: ${remarks}`,
+          type: 'STOCK_TRANSFER',
+          referenceId: transfer._id,
+          referenceModel: 'StockTransfer',
+        });
+
+        broadcastEvent('fishmall:transfer_rejected', {
+          transferId: transfer._id,
+          transferNumber: transfer.transferNumber,
+          outletId: destinationOutlet._id,
+        }, 'fishmall:updates');
+
+        return transfer;
+      }
+
+      // ACCEPTED or PARTIAL_ACCEPTED
+      const linesMap = new Map((lines || []).map((l) => [l.productId?.toString(), l.receivedQuantity]));
+      const completedLines = [];
+
+      for (const line of transfer.lines) {
+        const key = line.productId?.toString();
+        // If missing or null, default to full quantity (fully accepted)
+        const receivedQty = linesMap.has(key) && linesMap.get(key) !== null
+          ? parseFloat(linesMap.get(key))
+          : line.quantity;
+
+        if (Number.isNaN(receivedQty) || receivedQty < 0 || receivedQty > line.quantity) {
+          throw new AppError(`Invalid received quantity for ${line.productName}: ${receivedQty}`, 400);
+        }
+
+        const diff = Math.max(0, line.quantity - receivedQty);
+
+        // Receive the actual verified stock in Fish Mall
         const { item: fmItem } = await fishMallInventoryService.receiveProcurementTransfer(
           {
             outletId: destinationOutlet._id,
             name: line.productName,
-            quantity: line.quantity,
+            quantity: receivedQty,
             rate: line.rate,
             unit: line.unit,
           },
@@ -147,60 +288,59 @@ class StockTransferService {
         );
 
         completedLines.push({
-          ...line,
+          productId: line.productId,
+          productName: line.productName,
+          quantity: line.quantity,
+          receivedQuantity: receivedQty,
+          differenceQuantity: diff,
+          unit: line.unit,
+          rate: line.rate,
           fishMallItemId: fmItem._id,
+          _id: line._id,
         });
       }
 
       transfer.lines = completedLines;
-      transfer.status = 'COMPLETED';
-      transfer.approvedBy = userId;
-      transfer.approvedAt = new Date();
+      transfer.status = status;
+      transfer.remarks = remarks || '';
+      transfer.receiverId = userId;
+      transfer.receiverName = receiverUser?.fullName || 'Receiver';
+      transfer.acceptedAt = new Date();
       transfer.completedAt = new Date();
-      if (extraNotes) {
-        transfer.notes = transfer.notes
-          ? `${transfer.notes}\n[Approval] ${extraNotes}`
-          : `[Approval] ${extraNotes}`;
-      }
+
       await transfer.save({ session });
 
       await session.commitTransaction();
 
-      broadcastEvent('inventory:transfer_completed', {
-        transferId: transfer._id,
-        transferNumber: transfer.transferNumber,
-        scope: INVENTORY_SCOPES.PROCUREMENT,
-      }, 'dashboard:updates');
-
+      // Trigger socket events and notifications
       const transferPayload = {
         transferId: transfer._id,
         transferNumber: transfer.transferNumber,
         outletId: destinationOutlet._id,
         outletName: destinationOutlet.name,
-        outletCode: destinationOutlet.outletCode,
-        lines: completedLines.map((l) => ({
-          productName: l.productName,
-          quantity: l.quantity,
-          unit: l.unit || 'KG',
-        })),
-        status: 'COMPLETED',
+        status: transfer.status,
         completedAt: transfer.completedAt,
       };
 
-      broadcastEvent(
-        'fishmall:procurement_transfer',
-        transferPayload,
-        `fishmall:outlet:${destinationOutlet._id}`
-      );
-      broadcastEvent('fishmall:procurement_transfer', transferPayload, 'fishmall:updates');
       broadcastEvent('fishmall:inventory_updated', {
         transferNumber: transfer.transferNumber,
         scope: INVENTORY_SCOPES.FISHMALL,
         outletId: destinationOutlet._id,
       }, 'fishmall:updates');
 
+      broadcastEvent('fishmall:procurement_transfer', transferPayload, 'fishmall:updates');
+
+      await notificationService.createInAppNotification({
+        role: 'SUPER_ADMIN',
+        title: `Transfer ${transfer.transferNumber} Received`,
+        message: `Fish Mall outlet ${destinationOutlet.name} received transfer ${transfer.transferNumber} (${transfer.status}). Remarks: ${remarks}`,
+        type: 'STOCK_TRANSFER',
+        referenceId: transfer._id,
+        referenceModel: 'StockTransfer',
+      });
+
       logger.info(
-        `[Stock Transfer]: ${transfer.transferNumber} approved — ${completedLines.length} line(s) → ${destinationOutlet.name}`
+        `[Stock Transfer]: ${transfer.transferNumber} received/accepted by ${transfer.receiverName} as ${transfer.status}`
       );
       return transfer;
     } catch (err) {
@@ -214,8 +354,8 @@ class StockTransferService {
   async cancelTransfer(transferId, userId, cancelReason) {
     const transfer = await StockTransfer.findById(transferId);
     if (!transfer) throw new AppError('Stock transfer not found', 404);
-    if (transfer.status === 'COMPLETED') {
-      throw new AppError('Cannot cancel a completed transfer', 400);
+    if (['COMPLETED', 'ACCEPTED', 'PARTIAL_ACCEPTED'].includes(transfer.status)) {
+      throw new AppError('Cannot cancel a completed/accepted transfer', 400);
     }
     if (transfer.status === 'CANCELLED') {
       throw new AppError('Transfer already cancelled', 409);

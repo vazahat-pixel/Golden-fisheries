@@ -3,6 +3,7 @@ import Joi from 'joi';
 const orderLineSchema = Joi.object({
   menuItemId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).optional(),
   inventoryItemId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+  productId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).optional(),
   name: Joi.string().required(),
   quantity: Joi.number().positive().required(),
   rate: Joi.number().min(0).required(),

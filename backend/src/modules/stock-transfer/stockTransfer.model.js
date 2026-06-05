@@ -9,7 +9,9 @@ const transferLineSchema = new mongoose.Schema(
       required: true,
     },
     productName: { type: String, required: true, trim: true, uppercase: true },
-    quantity: { type: Number, required: true, min: 0.01 },
+    quantity: { type: Number, required: true, min: 0.01 }, // Sent quantity
+    receivedQuantity: { type: Number, default: null }, // Received quantity entered by destination
+    differenceQuantity: { type: Number, default: null }, // Shortage or excess
     unit: { type: String, default: 'KG' },
     rate: { type: Number, min: 0, default: 0 },
     fishMallItemId: {
@@ -56,12 +58,24 @@ const stockTransferSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['DRAFT', 'PENDING_APPROVAL', 'COMPLETED', 'CANCELLED'],
-      default: 'PENDING_APPROVAL',
+      enum: [
+        'DRAFT',
+        'PENDING_APPROVAL',
+        'CREATED',
+        'IN_TRANSIT',
+        'PENDING_ACCEPTANCE',
+        'ACCEPTED',
+        'PARTIAL_ACCEPTED',
+        'REJECTED',
+        'COMPLETED',
+        'CANCELLED'
+      ],
+      default: 'CREATED',
       index: true,
     },
     transferDate: { type: Date, default: Date.now },
     notes: { type: String, default: '' },
+    remarks: { type: String, default: '' }, // Receiver remarks
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -81,6 +95,13 @@ const stockTransferSchema = new mongoose.Schema(
     },
     cancelledAt: { type: Date, default: null },
     cancelReason: { type: String, default: '' },
+    receiverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    receiverName: { type: String, default: '' },
+    acceptedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { ROLE_LIST } from '../constants/roles.js';
+import { PORTAL_LIST } from '../constants/authPortals.js';
 import { sendError } from '../utils/response.js';
 
 /**
@@ -32,7 +33,8 @@ export const authValidators = {
     phone: Joi.string().required().pattern(/^[0-9]{10}$/).messages({
       'any.required': 'Phone number is required',
       'string.pattern.base': 'Phone number must be exactly 10 digits'
-    })
+    }),
+    loginPortal: Joi.string().valid(...PORTAL_LIST).optional()
   }),
 
   // Validate OTP check arguments
@@ -41,6 +43,7 @@ export const authValidators = {
       'any.required': 'Phone number is required',
       'string.pattern.base': 'Phone number must be exactly 10 digits'
     }),
+    loginPortal: Joi.string().valid(...PORTAL_LIST).optional(),
     otp: Joi.string().required().length(6).pattern(/^[0-9]+$/).messages({
       'any.required': 'OTP is required',
       'string.length': 'OTP must be exactly 6 characters long',

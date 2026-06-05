@@ -10,10 +10,12 @@ const AuthButton = ({ children, className, variant = 'primary', ...props }) => {
   return (
     <button
       className={cn(
-        "w-full py-3 rounded-xl font-bold uppercase tracking-wide transition-all shadow-lg active:shadow-sm active:translate-y-0.5",
-        variant === 'primary' 
-          ? "bg-brand-yellow text-brand-dark hover:bg-yellow-500" 
-          : "bg-white/10 text-white hover:bg-white/20 border border-white/20",
+        'w-full py-3.5 rounded-xl font-bold uppercase tracking-[0.14em] text-sm transition-all duration-200',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+        'disabled:opacity-50 disabled:pointer-events-none',
+        variant === 'primary'
+          ? 'bg-gradient-to-r from-brand-yellow to-[#e6c84a] text-brand-dark shadow-lg shadow-black/25 hover:shadow-xl hover:brightness-105 active:scale-[0.99]'
+          : 'bg-white/10 text-white border border-white/20 hover:bg-white/15 hover:border-white/30 active:scale-[0.99]',
         className
       )}
       {...props}

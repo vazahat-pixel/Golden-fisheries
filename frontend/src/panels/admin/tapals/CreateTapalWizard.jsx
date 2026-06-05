@@ -25,7 +25,7 @@ const CreateTapalWizard = () => {
     vehicles, fetchVehicles,
     drivers, fetchDrivers,
     tapals,
-    convertSlipToTapalAsync, updateHarvestStatusAsync, updateSlipStatus, addTapal,
+    convertSlipToTapalAsync, updateHarvestStatusAsync, updateSlipStatus,
   } = useAdminStore();
 
   const [step, setStep] = useState(1);
@@ -43,18 +43,9 @@ const CreateTapalWizard = () => {
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Fallback mock data
-  const mockVehicles = ['KA-30-M-4321', 'KA-19-F-9876', 'MH-09-E-5544', 'KA-20-C-1122'];
-  const mockDrivers = ['Ramesh Patil', 'Suresh Gowda', 'Anil Fernandez', 'Sunil Mendonca'];
-  const mockBuyers = [
-    { id: 'BYR-001', name: 'MANGALORE FISH CO.', phone: '+91 98456 00001' },
-    { id: 'BYR-002', name: 'KARWAR EXPORTS LTD.', phone: '+91 98456 00002' },
-    { id: 'BYR-003', name: 'SEA FOOD AGENCY', phone: '+91 98456 00003' },
-  ];
-
-  const allBuyers = buyers.length > 0 ? buyers : mockBuyers;
-  const allVehicles = vehicles.length > 0 ? vehicles.map(v => v.plateNumber) : mockVehicles;
-  const allDrivers = drivers.length > 0 ? drivers.map(d => d.name) : mockDrivers;
+  const allBuyers = buyers;
+  const allVehicles = vehicles.map((v) => v.plateNumber || v.vehicleNumber).filter(Boolean);
+  const allDrivers = drivers.map((d) => d.name || d.fullName).filter(Boolean);
 
   useEffect(() => {
     fetchHarvestSlips();
@@ -145,21 +136,7 @@ const CreateTapalWizard = () => {
       toast.success('Tapal created successfully!', { id: loadToast });
       navigate('/admin/tapals');
     } catch (err) {
-      const simulated = {
-        ...tapalData,
-        id: `TPL-${tpNo}`, _id: `TPL-${tpNo}`,
-        tapalNumber: tpNo,
-        party: selectedBuyer?.name || 'Buyer',
-        partyName: selectedBuyer?.name || 'Buyer',
-        amount: '₹0',
-        qty: `${selectedSlip?.totalWeight || 0} KG`,
-        createdAt: new Date().toISOString(),
-      };
-      addTapal(simulated);
-      updateSlipStatus(selectedSlipId, 'Tapal Created');
-      sessionStorage.removeItem('current_tapal_source_slip');
-      toast.success('Tapal created (offline)!', { id: loadToast });
-      navigate('/admin/tapals');
+      toast.error(err?.message || 'Failed to create tapal. Check connection and try again.', { id: loadToast });
     } finally {
       setSubmitting(false);
     }
@@ -233,17 +210,18 @@ const CreateTapalWizard = () => {
               className="w-full bg-white border border-card-border px-4 py-3 text-sm focus:ring-2 focus:ring-brand-olive outline-none font-medium"
             >
               <option value="">— Choose a harvest slip to dispatch —</option>
-              {eligibleSlips.length > 0 ? eligibleSlips.map(s => (
+              {eligibleSlips.map((s) => (
                 <option key={s.id || s._id} value={s.id || s._id}>
                   TP #{s.tpNo} · {s.farmerName} · {s.totalWeight} kg · [{s.status}]
                 </option>
-              )) : (
-                <>
-                  <option value="HS-MOCK-1">TP #1001 · APPANNA GOWDA · 240 kg · [Farmer Approved]</option>
-                  <option value="HS-MOCK-2">TP #1002 · SUBHASH NAIK · 375 kg · [Approved]</option>
-                </>
-              )}
+              ))}
             </select>
+            {eligibleSlips.length === 0 && (
+              <p className="mt-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 flex items-start gap-2">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                No approved harvest slips yet. Create and approve a slip under Procurement, then return here.
+              </p>
+            )}
           </div>
 
           {selectedSlip && (

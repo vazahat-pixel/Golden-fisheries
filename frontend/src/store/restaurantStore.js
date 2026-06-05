@@ -495,6 +495,9 @@ export const useRestaurantStore = create(
         }
       },
     }),
-    { name: 'golden-fisheries-restaurant' }
+    {
+      name: 'golden-fisheries-restaurant-v2',
+      partialize: () => ({}),
+    }
   )
 );

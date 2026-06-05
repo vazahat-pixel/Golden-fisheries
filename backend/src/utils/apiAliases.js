@@ -23,6 +23,33 @@ export function aliasTripResponse(tr) {
   const o = typeof tr.toObject === 'function' ? tr.toObject({ virtuals: true }) : { ...tr };
   if (o.tripNumber != null) o.tripNo = o.tripNumber;
   if (o.tapalId != null) o.tapal = o.tapalId;
+
+  const tapal =
+    o.tapalId && typeof o.tapalId === 'object'
+      ? o.tapalId
+      : o.tapal && typeof o.tapal === 'object'
+        ? o.tapal
+        : null;
+  if (tapal) {
+    if (!o.tapalNumber && tapal.tapalNumber) o.tapalNumber = tapal.tapalNumber;
+    if (o.expectedQty == null && tapal.numericQty != null) o.expectedQty = tapal.numericQty;
+    if (!o.qty && tapal.qty) o.qty = tapal.qty;
+    if (!o.partyName && tapal.partyName) o.partyName = tapal.partyName;
+
+    const products = Array.isArray(tapal.products) ? tapal.products : [];
+    if (products.length) {
+      const boxes = products.reduce((s, p) => s + (Number(p.boxQty) || 0), 0);
+      const lineWeight = products.reduce(
+        (s, p) => s + (Number(p.totalWeight) || Number(p.numericQty) || 0),
+        0
+      );
+      if (boxes > 0) o.expectedBoxes = boxes;
+      if (lineWeight > 0 && (o.expectedQty == null || o.expectedQty === 0)) {
+        o.expectedQty = lineWeight;
+      }
+    }
+  }
+
   return o;
 }
 

@@ -34,14 +34,14 @@ export const authController = {
 
   // Send OTP to user's registered phone
   sendOtp: asyncWrapper(async (req, res) => {
-    const result = await authService.sendOtp(req.body.phone);
-    new ApiResponse(200, result, 'Verification code sent').send(res);
+    const result = await authService.sendOtp(req.body.phone, req.body.loginPortal);
+    new ApiResponse(200, result, result.message || 'Verification code sent').send(res);
   }),
 
   // Verify OTP and issue tokens
   verifyOtp: asyncWrapper(async (req, res) => {
-    const { phone, otp } = req.body;
-    const { user, accessToken, refreshToken } = await authService.verifyOtp(phone, otp);
+    const { phone, otp, loginPortal } = req.body;
+    const { user, accessToken, refreshToken } = await authService.verifyOtp(phone, otp, loginPortal);
 
     res.cookie('refreshToken', refreshToken, getCookieOptions());
 

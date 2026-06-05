@@ -23,6 +23,59 @@ import { toast } from 'react-hot-toast';
 
 const emptyPerms = () => ({ panels: { admin: true }, modules: {} });
 
+/** What admin should share after creating a user (OTP vs password). */
+const ROLE_LOGIN_GUIDE = {
+  BUYER: {
+    loginType: 'Phone + password (Admin Login)',
+    loginPath: '/auth/admin',
+    adminPath: '/auth/admin',
+    createHint:
+      'Share phone + password (Gen). Buyer opens Admin Login on phone or laptop — same as other field staff.',
+    shareOtp: false,
+  },
+  DRIVER: {
+    loginType: 'OTP only (mobile)',
+    loginPath: '/auth/driver',
+    adminPath: null,
+    createHint:
+      'Share mobile after you approve driver in Logistics → Drivers. User opens Driver Login → SMS OTP. No public signup.',
+    shareOtp: true,
+  },
+  PROCUREMENT_MANAGER: {
+    loginType: 'Phone + password',
+    loginPath: '/auth/admin',
+    adminPath: '/auth/admin',
+    createHint: 'Share phone + password (Gen). User signs in at Admin Login — mobile procurement menus.',
+    shareOtp: false,
+  },
+  VEHICLE_MANAGER: {
+    loginType: 'Phone + password',
+    loginPath: '/auth/admin',
+    adminPath: '/auth/admin',
+    createHint: 'Share phone + password (Gen). Admin Login on phone or desktop.',
+    shareOtp: false,
+  },
+  SUPER_ADMIN: {
+    loginType: 'Phone + password',
+    loginPath: '/auth/admin',
+    adminPath: '/auth/admin',
+    createHint: 'Full ERP access. Share phone + password securely.',
+    shareOtp: false,
+  },
+};
+
+function getRoleLoginGuide(role) {
+  return (
+    ROLE_LOGIN_GUIDE[role] || {
+      loginType: 'Phone + password',
+      loginPath: '/auth/admin',
+      adminPath: '/auth/admin',
+      createHint: 'Share phone + password. User signs in at Admin Login.',
+      shareOtp: false,
+    }
+  );
+}
+
 const togglePermission = (prev, moduleKey, action) => {
   const copy = JSON.parse(JSON.stringify(prev || emptyPerms()));
   if (!copy.modules) copy.modules = {};
@@ -174,9 +227,26 @@ const AccessControl = () => {
   const userModules = modulesForRole(formRole);
   const templateModules = modulesForRole(selectedRole);
 
+  const loginGuide = useMemo(() => getRoleLoginGuide(formRole), [formRole]);
+
   const copyCredentials = () => {
     if (!lastCredentials) return;
-    const text = `Golden Fisheries login\nPhone (ID): ${lastCredentials.phone}\nPassword: ${lastCredentials.password}\nRole: ${ROLE_TEMPLATES[lastCredentials.role]?.label || lastCredentials.role}`;
+    const guide = getRoleLoginGuide(lastCredentials.role);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const roleLabel = ROLE_TEMPLATES[lastCredentials.role]?.label || lastCredentials.role;
+    let text = `Golden Fisheries — ${roleLabel}\nMobile (login ID): ${lastCredentials.phone}\n`;
+
+    if (guide.shareOtp) {
+      text += `Login URL: ${origin}${guide.loginPath}\n`;
+      text += `Steps: Open link → Send OTP → enter code from SMS.\n`;
+      if (guide.adminPath) {
+        text += `Laptop (optional): ${origin}${guide.adminPath} — password: ${lastCredentials.password}\n`;
+      }
+    } else {
+      text += `Login URL: ${origin}${guide.loginPath}\n`;
+      text += `Password: ${lastCredentials.password}\n`;
+    }
+
     navigator.clipboard?.writeText(text);
     toast.success('Copied to clipboard');
   };
@@ -189,7 +259,7 @@ const AccessControl = () => {
             <Shield className="text-brand-yellow" size={26} /> Access &amp; users
           </h1>
           <p className="text-text-secondary text-sm mt-1 max-w-2xl">
-            <strong>Step 1 — User accounts:</strong> create login (phone + password), pick role, choose which menus they see.
+            <strong>Step 1 — User accounts:</strong> phone = login ID; Buyer/Driver get OTP links; office roles get phone + password (Gen).
             <br />
             <strong>Step 2 — Role templates (optional):</strong> default permissions for each job title — applied when you click &quot;Use role defaults&quot;.
           </p>
@@ -275,9 +345,27 @@ const AccessControl = () => {
               <h3 className="text-sm font-black uppercase text-brand-olive tracking-tight mb-1">
                 {mode === 'create' ? 'Create new login' : 'Edit account'}
               </h3>
-              <p className="text-[11px] text-text-secondary mb-4">
-                Login ID = <strong>10-digit phone</strong>. User signs in at Admin or Driver login with this phone and password.
+              <p className="text-[11px] text-text-secondary mb-3">
+                Login ID = <strong>10-digit phone</strong>. Sign-in method depends on role (see box below).
               </p>
+
+              <div className="mb-4 p-3 rounded-lg border border-[#6A7051]/20 bg-[#F5F5EC] flex gap-2">
+                <Info size={16} className="text-[#6A7051] shrink-0 mt-0.5" />
+                <div className="text-[11px] text-text-secondary leading-relaxed">
+                  <p className="font-black uppercase text-[10px] text-brand-olive mb-1">
+                    {ROLE_TEMPLATES[formRole]?.label || formRole} — {loginGuide.loginType}
+                  </p>
+                  <p>{loginGuide.createHint}</p>
+                  {loginGuide.loginPath && (
+                    <p className="mt-1 font-mono text-[10px] text-[#6A7051]">
+                      App link: {loginGuide.loginPath}
+                      {loginGuide.adminPath && loginGuide.adminPath !== loginGuide.loginPath
+                        ? ` · Admin ERP: ${loginGuide.adminPath}`
+                        : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -319,7 +407,9 @@ const AccessControl = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-text-muted">
-                    Password {mode === 'edit' ? '(leave blank to keep)' : ''}
+                    {loginGuide.shareOtp
+                      ? `Password (Admin ERP backup) ${mode === 'edit' ? '— blank to keep' : ''}`
+                      : `Password ${mode === 'edit' ? '(leave blank to keep)' : ''}`}
                   </label>
                   <div className="flex gap-2 mt-1">
                     <input
@@ -371,13 +461,25 @@ const AccessControl = () => {
               </div>
 
               {lastCredentials && (
-                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-xs flex flex-wrap justify-between gap-2 items-center">
-                  <span>
-                    Created: <strong>{lastCredentials.phone}</strong> / <strong>{lastCredentials.password}</strong> (
-                    {ROLE_TEMPLATES[lastCredentials.role]?.label})
-                  </span>
-                  <button type="button" onClick={copyCredentials} className="font-black uppercase text-[10px] flex items-center gap-1 text-emerald-800">
-                    <Copy size={12} /> Copy for WhatsApp
+                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-xs space-y-2">
+                  <p>
+                    Created <strong>{ROLE_TEMPLATES[lastCredentials.role]?.label}</strong> — mobile{' '}
+                    <strong>{lastCredentials.phone}</strong>
+                    {getRoleLoginGuide(lastCredentials.role).shareOtp ? (
+                      <span className="text-emerald-900"> (OTP login — use Copy for WhatsApp)</span>
+                    ) : (
+                      <span>
+                        {' '}
+                        / password <strong>{lastCredentials.password}</strong>
+                      </span>
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={copyCredentials}
+                    className="font-black uppercase text-[10px] flex items-center gap-1 text-emerald-800 hover:underline"
+                  >
+                    <Copy size={12} /> Copy login instructions for WhatsApp
                   </button>
                 </div>
               )}
