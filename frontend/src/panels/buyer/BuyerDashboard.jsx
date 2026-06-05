@@ -113,8 +113,6 @@ const BuyerDashboard = () => {
 
 
   return (
-<<<<<<< HEAD
-
     <FieldScreen userName={buyerName}>
 
       <FieldSectionHeader
@@ -216,29 +214,6 @@ const BuyerDashboard = () => {
       </button>
 
     </FieldScreen>
-
-=======
-    <div className="space-y-6 p-1">
-      <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-accent-olive mb-1">Buyer Portal</p>
-        <h1 className="text-2xl font-serif italic font-black text-slate-900">Dashboard</h1>
-      </div >
-
-      <div className="grid grid-cols-2 gap-4">
-        {cards.map((c) => (
-          <Link
-            key={c.to}
-            to={c.to}
-            className="bg-white rounded-none border border-card-border p-5 hover:shadow-wapixo hover:border-black transition-all group duration-300"
-          >
-            <c.icon size={20} className={`${c.color} transition-transform group-hover:scale-110`} />
-            <p className={`text-2xl font-black mt-2 ${c.color}`}>{c.value}</p>
-            <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1">{c.label}</p>
-          </Link>
-        ))}
-      </div>
-    </div >
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
   );
 
 };

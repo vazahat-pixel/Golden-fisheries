@@ -11,10 +11,7 @@ import { StatCard } from '../../design-system/components/StatCard';
 import { Badge } from '../../design-system/components/Badge';
 import { useRestaurantStore } from '../../store/restaurantStore';
 import { useAuthStore } from '../../store/authStore';
-<<<<<<< HEAD
 import { restaurantService } from '../../services/restaurantService';
-=======
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
 import { toast } from 'react-hot-toast';
 
 const orderDisplayId = (order) => {
@@ -75,7 +72,6 @@ const RestaurantDashboard = () => {
   const [submittingClosing, setSubmittingClosing] = useState(false);
   const [lastClosedReport, setLastClosedReport] = useState(null);
 
-<<<<<<< HEAD
   // Pending Incoming Supplies State
   const [pendingSupplies, setPendingSupplies] = useState([]);
   const [loadingSupplies, setLoadingSupplies] = useState(false);
@@ -93,8 +89,6 @@ const RestaurantDashboard = () => {
     }
   };
 
-=======
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
   // Dashboard Active Tab
   const [activeTab, setActiveTab] = useState('cashbook'); // 'cashbook' | 'expenses' | 'stock'
 
@@ -104,20 +98,14 @@ const RestaurantDashboard = () => {
     fetchMenu();
     fetchKitchenStock();
     fetchActiveSessionAsync();
-<<<<<<< HEAD
     loadPendingSupplies();
-=======
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
   }, [fetchOrders, fetchMenu, fetchKitchenStock, fetchActiveSessionAsync]);
 
   // Fetch shift aggregates once active session is verified
   useEffect(() => {
     if (activeSession) {
       fetchAccountingSummaryAsync();
-<<<<<<< HEAD
       loadPendingSupplies();
-=======
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
     }
   }, [activeSession, fetchAccountingSummaryAsync]);
 
@@ -317,7 +305,6 @@ const RestaurantDashboard = () => {
         </div>
       </div>
 
-<<<<<<< HEAD
       {/* Pending Incoming Supplies Banner */}
       {pendingSupplies.length > 0 && (
         <div className="bg-[#FAF8F5] border-2 border-amber-300 p-6 space-y-4 shadow-sm rounded-lg">
@@ -363,8 +350,6 @@ const RestaurantDashboard = () => {
         </div>
       )}
 
-=======
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
       {/* 3. Realtime Shift Accounting KPIs */}
       <div>
         <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Live Shift Cashbook Metrics</h2>
@@ -379,234 +364,10 @@ const RestaurantDashboard = () => {
              </div>
              <p className="text-3xl font-serif italic font-black">{`₹${netPnLYield.toLocaleString()}`}</p>
              <span className="text-[8px] font-bold text-accent-olive uppercase tracking-widest">GROSS SALES - EXPENSES</span>
-<<<<<<< HEAD
-=======
           </div>
         </div>
       </div>
 
-      {/* 4. Tabbed Cashbook Feed / Expenses Log / Inventory Checklist */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 flex flex-col bg-white border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
-          {/* Tabs header */}
-          <div className="px-6 py-2.5 bg-slate-50/50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-1.5">
-              <button 
-                onClick={() => setActiveTab('cashbook')}
-                className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border transition-all ${activeTab === 'cashbook' ? 'bg-black text-white border-black' : 'text-slate-400 border-transparent hover:border-slate-200'}`}
-              >
-                CASHBOOK LEDGER
-              </button>
-              <button 
-                onClick={() => setActiveTab('expenses')}
-                className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border transition-all ${activeTab === 'expenses' ? 'bg-black text-white border-black' : 'text-slate-400 border-transparent hover:border-slate-200'}`}
-              >
-                KITCHEN EXPENSES
-              </button>
-              <button 
-                onClick={() => setActiveTab('stock')}
-                className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border transition-all ${activeTab === 'stock' ? 'bg-black text-white border-black' : 'text-slate-400 border-transparent hover:border-slate-200'}`}
-              >
-                LOW INVENTORY
-              </button>
-            </div>
-            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">SHIFT_LEDGER_FEED // LIVE</span>
-          </div>
-
-          <div className="flex-1 overflow-x-auto">
-            {activeTab === 'cashbook' && (
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/30 border-b border-slate-200">
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Entry Code</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Protocol</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Category</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Amount</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Description</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400 text-right">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {(!cashbook || cashbook.length === 0) ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        No ledger transactions recorded in this shift yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    cashbook.map((entry) => (
-                      <tr key={entry._id} className="hover:bg-slate-50/50 transition-all">
-                        <td className="px-6 py-3.5">
-                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight italic font-serif">
-                            {entry.entryCode}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 border ${
-                            entry.type === 'INFLOW' 
-                              ? 'bg-emerald-50 border-emerald-100 text-emerald-600' 
-                              : 'bg-red-50 border-red-100 text-red-600'
-                          }`}>
-                            {entry.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                          {entry.category}
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <span className="text-[11px] font-black text-slate-900 italic font-serif">
-                            ₹{entry.amount.toLocaleString()}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 text-[10px] text-slate-400 uppercase tracking-tight font-medium max-w-xs truncate">
-                          {entry.description}
-                        </td>
-                        <td className="px-6 py-3.5 text-[9px] text-slate-500 font-bold uppercase tracking-widest text-right">
-                          {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {activeTab === 'expenses' && (
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/30 border-b border-slate-200">
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Expense Ref</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Category</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Method</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Payee</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Remarks</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {(!expenses || expenses.length === 0) ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        No operational expenses logged in this shift yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    expenses.map((exp) => (
-                      <tr key={exp._id} className="hover:bg-slate-50/50 transition-all">
-                        <td className="px-6 py-3.5">
-                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight italic font-serif">
-                            {exp.expenseCode}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 text-[9px] font-black text-slate-900 uppercase tracking-widest">
-                          {exp.category}
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <Badge variant="outline" className="text-[7px] border-slate-200 text-slate-500 font-black px-2 py-0.5">
-                            {exp.paymentMethod}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-3.5 text-[10px] font-bold text-slate-600 uppercase tracking-widest">
-                          {exp.payee}
-                        </td>
-                        <td className="px-6 py-3.5 text-[10px] text-slate-400 uppercase tracking-tight">
-                          {exp.remarks || '—'}
-                        </td>
-                        <td className="px-6 py-3.5 text-right">
-                          <span className="text-sm font-serif italic font-black text-red-600">
-                            ₹{exp.amount.toLocaleString()}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {activeTab === 'stock' && (
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/30 border-b border-slate-200">
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Ingredient Name</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Category</th>
-                    <th className="px-6 py-3.5 text-[8px] font-black uppercase tracking-widest text-slate-400 text-right">Stock Quantity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {safeStock.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-16 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Loading kitchen inventory details...
-                      </td>
-                    </tr>
-                  ) : (
-                    safeStock.map((item) => (
-                      <tr key={item._id} className="hover:bg-slate-50/50 transition-all">
-                        <td className="px-6 py-3.5">
-                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">
-                            {item.name}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                          {item.category || 'GENERAL'}
-                        </td>
-                        <td className="px-6 py-3.5 text-right">
-                          <span className={`text-[10px] font-black ${item.quantity < 10 ? 'text-red-600 font-serif italic font-black text-sm' : 'text-accent-olive'}`}>
-                            {item.quantity} {item.unit}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
-          </div>
-        </div>
-
-        {/* 5. Right Sidebar — High density activity */}
-        <div className="space-y-4">
-          <Card className="bg-white border border-slate-200 p-6 shadow-sm">
-            <h3 className="font-black text-slate-900 text-[10px] uppercase tracking-widest mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
-               <History size={14} className="text-accent-olive" /> Recent Orders Shift Log
-            </h3>
-            <div className="space-y-3">
-              {todayOrders.slice(0, 4).length === 0 ? (
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center py-6">No sales recorded yet</p>
-              ) : (
-                todayOrders.slice(0, 4).map((order) => (
-                  <div key={order._id || order.id} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight italic font-serif">{orderDisplayId(order)}</p>
-                      <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{order.orderType} • {order.paymentMethod}</p>
-                    </div>
-                    <span className="text-[11px] font-black text-slate-900 italic font-serif">₹{order.total?.toLocaleString() ?? order.totalAmount?.toLocaleString()}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-
-          <Card padding="none" className="bg-black p-6 shadow-xl flex flex-col justify-between h-[160px] relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-               <Activity size={80} className="text-white" />
-            </div>
-            <div className="relative z-10">
-              <h3 className="text-white text-lg font-serif italic font-black tracking-tight uppercase leading-none">Recipe & Inventory</h3>
-              <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-2">Verify stock transactions and transfers</p>
-            </div>
-            <Link to="/restaurant/inventory" className="relative z-10">
-              <Button className="w-full bg-accent-olive text-white text-[9px] font-black uppercase py-3 border-none hover:bg-white hover:text-black transition-all tracking-widest shadow-lg">
-                OPEN MASTER INVENTORY
-              </Button>
-            </Link>
-          </Card>
-        </div>
-      </div>
-
-<<<<<<< HEAD
       {/* 4. Tabbed Cashbook Feed / Expenses Log / Inventory Checklist */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 flex flex-col bg-white border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
@@ -827,8 +588,6 @@ const RestaurantDashboard = () => {
         </div>
       </div>
 
-=======
->>>>>>> 36813be461d21b408f6150d714f5746d56ef9a1c
       {/* ── 6. Log Kitchen Expense Modal ────────────────────────────────────── */}
       {showExpenseModal && (
         <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
