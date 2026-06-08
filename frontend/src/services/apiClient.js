@@ -7,10 +7,11 @@ import {
   resolveClientPlatform,
   ROLES,
 } from '../constants/rbac';
+import { resolveApiBaseUrl } from './runtimeUrls.js';
 
 // Create a configured Axios instance
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+  baseURL: resolveApiBaseUrl(),
   withCredentials: true, // Crucial: Automatically attaches and parses secure HttpOnly cookies
   headers: {
     'Content-Type': 'application/json',
@@ -92,7 +93,7 @@ apiClient.interceptors.response.use(
 
       try {
         // Trigger sliding session refresh
-        const base = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+        const base = resolveApiBaseUrl();
         const refreshResponse = await axios.post(
           `${base}/auth/refresh`,
           {},

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Deploy Golden Fisheries to the VPS (goldfisheries.in).
+# Deploy Golden Fisheries to the VPS (goldenfisheries.in).
 #
 # One-time server setup:
 #   1. Create frontend/.env.production (see frontend/.env.production.example)
-#   2. Ensure backend/.env has CORS_ORIGIN=https://goldfisheries.in
+#   2. Ensure backend/.env has CORS_ORIGIN=https://goldenfisheries.in
 #   3. Install nginx site: see deploy/nginx/goldenfisheries.conf header
 #
 # Usage (on VPS):
@@ -52,6 +52,6 @@ nginx -t
 systemctl reload nginx
 
 echo "==> Done"
-echo "    Site:  https://goldfisheries.in"
+echo "    Site:  https://goldenfisheries.in"
 echo "    Files: $(ls -1 "${WEB_ROOT}/index.html" 2>/dev/null && stat -c '%y' "${WEB_ROOT}/index.html" || echo 'index.html missing')"
 curl -sf http://127.0.0.1:5000/health | head -c 120 || echo "    WARN: backend health check failed"

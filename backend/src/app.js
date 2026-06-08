@@ -46,8 +46,8 @@ app.use(helmet()); // Sets standard security response headers (XSS, Clickjacking
 app.use(cors({
   origin: [
     config.cors.origin,
-    'https://goldfisheries.in',
-    'https://www.goldfisheries.in',
+    'https://goldenfisheries.in',
+    'https://www.goldenfisheries.in',
     'https://golden-fisheries.vercel.app',
     'http://localhost:5173',
     'http://127.0.0.1:5173',

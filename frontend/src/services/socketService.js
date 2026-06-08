@@ -9,6 +9,7 @@ import { useSystemSettingsStore } from '../store/systemSettingsStore';
 import { toast } from 'react-hot-toast';
 import { playTripAlertSound, vibrateTripAlert } from '../utils/notificationSound';
 import { ROLES, normalizeRole } from '../constants/rbac';
+import { resolveSocketUrl } from './runtimeUrls.js';
 
 
 class SocketService {
@@ -38,7 +39,7 @@ class SocketService {
       return;
     }
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const socketUrl = resolveSocketUrl();
 
     if (this.socket) {
       // Update the token dynamically in case it was refreshed by Axios interceptor
