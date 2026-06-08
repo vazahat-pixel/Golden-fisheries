@@ -36,7 +36,6 @@ import integrationsRoutes from './modules/integrations/integrations.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import systemSettingsRoutes from './modules/system-settings/systemSettings.routes.js';
 
-
 const app = express();
 
 // ==========================================
@@ -47,6 +46,8 @@ app.use(helmet()); // Sets standard security response headers (XSS, Clickjacking
 app.use(cors({
   origin: [
     config.cors.origin,
+    'https://goldfisheries.in',
+    'https://www.goldfisheries.in',
     'https://golden-fisheries.vercel.app',
     'http://localhost:5173',
     'http://127.0.0.1:5173',

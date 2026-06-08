@@ -17,11 +17,11 @@ const AuthLayout = ({ children, title, subtitle }) => {
       </div>
 
       <div className="w-full max-w-[420px] flex flex-col items-center relative z-10 animate-in fade-in duration-500">
-        <div className="mb-5 w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-3 shadow-2xl">
+        <div className="mb-6 w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-2.5 shadow-2xl">
           <img
             src="/logo.PNG"
             alt="Golden Fisheries"
-            className="max-w-full max-h-full object-contain drop-shadow-lg"
+            className="w-full h-full object-contain drop-shadow-lg"
           />
         </div>
 
