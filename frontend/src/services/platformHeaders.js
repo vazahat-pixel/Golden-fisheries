@@ -1,6 +1,6 @@
 import { PLATFORM_ACCESS } from '../constants/rbac';
 
-/** Field / procurement writes must use MOBILE platform even from /admin URLs */
+/** @deprecated Prefer apiClient interceptor (resolveClientPlatform). Kept for buyer portal only. */
 export const mobilePlatformConfig = () => ({
   headers: { 'X-Client-Platform': PLATFORM_ACCESS.MOBILE },
 });

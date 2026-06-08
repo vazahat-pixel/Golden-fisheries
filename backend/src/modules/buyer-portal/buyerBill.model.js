@@ -45,6 +45,15 @@ const buyerBillSchema = new mongoose.Schema(
       default: 'ISSUED',
       index: true
     },
+    paidAt: { type: Date, default: null },
+    paidAmount: { type: Number, default: null, min: 0 },
+    paymentMethod: {
+      type: String,
+      enum: ['UPI', 'CASH', 'BANK', 'CHEQUE', 'OTHER'],
+      default: null,
+    },
+    paymentRef: { type: String, default: '' },
+    markedPaidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     date: { type: Date, default: Date.now },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

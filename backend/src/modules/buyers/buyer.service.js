@@ -2,6 +2,7 @@ import { BaseService } from '../../services/base.service.js';
 import { Buyer } from './buyer.model.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
+import { syncAllBuyerUsersToMaster } from '../../services/userMasterSync.service.js';
 
 class BuyerService extends BaseService {
   constructor() {
@@ -46,6 +47,7 @@ export const buyerController = {
   }),
 
   all: asyncWrapper(async (req, res) => {
+    await syncAllBuyerUsersToMaster().catch(() => {});
     const result = await buyerService.findBuyersWithFilters(req.query);
     new ApiResponse(200, result.docs, 'Buyers fetched successfully', result.meta).send(res);
   }),

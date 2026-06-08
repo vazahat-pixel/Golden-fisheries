@@ -9,7 +9,7 @@ import {
   enforcePlatformPolicy,
   blockMobileWrite,
 } from '../../middleware/auth.middleware.js';
-import { WEB_ERP, PROCUREMENT } from '../../constants/roleGroups.js';
+import { WEB_ERP, PROCUREMENT, FISHMALL_ALL } from '../../constants/roleGroups.js';
 
 const router = Router();
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
@@ -45,7 +45,7 @@ router.post(
 router.post(
   '/:id/accept',
   ...web,
-  restrictTo(...WEB_ERP, 'FISHMALL_MANAGER', 'FISHMALL'),
+  restrictTo(...WEB_ERP, ...FISHMALL_ALL),
   stockTransferController.accept
 );
 

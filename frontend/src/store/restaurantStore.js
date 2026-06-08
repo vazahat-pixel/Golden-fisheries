@@ -131,7 +131,7 @@ export const useRestaurantStore = create(
           tableNumber: tableLabel || tableId || 'COUNTER',
           orderType: ORDER_TYPE_TO_API[orderType] || orderType,
           items: items.map((item) => ({
-            menuItemId: item.menuItemId || item.id,
+            menuItemId: item.menuItemId || null,
             name: item.name,
             quantity: item.qty || item.quantity || 1,
             notes: item.notes || '',
@@ -308,14 +308,21 @@ export const useRestaurantStore = create(
           const res = await restaurantService.getMenu();
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
           const mapped = list
-            .filter((item) => isValidObjectId(item._id || item.id || item.menuItemId))
-            .map((item) => ({
-              ...item,
-              id: item._id || item.id,
-              menuItemId: item.menuItemId || item._id || item.id,
-              price: item.price ?? item.sellingPrice ?? item.rate ?? 0,
-              stock: item.stock ?? item.quantity ?? 0,
-            }));
+            .filter((item) => isValidObjectId(item._id || item.id))
+            .map((item) => {
+              const hasMenu = isValidObjectId(item.menuItemId);
+              const rowId = item._id || item.id;
+              return {
+                ...item,
+                id: rowId,
+                menuItemId: hasMenu ? item.menuItemId : null,
+                inventoryItemId:
+                  item.inventoryItemId || (!hasMenu && item.menuItemId == null ? rowId : null),
+                price: item.price ?? item.sellingPrice ?? item.rate ?? 0,
+                stock: item.stock ?? item.quantity ?? 0,
+                isKitchenSku: !hasMenu && item.menuItemId == null,
+              };
+            });
           set({ menuItems: mapped, loading: false });
         } catch (err) {
           console.error('Failed to fetch menu', err);
@@ -357,9 +364,13 @@ export const useRestaurantStore = create(
                 quantity: item.qty ?? item.quantity,
                 rate: item.rate ?? item.price,
               };
-              const menuId = item.menuItemId || item.id;
-              if (isValidObjectId(menuId)) line.menuItemId = menuId;
-              if (isValidObjectId(item.inventoryItemId)) line.inventoryItemId = item.inventoryItemId;
+              if (isValidObjectId(item.menuItemId)) {
+                line.menuItemId = item.menuItemId;
+              } else if (isValidObjectId(item.inventoryItemId)) {
+                line.inventoryItemId = item.inventoryItemId;
+              } else if (item.isKitchenSku && isValidObjectId(item.id)) {
+                line.inventoryItemId = item.id;
+              }
               return line;
             }),
             discountAmount: settleData.discount ?? settleData.discountAmount ?? 0,

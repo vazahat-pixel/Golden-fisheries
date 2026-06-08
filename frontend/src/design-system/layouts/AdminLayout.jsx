@@ -201,41 +201,41 @@ export const AdminLayout = ({ children }) => {
       </div>
 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <header className="h-11 shrink-0 flex items-center justify-between px-3 md:px-4 bg-white border-b border-card-border sticky top-0 z-30">
+        <header className="h-11 shrink-0 flex items-center justify-between px-3 md:px-4 bg-card-bg border-b border-card-border shadow-erp-sm sticky top-0 z-30">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
-              className="p-1.5 text-text-muted hover:bg-surface-hover rounded-erp lg:hidden"
+              className="p-1.5 text-text-secondary hover:bg-surface-hover rounded-erp lg:hidden"
             >
               <Menu size={20} />
             </button>
 
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" size={14} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={14} />
               <input
                 type="search"
                 placeholder="Search…"
-                className="w-full h-8 bg-white border border-card-border rounded-erp pl-8 pr-3 text-xs outline-none focus:border-accent focus:ring-1 focus:ring-accent/25"
+                className="w-full h-8 bg-white border border-border-strong rounded-erp pl-8 pr-3 text-xs font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent/25"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {isMobile && !IS_DEV && (
-              <span className="text-[10px] font-medium bg-amber-50 text-amber-800 px-2 py-0.5 rounded-erp border border-amber-200">
+              <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-erp border border-amber-300">
                 Read only
               </span>
             )}
             {IS_DEV && (
-              <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-erp border border-emerald-200">
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-erp border border-emerald-300">
                 Dev
               </span>
             )}
             <NotificationDropdown />
             <div className="hidden md:block text-right">
-              <p className="text-xs font-medium text-text-primary leading-tight">{user?.name || 'Admin'}</p>
-              <p className="text-[10px] text-text-muted">{user?.role || 'ADMIN'}</p>
+              <p className="text-xs font-bold text-text-primary leading-tight">{user?.name || 'Admin'}</p>
+              <p className="text-[10px] font-semibold text-text-secondary">{user?.role || 'ADMIN'}</p>
             </div>
             <div className="w-8 h-8 rounded-erp bg-accent flex items-center justify-center text-xs font-semibold text-white">
               {user?.name?.substring(0, 2).toUpperCase() || 'AD'}

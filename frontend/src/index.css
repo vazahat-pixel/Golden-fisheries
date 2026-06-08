@@ -3,7 +3,7 @@
 @import "./design-system/field-app/fieldAppTheme.css";
 
 @theme {
-  /* Brand */
+  /* Brand — Golden Fisheries original */
   --color-brand-olive: #5f6846;
   --color-brand-yellow: #b8941a;
   --color-brand-dark: #1a1a1a;
@@ -17,9 +17,9 @@
   --color-surface-hover: #eef1f4;
 
   /* Semantic */
-  --color-primary: #6A7051;
-  --color-accent: #6A7051;
-  --color-accent-olive: #6A7051;
+  --color-primary: #6a7051;
+  --color-accent: #6a7051;
+  --color-accent-olive: #6a7051;
 
   /* Text */
   --color-text-primary: #1a1a1a;
@@ -36,10 +36,8 @@
   --color-danger: #b91c1c;
   --color-info: #1d4ed8;
 
-  /* Typography — single family for ERP density */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 
-  /* Compact type scale */
   --text-erp-2xs: 0.625rem;
   --text-erp-xs: 0.6875rem;
   --text-erp-sm: 0.75rem;
@@ -49,13 +47,11 @@
   --text-erp-xl: 1.125rem;
   --text-erp-2xl: 1.25rem;
 
-  /* Radius — subtle enterprise corners */
   --radius-erp: 4px;
   --radius-erp-lg: 6px;
   --radius-card: var(--radius-erp);
   --radius-btn: var(--radius-erp);
 
-  /* Shadows — minimal */
   --shadow-erp-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-erp-md: 0 2px 8px rgba(0, 0, 0, 0.06);
   --shadow-subtle: var(--shadow-erp-sm);
@@ -97,7 +93,6 @@ input, select, textarea, button {
   font-size: inherit;
 }
 
-/* Scrollbar — thin operational */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;

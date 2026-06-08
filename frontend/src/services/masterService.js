@@ -1,5 +1,4 @@
 import { apiClient } from './apiClient';
-import { mobilePlatformConfig } from './platformHeaders';
 
 /**
  * Generic factory to create standard CRUD API clients for any master entity
@@ -38,7 +37,7 @@ export const masterService = {
   products: createCrudService('products'),
   vehicles: {
     ...createCrudService('vehicles'),
-    getAll: async (params = {}) => apiClient.get('/vehicles/all', { params, ...mobilePlatformConfig() }),
+    getAll: async (params = {}) => apiClient.get('/vehicles/all', { params }),
     uploadDocument: async (file) => {
       const formData = new FormData();
       formData.append('file', file);

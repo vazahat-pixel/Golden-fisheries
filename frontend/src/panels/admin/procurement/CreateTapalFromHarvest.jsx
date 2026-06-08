@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
 import { tapalService } from '../../../services/tapalService';
 import { masterService } from '../../../services/masterService';
+import { userService } from '../../../services/userService';
 import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../components/forms/PaperFormFrame';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../../design-system';
@@ -24,18 +25,73 @@ function harvestLabel(h) {
   return `${no} — ${farmer}`;
 }
 
+function getHarvestQuantities(h) {
+  const totalEstWeight = (h.products || h.items || []).reduce(
+    (sum, item) => sum + (item.estimatedQty || item.totalWeight || 0),
+    0
+  );
+  const available = h.availableQty || totalEstWeight;
+  const remaining = available - (h.allocatedQty || 0);
+  return { totalEstWeight, available, remaining };
+}
+
+function getProductLineKey(item, index = 0) {
+  if (item._id) return String(item._id);
+  const pid = item.productId?._id || item.productId;
+  const name = (item.fishName || item.particulars || 'line').toUpperCase();
+  if (pid) return `${String(pid)}:${index}`;
+  return `${name}:${index}`;
+}
+
+function getHarvestProductLines(h) {
+  const source = h.products?.length ? h.products : h.items || [];
+  return source.map((item, index) => ({
+    item,
+    index,
+    lineKey: getProductLineKey(item, index),
+  }));
+}
+
+function getLineEstimatedKg(item) {
+  const est = parseFloat(item.estimatedQty ?? item.totalWeight);
+  return Number.isFinite(est) ? est : 0;
+}
+
+function getProductRemaining(h, item) {
+  const est = getLineEstimatedKg(item);
+  if ((item.usedQty || 0) > 0) {
+    return Math.max(0, est - item.usedQty);
+  }
+  const { available, remaining } = getHarvestQuantities(h);
+  return available > 0 ? est * (remaining / available) : 0;
+}
+
+function buildDefaultProductAllocations(h) {
+  const products = {};
+  getHarvestProductLines(h).forEach(({ item, index, lineKey }) => {
+    products[lineKey] = getProductRemaining(h, item).toFixed(2);
+  });
+  return products;
+}
+
+function sumProductAllocations(products = {}) {
+  return Object.values(products).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+}
+
 const CreateTapalFromHarvest = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectId = searchParams.get('harvestId');
-  const { harvestSlips, fetchHarvestSlips, loading } = useAdminStore();
+  const { harvestSlips, fetchHarvestSlips, fetchVehicles, vehicles, loading } = useAdminStore();
 
-  // Selected allocations state: { [harvestId]: allocatedQty }
+  // Selected allocations: { [harvestId]: { products: { [productKey]: qtyKg } } }
   const [selectedAllocations, setSelectedAllocations] = useState({});
 
   const [destination, setDestination] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
-  const [driverName, setDriverName] = useState('');
+  const [driverId, setDriverId] = useState('');
+  const [drivers, setDrivers] = useState([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [logisticsNotes, setLogisticsNotes] = useState('');
   const [buyerId, setBuyerId] = useState('');
   const [buyers, setBuyers] = useState([]);
@@ -112,6 +168,21 @@ const CreateTapalFromHarvest = () => {
       .catch(() => setBuyers([]));
   }, []);
 
+  useEffect(() => {
+    fetchVehicles();
+    userService
+      .drivers()
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setDrivers(list.filter((d) => d.isActive !== false));
+      })
+      .catch(() => {
+        setDrivers([]);
+        toast.error('Could not load registered drivers');
+      })
+      .finally(() => setLoadingDrivers(false));
+  }, [fetchVehicles]);
+
   // Filter harvest lists
   const { eligible, needNetRate, other } = useMemo(() => {
     const eligibleList = [];
@@ -141,10 +212,7 @@ const CreateTapalFromHarvest = () => {
     if (preselectId && eligible.length > 0) {
       const match = eligible.find(h => String(h._id || h.id) === String(preselectId));
       if (match) {
-        const totalEstWeight = match.products?.reduce((sum, item) => sum + (item.estimatedQty || 0), 0) || 0;
-        const available = match.availableQty || totalEstWeight;
-        const remaining = available - (match.allocatedQty || 0);
-        setSelectedAllocations({ [preselectId]: remaining.toFixed(2) });
+        setSelectedAllocations({ [preselectId]: { products: buildDefaultProductAllocations(match) } });
       }
     }
   }, [preselectId, eligible]);
@@ -157,87 +225,102 @@ const CreateTapalFromHarvest = () => {
       if (h) {
         setDestination(h.destination || h.pickupLocation || '');
         setVehicleNumber(h.vehicleNo || '');
-        setDriverName(h.driverName || '');
         setLogisticsNotes(h.logisticsNotes || h.remarks || '');
       }
     }
   }, [selectedAllocations, eligible]);
 
   const selectedBuyer = buyers.find((b) => String(b._id || b.id) === String(buyerId));
+  const selectedDriver = drivers.find((d) => String(d._id || d.id) === String(driverId));
 
   // Handle allocation checkbox toggle
-  const toggleHarvestSelection = (hId, remainingQty) => {
-    setSelectedAllocations(prev => {
+  const toggleHarvestSelection = (hId, h) => {
+    setSelectedAllocations((prev) => {
       const next = { ...prev };
       if (next[hId] !== undefined) {
         delete next[hId];
       } else {
-        next[hId] = remainingQty.toFixed(2);
+        next[hId] = { products: buildDefaultProductAllocations(h) };
       }
       return next;
     });
   };
 
-  // Handle allocation weight change
-  const handleWeightChange = (hId, val) => {
-    setSelectedAllocations(prev => ({
+  const handleProductQtyChange = (hId, lineKey, val) => {
+    setSelectedAllocations((prev) => ({
       ...prev,
-      [hId]: val
+      [hId]: {
+        products: {
+          ...(prev[hId]?.products || {}),
+          [lineKey]: val,
+        },
+      },
     }));
   };
 
   // Compute live consolidated products
   const consolidatedProducts = useMemo(() => {
     const productsMap = {};
-    Object.entries(selectedAllocations).forEach(([hId, allocatedQty]) => {
-      const h = eligible.find(x => String(x._id || x.id) === hId);
+    Object.entries(selectedAllocations).forEach(([hId, allocation]) => {
+      const h = eligible.find((x) => String(x._id || x.id) === hId);
       if (!h) return;
-      const totalEstWeight = h.products?.reduce((sum, item) => sum + (item.estimatedQty || 0), 0) || 1;
-      const available = h.availableQty || totalEstWeight || 1;
-      const scaleFactor = (parseFloat(allocatedQty) || 0) / available;
 
-      const items = h.products || h.items || [];
-      items.forEach(item => {
-        const key = item.fishName || item.particulars;
-        if (!key) return;
-        const scaledQty = (item.estimatedQty || item.totalWeight || 0) * scaleFactor;
-        const scaledBoxes = (item.boxCount || item.noOfBoxes || 0) * scaleFactor;
+      getHarvestProductLines(h).forEach(({ item, lineKey }) => {
+        const manifestKey = (item.fishName || item.particulars || '').toUpperCase();
+        if (!manifestKey) return;
+        const qty = parseFloat(allocation?.products?.[lineKey]) || 0;
+        if (qty <= 0) return;
+        const lineEst = getLineEstimatedKg(item);
+        const boxRatio = lineEst > 0 ? qty / lineEst : 0;
+        const scaledBoxes = (parseFloat(item.boxCount ?? item.noOfBoxes) || 0) * boxRatio;
 
-        if (!productsMap[key]) {
-          productsMap[key] = {
-            fishName: key,
+        if (!productsMap[manifestKey]) {
+          productsMap[manifestKey] = {
+            fishName: manifestKey,
             estimatedQty: 0,
-            boxCount: 0
+            boxCount: 0,
           };
         }
-        productsMap[key].estimatedQty += scaledQty;
-        productsMap[key].boxCount += scaledBoxes;
+        productsMap[manifestKey].estimatedQty += qty;
+        productsMap[manifestKey].boxCount += scaledBoxes;
       });
     });
     return Object.values(productsMap);
   }, [selectedAllocations, eligible]);
 
-  // Compute totals
   const totalAllocatedWeight = useMemo(() => {
-    return Object.values(selectedAllocations).reduce((sum, w) => sum + (parseFloat(w) || 0), 0);
+    return Object.values(selectedAllocations).reduce(
+      (sum, allocation) => sum + sumProductAllocations(allocation?.products),
+      0
+    );
   }, [selectedAllocations]);
 
   // Validate allocations
   const validationErrors = useMemo(() => {
     const errors = {};
-    Object.entries(selectedAllocations).forEach(([hId, allocatedQty]) => {
-      const h = eligible.find(x => String(x._id || x.id) === hId);
+    Object.entries(selectedAllocations).forEach(([hId, allocation]) => {
+      const h = eligible.find((x) => String(x._id || x.id) === hId);
       if (!h) return;
-      const qty = parseFloat(allocatedQty) || 0;
-      const totalEstWeight = h.products?.reduce((sum, item) => sum + (item.estimatedQty || 0), 0) || 0;
-      const available = h.availableQty || totalEstWeight;
-      const remaining = available - (h.allocatedQty || 0);
 
-      if (qty <= 0) {
-        errors[hId] = 'Allocated quantity must be greater than zero';
-      } else if (qty > remaining + 0.001) {
-        errors[hId] = `Allocation exceeds remaining stock (${remaining.toFixed(2)} KG)`;
+      const { remaining } = getHarvestQuantities(h);
+      const totalQty = sumProductAllocations(allocation?.products);
+
+      if (totalQty <= 0) {
+        errors[hId] = 'Enter KG for at least one fish product';
+        return;
       }
+      if (totalQty > remaining + 0.001) {
+        errors[hId] = `Total allocation (${totalQty.toFixed(2)} KG) exceeds remaining stock (${remaining.toFixed(2)} KG)`;
+      }
+
+      getHarvestProductLines(h).forEach(({ item, lineKey }) => {
+        const qty = parseFloat(allocation?.products?.[lineKey]) || 0;
+        if (qty <= 0) return;
+        const productRemaining = getProductRemaining(h, item);
+        if (qty > productRemaining + 0.001) {
+          errors[`${hId}:${lineKey}`] = `${item.fishName || item.particulars}: max ${productRemaining.toFixed(2)} KG available`;
+        }
+      });
     });
     return errors;
   }, [selectedAllocations, eligible]);
@@ -247,32 +330,77 @@ const CreateTapalFromHarvest = () => {
     if (keys.length === 0) return false;
     if (Object.keys(validationErrors).length > 0) return false;
     if (!buyerId || !selectedBuyer?.phone) return false;
+    if (!driverId || !selectedDriver) return false;
     return true;
-  }, [selectedAllocations, validationErrors, buyerId, selectedBuyer]);
+  }, [selectedAllocations, validationErrors, buyerId, selectedBuyer, driverId, selectedDriver]);
+
+  const resolveVehicleId = () => {
+    if (!vehicleNumber.trim()) return undefined;
+    const norm = vehicleNumber.replace(/\s|-/g, '').toLowerCase();
+    const match = (vehicles || []).find((v) => {
+      const plate = (v.plateNumber || v.vehicleNumber || '').replace(/\s|-/g, '').toLowerCase();
+      return plate && plate === norm;
+    });
+    return match?._id || match?.id || undefined;
+  };
 
   const handleCreate = async () => {
     if (!isValid) {
-      toast.error('Please resolve all validation errors and select a buyer');
+      toast.error('Select harvest, buyer, and a registered driver');
       return;
     }
 
-    const allocations = Object.entries(selectedAllocations).map(([hId, qty]) => ({
-      harvestId: hId,
-      allocatedQty: parseFloat(qty)
-    }));
+    const allocations = Object.entries(selectedAllocations).map(([hId, allocation]) => {
+      const h = eligible.find((x) => String(x._id || x.id) === hId);
+      const products = getHarvestProductLines(h || {})
+        .map(({ item, lineKey }) => {
+          const allocatedQty = parseFloat(allocation?.products?.[lineKey]) || 0;
+          if (allocatedQty <= 0) return null;
+          return {
+            lineItemId: item._id || undefined,
+            productId: item.productId?._id || item.productId,
+            fishName: item.fishName || item.particulars,
+            allocatedQty,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        harvestId: hId,
+        allocatedQty: sumProductAllocations(allocation?.products),
+        products,
+      };
+    });
+
+    const driverDisplayName = selectedDriver.fullName || selectedDriver.name || 'Driver';
 
     setSubmitting(true);
     try {
-      await tapalService.createFromHarvest(null, {
+      const createRes = await tapalService.createFromHarvest(null, {
         allocations,
         destination,
         vehicleNumber,
-        driverName,
+        driverName: driverDisplayName,
         logisticsNotes,
         buyerId: selectedBuyer._id || selectedBuyer.id,
         buyerPhone: selectedBuyer.phone,
       });
-      toast.success('Unified Tapal created successfully!');
+
+      const tapal =
+        createRes?.data?.tapal ||
+        createRes?.tapal ||
+        createRes?.data;
+      const tapalId = tapal?._id || tapal?.id;
+
+      if (!tapalId) {
+        throw new Error('Tapal created but ID missing from server response');
+      }
+
+      await tapalService.assignDriver(tapalId, driverId, resolveVehicleId());
+
+      toast.success(
+        `Tapal generated and driver assigned — ${driverDisplayName}${selectedDriver.phone ? ` (${selectedDriver.phone})` : ''}`
+      );
       navigate('/admin/tapals');
     } catch (err) {
       toast.error(err?.message || 'Failed to create tapal');
@@ -322,7 +450,7 @@ const CreateTapalFromHarvest = () => {
                   return (
                     <div
                       key={h._id || h.id}
-                      onClick={() => toggleHarvestSelection(h._id || h.id, remaining)}
+                      onClick={() => toggleHarvestSelection(h._id || h.id, h)}
                       className={`border p-4 transition-all cursor-pointer flex items-center justify-between ${
                         isChecked
                           ? 'border-[#6A7051] bg-[#F9FAF6]'
@@ -383,40 +511,82 @@ const CreateTapalFromHarvest = () => {
           {Object.keys(selectedAllocations).length > 0 && (
             <div className="bg-white border border-slate-200 p-6 shadow-sm space-y-4">
               <h2 className="text-xs font-black uppercase tracking-widest text-[#6A7051] border-b border-slate-100 pb-3 mb-2 flex items-center gap-2">
-                <Weight size={16} /> 2. Enter Allocation Weights
+                <Weight size={16} /> 2. Enter KG Per Fish Product
               </h2>
+              <p className="text-[11px] text-slate-500 -mt-2">
+                Har product ke liye alag KG daalein — poora harvest ek saath bhejna ho to default values rakhein ya badlein.
+              </p>
 
-              <div className="divide-y divide-slate-100">
-                {Object.entries(selectedAllocations).map(([hId, qty]) => {
-                  const h = eligible.find(x => String(x._id || x.id) === hId);
+              <div className="space-y-6">
+                {Object.entries(selectedAllocations).map(([hId, allocation]) => {
+                  const h = eligible.find((x) => String(x._id || x.id) === hId);
                   if (!h) return null;
-                  const totalEstWeight = h.products?.reduce((sum, item) => sum + (item.estimatedQty || 0), 0) || 0;
-                  const available = h.availableQty || totalEstWeight;
-                  const remaining = available - (h.allocatedQty || 0);
-                  const error = validationErrors[hId];
+                  const { remaining } = getHarvestQuantities(h);
+                  const harvestTotal = sumProductAllocations(allocation?.products);
+                  const harvestError = validationErrors[hId];
+                  const lines = getHarvestProductLines(h);
 
                   return (
-                    <div key={hId} className="py-4 first:pt-0 last:pb-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-black uppercase text-slate-800">{harvestLabel(h)}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            Stock remaining: <span className="font-bold text-slate-700">{remaining.toFixed(2)} KG</span>
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            max={remaining}
-                            className={`${paperInputClass} w-32 text-right font-black text-xs`}
-                            value={qty}
-                            onChange={(e) => handleWeightChange(hId, e.target.value)}
-                          />
-                          <span className="text-xs font-bold text-slate-400">KG</span>
-                        </div>
+                    <div key={hId} className="border border-slate-200 rounded-sm overflow-hidden">
+                      <div className="bg-[#F9FAF6] px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+                        <p className="text-xs font-black uppercase text-slate-800">{harvestLabel(h)}</p>
+                        <p className="text-[10px] text-slate-500">
+                          Stock remaining: <span className="font-bold text-slate-700">{remaining.toFixed(2)} KG</span>
+                          {' · '}
+                          Allocating: <span className="font-bold text-[#6A7051]">{harvestTotal.toFixed(2)} KG</span>
+                        </p>
                       </div>
-                      {error && <p className="text-[10px] text-red-600 font-bold mt-1 text-right">{error}</p>}
+
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-600">
+                            <th className="border-b border-slate-200 p-2 text-left uppercase font-black">Fish Item</th>
+                            <th className="border-b border-slate-200 p-2 text-right uppercase font-black w-28">Available (KG)</th>
+                            <th className="border-b border-slate-200 p-2 text-right uppercase font-black w-32">Tapal KG</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lines.map(({ item, lineKey }) => {
+                            const availableKg = getProductRemaining(h, item);
+                            const lineError = validationErrors[`${hId}:${lineKey}`];
+                            return (
+                              <tr key={lineKey} className="hover:bg-slate-50/50">
+                                <td className="border-b border-slate-100 p-2 font-bold uppercase text-slate-800">
+                                  {item.fishName || item.particulars}
+                                </td>
+                                <td className="border-b border-slate-100 p-2 text-right tabular-nums text-slate-600">
+                                  {availableKg.toFixed(2)}
+                                </td>
+                                <td className="border-b border-slate-100 p-2">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max={availableKg}
+                                    className={`${paperInputClass} w-full text-right font-black`}
+                                    value={allocation?.products?.[lineKey] ?? ''}
+                                    onChange={(e) => handleProductQtyChange(hId, lineKey, e.target.value)}
+                                  />
+                                  {lineError && (
+                                    <p className="text-[9px] text-red-600 font-bold mt-0.5 text-right">{lineError}</p>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-[#F9FAF6] font-black">
+                            <td colSpan={2} className="p-2 text-right uppercase text-[10px] text-[#6A7051]">
+                              Subtotal
+                            </td>
+                            <td className="p-2 text-right tabular-nums text-slate-900">{harvestTotal.toFixed(2)} KG</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                      {harvestError && (
+                        <p className="text-[10px] text-red-600 font-bold px-4 py-2 bg-red-50">{harvestError}</p>
+                      )}
                     </div>
                   );
                 })}
@@ -480,13 +650,28 @@ const CreateTapalFromHarvest = () => {
               />
             </PaperFieldRow>
 
-            <PaperFieldRow label="Driver Name">
-              <input
+            <PaperFieldRow label="Assign Driver *">
+              <select
                 className={paperInputClass}
-                value={driverName}
-                onChange={(e) => setDriverName(e.target.value)}
-                placeholder="e.g. Anand"
-              />
+                value={driverId}
+                onChange={(e) => setDriverId(e.target.value)}
+                required
+                disabled={loadingDrivers}
+              >
+                <option value="">
+                  {loadingDrivers ? 'Loading drivers…' : '— Select registered driver —'}
+                </option>
+                {drivers.map((d) => (
+                  <option key={d._id || d.id} value={d._id || d.id}>
+                    {(d.fullName || d.name || 'Driver').toUpperCase()} — {d.phone}
+                  </option>
+                ))}
+              </select>
+              {!loadingDrivers && drivers.length === 0 && (
+                <p className="text-[10px] text-amber-700 font-bold mt-1">
+                  No active drivers found. Add a DRIVER user in Access Control first.
+                </p>
+              )}
             </PaperFieldRow>
 
             <PaperFieldRow label="Dispatch Notes">
@@ -537,7 +722,7 @@ const CreateTapalFromHarvest = () => {
               onClick={handleCreate}
               className="w-full mt-6 bg-[#6A7051] hover:bg-[#5F6846] text-white py-3.5 font-black uppercase text-xs tracking-widest shadow-md active:translate-y-0.5 disabled:opacity-50 transition-all"
             >
-              {submitting ? 'Generating...' : 'Generate Tapal'}
+              {submitting ? 'Generating & assigning driver…' : 'Generate Tapal & Assign Driver'}
             </button>
           </PaperFormFrame>
         </div>

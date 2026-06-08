@@ -6,6 +6,7 @@ import { User } from '../users/user.model.js';
 import { logger } from '../../utils/logger.js';
 import { smsService } from '../../services/sms.service.js';
 import { isRoleAllowedForPortal } from '../../constants/authPortals.js';
+import { syncUserMasterRecords } from '../../services/userMasterSync.service.js';
 
 /**
  * High-performance Authentication and Access Token service.
@@ -35,6 +36,9 @@ class AuthService {
     }
 
     const user = await userService.create(registrationData);
+    await syncUserMasterRecords(user).catch((err) => {
+      logger.warn(`[Auth Module]: Master sync after register failed: ${err.message}`);
+    });
     logger.info(`[Auth Module]: New user registered successfully. ID: ${user._id}, Role: ${user.role}`);
     return user;
   }

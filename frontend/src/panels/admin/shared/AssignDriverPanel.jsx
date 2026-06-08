@@ -25,7 +25,7 @@ const AssignDriverPanel = ({ tapal, onAssigned }) => {
     userService
       .drivers()
       .then((res) => {
-        const list = Array.isArray(res?.data) ? res.data : [];
+        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setDrivers(list);
       })
       .catch(() => toast.error('Could not load drivers'))

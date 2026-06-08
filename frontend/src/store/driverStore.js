@@ -89,13 +89,12 @@ export const useDriverStore = create(
       fetchMyExpenses: async () => {
         set({ loading: true });
         try {
-          // GET /expenses — backend should filter by JWT driverId server-side
-          const res = await expenseService.all();
-          const list = Array.isArray(res?.data) ? res.data : [];
+          const res = await expenseService.my({ limit: 100 });
+          const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
           set({ myExpenses: list, loading: false });
         } catch (err) {
-          console.error('[Driver] Failed to fetch expenses:', err?.message || err);
-          set({ loading: false });
+          console.warn('[Driver] Expenses unavailable:', err?.message || err);
+          set({ myExpenses: [], loading: false });
         }
       },
 
@@ -115,7 +114,7 @@ export const useDriverStore = create(
         set({ loading: true });
         try {
           await expenseService.create(expenseData);
-          if (expenseData.driverId) await get().fetchMyExpenses(expenseData.driverId);
+          await get().fetchMyExpenses();
           set({ loading: false });
         } catch (err) {
           set({ error: err.message, loading: false });

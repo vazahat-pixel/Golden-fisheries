@@ -56,6 +56,7 @@ const UsersAndRoles = React.lazy(() => import('../panels/admin/settings/UsersAnd
 const AdminBilling = React.lazy(() => import('../panels/admin/billing/AdminBilling'));
 const SalesApprovalList = React.lazy(() => import('../panels/admin/sales/SalesApprovalList'));
 const SalesApprovalDetail = React.lazy(() => import('../panels/admin/sales/SalesApprovalDetail'));
+const BuyerSalesAdmin = React.lazy(() => import('../panels/admin/sales/BuyerSalesAdmin'));
 const OutletManagement = React.lazy(() => import('../panels/admin/outlets/OutletManagement'));
 const AccessControl = React.lazy(() => import('../panels/admin/access/AccessControl'));
 const DriverControlConsole = React.lazy(() => import('../panels/admin/logistics/DriverControlConsole'));
@@ -118,6 +119,7 @@ const BuyerInvoiceHistory = React.lazy(() => import('../panels/buyer/BuyerInvoic
 const BuyerAssignDriver = React.lazy(() => import('../panels/buyer/BuyerAssignDriver'));
 const BuyerTripTracker = React.lazy(() => import('../panels/buyer/BuyerTripTracker'));
 const BuyerReconciliation = React.lazy(() => import('../panels/buyer/BuyerReconciliation'));
+const BuyerAdminThemeWrap = React.lazy(() => import('../panels/buyer/BuyerAdminThemeWrap'));
 
 // Public
 const BuyerBilling = React.lazy(() => import('../panels/public/BuyerBilling'));
@@ -142,7 +144,7 @@ const fishMallNav = [
   { icon: ClipboardCheck, label: 'Daily Closing', path: '/fishmall/closing' },
   { icon: AlertTriangle, label: 'Alerts', path: '/fishmall/alerts' },
   { icon: Layers, label: 'Current Rates', path: '/fishmall/rates' },
-  { icon: ClipboardList, label: 'Stock Inflow', path: '/fishmall/stock' },
+  { icon: ClipboardList, label: 'Inventory', path: '/fishmall/stock' },
   { icon: ArrowRightLeft, label: 'Bill Restaurant', path: '/fishmall/internal-supply' },
 ];
 
@@ -192,6 +194,7 @@ const AppRouter = () => {
               <Route path="tapals/:id" element={<TapalDetail />} />
               <Route path="sales-approval" element={<SalesApprovalList />} />
               <Route path="sales-approval/:id" element={<SalesApprovalDetail />} />
+              <Route path="buyer-sales" element={<BuyerSalesAdmin />} />
             </Route>
 
             {/* Procurement Routes */}
@@ -253,22 +256,24 @@ const AppRouter = () => {
               <Route path="settings" element={<UsersAndRoles />} />
             </Route>
 
-            {/* Buyer workflows inside Admin ERP (permission-driven sidebar) */}
-            <Route element={<ProtectedRoute module="buyerDashboard"><Outlet /></ProtectedRoute>}>
-              <Route path="buyer/dashboard" element={<BuyerDashboard />} />
-            </Route>
-            <Route element={<ProtectedRoute module="buyerVerify"><Outlet /></ProtectedRoute>}>
-              <Route path="buyer/tapals" element={<BuyerIncomingTapals />} />
-              <Route path="buyer/bill/:tapalId" element={<BuyerBillView />} />
-            </Route>
-            <Route element={<ProtectedRoute module="buyerBills"><Outlet /></ProtectedRoute>}>
-              <Route path="buyer/invoices" element={<BuyerInvoiceHistory />} />
-            </Route>
-            <Route element={<ProtectedRoute module="buyerReturns"><Outlet /></ProtectedRoute>}>
-              <Route path="buyer/returns" element={<BuyerSalesReturn />} />
-            </Route>
-            <Route element={<ProtectedRoute module="buyerSettlement"><Outlet /></ProtectedRoute>}>
-              <Route path="buyer/reconciliation" element={<BuyerReconciliation />} />
+            {/* Buyer workflows inside Admin ERP — dark field-app theme for visibility */}
+            <Route element={<BuyerAdminThemeWrap />}>
+              <Route element={<ProtectedRoute module="buyerDashboard"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/dashboard" element={<BuyerDashboard />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerVerify"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/tapals" element={<BuyerIncomingTapals />} />
+                <Route path="buyer/bill/:tapalId" element={<BuyerBillView />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerBills"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/invoices" element={<BuyerInvoiceHistory />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerReturns"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/returns" element={<BuyerSalesReturn />} />
+              </Route>
+              <Route element={<ProtectedRoute module="buyerSettlement"><Outlet /></ProtectedRoute>}>
+                <Route path="buyer/reconciliation" element={<BuyerReconciliation />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

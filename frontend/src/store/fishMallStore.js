@@ -13,6 +13,7 @@ export const useFishMallStore = create(
       closings: [],
       alerts: [],
       stockLogs: [],
+      pendingTransfers: [],
       activeSession: null,
       accountingSummary: null,
       cashbook: [],
@@ -145,24 +146,42 @@ export const useFishMallStore = create(
         const itemsSummary = lines
           .map((l) => `${l.productName} (${l.quantity} ${l.unit || 'KG'})`)
           .join(', ');
+        const status = payload?.status || (kind === 'pending' ? 'PENDING_APPROVAL' : 'ACCEPTED');
+        const canAccept = status === 'IN_TRANSIT' || status === 'PENDING_ACCEPTANCE';
+        const transferId = payload?.transferId || payload?._id;
         const isPending = kind === 'pending';
         const alert = {
-          id: `TR-${payload.transferNumber}-${kind}-${Date.now()}`,
+          id: `TR-${payload.transferNumber}-${status}-${Date.now()}`,
           type: 'PROCUREMENT_TRANSFER',
-          title: isPending
-            ? `Incoming transfer ${payload.transferNumber}`
-            : `Stock received — ${payload.transferNumber}`,
-          message: isPending
-            ? `Admin created transfer to ${payload.outletName || 'your Fish Mall'}. ${payload.lineCount || lines.length} item(s) — awaiting approval.`
-            : `Procurement stock delivered to ${payload.outletName || 'Fish Mall'}: ${itemsSummary || 'see Stock Inflow'}.`,
-          severity: isPending ? 'warning' : 'info',
+          title: canAccept
+            ? `Stock dispatch — ${payload.transferNumber}`
+            : isPending
+              ? `Transfer queued — ${payload.transferNumber}`
+              : `Stock received — ${payload.transferNumber}`,
+          message: canAccept
+            ? `Procurement ne stock bheja hai: ${itemsSummary || `${payload.lineCount || lines.length} item(s)`}. Accept karein — inventory auto update hogi.`
+            : isPending
+              ? `Admin ne transfer banaya (${payload.outletName || 'Fish Mall'}). Dispatch ke baad accept option milega.`
+              : `Procurement stock delivered: ${itemsSummary || payload.transferNumber}.`,
+          severity: canAccept ? 'critical' : isPending ? 'warning' : 'info',
           timestamp: new Date().toISOString(),
           read: false,
           transferNumber: payload.transferNumber,
+          transferId,
           outletId: payload.outletId,
+          status,
+          canAccept,
+          lines,
         };
         set((state) => ({
-          alerts: [alert, ...state.alerts.filter((a) => a.transferNumber !== payload.transferNumber || a.type !== 'PROCUREMENT_TRANSFER')].slice(0, 50),
+          alerts: [
+            alert,
+            ...state.alerts.filter(
+              (a) =>
+                a.type !== 'PROCUREMENT_TRANSFER' ||
+                (a.transferNumber !== payload.transferNumber && String(a.transferId) !== String(transferId))
+            ),
+          ].slice(0, 50),
         }));
         return alert;
       },
@@ -194,6 +213,37 @@ export const useFishMallStore = create(
         } catch (err) {
           console.error('Failed to fetch Fish Mall stock', err);
           set({ loading: false });
+        }
+      },
+
+      fetchPendingTransfers: async () => {
+        try {
+          const res = await fishmallService.listPendingTransfers();
+          const list = res?.data || res || [];
+          set({ pendingTransfers: Array.isArray(list) ? list : [] });
+        } catch (err) {
+          console.error('Failed to fetch pending transfers', err);
+          set({ pendingTransfers: [] });
+        }
+      },
+
+      acceptTransferAsync: async (transferId, payload = { status: 'ACCEPTED', remarks: 'Accepted at Fish Mall' }) => {
+        set({ loading: true });
+        try {
+          await fishmallService.acceptTransfer(transferId, payload);
+          await get().fetchPendingTransfers();
+          await get().fetchStock();
+          set((state) => ({
+            loading: false,
+            alerts: state.alerts.filter(
+              (a) =>
+                a.type !== 'PROCUREMENT_TRANSFER' ||
+                String(a.transferId) !== String(transferId)
+            ),
+          }));
+        } catch (err) {
+          set({ loading: false, error: err.message });
+          throw err;
         }
       },
 

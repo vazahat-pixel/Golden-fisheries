@@ -11,6 +11,7 @@
     "seed:admin": "node seedAdmin.js",
     "seed:e2e": "node scripts/seedE2ETestUsers.js",
     "db:reset": "node scripts/resetOperationalData.js",
+    "db:sync-users": "node scripts/syncUsersToMaster.js",
     "trip:quick": "node scripts/quickDriverTrip.js",
     "db:reset-operational": "node scripts/resetOperationalData.js",
     "test:e2e": "node scripts/e2eBusinessFlow.js",

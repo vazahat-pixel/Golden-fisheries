@@ -137,7 +137,8 @@ async function main() {
   }
 
   console.log(`\n✅ Done. Removed ${total} documents. Only users remain.`);
-  console.log('   Create farmers, products, outlets fresh from the UI.\n');
+  console.log('   Create farmers, products, outlets fresh from the UI.');
+  console.log('   Run: npm run db:sync-users  (links BUYER users → tapal buyer list)\n');
   console.log('   Frontend: log out, hard refresh (Ctrl+Shift+R), or clear site data');
   console.log('   so old browser cache does not show stale lists.\n');
 

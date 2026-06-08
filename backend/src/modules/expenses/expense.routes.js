@@ -37,6 +37,32 @@ class ExpenseService extends BaseService {
     return await this.findMany(filter, { page, limit }, 'createdBy approvedBy');
   }
 
+  async findMyExpenses(userId, queryParams = {}) {
+    const { page = 1, limit = 50, status, expenseType } = queryParams;
+    const filter = { createdBy: userId };
+
+    if (status) filter.status = status;
+    if (expenseType) filter.expenseType = expenseType;
+
+    return await this.findMany(filter, { page, limit, sort: '-createdAt' }, 'createdBy approvedBy');
+  }
+
+  async findByIdWithDetails(id) {
+    const doc = await this.model
+      .findById(id)
+      .populate('createdBy approvedBy', 'fullName phone role')
+      .populate({
+        path: 'linkedTripId',
+        populate: [
+          { path: 'tapalId' },
+          { path: 'driverId', select: 'fullName phone' },
+          { path: 'vehicleId', select: 'plateNumber vehicleNumber' },
+        ],
+      });
+    if (!doc) throw new AppError('Expense entry not found', 404);
+    return doc;
+  }
+
   async approve(expenseId, approverId, status) {
     const expense = await this.model.findById(expenseId);
     if (!expense) throw new AppError('Expense entry not found', 404);
@@ -76,8 +102,13 @@ export const expenseController = {
     new ApiResponse(200, result.docs, 'Expenses fetched successfully', result.meta).send(res);
   }),
 
+  my: asyncWrapper(async (req, res) => {
+    const result = await expenseService.findMyExpenses(req.user.id, req.query);
+    new ApiResponse(200, result.docs, 'Your expenses fetched successfully', result.meta).send(res);
+  }),
+
   getById: asyncWrapper(async (req, res) => {
-    const expense = await expenseService.findById(req.params.id, 'createdBy approvedBy');
+    const expense = await expenseService.findByIdWithDetails(req.params.id);
     new ApiResponse(200, { expense }, 'Expense retrieved successfully').send(res);
   }),
 
@@ -110,6 +141,7 @@ router.post(
 );
 
 router.post('/create', ...mobile, restrictTo(...DRIVER_ROLES), expenseController.create);
+router.get('/my', ...mobile, restrictTo(...DRIVER_ROLES), expenseController.my);
 router.get('/all', ...web, restrictTo(...WEB_ERP), expenseController.all);
 router.patch('/approve/:id', ...web, restrictTo(...WEB_ERP), expenseController.approve);
 router.get('/:id', ...web, restrictTo(...WEB_ERP), expenseController.getById);

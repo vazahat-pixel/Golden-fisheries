@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { buyerPortalService } from '../../services/buyerPortalService';
 import { Printer } from 'lucide-react';
+import { FieldPageWrap } from '../../design-system/field-app';
 
 const BuyerInvoiceHistory = () => {
   const [bills, setBills] = useState([]);
@@ -15,34 +16,35 @@ const BuyerInvoiceHistory = () => {
   }, []);
 
   return (
-    <div className="space-y-6 p-1">
-      <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer Portal</p>
-        <h1 className="text-2xl font-serif italic font-black text-slate-900">Invoice History</h1>
-      </div>
+    <FieldPageWrap subtitle="Your generated bills">
+      <h1 className="text-lg font-bold">Invoice history</h1>
+      <p className="text-[11px] fa-muted mb-4">Bills generated after verification</p>
 
       {loading ? (
-        <p className="text-sm text-slate-400">Loading...</p>
+        <p className="text-sm fa-muted py-8 text-center">Loading…</p>
       ) : bills.length === 0 ? (
-        <p className="text-sm text-slate-400">No bills yet</p>
+        <div className="fa-empty-state">
+          <p className="text-sm font-semibold">No bills yet</p>
+          <p className="text-[11px] fa-muted mt-2">Verify a tapal, then generate a bill</p>
+        </div>
       ) : (
         <div className="space-y-3 no-print">
           {bills.map((b) => (
-            <div key={b._id} className="bg-white rounded-2xl border border-slate-100 p-4">
-              <div className="flex justify-between items-start">
+            <div key={b._id} className="fa-surface p-4">
+              <div className="flex justify-between items-start gap-3">
                 <div>
-                  <span className="font-black text-sm">{b.billNo}</span>
-                  <p className="text-[10px] text-slate-500 mt-1">
+                  <span className="font-bold text-sm">{b.billNo}</span>
+                  <p className="text-[10px] fa-muted mt-1">
                     {b.item} — {b.finalWeight} KG @ ₹{b.ratePerKg}
                   </p>
-                  <p className="text-lg font-black text-slate-900 mt-2">
+                  <p className="text-lg font-bold mt-2 fa-amount-positive">
                     ₹{b.totalAmount?.toLocaleString('en-IN')}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setPrintBill(b)}
-                  className="text-[10px] font-bold uppercase flex items-center gap-1 text-blue-600"
+                  className="text-[10px] font-bold uppercase flex items-center gap-1 text-[var(--fa-accent)] fa-tap shrink-0"
                 >
                   <Printer size={14} /> Print
                 </button>
@@ -53,21 +55,21 @@ const BuyerInvoiceHistory = () => {
       )}
 
       {printBill && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-lg my-8">
-            <div className="no-print p-3 flex justify-between border-b">
-              <button type="button" onClick={() => setPrintBill(null)} className="text-sm font-bold">
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-[var(--fa-surface)] w-full max-w-lg my-8 rounded-[var(--fa-radius-lg)] border border-[var(--fa-border)]">
+            <div className="no-print p-3 flex justify-between border-b border-[var(--fa-border)]">
+              <button type="button" onClick={() => setPrintBill(null)} className="text-sm font-bold fa-tap">
                 Close
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="text-sm font-bold uppercase flex items-center gap-1"
+                className="text-sm font-bold uppercase flex items-center gap-1 text-[var(--fa-accent)] fa-tap"
               >
                 <Printer size={14} /> Print
               </button>
             </div>
-            <div className="print-root p-6 border-2 border-black m-4 text-sm">
+            <div className="print-root p-6 border-2 border-black m-4 text-sm bg-white text-black rounded-md">
               <h2 className="text-center font-bold uppercase border-b pb-2 mb-3">Buyer Bill</h2>
               <p>
                 <strong>Bill No:</strong> {printBill.billNo}
@@ -91,7 +93,7 @@ const BuyerInvoiceHistory = () => {
           </div>
         </div>
       )}
-    </div>
+    </FieldPageWrap>
   );
 };
 

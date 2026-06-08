@@ -54,11 +54,11 @@ export const Sidebar = ({ onClose }) => {
   return (
     <div
       className={twMerge(
-        'h-full bg-[#fcfcf9]/75 backdrop-blur-xl flex flex-col text-text-primary overflow-y-auto border-r border-black/5 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 overscroll-contain',
+        'h-full bg-sidebar-bg flex flex-col text-text-primary overflow-y-auto border-r border-card-border shadow-erp-sm transition-all duration-300 overscroll-contain',
         isCollapsed ? 'w-[56px]' : 'w-56'
       )}
     >
-      <div className="h-12 px-3 flex items-center justify-between border-b border-black/5">
+      <div className="h-12 px-3 flex items-center justify-between border-b border-card-border bg-surface-muted">
         <div className="flex items-center gap-2 overflow-hidden min-w-0">
           <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-8 h-8 object-contain shrink-0" />
           {!isCollapsed && (
@@ -67,14 +67,14 @@ export const Sidebar = ({ onClose }) => {
         </div>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex p-1.5 text-text-muted hover:text-black transition-colors"
+          className="hidden lg:flex p-1.5 text-text-muted hover:text-text-primary transition-colors"
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
       {!isCollapsed && (
-        <div className="px-3 py-1.5 border-b border-black/5 bg-[#6A7051]/5">
+        <div className="px-3 py-1.5 border-b border-card-border bg-accent/5">
           <span className="text-[10px] font-medium text-text-muted">{roleLabel}</span>
         </div>
       )}
@@ -101,7 +101,7 @@ export const Sidebar = ({ onClose }) => {
                     ? 'bg-accent/10 text-accent border-accent'
                     : item.highlight
                       ? 'text-accent hover:bg-accent/5 border-transparent'
-                      : 'text-text-muted hover:bg-[#6A7051]/5 hover:text-text-primary border-transparent'
+                      : 'text-text-muted hover:bg-surface-hover hover:text-text-primary border-transparent'
                 )
               }
             >
@@ -128,10 +128,10 @@ export const Sidebar = ({ onClose }) => {
         )}
       </nav>
 
-      <div className="p-2 mt-auto border-t border-black/5">
+      <div className="p-2 mt-auto border-t border-card-border">
         <div
           className={twMerge(
-            'flex items-center rounded-erp border border-black/5 bg-white/50 backdrop-blur-sm p-1.5',
+            'flex items-center rounded-erp border border-card-border bg-white p-1.5 shadow-erp-sm',
             isCollapsed ? 'justify-center' : 'gap-2'
           )}
           title={isCollapsed ? `${userName} ${roleLabel}` : undefined}

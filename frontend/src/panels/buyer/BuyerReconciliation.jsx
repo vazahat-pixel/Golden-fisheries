@@ -1,50 +1,67 @@
 import React, { useEffect, useState } from 'react';
 import { buyerPortalService } from '../../services/buyerPortalService';
 import { toast } from 'react-hot-toast';
+import { FieldPageWrap } from '../../design-system/field-app';
 
 const BuyerReconciliation = () => {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     buyerPortalService
       .getReconciliation()
       .then((res) => setData(res?.data || res))
-      .catch((err) => toast.error(err?.message || 'Failed to load'));
+      .catch((err) => toast.error(err?.message || 'Failed to load'))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (!data) {
-    return <p className="p-6 text-sm text-slate-500">Loading settlement...</p>;
-  }
-
   return (
-    <div className="max-w-md mx-auto space-y-6 p-1">
-      <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer Portal</p>
-        <h1 className="text-2xl font-serif italic font-black text-slate-900">Settlement</h1>
-      </div>
+    <FieldPageWrap subtitle="Balance & settlement">
+      <h1 className="text-lg font-bold">Settlement</h1>
+      <p className="text-[11px] fa-muted mb-4">Bills, returns, and balance due</p>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 text-sm">
-        <div className="flex justify-between">
-          <span>Total billed</span>
+      {loading ? (
+        <p className="text-sm fa-muted py-8 text-center">Loading settlement…</p>
+      ) : !data ? (
+        <div className="fa-empty-state">
+          <p className="text-sm font-semibold">Could not load settlement</p>
+        </div>
+      ) : (
+        <div className="fa-surface p-5 space-y-3 text-sm">
+        <div className="flex justify-between gap-4">
+          <span className="fa-muted">Total billed</span>
           <span className="font-bold">₹{(data.totalBilled || 0).toLocaleString('en-IN')}</span>
         </div>
-        <div className="flex justify-between">
-          <span>Returns (completed)</span>
-          <span className="font-bold text-red-600">₹{(data.totalReturned || 0).toLocaleString('en-IN')}</span>
+        {(data.totalPaid || 0) > 0 && (
+          <div className="flex justify-between gap-4">
+            <span className="fa-muted">Paid to company</span>
+            <span className="font-bold text-emerald-400">
+              ₹{(data.totalPaid || 0).toLocaleString('en-IN')}
+            </span>
+          </div>
+        )}
+          <div className="flex justify-between gap-4">
+            <span className="fa-muted">Returns (completed)</span>
+            <span className="font-bold text-[var(--fa-danger)]">
+              ₹{(data.totalReturned || 0).toLocaleString('en-IN')}
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="fa-muted">Pending returns</span>
+            <span>₹{(data.pendingReturns || 0).toLocaleString('en-IN')}</span>
+          </div>
+          <div className="border-t border-[var(--fa-border)] pt-3 flex justify-between text-base">
+            <span className="font-bold uppercase text-xs">Balance due</span>
+            <span className="font-bold fa-amount-positive">
+              ₹{(data.balanceDue || 0).toLocaleString('en-IN')}
+            </span>
+          </div>
+          <p className="text-[10px] fa-muted pt-2">
+            {data.bills} bills · {data.returns} return requests
+          </p>
         </div>
-        <div className="flex justify-between">
-          <span>Pending returns</span>
-          <span>₹{(data.pendingReturns || 0).toLocaleString('en-IN')}</span>
-        </div>
-        <div className="border-t pt-3 flex justify-between text-base">
-          <span className="font-black uppercase text-xs">Balance due</span>
-          <span className="font-black">₹{(data.balanceDue || 0).toLocaleString('en-IN')}</span>
-        </div>
-        <p className="text-[10px] text-slate-500 pt-2">
-          {data.bills} bills · {data.returns} return requests
-        </p>
-      </div>
-    </div>
+      )}
+    </FieldPageWrap>
   );
 };
 

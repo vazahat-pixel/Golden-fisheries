@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 import { BaseService } from '../../services/base.service.js';
 import { RestaurantOrder } from './restaurantOrder.model.js';
 import { restaurantInventoryService } from './restaurantInventory.service.js';
-import { restaurantMenuService } from './restaurantMenu.service.js';
+import { RestaurantMenuItem } from './restaurantMenu.model.js';
+import { RestaurantInventoryItem } from './restaurantInventory.model.js';
 import { normalizeOrderType } from './kitchen.service.js';
 import { RestaurantInventoryLog } from './restaurantInventory.model.js';
 import { KitchenTicket } from './kitchenTicket.model.js';
@@ -42,11 +43,31 @@ class RestaurantService extends BaseService {
       const qty = parseFloat(item.quantity) || 1;
       let rate = parseFloat(item.rate);
       let name = item.name;
+      let menuItemId = item.menuItemId || null;
+      let inventoryItemId = item.inventoryItemId || null;
 
-      if (item.menuItemId) {
-        const menu = await restaurantMenuService.getById(item.menuItemId);
-        rate = rate ?? menu.sellingPrice;
-        name = name || menu.name;
+      if (menuItemId) {
+        const menu = await RestaurantMenuItem.findById(menuItemId);
+        if (menu) {
+          rate = rate ?? menu.sellingPrice;
+          name = name || menu.name;
+        } else {
+          // Legacy clients sent kitchen inventory id as menuItemId
+          const inv = await RestaurantInventoryItem.findById(menuItemId);
+          if (inv) {
+            inventoryItemId = inv._id;
+            menuItemId = null;
+            rate = rate ?? inv.rate;
+            name = name || inv.name;
+          } else {
+            throw new AppError('Menu item not found', 404);
+          }
+        }
+      } else if (inventoryItemId) {
+        const inv = await RestaurantInventoryItem.findById(inventoryItemId);
+        if (!inv) throw new AppError('Kitchen inventory item not found', 404);
+        rate = rate ?? inv.rate;
+        name = name || inv.name;
       }
 
       rate = rate ?? 0;
@@ -54,9 +75,9 @@ class RestaurantService extends BaseService {
       subtotal += lineTotal;
 
       verifiedItems.push({
-        menuItemId: item.menuItemId || null,
+        menuItemId,
         productId: item.productId || null,
-        inventoryItemId: item.inventoryItemId || null,
+        inventoryItemId,
         name: name || 'ITEM',
         quantity: qty,
         rate,

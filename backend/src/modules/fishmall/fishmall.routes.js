@@ -21,6 +21,8 @@ import { broadcastEvent } from '../../sockets/socket.js';
 import { internalSupplyController } from '../internal-supply/internalSupply.controller.js';
 import { internalSupplyValidators } from '../../validators/internalSupply.validator.js';
 import { validateBody } from '../../validators/auth.validator.js';
+import { stockTransferService } from '../stock-transfer/stockTransfer.service.js';
+import { AppError } from '../../utils/appError.js';
 
 export const fishmallController = {
   create: asyncWrapper(async (req, res) => {
@@ -141,6 +143,25 @@ export const fishmallController = {
     const closing = await fishMallInventoryService.recordDailyClosing(req.body, req.user.id);
     new ApiResponse(201, closing, 'Daily closing recorded').send(res);
   }),
+
+  pendingTransfers: asyncWrapper(async (req, res) => {
+    const docs = await stockTransferService.listPendingForOutlet(req.fishMallOutletId);
+    new ApiResponse(200, docs, 'Pending procurement transfers for outlet').send(res);
+  }),
+
+  acceptTransfer: asyncWrapper(async (req, res) => {
+    const existing = await stockTransferService.getTransferById(req.params.id);
+    const destId = existing.destinationOutletId?._id || existing.destinationOutletId;
+    if (String(destId) !== String(req.fishMallOutletId)) {
+      throw new AppError('This transfer is not assigned to your Fish Mall outlet', 403);
+    }
+    const transfer = await stockTransferService.acceptTransfer(
+      req.params.id,
+      req.user.id,
+      req.body
+    );
+    new ApiResponse(200, { transfer }, `Transfer marked as ${transfer.status}`).send(res);
+  }),
 };
 
 const router = Router();
@@ -158,6 +179,8 @@ router.get('/inventory/logs', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fis
 router.get('/inventory/daily-pnl', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.dailyPnL);
 router.post('/inventory/closing', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.recordClosing);
 router.get('/inventory', ...web, restrictTo(...FISHMALL_ALL), fishmallController.listInventory);
+router.get('/transfers/pending', ...web, restrictTo(...FISHMALL_ALL), fishmallController.pendingTransfers);
+router.post('/transfers/:id/accept', ...web, restrictTo(...FISHMALL_ALL), fishmallController.acceptTransfer);
 router.post('/inventory', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.createInventoryItem);
 router.patch('/inventory/:id', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.updateInventoryItem);
 router.patch('/inventory/:id/adjust', ...web, restrictTo(...FISHMALL_MANAGER_ROLES), fishmallController.adjustInventory);

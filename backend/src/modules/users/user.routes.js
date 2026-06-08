@@ -17,6 +17,7 @@ router.get('/drivers', protect, enforcePlatformPolicy, restrictTo(...DISPATCH_RO
 
 router.use(...web);
 
+router.post('/sync-master', restrictTo(...WEB_ERP), userController.syncMaster);
 router.get('/all', restrictTo(...WEB_ERP), userController.all);
 router.put('/update/:id', restrictTo(...WEB_ERP), userController.update);
 router.delete('/:id', restrictTo(...WEB_ERP), userController.delete);

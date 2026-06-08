@@ -39,7 +39,18 @@ export const buyerPortalService = {
     apiClient.patch(`/buyer-portal/return/${id}/approve`, {}, buyerCfg()),
 
   adminListReturns: async (params = {}) =>
-    apiClient.get('/buyer-portal/admin/returns', { params, ...buyerCfg() }),
+    apiClient.get('/buyer-portal/admin/returns', { params }),
+
+  adminSalesOverview: async () => apiClient.get('/buyer-portal/admin/sales/overview'),
+
+  adminListBills: async (params = {}) =>
+    apiClient.get('/buyer-portal/admin/sales/bills', { params }),
+
+  adminSaleByTapal: async (tapalId) =>
+    apiClient.get(`/buyer-portal/admin/sales/tapal/${tapalId}`),
+
+  markBillPaid: async (billId, data) =>
+    apiClient.patch(`/buyer-portal/admin/bills/${billId}/mark-paid`, data),
 };
 
 export default buyerPortalService;

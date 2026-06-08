@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { normalizeRole, resolveClientPlatform } from '../constants/rbac';
+import {
+  detectClientPlatform,
+  normalizeRole,
+  PLATFORM_ACCESS,
+  resolveClientPlatform,
+  ROLES,
+} from '../constants/rbac';
 
 // Create a configured Axios instance
 export const apiClient = axios.create({
@@ -34,8 +40,16 @@ apiClient.interceptors.request.use(
     }
     const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
     const role = normalizeRole(useAuthStore.getState().user?.role);
-    const platform =
+    const webPath = detectClientPlatform(pathname) === PLATFORM_ACCESS.WEB;
+    let platform =
       config.headers['X-Client-Platform'] || resolveClientPlatform(pathname, role);
+
+    // Super admin on /admin web must not send MOBILE (backend blocks writes in "mobile view-only").
+    // Some legacy services hard-coded MOBILE for procurement flows used from admin ERP.
+    if (role === ROLES.SUPER_ADMIN && webPath) {
+      platform = PLATFORM_ACCESS.WEB;
+    }
+
     config.headers['X-Client-Platform'] = platform;
     return config;
   },
@@ -114,6 +128,7 @@ apiClient.interceptors.response.use(
       message: error.response?.data?.message || 'A network error occurred. Please try again.',
       status: error.response?.status || 500,
       data: error.response?.data?.data || null,
+      errors: error.response?.data?.errors || null,
     };
 
     return Promise.reject(formattedError);

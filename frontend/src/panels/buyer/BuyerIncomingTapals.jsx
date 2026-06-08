@@ -4,9 +4,14 @@ import { Package, CheckCircle2, FileText } from 'lucide-react';
 import { buyerPortalService } from '../../services/buyerPortalService';
 import { toast } from 'react-hot-toast';
 import { FieldPageWrap } from '../../design-system/field-app';
+import { useBuyerPaths } from './buyerPaths';
+
+const VERIFY_STATUSES = ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING'];
+const BILL_STATUSES = ['BUYER_VERIFIED'];
 
 const BuyerIncomingTapals = () => {
   const navigate = useNavigate();
+  const paths = useBuyerPaths();
   const [tapals, setTapals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [verifyId, setVerifyId] = useState(null);
@@ -15,12 +20,12 @@ const BuyerIncomingTapals = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await buyerPortalService.getAssignedTapals();
+      const res = await buyerPortalService.getAssignedTapals({ limit: 50 });
       const list = Array.isArray(res?.data) ? res.data : [];
-      const awaiting = list.filter((t) =>
-        ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING'].includes(t.status)
+      const actionable = list.filter(
+        (t) => VERIFY_STATUSES.includes(t.status) || BILL_STATUSES.includes(t.status)
       );
-      setTapals(awaiting);
+      setTapals(actionable);
     } catch (e) {
       toast.error(e?.message || 'Failed to load tapals');
     } finally {
@@ -46,7 +51,7 @@ const BuyerIncomingTapals = () => {
         },
         remarks: form.remarks,
       });
-      toast.success('Verification submitted');
+      toast.success('Verification submitted — you can generate a bill now');
       setVerifyId(null);
       load();
     } catch (e) {
@@ -57,27 +62,37 @@ const BuyerIncomingTapals = () => {
   return (
     <FieldPageWrap subtitle="Verify delivered tapals">
       <h1 className="text-lg font-bold">Incoming tapals</h1>
-      <p className="text-[11px] fa-muted mb-4">Verify shipments, then generate bills</p>
+      <p className="text-[11px] fa-muted mb-4">
+        Verify received quantity first, then generate a bill
+      </p>
 
       {loading ? (
         <p className="text-sm fa-muted py-8 text-center">Loading…</p>
       ) : tapals.length === 0 ? (
         <div className="text-center py-16 fa-surface">
           <Package size={40} className="text-[var(--fa-muted)] mx-auto mb-3" />
-          <p className="text-sm font-semibold fa-muted">No tapals awaiting verification</p>
+          <p className="text-sm font-semibold">No tapals need action</p>
+          <p className="text-[11px] fa-muted mt-2 px-4">
+            When the driver delivers or admin assigns a tapal, it will appear here
+          </p>
         </div>
       ) : (
         tapals.map((t) => {
           const id = t._id || t.id;
+          const canVerify = VERIFY_STATUSES.includes(t.status);
+          const canBill = BILL_STATUSES.includes(t.status);
+
           return (
-            <div key={id} className="fa-surface p-5 space-y-3">
+            <div key={id} className="fa-surface p-5 space-y-3 mb-3">
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[9px] font-bold bg-[var(--fa-accent-dim)] text-[var(--fa-accent)] px-2 py-0.5 rounded-lg">
                     {t.tpNo || t.tapalNumber}
                   </span>
-                  <h3 className="text-sm font-semibold mt-1">{t.partyName}</h3>
-                  <p className="text-[10px] fa-muted">{t.qty}</p>
+                  <h3 className="text-sm font-semibold mt-1">{t.partyName || 'Buyer load'}</h3>
+                  <p className="text-[10px] fa-muted">
+                    {t.numericQty ? `${t.numericQty} KG` : t.qty || '—'}
+                  </p>
                 </div>
                 <span className="text-[9px] font-bold text-[var(--fa-accent)] uppercase">{t.status}</span>
               </div>
@@ -131,27 +146,34 @@ const BuyerIncomingTapals = () => {
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVerifyId(id);
-                      setForm({
-                        receivedWeight: String(t.numericQty || ''),
-                        receivedBoxes: '',
-                        remarks: '',
-                      });
-                    }}
-                    className="flex-1 py-2.5 fa-btn-primary text-xs font-bold uppercase flex items-center justify-center gap-1 fa-tap"
-                  >
-                    <CheckCircle2 size={14} /> Verify
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/mobile/buyer/bill/${id}`)}
-                    className="flex-1 py-2.5 bg-[var(--fa-surface-elevated)] text-[var(--fa-text)] rounded-[var(--fa-radius-md)] text-xs font-bold uppercase flex items-center justify-center gap-1 fa-tap border border-[var(--fa-border)]"
-                  >
-                    <FileText size={14} /> Bill
-                  </button>
+                  {canVerify && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVerifyId(id);
+                        setForm({
+                          receivedWeight: String(t.numericQty || ''),
+                          receivedBoxes: String(t.products?.[0]?.boxQty || ''),
+                          remarks: '',
+                        });
+                      }}
+                      className="flex-1 py-2.5 fa-btn-primary text-xs font-bold uppercase flex items-center justify-center gap-1 fa-tap"
+                    >
+                      <CheckCircle2 size={14} /> Verify
+                    </button>
+                  )}
+                  {canBill && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(paths.bill(id))}
+                      className="flex-1 py-2.5 bg-[var(--fa-surface-elevated)] text-[var(--fa-text)] rounded-[var(--fa-radius-md)] text-xs font-bold uppercase flex items-center justify-center gap-1 fa-tap border border-[var(--fa-border)]"
+                    >
+                      <FileText size={14} /> Bill
+                    </button>
+                  )}
+                  {!canVerify && !canBill && (
+                    <p className="text-[10px] fa-muted">No action available for this tapal yet</p>
+                  )}
                 </div>
               )}
             </div>

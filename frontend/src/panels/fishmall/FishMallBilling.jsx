@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { Scale, Search, Calculator, X, Trash2, Printer, ChevronRight, QrCode, Receipt } from 'lucide-react';
+import { Scale, Search, Calculator, X, Trash2, Printer, QrCode, Receipt, Usb, Unplug, AlertCircle } from 'lucide-react';
 import { Button } from '../../design-system/components/Button';
 import { useFishMallStore } from '../../store/fishMallStore';
+import { useScaleReader } from '../../hooks/useScaleReader';
 
 const FishMallBilling = () => {
   const { stock, createSaleAsync, fetchStock, loading } = useFishMallStore();
+  const scale = useScaleReader();
   const [cart, setCart] = useState([]);
-  const [currentWeight, setCurrentWeight] = useState('0.00');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [manualEntry, setManualEntry] = useState(false);
 
   React.useEffect(() => {
     fetchStock();
@@ -28,24 +30,33 @@ const FishMallBilling = () => {
   );
 
   const addToCart = (fish) => {
-    const weight = parseFloat(currentWeight);
-    if (isNaN(weight) || weight <= 0) {
-      toast.error('Invalid weight');
+    const weight = scale.getBillingWeight();
+    if (Number.isNaN(weight) || weight <= 0) {
+      toast.error('Scale par weight nahi — machine check karein');
+      return;
+    }
+    if (!scale.stable && scale.connected && !manualEntry) {
+      toast.error('Weight abhi stable nahi — thoda ruken ya scale settle karein');
       return;
     }
     if (weight > fish.qty) {
-      toast.error(`Only ${fish.qty}kg available`);
+      toast.error(`Sirf ${fish.qty.toFixed(2)} kg available`);
       return;
     }
-    
-    setCart([...cart, { 
-      ...fish, 
-      weight, 
-      total: weight * fish.rate,
-      cartId: Date.now() 
-    }]);
-    setCurrentWeight('0.00');
-    toast.success(`${fish.name} added`, { duration: 800 });
+
+    setCart([
+      ...cart,
+      {
+        ...fish,
+        weight,
+        total: weight * fish.rate,
+        cartId: Date.now(),
+      },
+    ]);
+    scale.setManualWeight('');
+    scale.useLiveWeight();
+    setManualEntry(false);
+    toast.success(`${fish.name} — ${weight.toFixed(2)} kg added`, { duration: 800 });
   };
 
   const calculateSubtotal = () => cart.reduce((acc, i) => acc + i.total, 0);
@@ -109,34 +120,103 @@ const FishMallBilling = () => {
       {/* Product Selection Section */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden border-r border-gray-200">
         {/* Compact Terminal Header */}
-        <div className="p-3 bg-white border-b border-gray-200 flex items-stretch gap-3 shrink-0 z-10">
-          {/* Digital Scale Display - Compact */}
-          <div className="bg-black text-white px-4 py-2 flex items-center gap-4 rounded-xl shadow-lg border border-white/10 group">
-             <div>
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[7px] font-black uppercase tracking-widest text-white/40">Scale Sync</p>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-3xl font-black tracking-tighter text-[#E6E2C8] leading-none">{currentWeight || '0.00'}</h2>
-                  <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">KG</span>
-                </div>
-             </div>
-             <Scale className="text-white/5 group-hover:text-white/10 transition-colors" size={24} />
+        <div className="p-3 bg-white border-b border-gray-200 flex items-stretch gap-3 shrink-0 z-10 flex-wrap">
+          <div
+            className={`text-white px-4 py-2 flex items-center gap-4 rounded-xl shadow-lg border group min-w-[140px] ${
+              scale.connected ? 'bg-black border-white/10' : 'bg-gray-900 border-amber-500/30'
+            }`}
+          >
+            <div>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    scale.connected && scale.stable
+                      ? 'bg-emerald-500 animate-pulse'
+                      : scale.connected
+                        ? 'bg-amber-400 animate-pulse'
+                        : 'bg-rose-500'
+                  }`}
+                />
+                <p className="text-[7px] font-black uppercase tracking-widest text-white/40">
+                  {scale.connected ? `Scale ${scale.mode}` : 'Scale offline'}
+                </p>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-3xl font-black tracking-tighter text-[#E6E2C8] leading-none">
+                  {scale.weightDisplay}
+                </h2>
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">KG</span>
+              </div>
+              {scale.connected && !scale.stable && (
+                <p className="text-[6px] font-bold text-amber-300 uppercase mt-0.5">Unstable</p>
+              )}
+            </div>
+            <Scale className="text-white/5 group-hover:text-white/10 transition-colors" size={24} />
           </div>
 
-          <div className="flex-1 flex gap-2">
+          <div className="flex items-center gap-1.5">
+            {scale.isSerialSupported && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-full text-[8px] font-black uppercase px-3 gap-1"
+                onClick={async () => {
+                  const ok = await scale.connectSerial();
+                  if (ok) toast.success('Weighing machine connected');
+                }}
+              >
+                <Usb size={12} /> Connect
+              </Button>
+            )}
+            {scale.connected && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-full text-[8px] font-black uppercase px-2 text-rose-500"
+                onClick={() => scale.disconnect()}
+              >
+                <Unplug size={12} />
+              </Button>
+            )}
+          </div>
+
+          <div className="flex-1 flex gap-2 min-w-[200px]">
             <div className="flex-1 relative group">
               <Calculator className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#6B7550] transition-colors" size={12} />
-              <input 
-                type="number" 
+              <input
+                type="number"
                 step="0.01"
-                value={currentWeight === '0.00' ? '' : currentWeight}
-                placeholder="ENTER WEIGHT..."
-                className="w-full h-full bg-gray-50 border border-gray-200 pl-9 pr-3 text-[10px] font-black uppercase tracking-widest focus:bg-white focus:border-[#6B7550] outline-none transition-all rounded-xl"
-                onChange={(e) => setCurrentWeight(e.target.value)}
+                value={manualEntry ? scale.weightDisplay : scale.weightDisplay === '0.00' ? '' : scale.weightDisplay}
+                placeholder={scale.connected ? 'LIVE FROM SCALE' : 'MANUAL WEIGHT...'}
+                readOnly={scale.connected && !manualEntry}
+                className={`w-full h-full border pl-9 pr-3 text-[10px] font-black uppercase tracking-widest outline-none transition-all rounded-xl ${
+                  scale.connected && !manualEntry
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900 cursor-default'
+                    : 'bg-gray-50 border-gray-200 focus:bg-white focus:border-[#6B7550]'
+                }`}
+                onChange={(e) => {
+                  setManualEntry(true);
+                  scale.setManualWeight(e.target.value);
+                }}
+                onFocus={() => {
+                  if (scale.connected) setManualEntry(true);
+                }}
               />
             </div>
+            {scale.connected && (
+              <button
+                type="button"
+                onClick={() => {
+                  setManualEntry(false);
+                  scale.useLiveWeight();
+                }}
+                className="px-2 text-[7px] font-black uppercase text-[#6B7550] border border-[#6B7550]/30 rounded-lg hover:bg-[#6B7550]/5"
+              >
+                Live
+              </button>
+            )}
             <div className="flex-1 relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#6B7550] transition-colors" size={12} />
               <input 
@@ -148,6 +228,13 @@ const FishMallBilling = () => {
               />
             </div>
           </div>
+
+          {scale.error && (
+            <div className="w-full flex items-center gap-2 text-[8px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5">
+              <AlertCircle size={12} />
+              {scale.error}
+            </div>
+          )}
         </div>
 
         {/* Product Grid - High Density */}

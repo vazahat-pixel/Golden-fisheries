@@ -61,6 +61,55 @@ class HarvestService extends BaseService {
     return await this.findMany(filter, { page, limit }, 'farmerId');
   }
 
+  _harvestQuantities(harvest) {
+    const totalEstWeight = harvest.products.reduce((sum, item) => sum + (item.estimatedQty || 0), 0);
+    const availableQty = harvest.availableQty || totalEstWeight || 1;
+    const remainingQty = availableQty - (harvest.allocatedQty || 0);
+    return { totalEstWeight, availableQty, remainingQty };
+  }
+
+  _productRemaining(harvest, item, availableQty, remainingQty) {
+    if ((item.usedQty || 0) > 0) {
+      return Math.max(0, (item.estimatedQty || 0) - item.usedQty);
+    }
+    return availableQty > 0 ? (item.estimatedQty || 0) * (remainingQty / availableQty) : 0;
+  }
+
+  async _resolveItemRate(item, session) {
+    let activeRate = parseFloat(item.rate);
+    if (isNaN(activeRate) || activeRate === null) {
+      const product = await Product.findById(item.productId).session(session);
+      activeRate = product ? (product.basePrice || 0) : 0;
+    }
+    return activeRate;
+  }
+
+  _mergeIntoProductMap(productMap, item, qty, activeRate) {
+    // Key by fish name so PRAWNS / SEABASS stay separate even if productId was duplicated on harvest slip
+    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}`;
+    const boxRatio = (item.estimatedQty || 0) > 0 ? qty / item.estimatedQty : 0;
+    const scaledBoxes = (item.boxCount || 0) * boxRatio;
+    const lineTotal = qty * activeRate;
+
+    if (!productMap[key]) {
+      productMap[key] = {
+        productId: item.productId,
+        fishName: item.fishName,
+        hsnCode: item.hsnCode,
+        numericQty: 0,
+        boxQty: 0,
+        rate: activeRate,
+        weightPerBox: item.weightPerBox || null,
+        qualityType: item.qualityType || 'Mix',
+        totalAmount: 0,
+      };
+    }
+
+    productMap[key].numericQty += qty;
+    productMap[key].boxQty += scaledBoxes;
+    productMap[key].totalAmount += lineTotal;
+  }
+
   /**
    * Safe transaction-controlled conversion from Harvest Slip to Purchase Tapal contract.
    * Leverages MongoDB Multi-Document ACID Transactions to guarantee data integrity.
@@ -98,58 +147,98 @@ class HarvestService extends BaseService {
       // 3. Process allocations one by one
       for (const allocation of allocations) {
         const harvest = harvests.find(h => String(h._id) === String(allocation.harvestId));
-        const allocatedQty = parseFloat(allocation.allocatedQty) || 0;
+        const { availableQty, remainingQty } = this._harvestQuantities(harvest);
+        const hasProductBreakdown =
+          Array.isArray(allocation.products) && allocation.products.length > 0;
+        let allocatedQty = 0;
 
-        if (allocatedQty <= 0) {
-          throw new AppError(`Allocated quantity must be greater than zero for Harvest ${harvest.harvestNumber}`, 400);
-        }
+        if (hasProductBreakdown) {
+          for (const prodAlloc of allocation.products) {
+            const qty = parseFloat(prodAlloc.allocatedQty) || 0;
+            if (qty <= 0) continue;
 
-        // Calculate available and remaining quantities
-        const totalEstWeight = harvest.products.reduce((sum, item) => sum + (item.estimatedQty || 0), 0);
-        const availableQty = harvest.availableQty || totalEstWeight || 1;
-        const remainingQty = availableQty - harvest.allocatedQty;
+            let item = null;
+            if (prodAlloc.lineItemId) {
+              item = harvest.products.find(
+                (p) => String(p._id) === String(prodAlloc.lineItemId)
+              );
+            }
+            if (!item) {
+              item = harvest.products.find(
+                (p) =>
+                  (prodAlloc.productId && String(p.productId) === String(prodAlloc.productId)) ||
+                  (prodAlloc.fishName &&
+                    p.fishName?.toUpperCase() === String(prodAlloc.fishName).toUpperCase())
+              );
+            }
+            if (!item) {
+              throw new AppError(
+                `Product not found on Harvest ${harvest.harvestNumber}`,
+                400
+              );
+            }
 
-        if (allocatedQty > remainingQty + 0.001) { // slight floating-point margin
-          throw new AppError(`Cannot allocate ${allocatedQty} KG from Harvest ${harvest.harvestNumber}. Only ${remainingQty.toFixed(2)} KG remaining.`, 400);
-        }
+            const productRemaining = this._productRemaining(
+              harvest,
+              item,
+              availableQty,
+              remainingQty
+            );
+            if (qty > productRemaining + 0.001) {
+              throw new AppError(
+                `Cannot allocate ${qty} KG of ${item.fishName} from Harvest ${harvest.harvestNumber}. Only ${productRemaining.toFixed(2)} KG remaining for this item.`,
+                400
+              );
+            }
 
-        const scaleFactor = allocatedQty / availableQty;
-
-        for (const item of harvest.products) {
-          let activeRate = parseFloat(item.rate);
-          if (isNaN(activeRate) || activeRate === null) {
-            const product = await Product.findById(item.productId).session(session);
-            activeRate = product ? (product.basePrice || 0) : 0;
+            const activeRate = await this._resolveItemRate(item, session);
+            this._mergeIntoProductMap(productMap, item, qty, activeRate);
+            item.usedQty = (item.usedQty || 0) + qty;
+            allocatedQty += qty;
           }
 
-          const scaledQty = (item.estimatedQty || 0) * scaleFactor;
-          const scaledBoxes = (item.boxCount || 0) * scaleFactor;
-          const lineTotal = scaledQty * activeRate;
+          if (allocatedQty <= 0) {
+            throw new AppError(
+              `No product quantities allocated for Harvest ${harvest.harvestNumber}`,
+              400
+            );
+          }
+          if (allocatedQty > remainingQty + 0.001) {
+            throw new AppError(
+              `Cannot allocate ${allocatedQty} KG from Harvest ${harvest.harvestNumber}. Only ${remainingQty.toFixed(2)} KG remaining.`,
+              400
+            );
+          }
+        } else {
+          allocatedQty = parseFloat(allocation.allocatedQty) || 0;
 
-          const key = String(item.productId);
-          if (!productMap[key]) {
-            productMap[key] = {
-              productId: item.productId,
-              fishName: item.fishName,
-              hsnCode: item.hsnCode,
-              numericQty: 0,
-              boxQty: 0,
-              rate: activeRate,
-              weightPerBox: item.weightPerBox || null,
-              qualityType: item.qualityType || 'Mix',
-              totalAmount: 0
-            };
+          if (allocatedQty <= 0) {
+            throw new AppError(
+              `Allocated quantity must be greater than zero for Harvest ${harvest.harvestNumber}`,
+              400
+            );
           }
 
-          productMap[key].numericQty += scaledQty;
-          productMap[key].boxQty += scaledBoxes;
-          productMap[key].totalAmount += lineTotal;
+          if (allocatedQty > remainingQty + 0.001) {
+            throw new AppError(
+              `Cannot allocate ${allocatedQty} KG from Harvest ${harvest.harvestNumber}. Only ${remainingQty.toFixed(2)} KG remaining.`,
+              400
+            );
+          }
+
+          const scaleFactor = allocatedQty / availableQty;
+
+          for (const item of harvest.products) {
+            const activeRate = await this._resolveItemRate(item, session);
+            const scaledQty = (item.estimatedQty || 0) * scaleFactor;
+            this._mergeIntoProductMap(productMap, item, scaledQty, activeRate);
+            item.usedQty = (item.usedQty || 0) + scaledQty;
+          }
         }
 
         totalQty += allocatedQty;
-
-        // Update allocatedQty in Harvest document
         harvest.allocatedQty += allocatedQty;
+        allocation.allocatedQty = allocatedQty;
         await harvest.save({ session });
       }
 

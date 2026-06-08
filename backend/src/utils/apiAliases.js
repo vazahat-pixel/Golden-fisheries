@@ -38,14 +38,21 @@ export function aliasTripResponse(tr) {
 
     const products = Array.isArray(tapal.products) ? tapal.products : [];
     if (products.length) {
+      const parseLineKg = (p) => {
+        const tw = Number(p.totalWeight);
+        if (Number.isFinite(tw) && tw > 0) return tw;
+        const nq = Number(p.numericQty);
+        if (Number.isFinite(nq) && nq > 0) return nq;
+        const parsed = parseFloat(String(p.qty || '').replace(/[^\d.]/g, ''));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+      };
       const boxes = products.reduce((s, p) => s + (Number(p.boxQty) || 0), 0);
-      const lineWeight = products.reduce(
-        (s, p) => s + (Number(p.totalWeight) || Number(p.numericQty) || 0),
-        0
-      );
+      const lineWeight = products.reduce((s, p) => s + parseLineKg(p), 0);
       if (boxes > 0) o.expectedBoxes = boxes;
-      if (lineWeight > 0 && (o.expectedQty == null || o.expectedQty === 0)) {
+      if (lineWeight > 0) {
         o.expectedQty = lineWeight;
+      } else if (o.expectedQty == null && tapal.numericQty != null) {
+        o.expectedQty = tapal.numericQty;
       }
     }
   }

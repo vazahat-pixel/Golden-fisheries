@@ -40,4 +40,32 @@ router.get(
   buyerPortalController.adminReturns
 );
 
+router.get(
+  '/admin/sales/overview',
+  ...web,
+  restrictTo(...WEB_ERP),
+  buyerPortalController.adminSalesOverview
+);
+
+router.get(
+  '/admin/sales/bills',
+  ...web,
+  restrictTo(...WEB_ERP),
+  buyerPortalController.adminListBills
+);
+
+router.get(
+  '/admin/sales/tapal/:tapalId',
+  ...web,
+  restrictTo(...WEB_ERP),
+  buyerPortalController.adminSaleByTapal
+);
+
+router.patch(
+  '/admin/bills/:id/mark-paid',
+  ...web,
+  restrictTo(...WEB_ERP),
+  buyerPortalController.markBillPaid
+);
+
 export default router;

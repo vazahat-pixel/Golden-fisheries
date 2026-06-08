@@ -161,6 +161,12 @@ class StockTransferService {
         outletName: destinationOutlet.name,
         outletCode: destinationOutlet.outletCode,
         lineCount: transfer.lines.length,
+        lines: transfer.lines.map((l) => ({
+          productId: l.productId,
+          productName: l.productName,
+          quantity: l.quantity,
+          unit: l.unit || 'KG',
+        })),
         status: 'IN_TRANSIT',
         createdAt: transfer.createdAt,
       };
@@ -203,8 +209,11 @@ class StockTransferService {
     try {
       const transfer = await StockTransfer.findById(transferId).session(session);
       if (!transfer) throw new AppError('Stock transfer not found', 404);
-      if (!['IN_TRANSIT', 'PENDING_ACCEPTANCE', 'PENDING_APPROVAL'].includes(transfer.status)) {
-        throw new AppError(`Cannot accept transfer with status: ${transfer.status}`, 400);
+      if (!['IN_TRANSIT', 'PENDING_ACCEPTANCE'].includes(transfer.status)) {
+        throw new AppError(
+          `Cannot accept transfer with status: ${transfer.status}. Wait for admin dispatch (IN_TRANSIT).`,
+          400
+        );
       }
 
       const receiverUser = await User.findById(userId).session(session);
@@ -413,6 +422,20 @@ class StockTransferService {
       .populate('destinationOutletId', 'name outletCode location phone');
     if (!transfer) throw new AppError('Stock transfer not found', 404);
     return transfer;
+  }
+
+  /** Fish Mall: transfers awaiting receive/accept at this outlet */
+  async listPendingForOutlet(outletId) {
+    const docs = await StockTransfer.find({
+      destinationOutletId: outletId,
+      toScope: 'FISHMALL',
+      status: { $in: ['IN_TRANSIT', 'PENDING_ACCEPTANCE'] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('createdBy', 'fullName phone')
+      .populate('destinationOutletId', 'name outletCode location');
+    return docs;
   }
 }
 

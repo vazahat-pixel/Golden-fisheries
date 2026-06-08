@@ -11,6 +11,16 @@ import { mapsService } from '../../services/mapsService';
 import { FieldPageWrap } from '../../design-system/field-app';
 import { useSystemSettingsStore } from '../../store/systemSettingsStore';
 
+/** Parse KG from tapal line (totalWeight, numericQty, or "20.00 KG" string). */
+function parseTapalLineKg(p) {
+  const tw = Number(p?.totalWeight);
+  if (Number.isFinite(tw) && tw > 0) return tw;
+  const nq = Number(p?.numericQty);
+  if (Number.isFinite(nq) && nq > 0) return nq;
+  const fromQty = parseFloat(String(p?.qty || '').replace(/[^\d.]/g, ''));
+  return Number.isFinite(fromQty) && fromQty > 0 ? fromQty : 0;
+}
+
 /** Cargo totals from linked purchase tapal (driver should confirm, not re-enter). */
 function getTapalCargoSummary(trip) {
   if (!trip) return { boxes: 0, weightKg: 0, tapalNumber: '—', partyName: '', productLines: [] };
@@ -21,29 +31,36 @@ function getTapalCargoSummary(trip) {
         ? trip.tapal
         : null;
   const products = tapal?.products || [];
-  const boxesFromTapal = products.reduce((s, p) => s + (Number(p.boxQty) || 0), 0);
-  const weightFromLines = products.reduce(
-    (s, p) => s + (Number(p.totalWeight) || Number(p.numericQty) || 0),
-    0
-  );
+
+  const productLines = products
+    .map((p) => {
+      const weightKg = parseTapalLineKg(p);
+      return {
+        name: p.name,
+        boxes: Number(p.boxQty) || 0,
+        weightKg,
+        weightLabel: weightKg ? `${weightKg} kg` : p.qty || '',
+      };
+    })
+    .filter((line) => line.weightKg > 0 || line.name);
+
+  const boxesFromTapal = productLines.reduce((s, line) => s + line.boxes, 0);
+  const weightFromLines = productLines.reduce((s, line) => s + line.weightKg, 0);
+
   const weightKg =
-    Number(trip.expectedQty) ||
-    Number(tapal?.numericQty) ||
     weightFromLines ||
+    Number(tapal?.numericQty) ||
+    Number(trip.expectedQty) ||
     parseFloat(String(tapal?.qty || trip.qty || '').replace(/[^\d.]/g, '')) ||
     0;
 
   return {
     tapalNumber: tapal?.tapalNumber || trip.tapalNumber || '—',
     partyName: tapal?.partyName || trip.partyName || '',
-    boxes: trip.expectedBoxes ?? boxesFromTapal ?? 0,
+    boxes: boxesFromTapal || Number(trip.expectedBoxes) || 0,
     weightKg,
     qtyLabel: tapal?.qty || trip.qty || (weightKg ? `${weightKg} KG` : '—'),
-    productLines: products.map((p) => ({
-      name: p.name,
-      boxes: p.boxQty,
-      weight: p.totalWeight || p.qty,
-    })),
+    productLines,
   };
 }
 
@@ -218,7 +235,8 @@ const ActiveTrip = () => {
       await deliverAsync(trip, qty, proofPhotoData, finalSignatureData);
       await fetchMyTrips();
       setShowDeliveryModal(false);
-      toast.success('Trip successfully completed! Great job.', { id: loadToast });
+      toast.success('Delivery confirmed — submit End Trip Sheet for admin payment', { id: loadToast });
+      navigate(`/driver/trip-expense/${trip._id || trip.id}`);
     } catch (err) {
       console.error('[ActiveTrip] deliver error:', err);
       toast.error(err?.message || 'Failed to complete delivery', { id: loadToast });
@@ -365,7 +383,7 @@ const ActiveTrip = () => {
             <button
               type="button"
               onClick={handleStartTrip}
-              className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+              className="w-full py-2.5 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all"
             >
               <Navigation size={14} className="animate-pulse" /> Start Trip
             </button>
@@ -375,7 +393,7 @@ const ActiveTrip = () => {
             <button
               type="button"
               onClick={handleOpenPickup}
-              className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+              className="w-full py-2.5 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all"
             >
               <PackageCheck size={14} /> Log Pickup Weight
             </button>
@@ -385,7 +403,7 @@ const ActiveTrip = () => {
             <button
               type="button"
               onClick={handleOpenDelivery}
-              className="w-full py-4 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+              className="w-full py-2.5 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all"
             >
               <CheckCircle2 size={14} /> Confirm Delivery
             </button>
@@ -395,14 +413,14 @@ const ActiveTrip = () => {
             <button
               type="button"
               onClick={() => navigate(`/driver/trip-expense/${trip._id || trip.id}`)}
-              className="w-full py-4 bg-[#6A7051] text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-[#6A7051] text-white rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2"
             >
               <CheckCircle2 size={14} /> End Trip Sheet
             </button>
           )}
 
           {status === 'CLOSED' && (
-            <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+            <div className="w-full py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2">
               <CheckCircle2 size={14} /> Trip Closed
             </div>
           )}
@@ -464,7 +482,7 @@ const ActiveTrip = () => {
                       <li key={i}>
                         {line.name}
                         {line.boxes ? ` · ${line.boxes} boxes` : ''}
-                        {line.weight ? ` · ${line.weight}` : ''}
+                        {line.weightKg ? ` · ${line.weightKg} kg` : line.weightLabel ? ` · ${line.weightLabel}` : ''}
                       </li>
                     ))}
                   </ul>

@@ -1,9 +1,14 @@
 import { apiClient } from './apiClient';
 
 export const expenseService = {
-  // 1. Fetch all Expenses
+  // Admin — all expenses (web ERP only)
   all: async (params = {}) => {
     return await apiClient.get('/expenses/all', { params });
+  },
+
+  // Driver — own expenses (mobile app)
+  my: async (params = {}) => {
+    return await apiClient.get('/expenses/my', { params });
   },
 
   // 2. Create/Submit Expense

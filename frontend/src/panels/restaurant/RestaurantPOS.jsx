@@ -58,9 +58,12 @@ const RestaurantPOS = () => {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const addToCart = (item) => {
-    const menuId = item.menuItemId || item._id || item.id;
-    const cartKey = String(menuId || item.name);
-    const existing = cart.find((i) => String(i.id) === cartKey || i.name === item.name);
+    const menuId = item.menuItemId || null;
+    const invId = item.inventoryItemId || (item.isKitchenSku ? item.id : null);
+    const cartKey = menuId || invId || item.name;
+    const existing = cart.find(
+      (i) => i.id === cartKey || (i.name === item.name && i.menuItemId === menuId)
+    );
     if (existing) {
       setCart(cart.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + 1 } : i)));
     } else {
@@ -70,6 +73,8 @@ const RestaurantPOS = () => {
           ...item,
           id: cartKey,
           menuItemId: menuId,
+          inventoryItemId: invId,
+          isKitchenSku: item.isKitchenSku ?? (!menuId && !!invId),
           qty: 1,
           notes: '',
         },
@@ -108,6 +113,8 @@ const RestaurantPOS = () => {
     const total = calculateSubtotal() + calculateTax() - calculateDiscount();
     return Math.round(total);
   };
+
+  const fmtRupee = (n) => Number(n ?? 0).toLocaleString('en-IN');
 
   const handleSendToKitchen = async () => {
     if (cart.length === 0) return;
@@ -155,8 +162,9 @@ const RestaurantPOS = () => {
       tableLabel: tableLabel || 'COUNTER',
       orderType,
       items: cart.map((item) => ({
-        menuItemId: item.menuItemId || item.id,
-        inventoryItemId: item.inventoryItemId,
+        menuItemId: item.menuItemId || undefined,
+        inventoryItemId: item.inventoryItemId || undefined,
+        isKitchenSku: item.isKitchenSku,
         name: item.name,
         quantity: item.qty,
         rate: item.price,
@@ -180,10 +188,18 @@ const RestaurantPOS = () => {
       const settled = res?.data?.order ?? res?.order;
       setLastOrder({
         ...orderData,
+        items: cart.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price ?? item.rate ?? 0,
+          qty: item.qty ?? item.quantity ?? 1,
+        })),
         invoiceNo: settled?.orderNumber || res?.orderNumber || `ORD-${Date.now()}`,
-        total: settled?.totalAmount ?? orderData.total,
-        subtotal: settled?.subtotal ?? orderData.subtotal,
-        gstAmount: (settled?.cgst || 0) + (settled?.sgst || 0) || orderData.gstAmount,
+        total: settled?.totalAmount ?? orderData.total ?? 0,
+        subtotal: settled?.subtotal ?? orderData.subtotal ?? 0,
+        gstAmount:
+          (settled?.cgst ?? 0) + (settled?.sgst ?? 0) || orderData.gstAmount ?? 0,
+        discount: orderData.discount ?? orderData.discountAmount ?? 0,
         timestamp: new Date().toISOString(),
       });
       setShowInvoice(true);
@@ -357,11 +373,11 @@ const RestaurantPOS = () => {
           <div className="flex flex-col gap-1.5 mb-2">
              <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <span>Gross Payload</span>
-                <span>₹{calculateSubtotal().toLocaleString()}</span>
+                <span>₹{fmtRupee(calculateSubtotal())}</span>
              </div>
              <div className="flex justify-between text-lg font-serif italic font-black text-slate-900 tracking-tight border-t border-slate-200 pt-2">
                 <span>TOTAL COST</span>
-                <span className="text-accent-olive">₹{calculateTotal().toLocaleString()}</span>
+                <span className="text-accent-olive">₹{fmtRupee(calculateTotal())}</span>
              </div>
           </div>
           <div className="flex gap-2">
@@ -450,21 +466,21 @@ const RestaurantPOS = () => {
               <div className="flex-1 space-y-3">
                 <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                   <span>Subtotal</span>
-                  <span>₹{calculateSubtotal().toLocaleString()}</span>
+                  <span>₹{fmtRupee(calculateSubtotal())}</span>
                 </div>
                 <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                   <span>Tax (GST 5%)</span>
-                  <span>₹{calculateTax().toLocaleString()}</span>
+                  <span>₹{fmtRupee(calculateTax())}</span>
                 </div>
                 {calculateDiscount() > 0 && (
                   <div className="flex justify-between text-[10px] font-black text-red-600 uppercase tracking-widest">
                     <span>Deduction</span>
-                    <span>-₹{calculateDiscount().toLocaleString()}</span>
+                    <span>-₹{fmtRupee(calculateDiscount())}</span>
                   </div>
                 )}
                 <div className="pt-6 border-t border-slate-200 flex flex-col gap-1">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payable Net</span>
-                  <p className="text-4xl font-serif italic font-black text-slate-900">₹{calculateTotal().toLocaleString()}</p>
+                  <p className="text-4xl font-serif italic font-black text-slate-900">₹{fmtRupee(calculateTotal())}</p>
                 </div>
               </div>
 
@@ -529,37 +545,41 @@ const RestaurantPOS = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {lastOrder.items.map((item) => (
-                  <tr key={item.id}>
+                {lastOrder.items.map((item) => {
+                  const unit = item.price ?? item.rate ?? 0;
+                  const qty = item.qty ?? item.quantity ?? 1;
+                  return (
+                  <tr key={item.id || item.name}>
                     <td className="py-3">
                       <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight italic font-serif">{item.name}</p>
-                      <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">UNIT: ₹{item.price.toLocaleString()}</p>
+                      <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">UNIT: ₹{fmtRupee(unit)}</p>
                     </td>
-                    <td className="py-3 text-center text-[10px] font-black font-serif italic">{item.qty}</td>
-                    <td className="py-3 text-right text-[10px] font-black italic font-serif text-accent-olive">₹{(item.price * item.qty).toLocaleString()}</td>
+                    <td className="py-3 text-center text-[10px] font-black font-serif italic">{qty}</td>
+                    <td className="py-3 text-right text-[10px] font-black italic font-serif text-accent-olive">₹{fmtRupee(unit * qty)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
 
             <div className="space-y-2 pt-5 border-t border-slate-200">
               <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
                 <span>Subtotal</span>
-                <span>₹{lastOrder.subtotal.toLocaleString()}</span>
+                <span>₹{fmtRupee(lastOrder.subtotal)}</span>
               </div>
               <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
                 <span>Tax (GST 5%)</span>
-                <span>₹{lastOrder.gstAmount.toLocaleString()}</span>
+                <span>₹{fmtRupee(lastOrder.gstAmount)}</span>
               </div>
-              {lastOrder.discount > 0 && (
+              {(lastOrder.discount ?? 0) > 0 && (
                 <div className="flex justify-between text-[9px] font-black text-red-500 uppercase tracking-widest">
                   <span>Deductions</span>
-                  <span>-₹{lastOrder.discount.toLocaleString()}</span>
+                  <span>-₹{fmtRupee(lastOrder.discount)}</span>
                 </div>
               )}
               <div className="pt-5 flex flex-col gap-1 border-t border-slate-200">
                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Total Settle</span>
-                <p className="text-4xl font-serif italic font-black text-slate-900">₹{lastOrder.total.toLocaleString()}</p>
+                <p className="text-4xl font-serif italic font-black text-slate-900">₹{fmtRupee(lastOrder.total)}</p>
               </div>
             </div>
 

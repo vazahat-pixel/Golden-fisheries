@@ -43,6 +43,7 @@ export const ADMIN_NAV_ITEMS = [
   { icon: Wallet, label: 'Finance / P&L', path: '/admin/finance', module: 'finance' },
   { icon: ReceiptText, label: 'Billing', path: '/admin/billing', module: 'billing' },
   { icon: ShoppingCart, label: 'Return Approval', path: '/admin/sales-approval', module: 'tapals' },
+  { icon: ReceiptText, label: 'Buyer Sales', path: '/admin/buyer-sales', module: 'tapals' },
   { icon: Package, label: 'Inventory', path: '/admin/inventory', module: 'inventory' },
   {
     icon: ArrowRightLeft,

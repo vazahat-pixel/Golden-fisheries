@@ -75,4 +75,24 @@ export const buyerPortalController = {
     const result = await buyerPortalService.listAllReturnsAdmin(req.query);
     new ApiResponse(200, result.docs, 'All sales returns', result.meta).send(res);
   }),
+
+  adminSalesOverview: asyncWrapper(async (req, res) => {
+    const data = await buyerPortalService.getAdminSalesOverview();
+    new ApiResponse(200, data, 'Buyer sales overview').send(res);
+  }),
+
+  adminListBills: asyncWrapper(async (req, res) => {
+    const result = await buyerPortalService.listAllBillsAdmin(req.query);
+    new ApiResponse(200, result.docs, 'All buyer bills', result.meta).send(res);
+  }),
+
+  adminSaleByTapal: asyncWrapper(async (req, res) => {
+    const data = await buyerPortalService.getAdminSaleByTapal(req.params.tapalId);
+    new ApiResponse(200, data, 'Buyer sale for tapal').send(res);
+  }),
+
+  markBillPaid: asyncWrapper(async (req, res) => {
+    const bill = await buyerPortalService.markBillPaid(req.params.id, req.user, req.body);
+    new ApiResponse(200, { bill }, 'Buyer bill marked as paid').send(res);
+  }),
 };

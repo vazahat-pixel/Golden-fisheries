@@ -112,7 +112,9 @@ const ErpWebLogin = () => {
         />
 
         <p className="text-[11px] text-white/45 mb-5 leading-relaxed">
-          Use the mobile number and password shared by your administrator. Modules shown match your assigned role.
+          Seeded admin: phone{' '}
+          <span className="text-brand-yellow font-bold">9076062592</span> · password{' '}
+          <span className="text-brand-yellow font-bold">admin_password_123</span>
         </p>
 
         <AuthButton type="submit" disabled={loading}>

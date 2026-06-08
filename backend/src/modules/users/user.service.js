@@ -3,6 +3,9 @@ import { User } from './user.model.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { AppError } from '../../utils/appError.js';
+import { ROLES } from '../../constants/roles.js';
+import { syncUserMasterRecords, syncAllBuyerUsersToMaster } from '../../services/userMasterSync.service.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Service Layer dealing with core User data operations.
@@ -63,6 +66,9 @@ class UserService extends BaseService {
       user.password = payload.password;
     }
     await user.save();
+    await syncUserMasterRecords(user).catch((err) => {
+      logger.warn(`[User Service]: Master sync after update failed: ${err.message}`);
+    });
     return user;
   }
 }
@@ -71,10 +77,19 @@ export const userService = new UserService();
 
 export const userController = {
   drivers: asyncWrapper(async (req, res) => {
-    const drivers = await User.find({ role: 'DRIVER', isActive: true })
+    const drivers = await User.find({
+      role: ROLES.DRIVER,
+      isActive: true,
+      status: { $ne: 'revoked' },
+    })
       .select('fullName phone _id role isActive status')
       .sort({ fullName: 1 });
     new ApiResponse(200, drivers, 'Active drivers fetched successfully').send(res);
+  }),
+
+  syncMaster: asyncWrapper(async (req, res) => {
+    const result = await syncAllBuyerUsersToMaster();
+    new ApiResponse(200, result, 'User → master data sync completed').send(res);
   }),
 
   all: asyncWrapper(async (req, res) => {

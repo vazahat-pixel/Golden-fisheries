@@ -11,7 +11,7 @@ export function FieldScreen({
 }) {
   return (
     <div
-      className={`fa-stagger pb-4 ${fill ? 'fa-page-fill' : 'space-y-5'} ${className}`}
+      className={`fa-stagger pb-3 ${fill ? 'fa-page-fill' : 'space-y-3'} ${className}`}
     >
       <FieldHeader userName={userName} subtitle={subtitle} notifyHref={notifyHref} />
       {fill ? <div className="fa-page-body-grow">{children}</div> : children}

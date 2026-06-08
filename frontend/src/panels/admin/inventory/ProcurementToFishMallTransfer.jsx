@@ -166,7 +166,6 @@ const ProcurementToFishMallTransfer = () => {
         destinationOutletId,
         lines: payloadLines,
         notes: notes || undefined,
-        status: 'CREATED',
       });
       const transfer = res?.data?.transfer ?? res?.data?.data?.transfer;
       toast.success(
@@ -180,7 +179,8 @@ const ProcurementToFishMallTransfer = () => {
       loadTransfers();
       loadProducts();
     } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to create transfer');
+      const detail = err?.errors?.[0]?.message;
+      toast.error(detail || err?.message || 'Failed to create transfer');
     } finally {
       setSubmitting(false);
     }

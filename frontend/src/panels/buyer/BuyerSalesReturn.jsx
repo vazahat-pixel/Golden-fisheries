@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { buyerPortalService } from '../../services/buyerPortalService';
 import { toast } from 'react-hot-toast';
+import { FieldPageWrap } from '../../design-system/field-app';
 
 const BuyerSalesReturn = () => {
   const [bills, setBills] = useState([]);
@@ -12,6 +13,7 @@ const BuyerSalesReturn = () => {
   const [damageReason, setDamageReason] = useState('');
   const [returnAmount, setReturnAmount] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     buyerPortalService
@@ -20,7 +22,8 @@ const BuyerSalesReturn = () => {
         const list = res?.data || (Array.isArray(res) ? res : []);
         setBills(list);
       })
-      .catch(() => toast.error('Failed to load bills'));
+      .catch(() => toast.error('Failed to load bills'))
+      .finally(() => setLoading(false));
   }, []);
 
   const submit = async (e) => {
@@ -49,11 +52,6 @@ const BuyerSalesReturn = () => {
         ],
       });
       toast.success('Return request submitted');
-      const res = await buyerPortalService.listReturns();
-      const list = res?.data || (Array.isArray(res) ? res : []);
-      if (list.length) {
-        /* listReturns available for future UI */
-      }
       const billsRes = await buyerPortalService.listBills();
       setBills(billsRes?.data || (Array.isArray(billsRes) ? billsRes : []));
       setReturnedQty('');
@@ -67,69 +65,97 @@ const BuyerSalesReturn = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto space-y-6 p-1">
-      <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer Portal</p>
-        <h1 className="text-2xl font-serif italic font-black text-slate-900">Sales Return</h1>
-      </div>
+    <FieldPageWrap subtitle="Damaged or excess stock">
+      <h1 className="text-lg font-bold">Sales return</h1>
+      <p className="text-[11px] fa-muted mb-4">Select a bill to submit a return request</p>
 
-      <form onSubmit={submit} className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Buyer bill</label>
-          <select
-            className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
-            value={billId}
-            onChange={(e) => {
-              setBillId(e.target.value);
-              const b = bills.find((x) => x._id === e.target.value);
-              if (b) {
-                setItem(b.item || '');
-                setTapalRef(b.tapal?.tapalNumber || b.tapalRef || '');
-                setReturnedQty(String(b.finalWeight || ''));
-              }
-            }}
-          >
-            <option value="">Select bill</option>
-            {bills.map((b) => (
-              <option key={b._id} value={b._id}>
-                {b.billNo} — ₹{b.totalAmount} — {b.tapal?.tapalNumber || ''}
-              </option>
-            ))}
-          </select>
+      {loading ? (
+        <p className="text-sm fa-muted py-8 text-center">Loading bills…</p>
+      ) : bills.length === 0 ? (
+        <div className="fa-empty-state">
+          <p className="text-sm font-semibold">Bill required first</p>
+          <p className="text-[11px] fa-muted mt-2">Select a generated bill to submit a return</p>
         </div>
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Tapal ref (TP No)</label>
-          <input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={tapalRef} onChange={(e) => setTapalRef(e.target.value)} />
-        </div>
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Fish item</label>
-          <input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={item} onChange={(e) => setItem(e.target.value)} />
-        </div>
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Returned qty (KG)</label>
-          <input type="number" required className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={returnedQty} onChange={(e) => setReturnedQty(e.target.value)} />
-        </div>
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Damaged qty (KG)</label>
-          <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={damagedQty} onChange={(e) => setDamagedQty(e.target.value)} />
-        </div>
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Damage reason</label>
-          <input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={damageReason} onChange={(e) => setDamageReason(e.target.value)} />
-        </div>
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Return amount (₹)</label>
-          <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={returnAmount} onChange={(e) => setReturnAmount(e.target.value)} />
-        </div>
-        <div>
-          <label className="text-[9px] font-black uppercase text-slate-400">Remarks</label>
-          <textarea className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-        </div>
-        <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider">
-          Submit return
-        </button>
-      </form>
-    </div>
+      ) : (
+        <form onSubmit={submit} className="fa-surface p-5 space-y-4">
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Buyer bill</label>
+            <select
+              className="fa-input mt-1"
+              value={billId}
+              onChange={(e) => {
+                setBillId(e.target.value);
+                const b = bills.find((x) => x._id === e.target.value);
+                if (b) {
+                  setItem(b.item || '');
+                  setTapalRef(b.tapal?.tapalNumber || b.tapalRef || '');
+                  setReturnedQty(String(b.finalWeight || ''));
+                }
+              }}
+            >
+              <option value="">Select bill</option>
+              {bills.map((b) => (
+                <option key={b._id} value={b._id}>
+                  {b.billNo} — ₹{b.totalAmount} — {b.tapal?.tapalNumber || ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Tapal ref (TP No)</label>
+            <input className="fa-input mt-1" value={tapalRef} onChange={(e) => setTapalRef(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Fish item</label>
+            <input className="fa-input mt-1" value={item} onChange={(e) => setItem(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Returned qty (KG)</label>
+            <input
+              type="number"
+              required
+              className="fa-input mt-1"
+              value={returnedQty}
+              onChange={(e) => setReturnedQty(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Damaged qty (KG)</label>
+            <input
+              type="number"
+              className="fa-input mt-1"
+              value={damagedQty}
+              onChange={(e) => setDamagedQty(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Damage reason</label>
+            <input className="fa-input mt-1" value={damageReason} onChange={(e) => setDamageReason(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Return amount (₹)</label>
+            <input
+              type="number"
+              className="fa-input mt-1"
+              value={returnAmount}
+              onChange={(e) => setReturnAmount(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase fa-muted">Remarks</label>
+            <textarea
+              className="fa-input mt-1 min-h-[72px]"
+              rows={2}
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="w-full py-3 fa-btn-primary text-xs font-bold uppercase fa-tap">
+            Submit return
+          </button>
+        </form>
+      )}
+    </FieldPageWrap>
   );
 };
 

@@ -1,5 +1,4 @@
 import { apiClient } from './apiClient';
-import { mobilePlatformConfig } from './platformHeaders';
 
 export const tapalService = {
   // 1. Fetch all Tapal Contracts
@@ -24,11 +23,7 @@ export const tapalService = {
 
   // 2. Create Tapal from Harvest Slip
   createFromHarvest: async (harvestId, data = {}) => {
-    return await apiClient.post(
-      '/tapals/create-from-harvest',
-      { harvestId, ...data },
-      mobilePlatformConfig()
-    );
+    return await apiClient.post('/tapals/create-from-harvest', { harvestId, ...data });
   },
 
   // 3. Assign Driver & Vehicle to Tapal (Launches active trip)

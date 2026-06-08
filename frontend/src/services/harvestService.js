@@ -1,7 +1,4 @@
 import { apiClient } from './apiClient';
-import { mobilePlatformConfig } from './platformHeaders';
-
-const mobile = mobilePlatformConfig;
 
 export const harvestService = {
   // 1. Fetch all Harvest Slips
@@ -11,12 +8,12 @@ export const harvestService = {
 
   // 2. Create Harvest Slip
   create: async (data) => {
-    return await apiClient.post('/harvests/create', data, mobile());
+    return await apiClient.post('/harvests/create', data);
   },
 
   // 3. Update Harvest Slip Status (e.g., CONFIRM, REJECT)
   updateStatus: async (id, status) => {
-    return await apiClient.patch(`/harvests/status/${id}`, { status }, mobile());
+    return await apiClient.patch(`/harvests/status/${id}`, { status });
   },
 
   /** SUPER_ADMIN web farmer approval */
@@ -26,7 +23,7 @@ export const harvestService = {
 
   // 4. Reject Harvest Slip
   reject: async (id, reason) => {
-    return await apiClient.patch(`/harvests/reject/${id}`, { reason }, mobile());
+    return await apiClient.patch(`/harvests/reject/${id}`, { reason });
   },
 
   // 5. Get Harvest Slip by ID
@@ -36,12 +33,12 @@ export const harvestService = {
 
   // 6. Convert Harvest Slip to Tapal
   convertToTapal: async (id, data = {}) => {
-    return await apiClient.post(`/harvests/convert-to-tapal/${id}`, data, mobile());
+    return await apiClient.post(`/harvests/convert-to-tapal/${id}`, data);
   },
 
   // 7. Save Net Rate calculation
   saveNetRate: async (id, data) => {
-    return await apiClient.post(`/harvests/net-rate/${id}`, data, mobile());
+    return await apiClient.post(`/harvests/net-rate/${id}`, data);
   },
 };
 

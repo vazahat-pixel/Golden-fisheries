@@ -11,7 +11,7 @@ const paddings = {
 export const Card = ({ children, className, padding = 'md', as: Tag = 'div', ...props }) => (
   <Tag
     className={cn(
-      'bg-card-bg border border-card-border rounded-erp shadow-erp-sm',
+      'bg-card-bg border border-border-strong rounded-erp shadow-erp-md',
       paddings[padding] ?? paddings.md,
       className
     )}

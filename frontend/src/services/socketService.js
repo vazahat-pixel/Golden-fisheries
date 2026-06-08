@@ -225,10 +225,13 @@ class SocketService {
       if (!shouldNotifyFishMall(data)) return;
       console.log('[Socket] Fish Mall transfer pending:', data);
       useFishMallStore.getState().addProcurementTransferAlert?.(data, 'pending');
-      toast(
-        `Transfer ${data.transferNumber} queued from admin → ${data.outletName || 'Fish Mall'}`,
-        { icon: '📦', duration: 6000 }
-      );
+      useFishMallStore.getState().fetchPendingTransfers?.();
+      const canAccept = data.status === 'IN_TRANSIT' || data.status === 'PENDING_ACCEPTANCE';
+      if (canAccept) {
+        toast(`Stock dispatch: ${data.transferNumber} — Accept in Inventory`, { icon: '📦', duration: 8000 });
+      } else {
+        toast(`Transfer ${data.transferNumber} created — admin dispatch pending`, { icon: '⏳', duration: 6000 });
+      }
     });
 
     this.socket.on('fishmall:procurement_transfer', (data) => {

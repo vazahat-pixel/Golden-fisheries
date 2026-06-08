@@ -14,6 +14,8 @@ const FishMallDashboard = () => {
     stock,
     fetchStock,
     alerts,
+    pendingTransfers,
+    fetchPendingTransfers,
     activeSession,
     accountingSummary,
     cashbook,
@@ -27,12 +29,14 @@ const FishMallDashboard = () => {
   const [submittingSession, setSubmittingSession] = useState(false);
 
   const transferAlerts = alerts.filter((a) => a.type === 'PROCUREMENT_TRANSFER' && !a.read);
-  const latestTransfer = transferAlerts[0];
+  const latestTransfer = transferAlerts.find((a) => a.canAccept) || transferAlerts[0];
+  const pendingCount = pendingTransfers.length;
 
   useEffect(() => {
     fetchStock();
     fetchActiveSessionAsync();
-  }, [fetchStock, fetchActiveSessionAsync]);
+    fetchPendingTransfers();
+  }, [fetchStock, fetchActiveSessionAsync, fetchPendingTransfers]);
 
   useEffect(() => {
     if (activeSession) {
@@ -111,18 +115,26 @@ const FishMallDashboard = () => {
         </div>
       </Card>
 
-      {latestTransfer && (
+      {(latestTransfer || pendingCount > 0) && (
         <Link
-          to="/fishmall/alerts"
-          className="block bg-emerald-50 border border-emerald-200 p-4 rounded-xl hover:border-emerald-400 transition-colors"
+          to="/fishmall/stock#incoming-transfers"
+          className={`block p-4 rounded-xl hover:border-emerald-400 transition-colors ${
+            pendingCount > 0 ? 'bg-emerald-50 border border-emerald-300' : 'bg-amber-50 border border-amber-200'
+          }`}
         >
           <div className="flex items-start gap-3">
             <Package size={20} className="text-emerald-700 shrink-0 mt-0.5" />
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">
-                {latestTransfer.title}
+                {pendingCount > 0
+                  ? `${pendingCount} transfer accept pending`
+                  : latestTransfer?.title}
               </p>
-              <p className="text-[9px] text-emerald-700 font-bold mt-1">{latestTransfer.message}</p>
+              <p className="text-[9px] text-emerald-700 font-bold mt-1">
+                {pendingCount > 0
+                  ? 'Inventory page par jaake Accept Stock dabayein'
+                  : latestTransfer?.message}
+              </p>
             </div>
           </div>
         </Link>
@@ -274,12 +286,14 @@ const FishMallDashboard = () => {
           <div className="space-y-3">
             <div className="bg-[#6B7550] p-4 shadow-sm flex flex-col justify-between h-[120px] rounded-xl relative overflow-hidden group">
               <div className="z-10">
-                <h3 className="text-white text-xs font-black tracking-widest uppercase">Inflow Registry</h3>
-                <p className="text-white/60 text-[8px] font-bold uppercase tracking-widest mt-1">Record Arrivals</p>
+                <h3 className="text-white text-xs font-black tracking-widest uppercase">Incoming Stock</h3>
+                <p className="text-white/60 text-[8px] font-bold uppercase tracking-widest mt-1">
+                  {pendingCount > 0 ? `${pendingCount} accept pending` : 'Procurement transfers'}
+                </p>
               </div>
-              <Link to="/fishmall/stock" className="z-10">
+              <Link to="/fishmall/stock#incoming-transfers" className="z-10">
                 <Button className="w-full bg-white text-[#6B7550] text-[9px] font-black uppercase py-2 border-none hover:bg-black hover:text-white transition-all rounded-lg">
-                  Record Stock
+                  {pendingCount > 0 ? 'Accept Stock' : 'View Inventory'}
                 </Button>
               </Link>
               <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">

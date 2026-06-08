@@ -464,15 +464,141 @@ export const buyerPortalService = {
       .filter((r) => r.status === 'PENDING')
       .reduce((s, r) => s + (r.returnAmount || 0), 0);
 
+    const totalPaid = bills
+      .filter((b) => b.status === 'PAID')
+      .reduce((s, b) => s + (b.paidAmount ?? b.totalAmount ?? 0), 0);
+
     return {
       totalBilled,
       totalReturned,
+      totalPaid,
       pendingReturns,
-      balanceDue: Math.max(0, totalBilled - totalReturned),
+      balanceDue: Math.max(0, totalBilled - totalReturned - totalPaid),
       bills: bills.length,
       returns: returns.length,
       docs: { bills, returns },
     };
+  },
+
+  /** Admin: all buyer bills with verification + tapal context */
+  async listAllBillsAdmin(query = {}) {
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.min(100, parseInt(query.limit, 10) || 50);
+    const skip = (page - 1) * limit;
+    const filter = { isDeleted: { $ne: true } };
+    if (query.status) filter.status = query.status;
+
+    const [docs, total] = await Promise.all([
+      BuyerBill.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('buyer', 'fullName name phone')
+        .populate('tapal', 'tapalNumber tpNo partyName status numericQty qty')
+        .populate('markedPaidBy', 'fullName name'),
+      BuyerBill.countDocuments(filter),
+    ]);
+
+    const tapalIds = docs.map((d) => d.tapal?._id || d.tapal).filter(Boolean);
+    const verifications = tapalIds.length
+      ? await BuyerVerification.find({ tapal: { $in: tapalIds } })
+      : [];
+    const verByTapal = new Map(verifications.map((v) => [String(v.tapal), v]));
+
+    const rows = docs.map((bill) => {
+      const plain = bill.toObject();
+      const tapalId = String(bill.tapal?._id || bill.tapal || '');
+      plain.verification = verByTapal.get(tapalId) || null;
+      return plain;
+    });
+
+    return {
+      docs: rows,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) || 0, totalDocs: total },
+    };
+  },
+
+  /** Admin dashboard KPIs + tapals verified but not yet billed */
+  async getAdminSalesOverview() {
+    const [bills, verifications, awaitingBillTapals] = await Promise.all([
+      BuyerBill.find({ isDeleted: { $ne: true } }),
+      BuyerVerification.find({
+        verificationStatus: { $in: ['APPROVED', 'APPROVED_WITH_DISCREPANCY'] },
+      })
+        .populate('buyer', 'fullName name phone')
+        .populate('tapal', 'tapalNumber tpNo partyName status numericQty')
+        .sort({ verifiedAt: -1 })
+        .limit(20),
+      Tapal.find({ status: 'BUYER_VERIFIED', isDeleted: { $ne: true } })
+        .sort({ updatedAt: -1 })
+        .limit(20)
+        .populate('assignedBuyer', 'fullName name phone'),
+    ]);
+
+    const billedTapalIds = new Set(bills.map((b) => String(b.tapal)));
+    const awaitingBill = awaitingBillTapals.filter((t) => !billedTapalIds.has(String(t._id)));
+
+    const totalBilled = bills.reduce((s, b) => s + (b.totalAmount || 0), 0);
+    const totalPaid = bills
+      .filter((b) => b.status === 'PAID')
+      .reduce((s, b) => s + (b.paidAmount ?? b.totalAmount ?? 0), 0);
+    const outstanding = bills
+      .filter((b) => b.status === 'ISSUED' || b.status === 'RETURN_PENDING')
+      .reduce((s, b) => s + (b.totalAmount || 0), 0);
+
+    return {
+      summary: {
+        billsCount: bills.length,
+        verificationsCount: verifications.length,
+        totalBilled,
+        totalPaid,
+        outstanding,
+        awaitingBillCount: awaitingBill.length,
+      },
+      awaitingBill: awaitingBill.map((t) => ({
+        _id: t._id,
+        tapalNumber: t.tapalNumber || t.tpNo,
+        partyName: t.partyName,
+        status: t.status,
+        numericQty: t.numericQty,
+        buyer: t.assignedBuyer,
+      })),
+    };
+  },
+
+  async getAdminSaleByTapal(tapalId) {
+    const [bill, verification, tapal] = await Promise.all([
+      BuyerBill.findOne({ tapal: tapalId, isDeleted: { $ne: true } })
+        .populate('buyer', 'fullName name phone')
+        .populate('markedPaidBy', 'fullName name'),
+      BuyerVerification.findOne({ tapal: tapalId }).populate('buyer', 'fullName name phone'),
+      Tapal.findById(tapalId),
+    ]);
+    return { bill, verification, tapal };
+  },
+
+  async markBillPaid(billId, adminUser, body = {}) {
+    const bill = await BuyerBill.findById(billId);
+    if (!bill) throw new AppError('Buyer bill not found', 404);
+    if (bill.status === 'PAID') throw new AppError('Bill is already marked as paid', 409);
+    if (bill.status === 'CANCELLED') throw new AppError('Cannot pay a cancelled bill', 400);
+
+    bill.status = 'PAID';
+    bill.paidAt = new Date();
+    bill.paidAmount = parseFloat(body.paidAmount) || bill.totalAmount;
+    bill.paymentMethod = body.paymentMethod || 'UPI';
+    bill.paymentRef = String(body.paymentRef || body.upiTransactionId || '').trim();
+    bill.markedPaidBy = adminUser._id;
+    await bill.save();
+
+    broadcastEvent(
+      'buyer:bill_paid',
+      { billNo: bill.billNo, billId: bill._id, paidAmount: bill.paidAmount },
+      'dashboard:updates'
+    );
+    broadcastEvent('buyer:bill_paid', { billNo: bill.billNo, billId: bill._id }, 'buyer:updates');
+
+    return bill.populate(['buyer', 'tapal', 'markedPaidBy']);
   },
 
   async listAllReturnsAdmin(query = {}) {

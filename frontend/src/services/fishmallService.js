@@ -96,6 +96,14 @@ export const fishmallService = {
   listCashbook: async () => {
     return await apiClient.get('/fishmall/accounting/cashbook');
   },
+
+  listPendingTransfers: async () => {
+    return await apiClient.get('/fishmall/transfers/pending');
+  },
+
+  acceptTransfer: async (id, payload) => {
+    return await apiClient.post(`/fishmall/transfers/${id}/accept`, payload);
+  },
 };
 
 export default fishmallService;

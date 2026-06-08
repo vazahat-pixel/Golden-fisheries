@@ -1,13 +1,16 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
-import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../components/forms/PaperFormFrame';
+import {
+  ErpFormFrame,
+  ErpFieldRow,
+  ErpSummaryBox,
+  erpInputClass,
+  erpSelectClass,
+} from '../../../components/forms/ErpFormFrame';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Calculator, Printer } from 'lucide-react';
+import { ArrowLeft, Calculator, Printer, Save } from 'lucide-react';
 
-/**
- * Farmer Purchase Invoice — net rate & deductions (seafood office format).
- */
 const NetRate = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -52,11 +55,10 @@ const NetRate = () => {
     return sum + w * r;
   }, 0);
 
-  const totalDeductions =
-    ['tds', 'commission', 'soft', 'deductionTransport', 'deductionCommission', 'deductionSoft', 'deductionOther'].reduce(
-      (s, k) => s + (parseFloat(deductions[k]) || 0),
-      0
-    );
+  const totalDeductions = ['tds', 'commission', 'soft', 'deductionTransport', 'deductionCommission', 'deductionSoft', 'deductionOther'].reduce(
+    (s, k) => s + (parseFloat(deductions[k]) || 0),
+    0
+  );
 
   const netPayable = Math.max(0, Math.round((grossAmount - totalDeductions) * 100) / 100);
 
@@ -69,6 +71,11 @@ const NetRate = () => {
       toast.error(`Harvest status "${harvest.status}" — confirm farmer approval first`);
       return;
     }
+    const hasRates = productRates.some((r) => parseFloat(r.rate) > 0);
+    if (!hasRates) {
+      toast.error('Enter rate per kg for at least one fish line');
+      return;
+    }
     try {
       await saveNetRateAsync(harvestId, {
         productRates: productRates.map((r) => ({
@@ -76,11 +83,9 @@ const NetRate = () => {
           estimatedQty: parseFloat(r.grossWeight) || 0,
           rate: parseFloat(r.rate) || 0,
         })),
-        ...Object.fromEntries(
-          Object.entries(deductions).map(([k, v]) => [k, parseFloat(v) || 0])
-        ),
+        ...Object.fromEntries(Object.entries(deductions).map(([k, v]) => [k, parseFloat(v) || 0])),
       });
-      toast.success('Purchase invoice (net rate) saved');
+      toast.success('Purchase invoice saved');
       navigate('/admin/procurement/harvest');
     } catch (err) {
       toast.error(err?.message || 'Failed to save');
@@ -92,87 +97,87 @@ const NetRate = () => {
   );
 
   return (
-    <div className="space-y-4 pb-12">
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={() => navigate(-1)} className="text-text-muted">
-          <ArrowLeft size={20} />
+    <div className="space-y-4 pb-12 erp-page">
+      <div className="flex items-center gap-2 no-print">
+        <button type="button" onClick={() => navigate(-1)} className="p-1.5 text-text-secondary hover:text-text-primary rounded-erp hover:bg-surface-hover">
+          <ArrowLeft size={18} />
         </button>
-        <h1 className="text-xl font-bold uppercase text-brand-olive flex items-center gap-2">
-          <Calculator size={22} /> Farmer Purchase Invoice
+        <h1 className="erp-h1 flex items-center gap-2 uppercase">
+          <Calculator size={20} className="text-brand-yellow" /> Farmer Purchase Invoice
         </h1>
       </div>
 
-      <div className="no-print flex justify-end mb-2">
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="flex items-center gap-1 text-xs font-bold uppercase border px-3 py-2"
-        >
-          <Printer size={14} /> Print Invoice
-        </button>
-      </div>
-      <div className="print-root">
-      <PaperFormFrame title="Purchase Invoice" subtitle="Net rate · deductions · net payable">
-        <PaperFieldRow label="Harvest Ref (H No)">
-          <select
-            className={paperInputClass}
-            value={harvestId}
-            onChange={(e) => setHarvestId(e.target.value)}
-          >
-            <option value="">— Select —</option>
+      <ErpFormFrame
+        title="Purchase Invoice"
+        subtitle="Net rate · deductions · net payable"
+        badge="Procurement"
+        actions={
+          <button type="button" onClick={() => window.print()} className="erp-form-btn-secondary no-print">
+            <Printer size={14} /> Print
+          </button>
+        }
+        footer={
+          <div className="flex flex-wrap gap-2 no-print">
+            <button type="button" onClick={handleSave} disabled={loading} className="erp-form-btn-primary flex-1 sm:flex-none min-w-[200px]">
+              <Save size={14} /> {loading ? 'Saving…' : 'Save Purchase Invoice'}
+            </button>
+          </div>
+        }
+      >
+        <ErpFieldRow label="Harvest Ref (H No)">
+          <select className={erpSelectClass} value={harvestId} onChange={(e) => setHarvestId(e.target.value)}>
+            <option value="">— Select harvest slip —</option>
             {confirmedHarvests.map((h) => (
               <option key={h._id || h.id} value={h._id || h.id}>
                 {h.hNo || h.harvestNumber || h.tpNo} — {h.farmerName || h.partyName}
               </option>
             ))}
           </select>
-        </PaperFieldRow>
-        <PaperFieldRow label="Farmer">
-          <input className={paperInputClass} readOnly value={harvest?.farmerName || ''} />
-        </PaperFieldRow>
+        </ErpFieldRow>
+        <ErpFieldRow label="Farmer">
+          <input className={erpInputClass} readOnly value={harvest?.farmerName || '—'} />
+        </ErpFieldRow>
 
-        <table className="w-full border-collapse border border-black text-xs mt-4">
+        <p className="text-[11px] text-text-secondary mb-2 no-print">
+          Enter <strong className="text-brand-olive">rate per kg (₹)</strong> for each fish line — amount and net payable update automatically.
+        </p>
+
+        <table className="erp-form-table">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black p-1">Fish Item</th>
-              <th className="border border-black p-1">Gross Wt (KG)</th>
-              <th className="border border-black p-1">Rate</th>
-              <th className="border border-black p-1">Amount</th>
+            <tr>
+              <th>Fish Item</th>
+              <th className="text-right w-28">Gross Wt (KG)</th>
+              <th className="text-right w-32">Rate (₹ / kg)</th>
+              <th className="text-right w-28">Amount (₹)</th>
             </tr>
           </thead>
           <tbody>
             {productRates.map((row, idx) => {
-              const amt =
-                (parseFloat(row.grossWeight) || 0) * (parseFloat(row.rate) || 0);
+              const amt = (parseFloat(row.grossWeight) || 0) * (parseFloat(row.rate) || 0);
               return (
                 <tr key={row.id}>
-                  <td className="border border-black p-0">
+                  <td>
                     <input
-                      className="w-full border-0 px-1 py-1"
+                      className="erp-table-readonly"
+                      readOnly
                       value={row.fishName}
-                      onChange={(e) => {
-                        const next = [...productRates];
-                        next[idx] = { ...row, fishName: e.target.value };
-                        setProductRates(next);
-                      }}
+                      tabIndex={-1}
                     />
                   </td>
-                  <td className="border border-black p-0">
+                  <td className="text-right">
                     <input
-                      className="w-full border-0 px-1 py-1 text-right"
-                      inputMode="decimal"
+                      className="erp-table-readonly text-right"
+                      readOnly
+                      tabIndex={-1}
                       value={row.grossWeight}
-                      onChange={(e) => {
-                        const next = [...productRates];
-                        next[idx] = { ...row, grossWeight: e.target.value };
-                        setProductRates(next);
-                      }}
                     />
                   </td>
-                  <td className="border border-black p-0">
+                  <td className="text-right">
                     <input
-                      className="w-full border-0 px-1 py-1 text-right"
+                      className={`${erpInputClass} text-right min-w-[88px]`}
                       inputMode="decimal"
+                      placeholder="Enter rate"
+                      aria-label={`Rate per kg for ${row.fishName || `line ${idx + 1}`}`}
                       value={row.rate}
                       onChange={(e) => {
                         const next = [...productRates];
@@ -181,63 +186,48 @@ const NetRate = () => {
                       }}
                     />
                   </td>
-                  <td className="border border-black p-1 text-right font-mono">
-                    {amt.toFixed(2)}
-                  </td>
+                  <td className="text-right tabular-nums font-black text-brand-olive">{amt.toFixed(2)}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={3} className="border border-black p-1 text-right font-bold">
+              <td colSpan={3} className="text-right uppercase text-[10px]">
                 Gross Amount
               </td>
-              <td className="border border-black p-1 text-right font-bold">
-                ₹{grossAmount.toFixed(2)}
-              </td>
+              <td className="text-right tabular-nums text-brand-olive">₹{grossAmount.toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
 
-        <div className="mt-4 grid grid-cols-2 gap-x-4 text-sm">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-4">
           {[
             ['Commission', 'commission'],
             ['TDS', 'tds'],
             ['Soft', 'soft'],
-            ['Transport Deduction', 'deductionTransport'],
+            ['Transport Ded.', 'deductionTransport'],
             ['Commission Ded.', 'deductionCommission'],
             ['Soft Ded.', 'deductionSoft'],
             ['Other Deduction', 'deductionOther'],
           ].map(([label, key]) => (
-            <PaperFieldRow key={key} label={label}>
+            <ErpFieldRow key={key} label={label} compact>
               <input
-                className={paperInputClass}
+                className={erpInputClass}
                 inputMode="decimal"
                 value={deductions[key]}
                 onChange={(e) => setDeductions((d) => ({ ...d, [key]: e.target.value }))}
               />
-            </PaperFieldRow>
+            </ErpFieldRow>
           ))}
         </div>
 
-        <div className="mt-4 border-2 border-black p-3 flex justify-between items-center">
-          <span className="font-bold uppercase">Net Payable</span>
-          <span className="text-xl font-bold">₹{netPayable.toLocaleString('en-IN')}</span>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <ErpSummaryBox label="Gross Amount" value={`₹${grossAmount.toLocaleString('en-IN')}`} />
+          <ErpSummaryBox label="Total Deductions" value={`₹${totalDeductions.toLocaleString('en-IN')}`} variant="warn" />
+          <ErpSummaryBox label="Net Payable" value={`₹${netPayable.toLocaleString('en-IN')}`} variant="total" />
         </div>
-
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={loading}
-            className="flex-1 bg-[#6A7051] text-white py-3 text-sm font-bold uppercase"
-          >
-            Save Purchase Invoice
-          </button>
-        </div>
-      </PaperFormFrame>
-      </div>
+      </ErpFormFrame>
     </div>
   );
 };

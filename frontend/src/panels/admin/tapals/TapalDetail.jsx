@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { tapalService } from '../../../services/tapalService';
+import { buyerPortalService } from '../../../services/buyerPortalService';
 import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../components/forms/PaperFormFrame';
 import AssignDriverPanel from '../shared/AssignDriverPanel';
+import { TripSettlementPaymentForm } from '../shared/TripSettlementPayment';
+import { useAdminStore } from '../../../store/adminStore';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -15,6 +18,9 @@ const TapalDetail = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [reviewing, setReviewing] = useState(false);
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const { confirmTripPaymentAsync } = useAdminStore();
+  const [paying, setPaying] = useState(false);
+  const [buyerSale, setBuyerSale] = useState(null);
 
   const loadTapal = useCallback(() => {
     tapalService
@@ -43,6 +49,10 @@ const TapalDetail = () => {
   useEffect(() => {
     if (tapal?._id) {
       loadTrip(tapal._id);
+      buyerPortalService
+        .adminSaleByTapal(tapal._id)
+        .then((res) => setBuyerSale(res?.data || res))
+        .catch(() => setBuyerSale(null));
     }
   }, [tapal?._id, loadTrip]);
 
@@ -64,6 +74,20 @@ const TapalDetail = () => {
       toast.error(err?.message || 'Review action failed');
     } finally {
       setReviewing(false);
+    }
+  };
+
+  const handleConfirmPayment = async (amount, upiId) => {
+    setPaying(true);
+    try {
+      await confirmTripPaymentAsync(trip._id || trip.id, amount, upiId, 'UPI');
+      toast.success('Payment recorded — trip marked complete');
+      if (tapal?._id) loadTrip(tapal._id);
+    } catch (err) {
+      toast.error(err?.message || 'Payment failed');
+      throw err;
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -131,6 +155,64 @@ const TapalDetail = () => {
               ))}
             </tbody>
           </table>
+        </PaperFormFrame>
+      </div>
+
+      <div className="no-print mt-6">
+        <PaperFormFrame title="Buyer sale" subtitle="Verification, bill & payment from buyer portal">
+          {!buyerSale?.verification && !buyerSale?.bill ? (
+            <p className="text-xs text-gray-500 italic">
+              Buyer ne abhi verify ya bill nahi kiya. Status: {tapal.status}
+            </p>
+          ) : (
+            <div className="space-y-4 text-sm">
+              {buyerSale.verification && (
+                <div className="border border-gray-200 p-3 bg-gray-50">
+                  <p className="text-[10px] font-black uppercase text-brand-olive mb-2">Verification</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-gray-500 block">Dispatched</span>
+                      {buyerSale.verification.dispatchedQty?.weight ?? 0} KG ·{' '}
+                      {buyerSale.verification.dispatchedQty?.noOfBoxes ?? 0} boxes
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block">Received</span>
+                      {buyerSale.verification.receivedQty?.weight ?? 0} KG ·{' '}
+                      {buyerSale.verification.receivedQty?.noOfBoxes ?? 0} boxes
+                    </div>
+                  </div>
+                  <p className="text-[10px] mt-2 font-bold uppercase">
+                    {buyerSale.verification.verificationStatus}
+                    {buyerSale.verification.discrepancy?.hasDiscrepancy ? ' · Mismatch' : ''}
+                  </p>
+                </div>
+              )}
+              {buyerSale.bill ? (
+                <div className="border border-emerald-200 p-3 bg-emerald-50/50">
+                  <p className="text-[10px] font-black uppercase text-emerald-800 mb-2">Buyer bill</p>
+                  <p className="font-mono font-bold">{buyerSale.bill.billNo}</p>
+                  <p className="text-xs mt-1">
+                    {buyerSale.bill.finalWeight} KG @ ₹{buyerSale.bill.ratePerKg} ={' '}
+                    <strong>₹{(buyerSale.bill.totalAmount || 0).toLocaleString('en-IN')}</strong>
+                  </p>
+                  <p className="text-[10px] font-bold uppercase mt-2">
+                    Bill: {buyerSale.bill.status}
+                    {buyerSale.bill.status === 'PAID' &&
+                      ` · Paid ₹${(buyerSale.bill.paidAmount ?? buyerSale.bill.totalAmount)?.toLocaleString('en-IN')}`}
+                  </p>
+                </div>
+              ) : buyerSale.verification ? (
+                <p className="text-xs text-amber-700 font-semibold">Verified — bill abhi pending</p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => navigate('/admin/buyer-sales')}
+                className="text-[10px] font-bold uppercase text-brand-olive underline"
+              >
+                Open buyer sales register →
+              </button>
+            </div>
+          )}
         </PaperFormFrame>
       </div>
 
@@ -394,7 +476,12 @@ const TapalDetail = () => {
                 Settlement {postTrip.status}
                 {postTrip.status === 'APPROVED' && postTrip.reviewedBy && (
                   <span className="block text-[10px] font-normal tracking-normal normal-case mt-0.5">
-                    Reviewed by {postTrip.reviewedBy} at {new Date(postTrip.reviewedAt).toLocaleString()}
+                    Reviewed at {postTrip.reviewedAt ? new Date(postTrip.reviewedAt).toLocaleString() : '—'}
+                  </span>
+                )}
+                {postTrip.paymentStatus === 'PAID' && (
+                  <span className="block text-[10px] font-normal tracking-normal normal-case mt-1">
+                    Paid ₹{Number(postTrip.paidAmount || 0).toLocaleString('en-IN')} · UPI: {postTrip.upiTransactionId}
                   </span>
                 )}
                 {postTrip.status === 'REJECTED' && postTrip.rejectionReason && (
@@ -402,6 +489,12 @@ const TapalDetail = () => {
                     Reason: "{postTrip.rejectionReason}"
                   </span>
                 )}
+              </div>
+            )}
+
+            {postTrip && postTrip.status === 'APPROVED' && postTrip.paymentStatus !== 'PAID' && (
+              <div className="no-print mt-6">
+                <TripSettlementPaymentForm trip={trip} onConfirm={handleConfirmPayment} loading={paying} inline />
               </div>
             )}
           </PaperFormFrame>
