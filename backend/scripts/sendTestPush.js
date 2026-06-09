@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 import { firebaseService } from '../src/services/firebase.service.js';
 import { User } from '../src/modules/users/user.model.js';
+import { extractDeviceTokenStrings, pullFailedDeviceTokens } from '../src/utils/deviceTokens.js';
 import dotenv from 'dotenv';
-import path from 'path';
 
 dotenv.config();
 
@@ -32,7 +32,7 @@ async function run() {
     users.forEach(u => {
       console.log(` - User: ${u.fullName} (${u.phone}) has ${u.deviceTokens.length} token(s)`);
     });
-    targetTokens = users.flatMap(u => u.deviceTokens);
+    targetTokens = users.flatMap(u => extractDeviceTokenStrings(u.deviceTokens));
   }
 
   console.log(`Sending test push to ${targetTokens.length} token(s)...`);
@@ -49,10 +49,7 @@ async function run() {
 
   if (result.failedTokens && result.failedTokens.length > 0) {
     console.log(`Cleaning up ${result.failedTokens.length} invalid/failed tokens from DB...`);
-    await User.updateMany(
-      { deviceTokens: { $in: result.failedTokens } },
-      { $pull: { deviceTokens: { $in: result.failedTokens } } }
-    );
+    await pullFailedDeviceTokens(User, result.failedTokens);
     console.log('Cleaned up failed tokens successfully.');
   }
 

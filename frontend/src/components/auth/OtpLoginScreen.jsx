@@ -151,7 +151,7 @@ const OtpLoginScreen = ({
         Admin must add your mobile first. You will receive an SMS OTP.
       </p>
       {isFieldApp ? (
-        <button type="submit" disabled={loading} className="fa-btn-primary py-3.5 text-sm font-bold fa-tap disabled:opacity-50">
+        <button type="submit" disabled={loading} className="fa-btn-primary w-full py-3.5 text-sm font-bold fa-tap disabled:opacity-50">
           {loading ? 'Sending OTP…' : 'Send OTP'}
         </button>
       ) : (
@@ -189,7 +189,7 @@ const OtpLoginScreen = ({
         ))}
       </div>
       {isFieldApp ? (
-        <button type="submit" disabled={loading} className="fa-btn-primary py-3.5 text-sm font-bold fa-tap disabled:opacity-50">
+        <button type="submit" disabled={loading} className="fa-btn-primary w-full py-3.5 text-sm font-bold fa-tap disabled:opacity-50">
           {loading ? 'Verifying…' : 'Verify & Login'}
         </button>
       ) : (

@@ -14,6 +14,7 @@ export function buyerPaths(base = '/mobile/buyer') {
     invoices: `${base}/invoices`,
     returns: `${base}/returns`,
     reconciliation: `${base}/reconciliation`,
+    account: `${base}/account`,
     bill: (tapalId) => `${base}/bill/${tapalId}`,
   };
 }

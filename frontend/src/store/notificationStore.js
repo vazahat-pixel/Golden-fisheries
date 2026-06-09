@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import { apiClient } from '../services/apiClient';
 import { requestFirebaseToken } from '../services/firebase';
 
+const resolvePushPlatform = () => {
+  const path = window.location.pathname || '';
+  if (path.startsWith('/mobile') || path.startsWith('/driver')) {
+    return 'app';
+  }
+  return 'web';
+};
+
 export const useNotificationStore = create((set, get) => ({
   notifications: [],
   loading: false,
@@ -61,9 +69,9 @@ export const useNotificationStore = create((set, get) => ({
     });
   },
 
-  registerDeviceToken: async (token) => {
+  registerDeviceToken: async (token, platform = resolvePushPlatform()) => {
     try {
-      await apiClient.post('/notifications/register-device-token', { token });
+      await apiClient.post('/notifications/register-device-token', { token, platform });
     } catch (err) {
       console.error('Failed to register device token:', err);
     }

@@ -119,6 +119,7 @@ const BuyerInvoiceHistory = React.lazy(() => import('../panels/buyer/BuyerInvoic
 const BuyerAssignDriver = React.lazy(() => import('../panels/buyer/BuyerAssignDriver'));
 const BuyerTripTracker = React.lazy(() => import('../panels/buyer/BuyerTripTracker'));
 const BuyerReconciliation = React.lazy(() => import('../panels/buyer/BuyerReconciliation'));
+const BuyerAccount = React.lazy(() => import('../panels/buyer/BuyerAccount'));
 const BuyerAdminThemeWrap = React.lazy(() => import('../panels/buyer/BuyerAdminThemeWrap'));
 
 // Public
@@ -274,6 +275,7 @@ const AppRouter = () => {
               <Route element={<ProtectedRoute module="buyerSettlement"><Outlet /></ProtectedRoute>}>
                 <Route path="buyer/reconciliation" element={<BuyerReconciliation />} />
               </Route>
+              <Route path="buyer/account" element={<BuyerAccount />} />
             </Route>
           </Route>
         </Routes>
@@ -395,6 +397,7 @@ const AppRouter = () => {
               <Route element={<ProtectedRoute module="buyerSettlement"><Outlet /></ProtectedRoute>}>
                 <Route path="buyer/reconciliation" element={<BuyerReconciliation />} />
               </Route>
+              <Route path="buyer/account" element={<BuyerAccount />} />
               <Route path="driver" element={<Navigate to="/driver/dashboard" replace />} />
             </Route>
           </Routes>

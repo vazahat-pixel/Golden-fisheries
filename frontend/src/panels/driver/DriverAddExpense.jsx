@@ -24,7 +24,7 @@ const DriverAddExpense = () => {
   };
 
   return (
-    <form onSubmit={submit} className="p-4 space-y-4 max-w-md">
+    <form onSubmit={submit} className="w-full space-y-4">
       <h1 className="text-lg font-black uppercase">Add expense</h1>
       <select
         className="w-full border rounded-lg px-3 py-2 text-sm"

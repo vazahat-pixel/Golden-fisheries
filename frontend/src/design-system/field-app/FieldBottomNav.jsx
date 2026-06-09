@@ -30,8 +30,8 @@ export function FieldBottomNav({ items = [] }) {
   );
 
   return (
-    <footer className="sticky bottom-0 z-40 bg-black/98 backdrop-blur-md border-t border-[var(--fa-border)]">
-      <nav className="flex items-center justify-around px-1 pt-1.5 pb-0.5 max-w-md mx-auto">
+    <footer className="sticky bottom-0 z-40 w-full bg-black/98 backdrop-blur-md border-t border-[var(--fa-border)] pb-[env(safe-area-inset-bottom)]">
+      <nav className="flex items-center justify-around w-full px-2 pt-1.5 pb-0.5">
         {items.map((item) => (
           <NavItem key={item.path} item={item} />
         ))}

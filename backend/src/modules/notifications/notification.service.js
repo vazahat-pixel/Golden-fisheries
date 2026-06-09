@@ -5,6 +5,8 @@ import { Notification } from './notification.model.js';
 import { User } from '../users/user.model.js';
 import { firebaseService } from '../../services/firebase.service.js';
 import { broadcastEvent } from '../../sockets/socket.js';
+import { extractDeviceTokenStrings, pullFailedDeviceTokens } from '../../utils/deviceTokens.js';
+import { extractDeviceTokenStrings, pullFailedDeviceTokens } from '../../utils/deviceTokens.js';
 
 async function dispatch(channel, phone, message) {
   try {
@@ -132,7 +134,7 @@ export const notificationService = {
           if (userId) {
             const user = await User.findById(userId).select('deviceTokens');
             if (user?.deviceTokens) {
-              tokens.push(...user.deviceTokens);
+              tokens.push(...extractDeviceTokenStrings(user.deviceTokens));
             }
           } else {
             const query = { isActive: true };
@@ -147,7 +149,7 @@ export const notificationService = {
               const users = await User.find(query).select('deviceTokens');
               for (const u of users) {
                 if (u.deviceTokens) {
-                  tokens.push(...u.deviceTokens);
+                  tokens.push(...extractDeviceTokenStrings(u.deviceTokens));
                 }
               }
             }
@@ -168,10 +170,7 @@ export const notificationService = {
             });
 
             if (result.failedTokens && result.failedTokens.length > 0) {
-              await User.updateMany(
-                { deviceTokens: { $in: result.failedTokens } },
-                { $pull: { deviceTokens: { $in: result.failedTokens } } }
-              );
+              await pullFailedDeviceTokens(User, result.failedTokens);
               logger.info(`[FCM Service] Cleaned up ${result.failedTokens.length} expired/invalid device tokens.`);
             }
           }

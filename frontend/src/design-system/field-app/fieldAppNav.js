@@ -1,4 +1,4 @@
-import { Home, ClipboardList, Truck, User, BarChart2, Package, FileText, BarChart3 } from 'lucide-react';
+import { Home, ClipboardList, User, BarChart2, Package, FileText, BarChart3 } from 'lucide-react';
 
 export const DRIVER_NAV = [
   { icon: Home, label: 'Home', path: '/driver/dashboard' },
@@ -12,5 +12,6 @@ export const BUYER_NAV = [
   { icon: Package, label: 'Tapals', path: '/mobile/buyer/tapals' },
   { icon: FileText, label: 'Bills', path: '/mobile/buyer/invoices' },
   { icon: BarChart3, label: 'Settle', path: '/mobile/buyer/reconciliation' },
+  { icon: User, label: 'Account', path: '/mobile/buyer/account' },
 ];
 

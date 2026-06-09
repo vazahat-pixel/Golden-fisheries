@@ -1,6 +1,12 @@
 import { Notification } from './notification.model.js';
 import { User } from '../users/user.model.js';
 import { AppError } from '../../utils/appError.js';
+import {
+  DEVICE_PLATFORM_LIST,
+  normalizeDevicePlatform,
+  upsertDeviceToken,
+  removeDeviceToken,
+} from '../../utils/deviceTokens.js';
 
 class NotificationController {
   async getNotifications(req, res, next) {
@@ -88,9 +94,17 @@ class NotificationController {
 
   async registerDeviceToken(req, res, next) {
     try {
-      const { token } = req.body;
+      const { token, platform } = req.body;
       if (!token) {
         return next(new AppError('Device token is required', 400));
+      }
+
+      const resolvedPlatform =
+        normalizeDevicePlatform(platform) ||
+        normalizeDevicePlatform(req.headers['x-client-platform'] === 'MOBILE' ? 'app' : 'web');
+
+      if (platform && !normalizeDevicePlatform(platform)) {
+        return next(new AppError(`Platform must be one of: ${DEVICE_PLATFORM_LIST.join(', ')}`, 400));
       }
 
       const user = await User.findById(req.user.id);
@@ -98,14 +112,16 @@ class NotificationController {
         return next(new AppError('User not found', 404));
       }
 
-      if (!user.deviceTokens.includes(token)) {
-        user.deviceTokens.push(token);
-        await user.save();
-      }
+      user.deviceTokens = upsertDeviceToken(user.deviceTokens, token, resolvedPlatform);
+      await user.save();
 
       res.status(200).json({
         success: true,
         message: 'Device token registered successfully',
+        data: {
+          platform: resolvedPlatform,
+          tokenCount: user.deviceTokens.length,
+        },
       });
     } catch (err) {
       next(err);
@@ -124,12 +140,15 @@ class NotificationController {
         return next(new AppError('User not found', 404));
       }
 
-      user.deviceTokens = user.deviceTokens.filter((t) => t !== token);
+      user.deviceTokens = removeDeviceToken(user.deviceTokens, token);
       await user.save();
 
       res.status(200).json({
         success: true,
         message: 'Device token unregistered successfully',
+        data: {
+          tokenCount: user.deviceTokens.length,
+        },
       });
     } catch (err) {
       next(err);

@@ -28,7 +28,7 @@ const DriverLiveTracking = () => {
   }
 
   return (
-    <div className="space-y-4 p-4 max-w-md mx-auto">
+    <div className="space-y-4 w-full">
       <h1 className="text-lg font-black text-slate-900">Live Tracking</h1>
       <p className="text-xs text-slate-500">{active.tripNumber} — {active.status}</p>
 

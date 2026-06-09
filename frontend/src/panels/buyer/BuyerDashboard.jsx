@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, FileText, RotateCcw, Truck, ClipboardList } from 'lucide-react';
+import { Package, FileText, RotateCcw, Truck, ClipboardList, User } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { buyerPortalService } from '../../services/buyerPortalService';
 import {
@@ -106,6 +106,7 @@ const BuyerDashboard = () => {
           { icon: FileText, label: 'Bills', to: paths.invoices },
           { icon: RotateCcw, label: 'Return', to: paths.returns },
           { icon: Truck, label: 'Settle', to: paths.reconciliation },
+          { icon: User, label: 'Account', to: paths.account },
         ]}
       />
 

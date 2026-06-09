@@ -79,9 +79,18 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     deviceTokens: {
-      type: [String],
+      type: [
+        {
+          token: { type: String, required: true },
+          platform: {
+            type: String,
+            enum: ['web', 'app'],
+            default: 'web',
+          },
+          registeredAt: { type: Date, default: Date.now },
+        },
+      ],
       default: [],
-      index: true,
     },
     refreshToken: {
       type: String,
