@@ -6,7 +6,6 @@ import { User } from '../users/user.model.js';
 import { firebaseService } from '../../services/firebase.service.js';
 import { broadcastEvent } from '../../sockets/socket.js';
 import { extractDeviceTokenStrings, pullFailedDeviceTokens } from '../../utils/deviceTokens.js';
-import { extractDeviceTokenStrings, pullFailedDeviceTokens } from '../../utils/deviceTokens.js';
 
 async function dispatch(channel, phone, message) {
   try {
