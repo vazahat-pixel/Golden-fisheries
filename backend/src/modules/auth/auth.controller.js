@@ -61,7 +61,8 @@ export const authController = {
       new ApiResponse(200, { accessToken }, 'Access token refreshed').send(res);
     } catch (err) {
       // Clear refresh token cookies instantly on refresh failure
-      res.clearCookie('refreshToken', getCookieOptions());
+      const { maxAge, ...clearOptions } = getCookieOptions();
+      res.clearCookie('refreshToken', clearOptions);
       throw err;
     }
   }),
@@ -91,7 +92,8 @@ export const authController = {
     }
 
     // Always clear refresh token cookies instantly
-    res.clearCookie('refreshToken', getCookieOptions());
+    const { maxAge, ...clearOptions } = getCookieOptions();
+    res.clearCookie('refreshToken', clearOptions);
 
     new ApiResponse(200, null, 'Logged out successfully').send(res);
   })

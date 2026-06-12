@@ -38,6 +38,9 @@ import systemSettingsRoutes from './modules/system-settings/systemSettings.route
 
 const app = express();
 
+// Trust reverse proxy for rate limiter (e.g. Nginx, Render, Vercel)
+app.set('trust proxy', 1);
+
 // ==========================================
 // 1. Core Security Headers & Middleware
 // ==========================================

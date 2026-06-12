@@ -14,7 +14,6 @@ const restaurantOutletSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      index: true,
     },
     location: { type: String, default: '', trim: true },
     phone: { type: String, default: '', trim: true },
