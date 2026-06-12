@@ -32,8 +32,21 @@ const MENU = {
 /** Legacy shell for procurement / admin mobile preview — buyer uses FieldAppShell */
 function LegacyMobileShell({ user, role, items, viewOnly, onLogout }) {
   useEffect(() => {
+    // Fallback classes
     document.body.classList.add('is-field-app');
-    return () => document.body.classList.remove('is-field-app');
+    
+    // Inline styles for foolproof caching bypass
+    const root = document.getElementById('root');
+    document.documentElement.style.setProperty('background-color', '#000000', 'important');
+    document.body.style.setProperty('background-color', '#000000', 'important');
+    if (root) root.style.setProperty('background-color', '#000000', 'important');
+
+    return () => {
+      document.body.classList.remove('is-field-app');
+      document.documentElement.style.removeProperty('background-color');
+      document.body.style.removeProperty('background-color');
+      if (root) root.style.removeProperty('background-color');
+    };
   }, []);
 
   return (
