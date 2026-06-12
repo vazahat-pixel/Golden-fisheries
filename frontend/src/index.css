@@ -134,3 +134,7 @@ input, select, textarea, button {
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+body.is-field-app {
+  background-color: #000000 !important;
+}

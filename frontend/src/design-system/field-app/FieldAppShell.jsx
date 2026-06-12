@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { LoadingFallback } from '../components/LoadingFallback';
 import { FieldBottomNav } from './FieldBottomNav';
@@ -6,6 +6,11 @@ import './fieldAppTheme.css';
 
 export function FieldAppShell({ navItems, hideNav = false }) {
   const location = useLocation();
+
+  useEffect(() => {
+    document.body.classList.add('is-field-app');
+    return () => document.body.classList.remove('is-field-app');
+  }, []);
 
   return (
     <div className="field-app field-app-viewport flex flex-col min-h-[100dvh] h-[100dvh] w-full">

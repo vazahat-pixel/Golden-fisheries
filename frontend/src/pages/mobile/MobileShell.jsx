@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeRole, ROLES } from '../../constants/rbac';
@@ -31,6 +31,11 @@ const MENU = {
 
 /** Legacy shell for procurement / admin mobile preview — buyer uses FieldAppShell */
 function LegacyMobileShell({ user, role, items, viewOnly, onLogout }) {
+  useEffect(() => {
+    document.body.classList.add('is-field-app');
+    return () => document.body.classList.remove('is-field-app');
+  }, []);
+
   return (
     <div className="field-app field-app-viewport min-h-[100dvh] w-full flex flex-col">
       <header className="bg-[var(--fa-surface)] text-[var(--fa-text)] border-b border-[var(--fa-border)] px-4 py-3 flex justify-between items-center sticky top-0 z-10 pt-[max(0.75rem,env(safe-area-inset-top))]">

@@ -1,8 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 /** Dark + gold OTP login shell (driver / buyer field apps) — full mobile width */
 export default function FieldAuthLayout({ title, subtitle, children, onBack, backLabel = 'Back' }) {
+  useEffect(() => {
+    document.body.classList.add('is-field-app');
+    return () => document.body.classList.remove('is-field-app');
+  }, []);
+
   return (
     <div className="field-app field-app-viewport min-h-[100dvh] w-full flex flex-col">
       <div
