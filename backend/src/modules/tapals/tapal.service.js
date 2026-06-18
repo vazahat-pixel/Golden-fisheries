@@ -45,20 +45,34 @@ class TapalService extends BaseService {
   /**
    * Safe Transaction: Assigns a Driver & Vehicle to a Tapal, spawning a Trip
    */
-  async assignDriver(tapalId, driverId, vehicleId) {
+  async assignDriver(tapalId, driverId, vehicleId, driverName) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      // 1. Validate Tapal
       const tapal = await this.model.findById(tapalId).session(session);
       if (!tapal) throw new AppError('Tapal not found', 404);
 
-      // Accept fresh tapals and harvest-linked assignments (ASSIGNED / CONFIRMED)
       const assignableStatuses = ['CREATED', 'ASSIGNED', 'CONFIRMED'];
       if (!assignableStatuses.includes(tapal.status)) {
         throw new AppError(`Driver assignment blocked: Tapal status is '${tapal.status}'. Must be CREATED or CONFIRMED.`, 400);
       }
+
+      const trimmedName = String(driverName || '').trim();
+      if (!driverId && trimmedName) {
+        tapal.driver = trimmedName.toUpperCase();
+        tapal.status = 'ASSIGNED';
+        if (vehicleId) {
+          const vehicle = await Vehicle.findById(vehicleId).session(session);
+          if (vehicle) tapal.vehicleNumber = vehicle.vehicleNumber || vehicle.plateNumber || null;
+        }
+        await tapal.save({ session });
+        await session.commitTransaction();
+        session.endSession();
+        return { tapal, trip: null, nameOnly: true };
+      }
+
+      if (!driverId) throw new AppError('Driver ID or driver name is required', 400);
 
       // 2. Validate Driver — driverId may be User._id or DriverProfile._id
       let driver = await User.findOne({ _id: driverId, role: 'DRIVER' }).session(session);

@@ -163,8 +163,8 @@ export const tapalController = {
 
   // Admin assigns a Driver and Vehicle, creating a Trip
   assignDriver: asyncWrapper(async (req, res) => {
-    const { tapalId, driverId, vehicleId } = req.body;
-    const result = await tapalService.assignDriver(tapalId, driverId, vehicleId);
+    const { tapalId, driverId, vehicleId, driverName } = req.body;
+    const result = await tapalService.assignDriver(tapalId, driverId, vehicleId, driverName);
     if (result.tapal) result.tapal = aliasTapalResponse(result.tapal);
     if (result.trip) result.trip = aliasTripResponse(result.trip);
     new ApiResponse(200, result, 'Driver and Vehicle assigned. Trip spawned.').send(res);

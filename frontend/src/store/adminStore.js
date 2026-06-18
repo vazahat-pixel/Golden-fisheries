@@ -197,12 +197,12 @@ export const useAdminStore = create(
         }
       },
 
-      convertSlipToTapalAsync: async (slipId, assignedTo = null, selectedItems = null) => {
+      convertSlipToTapalAsync: async (slipId, logistics = {}, selectedItems = null) => {
         try {
-          // POST /harvests/convert-to-tapal/:id
-          // Returns ApiResponse(201, { tapal }, ...)
-          // After interceptor: res = { success, data: { tapal } }
-          const res = await harvestService.convertToTapal(slipId, { assignedTo, selectedItems });
+          const res = await harvestService.convertToTapal(slipId, {
+            selectedItems,
+            ...logistics,
+          });
           const tapal = res?.data?.tapal || res?.tapal || res;
           await get().fetchHarvestSlips();
           await get().fetchTapals();

@@ -395,7 +395,7 @@ const HarvestSlipPreview = () => {
                     {slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED'}
                   </div>
                   <div className="w-1/6 border-r border-black flex items-center justify-center">
-                    SOFT
+                    LOADING
                   </div>
                   <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
                     {slip.soft ? parseFloat(slip.soft).toFixed(2) : ''}

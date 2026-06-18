@@ -20,14 +20,21 @@ const ASSIGNABLE_STATUSES = ['CREATED', 'ASSIGNED', 'CONFIRMED'];
 async function buyerTapalFilter(user) {
   const p10 = normalizePhone10(user.phone);
   const phoneVariants = [...new Set([user.phone, p10].filter(Boolean))];
+  const phoneTail = p10 ? new RegExp(`${p10.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) : null;
+
   const buyerMaster = await Buyer.findOne({
     isActive: { $ne: false },
-    phone: { $in: phoneVariants },
+    $or: [
+      { phone: { $in: phoneVariants } },
+      ...(phoneTail ? [{ phone: phoneTail }] : []),
+    ],
   });
-  const or = [
-    { buyerPhone: { $in: phoneVariants } },
-    { assignedBuyer: user._id },
-  ];
+
+  const or = [{ assignedBuyer: user._id }];
+  if (phoneVariants.length) {
+    or.push({ buyerPhone: { $in: phoneVariants } });
+    if (phoneTail) or.push({ buyerPhone: phoneTail });
+  }
   if (buyerMaster) or.push({ buyerId: buyerMaster._id });
   return { $or: or, isDeleted: { $ne: true } };
 }

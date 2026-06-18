@@ -279,13 +279,17 @@ class HarvestService extends BaseService {
       });
 
       const buyerPhoneRaw = logistics.buyerPhone;
-      if (buyerPhoneRaw) {
-        const p10 = normalizePhone10(buyerPhoneRaw);
-        newTapal.buyerPhone = p10;
+      if (buyerPhoneRaw || logistics.buyerId) {
+        let p10 = buyerPhoneRaw ? normalizePhone10(buyerPhoneRaw) : null;
         if (logistics.buyerId) newTapal.buyerId = logistics.buyerId;
+        if (!p10 && logistics.buyerId) {
+          const buyerById = await Buyer.findById(logistics.buyerId).session(session);
+          if (buyerById?.phone) p10 = normalizePhone10(buyerById.phone);
+        }
+        if (p10) newTapal.buyerPhone = p10;
         if (logistics.assignedBuyer) {
           newTapal.assignedBuyer = logistics.assignedBuyer;
-        } else {
+        } else if (p10) {
           const buyerUser = await User.findOne({
             isActive: { $ne: false },
             role: { $in: ['BUYER', 'Buyer'] },
@@ -293,7 +297,7 @@ class HarvestService extends BaseService {
           }).session(session);
           if (buyerUser) newTapal.assignedBuyer = buyerUser._id;
         }
-        if (!newTapal.buyerId) {
+        if (!newTapal.buyerId && p10) {
           const buyerMaster = await Buyer.findOne({
             isActive: { $ne: false },
             $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],

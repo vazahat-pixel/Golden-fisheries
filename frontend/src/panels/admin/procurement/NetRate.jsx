@@ -205,10 +205,10 @@ const NetRate = () => {
           {[
             ['Commission', 'commission'],
             ['TDS', 'tds'],
-            ['Soft', 'soft'],
+            ['Loading', 'soft'],
             ['Transport Ded.', 'deductionTransport'],
             ['Commission Ded.', 'deductionCommission'],
-            ['Soft Ded.', 'deductionSoft'],
+            ['Loading Ded.', 'deductionSoft'],
             ['Other Deduction', 'deductionOther'],
           ].map(([label, key]) => (
             <ErpFieldRow key={key} label={label} compact>

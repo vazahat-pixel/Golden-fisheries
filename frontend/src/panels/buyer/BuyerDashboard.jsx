@@ -13,8 +13,23 @@ import {
 import { useBuyerPaths } from './buyerPaths';
 import { BuyerWorkflowGuide } from './BuyerWorkflowGuide';
 
-const VERIFY_STATUSES = ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING'];
-const ACTIVE_STATUSES = ['CREATED', 'ASSIGNED', 'CONFIRMED', 'ACCEPTED', 'IN_TRANSIT'];
+const VERIFY_STATUSES = ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING', 'DRIVER_ASSIGNED'];
+const ACTIVE_STATUSES = [
+  'CREATED',
+  'ASSIGNED',
+  'CONFIRMED',
+  'ACCEPTED',
+  'IN_TRANSIT',
+  'DRIVER_ASSIGNED',
+  'DELIVERED',
+  'BILL_PENDING',
+];
+
+function unwrapList(res) {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
+}
 
 const BuyerDashboard = () => {
   const navigate = useNavigate();
@@ -34,8 +49,8 @@ const BuyerDashboard = () => {
           buyerPortalService.listBills(),
         ]);
         if (cancelled) return;
-        setTapals(Array.isArray(tapalRes?.data) ? tapalRes.data : []);
-        setBillCount(Array.isArray(billRes?.data) ? billRes.data.length : 0);
+        setTapals(unwrapList(tapalRes));
+        setBillCount(unwrapList(billRes).length);
       } catch {
         if (!cancelled) {
           setTapals([]);
@@ -59,9 +74,12 @@ const BuyerDashboard = () => {
 
   const pendingVerify = tapals.filter((t) => VERIFY_STATUSES.includes(t.status)).length;
   const activeTapals = tapals.filter((t) => ACTIVE_STATUSES.includes(t.status)).length;
+  const openLoads = tapals.filter((t) =>
+    ['CREATED', 'ASSIGNED', 'CONFIRMED', 'DRIVER_ASSIGNED'].includes(t.status)
+  ).length;
   const statusTone = pendingVerify > 0 ? 'assigned' : activeTapals > 0 ? 'active' : 'idle';
   const portalStatus =
-    pendingVerify > 0 ? 'Verify pending' : activeTapals > 0 ? 'Loads open' : 'Ready';
+    pendingVerify > 0 ? 'Verify pending' : openLoads > 0 ? 'Loads open' : activeTapals > 0 ? 'In progress' : 'Ready';
 
   const recentRows = tapals.slice(0, 6).map((t) => ({
     id: t._id || t.id,

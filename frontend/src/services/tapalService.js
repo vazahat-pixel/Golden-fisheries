@@ -27,8 +27,13 @@ export const tapalService = {
   },
 
   // 3. Assign Driver & Vehicle to Tapal (Launches active trip)
-  assignDriver: async (tapalId, driverId, vehicleId) => {
-    return await apiClient.patch('/tapals/assign-driver', { tapalId, driverId, vehicleId });
+  assignDriver: async (tapalId, driverId, vehicleId, driverName) => {
+    return await apiClient.patch('/tapals/assign-driver', {
+      tapalId,
+      driverId: driverId || undefined,
+      vehicleId,
+      driverName: driverName || undefined,
+    });
   },
 
   // 3.1 Driver accepts an assigned trip

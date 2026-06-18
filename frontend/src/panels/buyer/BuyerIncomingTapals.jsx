@@ -6,8 +6,13 @@ import { toast } from 'react-hot-toast';
 import { FieldPageWrap } from '../../design-system/field-app';
 import { useBuyerPaths } from './buyerPaths';
 
-const VERIFY_STATUSES = ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING'];
-const BILL_STATUSES = ['BUYER_VERIFIED'];
+const VERIFY_STATUSES = ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING', 'DRIVER_ASSIGNED'];
+
+function unwrapList(res) {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
+}
 
 const BuyerIncomingTapals = () => {
   const navigate = useNavigate();
@@ -21,11 +26,8 @@ const BuyerIncomingTapals = () => {
     setLoading(true);
     try {
       const res = await buyerPortalService.getAssignedTapals({ limit: 50 });
-      const list = Array.isArray(res?.data) ? res.data : [];
-      const actionable = list.filter(
-        (t) => VERIFY_STATUSES.includes(t.status) || BILL_STATUSES.includes(t.status)
-      );
-      setTapals(actionable);
+      const list = unwrapList(res);
+      setTapals(list);
     } catch (e) {
       toast.error(e?.message || 'Failed to load tapals');
     } finally {
@@ -80,7 +82,7 @@ const BuyerIncomingTapals = () => {
         tapals.map((t) => {
           const id = t._id || t.id;
           const canVerify = VERIFY_STATUSES.includes(t.status);
-          const canBill = BILL_STATUSES.includes(t.status);
+          const canBill = t.status === 'BUYER_VERIFIED';
 
           return (
             <div key={id} className="fa-surface p-5 space-y-3 mb-3">
@@ -172,7 +174,11 @@ const BuyerIncomingTapals = () => {
                     </button>
                   )}
                   {!canVerify && !canBill && (
-                    <p className="text-[10px] fa-muted">No action available for this tapal yet</p>
+                    <p className="text-[10px] fa-muted">
+                      {['CREATED', 'ASSIGNED', 'CONFIRMED', 'DRIVER_ASSIGNED'].includes(t.status)
+                        ? 'Tapal linked — assign driver or wait for delivery'
+                        : 'No action available for this tapal yet'}
+                    </p>
                   )}
                 </div>
               )}

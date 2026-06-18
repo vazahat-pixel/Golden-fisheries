@@ -6,6 +6,16 @@ import { Sprout, Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../../design-system';
 
+function getRowTotalWeight(item) {
+  const boxes = parseFloat(item.noOfBoxes) || 0;
+  const boxWeight = parseFloat(item.boxWeight) || 0;
+  if (boxes > 0 && boxWeight > 0) {
+    return Number((boxes * boxWeight).toFixed(2));
+  }
+  const manual = parseFloat(item.totalWeight);
+  return Number.isFinite(manual) ? manual : 0;
+}
+
 const CreateHarvestSlipV2 = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -156,22 +166,21 @@ const CreateHarvestSlipV2 = () => {
     }
   }, [isEditing]);
 
-  // Recalculate row total weight and totals automatically
   const handleItemChange = (id, field, value) => {
-    setItems(prevItems => 
-      prevItems.map(item => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value };
-          
-          // Auto calculate totalWeight if boxes and weight exist
-          if (field === 'noOfBoxes' || field === 'boxWeight') {
-            const boxes = parseFloat(field === 'noOfBoxes' ? value : item.noOfBoxes) || 0;
-            const weight = parseFloat(field === 'boxWeight' ? value : item.boxWeight) || 0;
-            updatedItem.totalWeight = boxes && weight ? String(boxes * weight) : '';
-          }
-          return updatedItem;
+    setItems((prevItems) =>
+      prevItems.map((item) => {
+        if (item.id !== id) return item;
+        const updatedItem = { ...item, [field]: value };
+        if (field === 'totalWeight') return updatedItem;
+
+        const boxes = parseFloat(field === 'noOfBoxes' ? value : updatedItem.noOfBoxes) || 0;
+        const boxWeight = parseFloat(field === 'boxWeight' ? value : updatedItem.boxWeight) || 0;
+        if (boxes > 0 && boxWeight > 0) {
+          updatedItem.totalWeight = String(Number((boxes * boxWeight).toFixed(2)));
+        } else if (field === 'noOfBoxes' || field === 'boxWeight') {
+          updatedItem.totalWeight = '';
         }
-        return item;
+        return updatedItem;
       })
     );
   };
@@ -186,8 +195,8 @@ const CreateHarvestSlipV2 = () => {
   };
 
   // Calculate totals
-  const totalBoxes = items.reduce((sum, item) => sum + (parseInt(item.noOfBoxes) || 0), 0);
-  const totalWeight = items.reduce((sum, item) => sum + (parseFloat(item.totalWeight) || 0), 0);
+  const totalBoxes = items.reduce((sum, item) => sum + (parseInt(item.noOfBoxes, 10) || 0), 0);
+  const totalWeight = items.reduce((sum, item) => sum + getRowTotalWeight(item), 0);
 
   // Generate numbers to words helper for total weight/boxes
   useEffect(() => {
@@ -213,7 +222,12 @@ const CreateHarvestSlipV2 = () => {
       vehicleNo,
       driverName,
       graderName,
-      items: items.filter(item => item.particulars || item.hsnCode), // Filter out completely empty items
+      items: items
+        .filter((item) => item.particulars || item.hsnCode)
+        .map((item) => ({
+          ...item,
+          totalWeight: String(getRowTotalWeight(item) || item.totalWeight || ''),
+        })),
       totalBoxes,
       totalWeight,
       notes,
@@ -463,13 +477,16 @@ const CreateHarvestSlipV2 = () => {
 
                     {/* Total Weight */}
                     <td className="py-3 px-3">
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         step="any"
-                        value={item.totalWeight} 
-                        onChange={e => handleItemChange(item.id, 'totalWeight', e.target.value)}
+                        value={getRowTotalWeight(item) || item.totalWeight || ''}
+                        onChange={(e) => handleItemChange(item.id, 'totalWeight', e.target.value)}
                         placeholder="Total Wt"
-                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold"
+                        readOnly={
+                          (parseFloat(item.noOfBoxes) || 0) > 0 && (parseFloat(item.boxWeight) || 0) > 0
+                        }
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold read-only:opacity-80"
                       />
                     </td>
 

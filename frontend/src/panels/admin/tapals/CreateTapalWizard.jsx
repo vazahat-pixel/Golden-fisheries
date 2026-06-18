@@ -7,6 +7,8 @@ import {
   AlertCircle, CheckCircle, Sprout
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Modal } from '../../../design-system';
+import { masterService } from '../../../services/masterService';
 
 const STEPS = [
   { id: 1, label: 'Source Load',    icon: Sprout },
@@ -42,6 +44,45 @@ const CreateTapalWizard = () => {
   const [assignedBuyerId, setAssignedBuyerId] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [notes, setNotes] = useState('');
+
+  const [isBuyerModalOpen, setIsBuyerModalOpen] = useState(false);
+  const [newBuyerName, setNewBuyerName] = useState('');
+  const [newBuyerPhone, setNewBuyerPhone] = useState('');
+  const [newBuyerAddress, setNewBuyerAddress] = useState('');
+  const [newBuyerType, setNewBuyerType] = useState('EXTERNAL');
+  const [isAddingBuyer, setIsAddingBuyer] = useState(false);
+
+  const handleAddBuyerSubmit = async (e) => {
+    e.preventDefault();
+    if (!newBuyerName.trim() || !newBuyerPhone.trim() || !newBuyerAddress.trim()) {
+      toast.error('Buyer name, phone, and delivery address are required');
+      return;
+    }
+    setIsAddingBuyer(true);
+    try {
+      const res = await masterService.buyers.create({
+        buyerName: newBuyerName.trim().toUpperCase(),
+        phone: newBuyerPhone.trim(),
+        buyerType: newBuyerType,
+        deliveryAddress: newBuyerAddress.trim().toUpperCase(),
+      });
+      const newBuyer = res?.data?.buyer || res?.buyer || res;
+      if (newBuyer) {
+        toast.success('Buyer added');
+        await fetchBuyers();
+        setAssignedBuyerId(newBuyer._id || newBuyer.id);
+        setNewBuyerName('');
+        setNewBuyerPhone('');
+        setNewBuyerAddress('');
+        setNewBuyerType('EXTERNAL');
+        setIsBuyerModalOpen(false);
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Failed to create buyer');
+    } finally {
+      setIsAddingBuyer(false);
+    }
+  };
 
   const allBuyers = buyers;
   const allVehicles = vehicles.map((v) => v.plateNumber || v.vehicleNumber).filter(Boolean);
@@ -101,11 +142,11 @@ const CreateTapalWizard = () => {
 
   // Step validation
   const canProceedStep1 = !!selectedSlipId;
-  const canProceedStep2 = vehicleNo && driverName && assignedBuyerId;
+  const canProceedStep2 = driverName.trim() && assignedBuyerId;
 
   const handleNext = () => {
     if (step === 1 && !canProceedStep1) { toast.error('Please select a harvest slip.'); return; }
-    if (step === 2 && !canProceedStep2) { toast.error('Please fill vehicle, driver, and buyer.'); return; }
+    if (step === 2 && !canProceedStep2) { toast.error('Please select buyer and enter driver name.'); return; }
     setStep(s => Math.min(s + 1, 3));
   };
 
@@ -130,7 +171,19 @@ const CreateTapalWizard = () => {
       status: 'Assigned',
     };
     try {
-      await convertSlipToTapalAsync(selectedSlipId, assignedBuyerId, selectedSlip?.items);
+      const buyerPhone = String(selectedBuyer?.phone || '').replace(/\D/g, '').slice(-10);
+      await convertSlipToTapalAsync(
+        selectedSlipId,
+        {
+          buyerId: assignedBuyerId,
+          buyerPhone,
+          driverName: driverName.trim().toUpperCase(),
+          vehicleNumber: vehicleNo.trim() || undefined,
+          destination: deliveryLocation.trim() || undefined,
+          logisticsNotes: notes.trim() || undefined,
+        },
+        selectedSlip?.items
+      );
       await updateHarvestStatusAsync(selectedSlipId, 'Tapal Created');
       sessionStorage.removeItem('current_tapal_source_slip');
       toast.success('Tapal created successfully!', { id: loadToast });
@@ -317,20 +370,31 @@ const CreateTapalWizard = () => {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Assign to Buyer / Merchant *</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive">Assign to Buyer / Merchant *</label>
+                <button
+                  type="button"
+                  onClick={() => setIsBuyerModalOpen(true)}
+                  className="text-[9px] font-black uppercase text-brand-yellow hover:underline"
+                >
+                  + Add Buyer
+                </button>
+              </div>
               <select
                 value={assignedBuyerId} onChange={e => setAssignedBuyerId(e.target.value)}
                 className="bg-white border border-card-border px-4 py-3 text-sm focus:ring-2 focus:ring-brand-olive outline-none font-bold"
               >
                 <option value="">— Choose Buyer —</option>
                 {allBuyers.map(b => (
-                  <option key={b.id || b._id} value={b.id || b._id}>{b.name}</option>
+                  <option key={b.id || b._id} value={b.id || b._id}>
+                    {(b.buyerName || b.name || 'Buyer').toUpperCase()} — {b.phone}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Vehicle Number *</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-brand-olive mb-1.5">Vehicle Number (optional)</label>
               <input
                 type="text" value={vehicleNo} onChange={e => setVehicleNo(e.target.value)}
                 placeholder="Type or select" list="vehicles-list"
@@ -419,7 +483,7 @@ const CreateTapalWizard = () => {
               <div className="space-y-2 text-sm">
                 <p><span className="font-bold text-text-muted w-28 inline-block">Tapal No:</span> <span className="font-black">#{tpNo}</span></p>
                 <p><span className="font-bold text-text-muted w-28 inline-block">Date:</span> <span className="font-black">{date}</span></p>
-                <p><span className="font-bold text-text-muted w-28 inline-block">Buyer:</span> <span className="font-black uppercase">{selectedBuyer?.name || '—'}</span></p>
+                <p><span className="font-bold text-text-muted w-28 inline-block">Buyer:</span> <span className="font-black uppercase">{selectedBuyer?.buyerName || selectedBuyer?.name || '—'}</span></p>
                 <p><span className="font-bold text-text-muted w-28 inline-block">Vehicle:</span> <span className="font-black">{vehicleNo || '—'}</span></p>
                 <p><span className="font-bold text-text-muted w-28 inline-block">Driver:</span> <span className="font-black uppercase">{driverName || '—'}</span></p>
                 {deliveryLocation && <p><span className="font-bold text-text-muted w-28 inline-block">Delivery To:</span> <span className="font-bold">{deliveryLocation}</span></p>}
@@ -501,6 +565,60 @@ const CreateTapalWizard = () => {
           </button>
         )}
       </div>
+
+      <Modal isOpen={isBuyerModalOpen} onClose={() => setIsBuyerModalOpen(false)} title="Add New Buyer" size="md">
+        <form onSubmit={handleAddBuyerSubmit} className="space-y-4 font-sans text-xs">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-brand-olive mb-1">Buyer Name *</label>
+            <input
+              type="text"
+              required
+              value={newBuyerName}
+              onChange={(e) => setNewBuyerName(e.target.value)}
+              className="border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-brand-olive outline-none uppercase"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-brand-olive mb-1">Phone *</label>
+            <input
+              type="tel"
+              required
+              maxLength={10}
+              value={newBuyerPhone}
+              onChange={(e) => setNewBuyerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-brand-olive outline-none"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-brand-olive mb-1">Delivery Address *</label>
+            <input
+              type="text"
+              required
+              value={newBuyerAddress}
+              onChange={(e) => setNewBuyerAddress(e.target.value)}
+              className="border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-brand-olive outline-none uppercase"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-brand-olive mb-1">Buyer Type</label>
+            <select
+              value={newBuyerType}
+              onChange={(e) => setNewBuyerType(e.target.value)}
+              className="border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-brand-olive outline-none"
+            >
+              <option value="EXTERNAL">External</option>
+              <option value="INTERNAL">Internal</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={isAddingBuyer}
+            className="w-full bg-brand-olive text-white py-3 font-black uppercase text-xs tracking-widest disabled:opacity-50"
+          >
+            {isAddingBuyer ? 'Saving…' : 'Save Buyer'}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 };

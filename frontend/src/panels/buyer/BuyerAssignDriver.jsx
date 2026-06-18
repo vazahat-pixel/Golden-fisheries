@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Package, CheckCircle2, Link2 } from 'lucide-react';
 import { tapalService } from '../../services/tapalService';
@@ -12,6 +12,16 @@ function unwrapList(res) {
   return [];
 }
 
+function matchDriverByName(drivers, name) {
+  const needle = String(name || '').trim().toLowerCase();
+  if (!needle) return null;
+  return (
+    drivers.find((d) => (d.fullName || d.name || '').trim().toLowerCase() === needle) ||
+    drivers.find((d) => (d.fullName || d.name || '').trim().toLowerCase().includes(needle)) ||
+    drivers.find((d) => d.phone?.includes(needle))
+  );
+}
+
 const BuyerAssignDriver = () => {
   const navigate = useNavigate();
   const [tapals, setTapals] = useState([]);
@@ -19,13 +29,15 @@ const BuyerAssignDriver = () => {
   const [loadingTapals, setLoadingTapals] = useState(true);
 
   const [selectedTapal, setSelectedTapal] = useState(null);
-  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [driverName, setDriverName] = useState('');
   const [searchTapal, setSearchTapal] = useState('');
-  const [searchDriver, setSearchDriver] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [step, setStep] = useState(1);
   const [lookup, setLookup] = useState(null);
+
+  const matchedDriver = useMemo(() => matchDriverByName(drivers, driverName), [drivers, driverName]);
+  const driverSuggestions = drivers.map((d) => d.fullName || d.name).filter(Boolean);
 
   const loadTapals = useCallback(() => {
     setLoadingTapals(true);
@@ -49,13 +61,6 @@ const BuyerAssignDriver = () => {
       !searchTapal ||
       t.tapalNumber?.toLowerCase().includes(searchTapal.toLowerCase()) ||
       t.partyName?.toLowerCase().includes(searchTapal.toLowerCase())
-  );
-
-  const availableDrivers = drivers.filter(
-    (d) =>
-      !searchDriver ||
-      d.fullName?.toLowerCase().includes(searchDriver.toLowerCase()) ||
-      d.phone?.includes(searchDriver)
   );
 
   useEffect(() => {
@@ -88,19 +93,26 @@ const BuyerAssignDriver = () => {
   };
 
   const handleAssign = async () => {
-    if (!selectedTapal || !selectedDriver) {
-      toast.error('Select tapal and driver');
+    if (!selectedTapal || !driverName.trim()) {
+      toast.error('Select tapal and enter driver name');
       return;
     }
 
     setAssigning(true);
     try {
-      await tapalService.assignDriver(
-        selectedTapal._id || selectedTapal.id,
-        selectedDriver._id || selectedDriver.id,
-        undefined
-      );
-      toast.success('Driver assigned — trip sent to driver app');
+      const tapalId = selectedTapal._id || selectedTapal.id;
+      const name = driverName.trim().toUpperCase();
+      if (matchedDriver) {
+        await tapalService.assignDriver(
+          tapalId,
+          matchedDriver._id || matchedDriver.id,
+          undefined
+        );
+        toast.success('Driver assigned — trip sent to driver app');
+      } else {
+        await tapalService.assignDriver(tapalId, null, undefined, name);
+        toast.success(`Driver ${name} saved on tapal`);
+      }
       navigate('/mobile/buyer/tapals');
     } catch (err) {
       toast.error(err?.message || 'Failed to assign driver');
@@ -114,8 +126,9 @@ const BuyerAssignDriver = () => {
       {[1, 2].map((s) => (
         <React.Fragment key={s}>
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${step >= s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
-              }`}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${
+              step >= s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
+            }`}
           >
             {s}
           </div>
@@ -131,7 +144,7 @@ const BuyerAssignDriver = () => {
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-accent-olive mb-1">Buyer Portal</p>
         <h1 className="text-2xl font-serif italic font-black text-slate-900">Assign Driver</h1>
         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-          Your tapals only · vehicle optional
+          Type driver name · vehicle optional
         </p>
       </div>
 
@@ -165,7 +178,9 @@ const BuyerAssignDriver = () => {
                   <p className="text-sm font-bold text-amber-900">
                     Found {lookup.tapal.tapalNumber} — not linked to you yet
                   </p>
-                  <p className="text-xs text-amber-800 mt-1">{lookup.tapal.partyName} · {lookup.tapal.status}</p>
+                  <p className="text-xs text-amber-800 mt-1">
+                    {lookup.tapal.partyName} · {lookup.tapal.status}
+                  </p>
                   <button
                     type="button"
                     disabled={claiming}
@@ -195,6 +210,7 @@ const BuyerAssignDriver = () => {
                 type="button"
                 onClick={() => {
                   setSelectedTapal(tapal);
+                  setDriverName(tapal.driver && tapal.driver !== 'Unassigned' ? tapal.driver : '');
                   setStep(2);
                 }}
                 className="w-full p-4 bg-white rounded-2xl border-2 text-left hover:border-blue-200"
@@ -213,7 +229,7 @@ const BuyerAssignDriver = () => {
       {step === 2 && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-sm font-black uppercase">Select driver</h2>
+            <h2 className="text-sm font-black uppercase">Driver name</h2>
             <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-600 font-bold">
               Back
             </button>
@@ -225,43 +241,36 @@ const BuyerAssignDriver = () => {
           )}
           <input
             type="text"
-            placeholder="Search drivers..."
-            value={searchDriver}
-            onChange={(e) => setSearchDriver(e.target.value)}
+            placeholder="Type driver name"
+            value={driverName}
+            onChange={(e) => setDriverName(e.target.value)}
+            list="buyer-drivers-list"
             className="w-full px-4 py-3 border rounded-xl text-sm"
           />
-          {availableDrivers.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-6">No active drivers found.</p>
-          ) : (
-            availableDrivers.map((driver) => (
-              <button
-                key={driver._id}
-                type="button"
-                onClick={() => setSelectedDriver(driver)}
-                className={`w-full p-4 bg-white rounded-2xl border-2 text-left ${(selectedDriver?._id || selectedDriver?.id) === driver._id
-                    ? 'border-blue-500'
-                    : 'border-slate-100'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <User size={18} className="text-blue-600" />
-                  <div>
-                    <h3 className="text-sm font-black">{driver.fullName}</h3>
-                    <p className="text-[10px] text-slate-400">{driver.phone}</p>
-                  </div>
-                </div>
-              </button>
-            ))
+          <datalist id="buyer-drivers-list">
+            {driverSuggestions.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+          {driverName.trim() && matchedDriver && (
+            <p className="text-[10px] text-emerald-700 font-bold">
+              Matched {matchedDriver.fullName} — trip will go to driver app
+            </p>
+          )}
+          {driverName.trim() && !matchedDriver && (
+            <p className="text-[10px] text-amber-700 font-bold">
+              Name saved on tapal only until driver is registered in the system
+            </p>
           )}
           <button
             type="button"
             onClick={handleAssign}
-            disabled={assigning || !selectedDriver}
+            disabled={assigning || !driverName.trim()}
             className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-sm uppercase disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {assigning ? 'Assigning...' : (
               <>
-                <CheckCircle2 size={18} /> Assign driver & launch trip
+                <CheckCircle2 size={18} /> Assign driver
               </>
             )}
           </button>

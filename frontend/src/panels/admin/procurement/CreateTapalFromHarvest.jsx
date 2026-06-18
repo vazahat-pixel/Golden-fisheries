@@ -78,6 +78,20 @@ function sumProductAllocations(products = {}) {
   return Object.values(products).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 }
 
+function normalizePhone10(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : digits;
+}
+
+function matchDriverByName(drivers, name) {
+  const needle = String(name || '').trim().toLowerCase();
+  if (!needle) return null;
+  return (
+    drivers.find((d) => (d.fullName || d.name || '').trim().toLowerCase() === needle) ||
+    drivers.find((d) => (d.fullName || d.name || '').trim().toLowerCase().includes(needle))
+  );
+}
+
 const CreateTapalFromHarvest = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -89,7 +103,7 @@ const CreateTapalFromHarvest = () => {
 
   const [destination, setDestination] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
-  const [driverId, setDriverId] = useState('');
+  const [driverName, setDriverName] = useState('');
   const [drivers, setDrivers] = useState([]);
   const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [logisticsNotes, setLogisticsNotes] = useState('');
@@ -231,7 +245,10 @@ const CreateTapalFromHarvest = () => {
   }, [selectedAllocations, eligible]);
 
   const selectedBuyer = buyers.find((b) => String(b._id || b.id) === String(buyerId));
-  const selectedDriver = drivers.find((d) => String(d._id || d.id) === String(driverId));
+  const matchedDriver = matchDriverByName(drivers, driverName);
+  const driverSuggestions = drivers
+    .map((d) => d.fullName || d.name)
+    .filter(Boolean);
 
   // Handle allocation checkbox toggle
   const toggleHarvestSelection = (hId, h) => {
@@ -330,9 +347,9 @@ const CreateTapalFromHarvest = () => {
     if (keys.length === 0) return false;
     if (Object.keys(validationErrors).length > 0) return false;
     if (!buyerId || !selectedBuyer?.phone) return false;
-    if (!driverId || !selectedDriver) return false;
+    if (!driverName.trim()) return false;
     return true;
-  }, [selectedAllocations, validationErrors, buyerId, selectedBuyer, driverId, selectedDriver]);
+  }, [selectedAllocations, validationErrors, buyerId, selectedBuyer, driverName]);
 
   const resolveVehicleId = () => {
     if (!vehicleNumber.trim()) return undefined;
@@ -346,7 +363,7 @@ const CreateTapalFromHarvest = () => {
 
   const handleCreate = async () => {
     if (!isValid) {
-      toast.error('Select harvest, buyer, and a registered driver');
+      toast.error('Select harvest, buyer, and enter a driver name');
       return;
     }
 
@@ -372,7 +389,7 @@ const CreateTapalFromHarvest = () => {
       };
     });
 
-    const driverDisplayName = selectedDriver.fullName || selectedDriver.name || 'Driver';
+    const driverDisplayName = driverName.trim().toUpperCase();
 
     setSubmitting(true);
     try {
@@ -383,7 +400,7 @@ const CreateTapalFromHarvest = () => {
         driverName: driverDisplayName,
         logisticsNotes,
         buyerId: selectedBuyer._id || selectedBuyer.id,
-        buyerPhone: selectedBuyer.phone,
+        buyerPhone: normalizePhone10(selectedBuyer.phone),
       });
 
       const tapal =
@@ -396,11 +413,19 @@ const CreateTapalFromHarvest = () => {
         throw new Error('Tapal created but ID missing from server response');
       }
 
-      await tapalService.assignDriver(tapalId, driverId, resolveVehicleId());
-
-      toast.success(
-        `Tapal generated and driver assigned — ${driverDisplayName}${selectedDriver.phone ? ` (${selectedDriver.phone})` : ''}`
-      );
+      if (matchedDriver) {
+        await tapalService.assignDriver(
+          tapalId,
+          matchedDriver._id || matchedDriver.id,
+          resolveVehicleId()
+        );
+        toast.success(
+          `Tapal generated and driver assigned — ${driverDisplayName}${matchedDriver.phone ? ` (${matchedDriver.phone})` : ''}`
+        );
+      } else {
+        await tapalService.assignDriver(tapalId, null, resolveVehicleId(), driverDisplayName);
+        toast.success(`Tapal generated — driver ${driverDisplayName} saved (no registered trip yet)`);
+      }
       navigate('/admin/tapals');
     } catch (err) {
       toast.error(err?.message || 'Failed to create tapal');
@@ -641,35 +666,37 @@ const CreateTapalFromHarvest = () => {
               />
             </PaperFieldRow>
 
-            <PaperFieldRow label="Vehicle Number">
+            <PaperFieldRow label="Vehicle Number (optional)">
               <input
                 className={paperInputClass}
                 value={vehicleNumber}
                 onChange={(e) => setVehicleNumber(e.target.value)}
-                placeholder="e.g. KA-19-F-1234"
+                placeholder="Optional — e.g. KA-19-F-1234"
               />
             </PaperFieldRow>
 
-            <PaperFieldRow label="Assign Driver *">
-              <select
+            <PaperFieldRow label="Driver Name *">
+              <input
                 className={paperInputClass}
-                value={driverId}
-                onChange={(e) => setDriverId(e.target.value)}
+                value={driverName}
+                onChange={(e) => setDriverName(e.target.value)}
+                placeholder="Type driver name"
                 required
-                disabled={loadingDrivers}
-              >
-                <option value="">
-                  {loadingDrivers ? 'Loading drivers…' : '— Select registered driver —'}
-                </option>
-                {drivers.map((d) => (
-                  <option key={d._id || d.id} value={d._id || d.id}>
-                    {(d.fullName || d.name || 'Driver').toUpperCase()} — {d.phone}
-                  </option>
+                list="tapal-drivers-list"
+              />
+              <datalist id="tapal-drivers-list">
+                {driverSuggestions.map((name) => (
+                  <option key={name} value={name} />
                 ))}
-              </select>
-              {!loadingDrivers && drivers.length === 0 && (
+              </datalist>
+              {!loadingDrivers && driverName.trim() && !matchedDriver && (
                 <p className="text-[10px] text-amber-700 font-bold mt-1">
-                  No active drivers found. Add a DRIVER user in Access Control first.
+                  Name-only assignment — tapal saved; register this driver later to launch a trip in the app.
+                </p>
+              )}
+              {!loadingDrivers && matchedDriver && (
+                <p className="text-[10px] text-emerald-700 font-bold mt-1">
+                  Matched registered driver — trip will be sent to the driver app.
                 </p>
               )}
             </PaperFieldRow>
