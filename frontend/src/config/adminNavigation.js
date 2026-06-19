@@ -33,6 +33,7 @@ export const ADMIN_NAV_ITEMS = [
   { icon: Sprout, label: 'Harvest Slips', path: '/admin/procurement/harvest', module: 'procurement' },
   { icon: FileText, label: 'Purchase Invoice', path: '/admin/procurement/net-rate', module: 'procurement' },
   { icon: ClipboardList, label: 'Tapals', path: '/admin/tapals', module: 'tapals' },
+  { icon: Users, label: 'Buyers (Channapa)', path: '/admin/buyers', module: 'tapals' },
   { icon: IndianRupee, label: 'Farmer Ledger', path: '/admin/procurement/farmer-ledger', module: 'procurement' },
   { icon: Truck, label: 'Logistics & Trips', path: '/admin/logistics', module: 'logistics' },
   { icon: Car, label: 'Vehicle Management', path: '/admin/vehicles', module: 'logistics' },

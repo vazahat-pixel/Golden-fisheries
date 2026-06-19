@@ -78,11 +78,7 @@ const BuyerTripTracker = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600 mb-1">Buyer Portal</p>
           <h1 className="text-2xl font-serif italic font-black text-slate-900">Trip Tracker</h1>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-            Real-time shipment tracking
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -130,12 +126,12 @@ const BuyerTripTracker = () => {
         {filteredTrips.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
             <Truck size={40} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm font-bold text-slate-400">No trips found</p>
+            <p className="text-sm font-bold text-slate-400">No trips</p>
             <button
               onClick={() => navigate('/mobile/buyer/assign-driver')}
               className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider"
             >
-              Assign Your First Driver
+              Assign driver
             </button>
           </div>
         ) : filteredTrips.map(trip => {

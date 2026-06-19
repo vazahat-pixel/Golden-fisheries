@@ -55,12 +55,17 @@ const NetRate = () => {
     return sum + w * r;
   }, 0);
 
-  const totalDeductions = ['tds', 'commission', 'soft', 'deductionTransport', 'deductionCommission', 'deductionSoft', 'deductionOther'].reduce(
+  const totalDeductions = ['tds', 'deductionTransport', 'deductionCommission', 'deductionSoft', 'deductionOther'].reduce(
     (s, k) => s + (parseFloat(deductions[k]) || 0),
     0
   );
 
-  const netPayable = Math.max(0, Math.round((grossAmount - totalDeductions) * 100) / 100);
+  const commissionAddition = parseFloat(deductions.commission) || 0;
+  const loadingAddition = parseFloat(deductions.soft) || 0;
+  const netPayable = Math.max(
+    0,
+    Math.round((grossAmount - totalDeductions + commissionAddition + loadingAddition) * 100) / 100
+  );
 
   const handleSave = async () => {
     if (!harvestId) {
@@ -203,9 +208,9 @@ const NetRate = () => {
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-4">
           {[
-            ['Commission', 'commission'],
+            ['Commission (addition)', 'commission'],
             ['TDS', 'tds'],
-            ['Loading', 'soft'],
+            ['Loading (addition)', 'soft'],
             ['Transport Ded.', 'deductionTransport'],
             ['Commission Ded.', 'deductionCommission'],
             ['Loading Ded.', 'deductionSoft'],
@@ -222,8 +227,10 @@ const NetRate = () => {
           ))}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <ErpSummaryBox label="Gross Amount" value={`₹${grossAmount.toLocaleString('en-IN')}`} />
+          <ErpSummaryBox label="Commission (+)" value={`₹${commissionAddition.toLocaleString('en-IN')}`} />
+          <ErpSummaryBox label="Loading (+)" value={`₹${loadingAddition.toLocaleString('en-IN')}`} />
           <ErpSummaryBox label="Total Deductions" value={`₹${totalDeductions.toLocaleString('en-IN')}`} variant="warn" />
           <ErpSummaryBox label="Net Payable" value={`₹${netPayable.toLocaleString('en-IN')}`} variant="total" />
         </div>

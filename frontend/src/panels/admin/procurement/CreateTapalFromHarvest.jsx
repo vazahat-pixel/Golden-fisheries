@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
 import { tapalService } from '../../../services/tapalService';
 import { masterService } from '../../../services/masterService';
 import { userService } from '../../../services/userService';
 import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../components/forms/PaperFormFrame';
 import { toast } from 'react-hot-toast';
-import { Modal } from '../../../design-system';
+import { BuyerFormModal } from '../buyers/BuyerFormModal';
+import { unwrapBuyers } from '../../../utils/buyerHelpers';
 import { ArrowLeft, Check, Plus, Trash2, Sprout, AlertCircle, ShoppingCart, Weight, ClipboardCheck } from 'lucide-react';
 
 const CONVERTIBLE_STATUS = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', 'PARTIAL_USED'];
@@ -94,8 +95,10 @@ function matchDriverByName(drivers, name) {
 
 const CreateTapalFromHarvest = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const preselectId = searchParams.get('harvestId');
+  const preselectBuyerId = location.state?.preselectBuyerId;
   const { harvestSlips, fetchHarvestSlips, fetchVehicles, vehicles, loading } = useAdminStore();
 
   // Selected allocations: { [harvestId]: { products: { [productKey]: qtyKg } } }
@@ -112,51 +115,20 @@ const CreateTapalFromHarvest = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
-  // Buyer creation modal states
   const [isBuyerModalOpen, setIsBuyerModalOpen] = useState(false);
-  const [newBuyerName, setNewBuyerName] = useState('');
-  const [newBuyerPhone, setNewBuyerPhone] = useState('');
-  const [newBuyerAddress, setNewBuyerAddress] = useState('');
-  const [newBuyerType, setNewBuyerType] = useState('EXTERNAL');
-  const [isAddingBuyer, setIsAddingBuyer] = useState(false);
 
-  const handleAddBuyerSubmit = async (e) => {
-    e.preventDefault();
-    if (!newBuyerName.trim() || !newBuyerPhone.trim() || !newBuyerAddress.trim()) {
-      toast.error('Buyer Name, Phone, and Delivery Address are required!');
-      return;
-    }
-    setIsAddingBuyer(true);
+  const loadBuyers = useCallback(async () => {
     try {
-      const res = await masterService.buyers.create({
-        buyerName: newBuyerName.trim().toUpperCase(),
-        phone: newBuyerPhone.trim(),
-        buyerType: newBuyerType,
-        deliveryAddress: newBuyerAddress.trim().toUpperCase()
-      });
-      const newBuyer = res?.data?.buyer || res?.buyer || res;
-      if (newBuyer) {
-        toast.success('Buyer added successfully!');
-        const bRes = await masterService.buyers.getAll({ limit: 200 });
-        const list = Array.isArray(bRes?.data) ? bRes.data : Array.isArray(bRes) ? bRes : [];
-        const filtered = list.filter((b) => b.isActive !== false);
-        setBuyers(filtered);
-        
-        setBuyerId(newBuyer._id || newBuyer.id);
-        
-        setNewBuyerName('');
-        setNewBuyerPhone('');
-        setNewBuyerAddress('');
-        setNewBuyerType('EXTERNAL');
-        setIsBuyerModalOpen(false);
-      } else {
-        toast.error('Failed to create buyer.');
-      }
-    } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to create buyer');
-    } finally {
-      setIsAddingBuyer(false);
+      const res = await masterService.buyers.getAll({ limit: 500 });
+      setBuyers(unwrapBuyers(res).filter((b) => b.isActive !== false));
+    } catch {
+      setBuyers([]);
     }
+  }, []);
+
+  const handleBuyerCreated = (newBuyer) => {
+    loadBuyers();
+    if (newBuyer) setBuyerId(String(newBuyer._id || newBuyer.id || ''));
   };
 
   // Fetch harvest slips and buyers on mount
@@ -173,14 +145,12 @@ const CreateTapalFromHarvest = () => {
   }, [fetchHarvestSlips]);
 
   useEffect(() => {
-    masterService.buyers
-      .getAll({ limit: 200 })
-      .then((res) => {
-        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        setBuyers(list.filter((b) => b.isActive !== false));
-      })
-      .catch(() => setBuyers([]));
-  }, []);
+    loadBuyers();
+  }, [loadBuyers]);
+
+  useEffect(() => {
+    if (preselectBuyerId) setBuyerId(String(preselectBuyerId));
+  }, [preselectBuyerId]);
 
   useEffect(() => {
     fetchVehicles();
@@ -632,13 +602,21 @@ const CreateTapalFromHarvest = () => {
               label={
                 <div className="flex flex-col gap-1 items-start">
                   <span>Buyer (Channapa) *</span>
-                  <button
-                    type="button"
-                    onClick={() => setIsBuyerModalOpen(true)}
-                    className="text-[9px] font-black uppercase text-[#a5a027] hover:underline whitespace-nowrap"
-                  >
-                    + Add Buyer
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsBuyerModalOpen(true)}
+                      className="text-[9px] font-black uppercase text-[#a5a027] hover:underline whitespace-nowrap"
+                    >
+                      + Add Buyer
+                    </button>
+                    <Link
+                      to="/admin/buyers"
+                      className="text-[9px] font-black uppercase text-[#6A7051] hover:underline whitespace-nowrap"
+                    >
+                      All buyers →
+                    </Link>
+                  </div>
                 </div>
               }
             >
@@ -755,81 +733,11 @@ const CreateTapalFromHarvest = () => {
         </div>
       </div>
 
-      {/* Standard Design System Modal for On-the-fly Buyer Creation */}
-      <Modal
+      <BuyerFormModal
         isOpen={isBuyerModalOpen}
         onClose={() => setIsBuyerModalOpen(false)}
-        title="Add New Buyer"
-        size="md"
-      >
-        <form onSubmit={handleAddBuyerSubmit} className="space-y-4 font-sans text-xs">
-          <div className="flex flex-col">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#6A7051] mb-1">Buyer Full Name / Firm Name *</label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. CHANNAPPA S. & CO"
-              value={newBuyerName}
-              onChange={(e) => setNewBuyerName(e.target.value)}
-              className="border border-gray-400 px-3 py-2 text-xs focus:ring-1 focus:ring-[#6A7051] outline-none uppercase"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#6A7051] mb-1">Phone Number *</label>
-            <input
-              type="tel"
-              required
-              placeholder="e.g. 9876543210"
-              value={newBuyerPhone}
-              onChange={(e) => setNewBuyerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              className="border border-gray-400 px-3 py-2 text-xs focus:ring-1 focus:ring-[#6A7051] outline-none"
-              maxLength={10}
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#6A7051] mb-1">Buyer Type *</label>
-            <select
-              value={newBuyerType}
-              onChange={(e) => setNewBuyerType(e.target.value)}
-              className="border border-gray-400 px-3 py-2 text-xs focus:ring-1 focus:ring-[#6A7051] outline-none"
-            >
-              <option value="EXTERNAL">EXTERNAL BUYER</option>
-              <option value="INTERNAL">INTERNAL OUTLET</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#6A7051] mb-1">Delivery Address *</label>
-            <textarea
-              required
-              rows={2}
-              placeholder="e.g. MANGALORE WHARF, SHED 4B"
-              value={newBuyerAddress}
-              onChange={(e) => setNewBuyerAddress(e.target.value)}
-              className="border border-gray-400 px-3 py-2 text-xs focus:ring-1 focus:ring-[#6A7051] outline-none uppercase"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => setIsBuyerModalOpen(false)}
-              className="border border-gray-400 text-slate-700 px-4 py-2 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isAddingBuyer}
-              className="bg-[#6A7051] text-white px-4 py-2 text-xs font-black uppercase tracking-widest hover:bg-[#5F6846] transition-all flex items-center gap-1 shadow-md disabled:opacity-50"
-            >
-              {isAddingBuyer ? 'Saving...' : 'Add Buyer'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+        onSuccess={handleBuyerCreated}
+      />
     </div>
   );
 };

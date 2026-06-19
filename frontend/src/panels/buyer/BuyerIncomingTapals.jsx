@@ -62,21 +62,15 @@ const BuyerIncomingTapals = () => {
   };
 
   return (
-    <FieldPageWrap subtitle="Verify delivered tapals">
+    <FieldPageWrap>
       <h1 className="text-lg font-bold">Incoming tapals</h1>
-      <p className="text-[11px] fa-muted mb-4">
-        Verify received quantity first, then generate a bill
-      </p>
 
       {loading ? (
         <p className="text-sm fa-muted py-8 text-center">Loading…</p>
       ) : tapals.length === 0 ? (
         <div className="text-center py-16 fa-surface">
           <Package size={40} className="text-[var(--fa-muted)] mx-auto mb-3" />
-          <p className="text-sm font-semibold">No tapals need action</p>
-          <p className="text-[11px] fa-muted mt-2 px-4">
-            When the driver delivers or admin assigns a tapal, it will appear here
-          </p>
+          <p className="text-sm font-semibold">No tapals</p>
         </div>
       ) : (
         tapals.map((t) => {
@@ -173,13 +167,7 @@ const BuyerIncomingTapals = () => {
                       <FileText size={14} /> Bill
                     </button>
                   )}
-                  {!canVerify && !canBill && (
-                    <p className="text-[10px] fa-muted">
-                      {['CREATED', 'ASSIGNED', 'CONFIRMED', 'DRIVER_ASSIGNED'].includes(t.status)
-                        ? 'Tapal linked — assign driver or wait for delivery'
-                        : 'No action available for this tapal yet'}
-                    </p>
-                  )}
+                  {!canVerify && !canBill && null}
                 </div>
               )}
             </div>

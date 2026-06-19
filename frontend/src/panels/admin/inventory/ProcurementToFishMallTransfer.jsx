@@ -346,25 +346,22 @@ const ProcurementToFishMallTransfer = () => {
 
       {tab === 'create' && (
         <AdminCard className="p-6">
-          <form onSubmit={handleCreate} className="space-y-4">
-            <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
-              Select registered Fish Mall · Approval required before stock moves
-            </p>
-            <div className="border border-card-border p-4 bg-[#F8F7F2]">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <label className="text-[9px] font-black uppercase text-text-muted">
+          <form onSubmit={handleCreate} className="space-y-5">
+            <div className="rounded-lg border border-card-border bg-[#F8F7F2] p-4 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-[10px] font-black uppercase tracking-wider text-text-muted">
                   Destination Fish Mall *
                 </label>
                 <button
                   type="button"
                   onClick={loadFishMallOutlets}
-                  className="text-[9px] font-black uppercase text-[#6B7550] hover:underline"
+                  className="text-[10px] font-black uppercase text-[#6B7550] hover:underline shrink-0"
                 >
                   Refresh list
                 </button>
               </div>
               <select
-                className="w-full border border-card-border px-3 py-2 text-sm font-bold"
+                className="w-full h-10 border border-card-border bg-white px-3 text-sm font-semibold rounded-erp focus:outline-none focus:ring-1 focus:ring-accent"
                 value={destinationOutletId}
                 onChange={(e) => setDestinationOutletId(e.target.value)}
                 required
@@ -379,102 +376,112 @@ const ProcurementToFishMallTransfer = () => {
                 ))}
               </select>
               {fishMallOutlets.length === 0 && (
-                <p className="text-[9px] text-amber-700 font-bold mt-2">
-                  No Fish Mall in database yet.{' '}
+                <p className="text-[10px] text-amber-700 font-semibold">
+                  No Fish Mall registered.{' '}
                   <button
                     type="button"
                     className="underline text-[#6B7550]"
                     onClick={() => navigate('/admin/outlets')}
                   >
-                    Register under Admin → Outlets
+                    Add under Outlets
                   </button>
-                  , then click Refresh list.
+                  , then refresh.
                 </p>
               )}
             </div>
-            {lines.map((line, idx) => {
-              const { product, available, over } = lineInfo(line);
-              return (
-                <div
-                  key={idx}
-                  className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border border-card-border p-4"
-                >
-                  <div className="md:col-span-6">
-                    <label className="text-[9px] font-black uppercase text-text-muted block mb-1">
-                      Product (procurement)
-                    </label>
-                    <select
-                      className="w-full border border-card-border px-3 py-2 text-sm font-bold"
-                      value={line.productId}
-                      onChange={(e) => updateLine(idx, 'productId', e.target.value)}
-                      required
-                    >
-                      <option value="">Select product</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} — available {formatQty(p.quantity)} {p.unit}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="md:col-span-4">
-                    <label className="text-[9px] font-black uppercase text-text-muted block mb-1">
-                      Quantity (KG)
-                    </label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      className="w-full border border-card-border px-3 py-2 font-mono"
-                      value={line.quantity}
-                      onChange={(e) => updateLine(idx, 'quantity', e.target.value)}
-                      required
-                    />
+
+            <div className="space-y-3">
+              {lines.map((line, idx) => {
+                const { product, available, over } = lineInfo(line);
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-lg border border-card-border bg-white p-4 space-y-2"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                      <div className="md:col-span-6 space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-text-muted">
+                          Product (procurement)
+                        </label>
+                        <select
+                          className="w-full h-10 border border-card-border bg-white px-3 text-sm font-semibold rounded-erp focus:outline-none focus:ring-1 focus:ring-accent"
+                          value={line.productId}
+                          onChange={(e) => updateLine(idx, 'productId', e.target.value)}
+                          required
+                        >
+                          <option value="">Select product</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} — available {formatQty(p.quantity)} {p.unit}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-4 space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-text-muted">
+                          Quantity (KG)
+                        </label>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="w-full h-10 border border-card-border bg-white px-3 text-sm font-mono rounded-erp focus:outline-none focus:ring-1 focus:ring-accent"
+                          value={line.quantity}
+                          onChange={(e) => updateLine(idx, 'quantity', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="md:col-span-2 flex md:justify-end md:pt-6">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLines((prev) =>
+                              prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev
+                            )
+                          }
+                          className="h-10 w-10 flex items-center justify-center rounded-erp border border-card-border text-red-600 hover:bg-red-50"
+                          aria-label="Remove line"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                     {product && (
-                      <p className={`text-[9px] mt-1 font-bold ${over ? 'text-red-600' : 'text-emerald-700'}`}>
+                      <p className={`text-[10px] font-semibold ${over ? 'text-red-600' : 'text-emerald-700'}`}>
                         Available: {formatQty(available)} KG
                         {over ? ' — exceeds stock' : ''}
                       </p>
                     )}
                   </div>
-                  <div className="md:col-span-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLines((prev) =>
-                          prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev
-                        )
-                      }
-                      className="p-2 text-red-600 hover:bg-red-50"
-                      aria-label="Remove line"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
             <button
               type="button"
               onClick={() => setLines((prev) => [...prev, emptyLine()])}
-              className="text-[10px] font-black uppercase text-[#6B7550] flex items-center gap-1"
+              className="text-[10px] font-black uppercase text-[#6B7550] flex items-center gap-1.5 hover:underline"
             >
-              <Plus className="w-3 h-3" /> Add line
+              <Plus className="w-3.5 h-3.5" /> Add line
             </button>
-            <div>
-              <label className="text-[9px] font-black uppercase text-text-muted block mb-1">
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-text-muted">
                 Notes
               </label>
               <textarea
-                className="w-full border border-card-border px-3 py-2 text-sm min-h-[72px]"
+                className="w-full min-h-[80px] border border-card-border bg-white px-3 py-2.5 text-sm rounded-erp resize-y focus:outline-none focus:ring-1 focus:ring-accent"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Transfer note / remarks"
               />
             </div>
-            <AdminBtn type="submit" variant="primary" disabled={submitting}>
-              {submitting ? 'Creating…' : 'Create transfer note'}
-            </AdminBtn>
+
+            <div className="pt-2">
+              <AdminBtn type="submit" variant="primary" disabled={submitting}>
+                {submitting ? 'Creating…' : 'Create transfer note'}
+              </AdminBtn>
+            </div>
           </form>
         </AdminCard>
       )}

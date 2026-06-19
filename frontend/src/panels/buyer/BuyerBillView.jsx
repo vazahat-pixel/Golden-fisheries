@@ -51,7 +51,7 @@ const BuyerBillView = () => {
   };
 
   return (
-    <FieldPageWrap subtitle="Generate buyer bill">
+    <FieldPageWrap>
       <h1 className="text-lg font-bold">Create bill</h1>
       {loading ? (
         <p className="text-sm fa-muted py-8">Loading tapal…</p>

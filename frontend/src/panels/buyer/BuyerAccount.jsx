@@ -24,10 +24,10 @@ const BuyerAccount = () => {
   const initials = displayName.slice(0, 2).toUpperCase();
 
   const menuLinks = [
-    { icon: Package, label: 'Verify tapals', sub: 'Incoming loads', path: paths.tapals },
-    { icon: FileText, label: 'Bills', sub: 'Invoice history', path: paths.invoices },
-    { icon: RotateCcw, label: 'Returns', sub: 'Sales returns', path: paths.returns },
-    { icon: BarChart3, label: 'Settlement', sub: 'Reconciliation', path: paths.reconciliation },
+    { icon: Package, label: 'Verify tapals', path: paths.tapals },
+    { icon: FileText, label: 'Bills', path: paths.invoices },
+    { icon: RotateCcw, label: 'Returns', path: paths.returns },
+    { icon: BarChart3, label: 'Settlement', path: paths.reconciliation },
   ];
 
   const handleLogout = async () => {
@@ -37,7 +37,7 @@ const BuyerAccount = () => {
   };
 
   return (
-    <FieldPageWrap subtitle="Account">
+    <FieldPageWrap>
       <div className="fa-hero-card p-5 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 rounded-full bg-[var(--fa-accent-dim)] border border-[var(--fa-accent-soft)] flex items-center justify-center text-lg font-bold text-[var(--fa-accent)]">
@@ -48,7 +48,6 @@ const BuyerAccount = () => {
             <p className="text-xs fa-muted flex items-center gap-1 mt-0.5">
               <Phone size={12} /> {phone}
             </p>
-            <p className="text-[10px] fa-muted uppercase tracking-wider mt-1">Buyer portal</p>
           </div>
         </div>
       </div>
@@ -66,7 +65,6 @@ const BuyerAccount = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">{item.label}</p>
-              <p className="text-[10px] fa-muted">{item.sub}</p>
             </div>
             <ChevronRight size={16} className="fa-muted shrink-0" />
           </button>

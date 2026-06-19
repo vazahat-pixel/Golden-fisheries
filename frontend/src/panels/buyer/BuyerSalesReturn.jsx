@@ -65,16 +65,14 @@ const BuyerSalesReturn = () => {
   };
 
   return (
-    <FieldPageWrap subtitle="Damaged or excess stock">
+    <FieldPageWrap>
       <h1 className="text-lg font-bold">Sales return</h1>
-      <p className="text-[11px] fa-muted mb-4">Select a bill to submit a return request</p>
 
       {loading ? (
         <p className="text-sm fa-muted py-8 text-center">Loading bills…</p>
       ) : bills.length === 0 ? (
         <div className="fa-empty-state">
-          <p className="text-sm font-semibold">Bill required first</p>
-          <p className="text-[11px] fa-muted mt-2">Select a generated bill to submit a return</p>
+          <p className="text-sm font-semibold">No bills</p>
         </div>
       ) : (
         <form onSubmit={submit} className="fa-surface p-5 space-y-4">

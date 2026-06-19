@@ -16,9 +16,8 @@ const BuyerReconciliation = () => {
   }, []);
 
   return (
-    <FieldPageWrap subtitle="Balance & settlement">
+    <FieldPageWrap>
       <h1 className="text-lg font-bold">Settlement</h1>
-      <p className="text-[11px] fa-muted mb-4">Bills, returns, and balance due</p>
 
       {loading ? (
         <p className="text-sm fa-muted py-8 text-center">Loading settlement…</p>
@@ -56,9 +55,6 @@ const BuyerReconciliation = () => {
               ₹{(data.balanceDue || 0).toLocaleString('en-IN')}
             </span>
           </div>
-          <p className="text-[10px] fa-muted pt-2">
-            {data.bills} bills · {data.returns} return requests
-          </p>
         </div>
       )}
     </FieldPageWrap>

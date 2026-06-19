@@ -11,7 +11,6 @@ import {
   FieldSectionHeader,
 } from '../../design-system/field-app';
 import { useBuyerPaths } from './buyerPaths';
-import { BuyerWorkflowGuide } from './BuyerWorkflowGuide';
 
 const VERIFY_STATUSES = ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING', 'DRIVER_ASSIGNED'];
 const ACTIVE_STATUSES = [
@@ -92,7 +91,6 @@ const BuyerDashboard = () => {
     onClick: () => navigate(paths.tapals),
   }));
 
-  const isEmpty = !loading && activeTapals === 0 && pendingVerify === 0 && billCount === 0;
 
   return (
     <FieldScreen userName={buyerName}>
@@ -103,18 +101,12 @@ const BuyerDashboard = () => {
       />
 
       <FieldBuyerPortalCard
-        sectionLabel="Procurement portal"
         accountRef={buyerRef}
         status={portalStatus}
         statusTone={statusTone}
         activeTapals={activeTapals}
         pendingVerify={pendingVerify}
         billsCount={billCount}
-        hint={
-          isEmpty
-            ? 'No tapals yet. Admin will assign — check Verify after delivery.'
-            : undefined
-        }
         onClick={() => navigate(paths.tapals)}
       />
 
@@ -128,13 +120,11 @@ const BuyerDashboard = () => {
         ]}
       />
 
-      {isEmpty && <BuyerWorkflowGuide />}
-
       <FieldTransactionList
         title="Recent tapals"
         onViewAll={() => navigate(paths.tapals)}
         items={recentRows}
-        emptyMessage={loading ? 'Loading…' : 'No tapals yet — waiting for admin assignment'}
+        emptyMessage={loading ? 'Loading…' : 'No tapals'}
       />
 
       <button
@@ -143,10 +133,7 @@ const BuyerDashboard = () => {
         className="w-full fa-surface p-4 text-left fa-tap flex items-center gap-3"
       >
         <ClipboardList className="text-[var(--fa-accent)] shrink-0" size={22} />
-        <div>
-          <p className="text-sm font-medium">Verify incoming tapals</p>
-          <p className="text-[11px] fa-muted">{pendingVerify} awaiting verification</p>
-        </div>
+        <p className="text-sm font-medium">Verify tapals</p>
       </button>
     </FieldScreen>
   );

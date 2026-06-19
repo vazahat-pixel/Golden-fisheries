@@ -30,7 +30,7 @@ const ROLE_LOGIN_GUIDE = {
     loginPath: '/auth/admin',
     adminPath: '/auth/admin',
     createHint:
-      'Share phone + password (Gen). Buyer opens Admin Login on phone or laptop — same as other field staff.',
+      'Register buyer under Admin → Buyers (Channapa), then create BUYER login here with the same phone.',
     shareOtp: false,
   },
   DRIVER: {

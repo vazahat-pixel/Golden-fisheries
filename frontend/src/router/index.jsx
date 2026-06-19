@@ -52,6 +52,7 @@ const HarvestSlipPreview = React.lazy(() => import('../panels/admin/procurement/
 const HarvestSlipDetail = React.lazy(() => import('../panels/admin/procurement/HarvestSlipDetail'));
 const NetRate = React.lazy(() => import('../panels/admin/procurement/NetRate'));
 const FarmerLedger = React.lazy(() => import('../panels/admin/procurement/FarmerLedger'));
+const BuyerManagement = React.lazy(() => import('../panels/admin/buyers/BuyerManagement'));
 const UsersAndRoles = React.lazy(() => import('../panels/admin/settings/UsersAndRoles'));
 const AdminBilling = React.lazy(() => import('../panels/admin/billing/AdminBilling'));
 const SalesApprovalList = React.lazy(() => import('../panels/admin/sales/SalesApprovalList'));
@@ -191,6 +192,7 @@ const AppRouter = () => {
             {/* Tapal Routes */}
             <Route element={<ProtectedRoute allowedRoles={[...WEB_ERP_ROLES, ROLES.PROCUREMENT_MANAGER]} module="tapals"><Outlet /></ProtectedRoute>}>
               <Route path="tapals" element={<TapalList />} />
+              <Route path="buyers" element={<BuyerManagement />} />
               <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
               <Route path="tapals/:id" element={<TapalDetail />} />
               <Route path="sales-approval" element={<SalesApprovalList />} />

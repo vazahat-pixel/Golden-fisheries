@@ -21,15 +21,20 @@ export function recalculateHarvestNetRate(harvestDoc, body = {}) {
   const soft = parseFloat(body.soft ?? harvestDoc.soft) || 0;
 
   const totalDeductions = Math.round(
-    (tds + commission + soft + deductionTransport + deductionCommission + deductionSoft + deductionOther) * 100
+    (tds + deductionTransport + deductionCommission + deductionSoft + deductionOther) * 100
   ) / 100;
 
-  const totalPayableAmount = Math.max(0, Math.round((gross - totalDeductions) * 100) / 100);
+  const totalPayableAmount = Math.max(
+    0,
+    Math.round((gross - totalDeductions + commission + soft) * 100) / 100
+  );
 
   return {
     netRateCalculated: gross,
     totalDeductions,
     totalPayableAmount,
+    commissionAddition: commission,
+    loadingAddition: soft,
     deductionTransport,
     deductionCommission,
     deductionSoft,

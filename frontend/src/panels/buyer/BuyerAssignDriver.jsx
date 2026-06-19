@@ -141,11 +141,7 @@ const BuyerAssignDriver = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-accent-olive mb-1">Buyer Portal</p>
         <h1 className="text-2xl font-serif italic font-black text-slate-900">Assign Driver</h1>
-        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-          Type driver name · vehicle optional
-        </p>
       </div>
 
       <StepIndicator />
@@ -166,21 +162,11 @@ const BuyerAssignDriver = () => {
             <div className="space-y-3">
               <div className="text-center py-12 bg-white rounded-2xl border">
                 <Package size={32} className="text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-bold text-slate-400">No tapals waiting for driver</p>
-                <p className="text-xs text-slate-300 mt-1 px-4 leading-relaxed">
-                  Tapal must be linked to your phone and in status CREATED, ASSIGNED, or CONFIRMED.
-                  Ask Procurement to select you as buyer when creating the tapal, or search your tapal
-                  number below to link it.
-                </p>
+                <p className="text-sm font-bold text-slate-400">No tapals</p>
               </div>
               {lookup?.tapal && lookup.canClaim && (
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                  <p className="text-sm font-bold text-amber-900">
-                    Found {lookup.tapal.tapalNumber} — not linked to you yet
-                  </p>
-                  <p className="text-xs text-amber-800 mt-1">
-                    {lookup.tapal.partyName} · {lookup.tapal.status}
-                  </p>
+                  <p className="text-sm font-bold text-amber-900">{lookup.tapal.tapalNumber}</p>
                   <button
                     type="button"
                     disabled={claiming}
@@ -188,7 +174,7 @@ const BuyerAssignDriver = () => {
                     className="mt-3 w-full py-3 bg-amber-600 text-white rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2"
                   >
                     <Link2 size={16} />
-                    {claiming ? 'Linking...' : 'Link tapal to my account'}
+                    {claiming ? 'Linking...' : 'Link tapal'}
                   </button>
                 </div>
               )}
@@ -198,9 +184,7 @@ const BuyerAssignDriver = () => {
                 </p>
               )}
               {lookup?.tapal && lookup.alreadyYours && !lookup.canClaim && (
-                <p className="text-xs text-slate-500 text-center">
-                  {lookup.tapal.tapalNumber} is yours but status is {lookup.tapal.status} (not ready for driver).
-                </p>
+                <p className="text-xs text-slate-500 text-center">{lookup.tapal.tapalNumber}</p>
               )}
             </div>
           ) : (
@@ -252,16 +236,6 @@ const BuyerAssignDriver = () => {
               <option key={name} value={name} />
             ))}
           </datalist>
-          {driverName.trim() && matchedDriver && (
-            <p className="text-[10px] text-emerald-700 font-bold">
-              Matched {matchedDriver.fullName} — trip will go to driver app
-            </p>
-          )}
-          {driverName.trim() && !matchedDriver && (
-            <p className="text-[10px] text-amber-700 font-bold">
-              Name saved on tapal only until driver is registered in the system
-            </p>
-          )}
           <button
             type="button"
             onClick={handleAssign}

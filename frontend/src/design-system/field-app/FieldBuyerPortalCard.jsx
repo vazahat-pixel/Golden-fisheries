@@ -4,7 +4,7 @@ import { Package, ClipboardCheck, FileText } from 'lucide-react';
 /** Buyer procurement portal — no banking / card UI */
 export function FieldBuyerPortalCard({
   brandLabel = 'GF Buyer',
-  sectionLabel = 'Procurement portal',
+  sectionLabel = '',
   accountRef = '—',
   status = 'Ready',
   statusTone = 'idle',
@@ -39,7 +39,9 @@ export function FieldBuyerPortalCard({
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider fa-hero-accent">{brandLabel}</p>
-            <p className="text-xs fa-muted mt-0.5 truncate">{sectionLabel}</p>
+            {sectionLabel ? (
+              <p className="text-xs fa-muted mt-0.5 truncate">{sectionLabel}</p>
+            ) : null}
           </div>
         </div>
         <span className={`fa-trip-status ${toneClass}`}>{status}</span>
@@ -56,15 +58,15 @@ export function FieldBuyerPortalCard({
           <div className="flex items-center gap-2.5 text-sm">
             <ClipboardCheck size={15} className="text-[var(--fa-accent)] shrink-0" />
             <div>
-              <p className="text-[10px] font-semibold uppercase fa-muted">Active tapals</p>
-              <p className="font-medium">{activeTapals} in transit / open</p>
+              <p className="text-[10px] font-semibold uppercase fa-muted">Active</p>
+              <p className="font-medium">{activeTapals}</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 text-sm">
             <FileText size={15} className="text-[var(--fa-accent-soft)] shrink-0" />
             <div>
-              <p className="text-[10px] font-semibold uppercase fa-muted">Awaiting verify</p>
-              <p className="font-medium">{pendingVerify} delivered · need your sign-off</p>
+              <p className="text-[10px] font-semibold uppercase fa-muted">To verify</p>
+              <p className="font-medium">{pendingVerify}</p>
             </div>
           </div>
         </div>
@@ -72,7 +74,7 @@ export function FieldBuyerPortalCard({
 
       <div className="mt-5 pt-4 border-t border-[var(--fa-border)] grid grid-cols-2 gap-4 relative z-[2]">
         <div>
-          <span className="text-[10px] font-bold uppercase fa-muted">Bills on file</span>
+          <span className="text-[10px] font-bold uppercase fa-muted">Bills</span>
           <p className="text-lg font-bold mt-1 fa-hero-accent">{billsCount}</p>
         </div>
         <div className="text-right">

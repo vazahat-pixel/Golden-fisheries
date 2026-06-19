@@ -89,6 +89,7 @@ export const Sidebar = ({ onClose }) => {
             <NavLink
               key={item.path}
               to={item.path}
+              end
               onClick={() => {
                 if (window.innerWidth < 1024) onClose?.();
               }}

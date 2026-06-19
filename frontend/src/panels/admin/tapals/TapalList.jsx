@@ -36,6 +36,13 @@ const TapalList = () => {
           </button>
           <button
             type="button"
+            onClick={() => navigate('/admin/buyers')}
+            className="flex items-center gap-1 border border-card-border px-3 py-2 text-xs font-bold uppercase"
+          >
+            Buyers
+          </button>
+          <button
+            type="button"
             onClick={() => navigate('/admin/procurement/tapal/create')}
             className="flex items-center gap-1 bg-brand-olive text-white px-3 py-2 text-xs font-bold uppercase"
           >

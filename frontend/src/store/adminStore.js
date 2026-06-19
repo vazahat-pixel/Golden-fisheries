@@ -976,16 +976,18 @@ export const useAdminStore = create(
       fetchBuyers: async (search = '') => {
         set({ loading: true, error: null });
         try {
-          const res = await masterService.buyers.getAll({ search });
-          const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
-          const mapped = list.map(b => ({
-            id: b._id,
-            name: (b.fullName || b.name || '').toUpperCase(),
+          const res = await masterService.buyers.getAll({ search, limit: 500 });
+          const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+          const mapped = list.map((b) => ({
+            id: b._id || b.id,
+            _id: b._id || b.id,
+            buyerName: b.buyerName || b.name || '',
+            name: b.buyerName || b.name || '',
             phone: b.phone || '',
-            email: b.email || '',
-            address: b.address || '',
-            creditLimit: b.creditLimit || 0,
-            active: b.isActive !== false
+            buyerType: b.buyerType || 'EXTERNAL',
+            deliveryAddress: b.deliveryAddress || b.address || '',
+            buyerCode: b.buyerCode || '',
+            active: b.isActive !== false,
           }));
           set({ buyers: mapped, loading: false });
         } catch (err) {
@@ -998,11 +1000,10 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           await masterService.buyers.create({
-            fullName: buyerData.name,
+            buyerName: buyerData.buyerName || buyerData.name,
             phone: buyerData.phone,
-            email: buyerData.email,
-            address: buyerData.address,
-            creditLimit: buyerData.creditLimit
+            buyerType: buyerData.buyerType || 'EXTERNAL',
+            deliveryAddress: buyerData.deliveryAddress || buyerData.address,
           });
           await get().fetchBuyers();
           set({ loading: false });

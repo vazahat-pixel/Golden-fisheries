@@ -16,16 +16,14 @@ const BuyerInvoiceHistory = () => {
   }, []);
 
   return (
-    <FieldPageWrap subtitle="Your generated bills">
+    <FieldPageWrap>
       <h1 className="text-lg font-bold">Invoice history</h1>
-      <p className="text-[11px] fa-muted mb-4">Bills generated after verification</p>
 
       {loading ? (
         <p className="text-sm fa-muted py-8 text-center">Loading…</p>
       ) : bills.length === 0 ? (
         <div className="fa-empty-state">
-          <p className="text-sm font-semibold">No bills yet</p>
-          <p className="text-[11px] fa-muted mt-2">Verify a tapal, then generate a bill</p>
+          <p className="text-sm font-semibold">No bills</p>
         </div>
       ) : (
         <div className="space-y-3 no-print">
