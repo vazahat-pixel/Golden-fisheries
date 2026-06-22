@@ -124,6 +124,7 @@ const CreateHarvestSlipV2 = () => {
   const [notes, setNotes] = useState('BLACK GILL SECOND QUALITY ( EXP )');
   const [damageNotes, setDamageNotes] = useState('THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT');
   const [iceRentDeducted, setIceRentDeducted] = useState(false);
+  const [deductionsNotes, setDeductionsNotes] = useState('ICE & VEHICLE RENT NOT DEDUCTED');
   const [inWords, setInWords] = useState('');
 
   // Load draft data on edit/preview redirect, or clear if starting fresh
@@ -143,6 +144,11 @@ const CreateHarvestSlipV2 = () => {
           if (parsed.notes) setNotes(parsed.notes);
           if (parsed.damageNotes) setDamageNotes(parsed.damageNotes);
           if (parsed.iceRentDeducted !== undefined) setIceRentDeducted(parsed.iceRentDeducted);
+          if (parsed.deductionsNotes) {
+            setDeductionsNotes(parsed.deductionsNotes);
+          } else if (parsed.iceRentDeducted !== undefined) {
+            setDeductionsNotes(parsed.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED');
+          }
           if (parsed.inWords) setInWords(parsed.inWords);
           
           if (Array.isArray(parsed.items) && parsed.items.length > 0) {
@@ -233,6 +239,7 @@ const CreateHarvestSlipV2 = () => {
       notes,
       damageNotes,
       iceRentDeducted,
+      deductionsNotes,
       inWords,
       status: 'Pending Approval'
     };
@@ -524,7 +531,11 @@ const CreateHarvestSlipV2 = () => {
                 <input 
                   type="checkbox" 
                   checked={iceRentDeducted} 
-                  onChange={e => setIceRentDeducted(e.target.checked)}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setIceRentDeducted(checked);
+                    setDeductionsNotes(checked ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED');
+                  }}
                   className="sr-only peer" 
                 />
                 <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
@@ -533,7 +544,7 @@ const CreateHarvestSlipV2 = () => {
 
             {/* Note 1 */}
             <div className="flex flex-col">
-              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Receipt Quality Notes</label>
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Receipt Quality Notes (Line 1)</label>
               <input 
                 type="text" 
                 value={notes}
@@ -544,11 +555,22 @@ const CreateHarvestSlipV2 = () => {
 
             {/* Note 2 */}
             <div className="flex flex-col">
-              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Materials Quality Notes</label>
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Materials Quality Notes (Line 2)</label>
               <input 
                 type="text" 
                 value={damageNotes}
                 onChange={e => setDamageNotes(e.target.value)}
+                className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+              />
+            </div>
+
+            {/* Rent Deduction Notes / Line 3 */}
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-olive mb-1">Rent Deduction Notes (Line 3)</label>
+              <input 
+                type="text" 
+                value={deductionsNotes}
+                onChange={e => setDeductionsNotes(e.target.value)}
                 className="bg-[#F5F5EC]/40 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
               />
             </div>

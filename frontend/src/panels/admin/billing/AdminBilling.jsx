@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { billingService } from '../../../services/billingService';
 import { useAdminStore } from '../../../store/adminStore';
 import {
@@ -10,14 +11,16 @@ import {
 import { toast } from 'react-hot-toast';
 
 const AdminBilling = () => {
-  const { fetchInvoices, invoices, loading } = useAdminStore();
+  const navigate = useNavigate();
+  const { fetchInvoices, invoices, harvestSlips, fetchHarvestSlips, loading } = useAdminStore();
   const [filter, setFilter] = useState('ALL');
   const [payModal, setPayModal] = useState(null);
   const [paidAmount, setPaidAmount] = useState('');
 
   useEffect(() => {
     fetchInvoices();
-  }, [fetchInvoices]);
+    fetchHarvestSlips();
+  }, [fetchInvoices, fetchHarvestSlips]);
 
   const rows = (invoices || []).filter((inv) => {
     if (filter === 'ALL') return true;
@@ -77,19 +80,39 @@ const AdminBilling = () => {
           {
             key: 'actions',
             label: '',
-            render: (r) =>
-              r.paymentStatus !== 'PAID' ? (
-                <AdminBtn
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPayModal(r);
-                    setPaidAmount(String(r.totalAmount || r.balanceAmount || ''));
-                  }}
-                >
-                  Record pay
-                </AdminBtn>
-              ) : null,
+            render: (r) => (
+              <div className="flex gap-2">
+                {r.type === 'PROCUREMENT' && (
+                  <AdminBtn
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const slip = harvestSlips.find((s) => String(s._id || s.id) === String(r.harvestId));
+                      if (slip) {
+                        sessionStorage.setItem('current_harvest_slip_creation', JSON.stringify(slip));
+                        navigate('/admin/procurement/harvest/preview');
+                      } else {
+                        toast.error('Associated Harvest Slip not found');
+                      }
+                    }}
+                  >
+                    Print
+                  </AdminBtn>
+                )}
+                {r.paymentStatus !== 'PAID' && (
+                  <AdminBtn
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPayModal(r);
+                      setPaidAmount(String(r.totalAmount || r.balanceAmount || ''));
+                    }}
+                  >
+                    Record pay
+                  </AdminBtn>
+                )}
+              </div>
+            ),
           },
         ]}
         rows={rows}

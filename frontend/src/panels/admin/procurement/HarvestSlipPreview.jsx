@@ -146,32 +146,37 @@ const HarvestSlipPreview = () => {
     }
   };
 
+  const isSaved = !!(slip._id || slip.id);
+  const isInvoice = slip.netRateCalculated != null;
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-500 font-sans print:p-0 print:m-0">
       {/* Action Buttons - Hidden in Print */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-card-border pb-5 print:hidden">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate('/admin/procurement/harvest/new', { state: { isEditing: true } })} 
+            onClick={() => navigate(isSaved ? -1 : '/admin/procurement/harvest/new', { state: { isEditing: !isSaved } })} 
             className="text-text-muted hover:text-[#6A7051] transition-all p-1"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase">
-              Harvest Slip Preview
+              {isInvoice ? 'Purchase Invoice Preview' : 'Harvest Slip Preview'}
             </h1>
             <p className="text-text-secondary text-sm mt-1">Review the paper slip replica before saving and printing.</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => navigate('/admin/procurement/harvest/new', { state: { isEditing: true } })}
-            className="flex-1 sm:flex-none border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-          >
-            <Edit3 size={14} /> Edit
-          </button>
+          {!isSaved && (
+            <button
+              onClick={() => navigate('/admin/procurement/harvest/new', { state: { isEditing: true } })}
+              className="flex-1 sm:flex-none border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+            >
+              <Edit3 size={14} /> Edit
+            </button>
+          )}
           <button
             onClick={handlePrint}
             className="flex-1 sm:flex-none border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
@@ -190,12 +195,14 @@ const HarvestSlipPreview = () => {
           >
             <Share2 size={14} /> Share on WhatsApp
           </button>
-          <button
-            onClick={handleConfirm}
-            className="flex-1 sm:flex-none bg-[#6A7051] text-white px-5 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-[#5F6846] transition-all flex items-center justify-center gap-2 shadow-md"
-          >
-            <CheckCircle size={14} /> Confirm & Save
-          </button>
+          {!isSaved && (
+            <button
+              onClick={handleConfirm}
+              className="flex-1 sm:flex-none bg-[#6A7051] text-white px-5 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-[#5F6846] transition-all flex items-center justify-center gap-2 shadow-md"
+            >
+              <CheckCircle size={14} /> Confirm & Save
+            </button>
+          )}
         </div>
       </div>
 
@@ -224,7 +231,9 @@ const HarvestSlipPreview = () => {
                   Mob : 9019411439, 9663655558
                 </p>
                 <div className="border-t border-black w-full text-center py-1">
-                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">FARMER PURCHASE INVOICE</h3>
+                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">
+                     {isInvoice ? 'FARMER PURCHASE INVOICE' : 'HARVEST SLIP / GRN'}
+                   </h3>
                 </div>
               </div>
 
@@ -366,7 +375,7 @@ const HarvestSlipPreview = () => {
                 {/* Notes Row 1 */}
                 <div className="flex border-b border-black h-[22px]">
                   <div className="w-2/3 border-r border-black bg-[#FDF9EA] flex items-center justify-center">
-                    NOTES ( BLACK GILL SECOND QUALITY ) ( EXP )
+                    {slip.notes || ''}
                   </div>
                   <div className="w-1/6 border-r border-black flex items-center justify-center">
                     TDS @ 194Q
@@ -379,7 +388,7 @@ const HarvestSlipPreview = () => {
                 {/* Notes Row 2 */}
                 <div className="flex border-b border-black h-[22px]">
                   <div className="w-2/3 border-r border-black flex items-center justify-center">
-                    THIRD QUALITY DAMAGE METERIALS & DIO COMPLAINT
+                    {slip.damageNotes || ''}
                   </div>
                   <div className="w-1/6 border-r border-black flex items-center justify-center">
                     COMISSION
@@ -392,7 +401,7 @@ const HarvestSlipPreview = () => {
                 {/* Notes Row 3 */}
                 <div className="flex border-b border-black h-[22px]">
                   <div className="w-2/3 border-r border-black flex items-center justify-center text-red-600">
-                    {slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED'}
+                    {slip.deductionsNotes || (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED')}
                   </div>
                   <div className="w-1/6 border-r border-black flex items-center justify-center">
                     LOADING

@@ -113,7 +113,7 @@ const HarvestSlipDetail = () => {
             }}
             className="border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
           >
-            <Printer size={14} /> View Slip Print Replica
+            <Printer size={14} /> {slip.netRateCalculated != null ? 'Print Purchase Invoice' : 'Print Harvest Slip'}
           </button>
         </div>
       </div>
@@ -224,7 +224,7 @@ const HarvestSlipDetail = () => {
                 : 'bg-red-50 text-red-700 border-red-200'
             }`}>
               <ShieldAlert size={16} />
-              {slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTION CONFIRMED' : 'ICE & VEHICLE RENT NOT DEDUCTED IN THIS LOADS ENTRY'}
+              {slip.deductionsNotes || (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTION CONFIRMED' : 'ICE & VEHICLE RENT NOT DEDUCTED IN THIS LOADS ENTRY')}
             </div>
           </div>
         </div>

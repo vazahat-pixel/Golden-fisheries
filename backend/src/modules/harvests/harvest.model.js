@@ -213,6 +213,14 @@ harvestSchema.pre('save', function (next) {
     if (!this.availableQty || this.availableQty === 0) {
       this.availableQty = totalEstWeight;
     }
+    for (const item of this.products) {
+      if (!item.totalWeight) {
+        item.totalWeight = item.estimatedQty;
+      }
+      if (item.rate != null) {
+        item.totalAmount = item.rate * item.totalWeight;
+      }
+    }
   }
 
   this.remainingQty = this.availableQty - this.allocatedQty;

@@ -33,6 +33,7 @@ const AdminDashboard = React.lazy(() => import('../panels/admin/Dashboard'));
 const TapalList = React.lazy(() => import('../panels/admin/tapals/TapalList'));
 const CreateSalesTapal = React.lazy(() => import('../panels/admin/tapals/CreateSalesTapal'));
 const TapalDetail = React.lazy(() => import('../panels/admin/tapals/TapalDetail'));
+const TapalPreview = React.lazy(() => import('../panels/admin/tapals/TapalPreview'));
 const InventoryOverview = React.lazy(() => import('../panels/admin/inventory/InventoryOverview'));
 const AddInventoryItem = React.lazy(() => import('../panels/admin/inventory/AddInventoryItem'));
 const ProcurementToFishMallTransfer = React.lazy(
@@ -195,6 +196,7 @@ const AppRouter = () => {
               <Route path="buyers" element={<BuyerManagement />} />
               <Route path="tapals/sales/new" element={<CreateSalesTapal />} />
               <Route path="tapals/:id" element={<TapalDetail />} />
+              <Route path="tapals/:id/preview" element={<TapalPreview />} />
               <Route path="sales-approval" element={<SalesApprovalList />} />
               <Route path="sales-approval/:id" element={<SalesApprovalDetail />} />
               <Route path="buyer-sales" element={<BuyerSalesAdmin />} />

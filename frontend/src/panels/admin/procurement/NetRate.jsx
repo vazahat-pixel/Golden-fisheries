@@ -98,7 +98,7 @@ const NetRate = () => {
   };
 
   const confirmedHarvests = harvestSlips.filter((h) =>
-    ['CONFIRMED', 'PARTIALLY_CONVERTED', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'OPEN', 'PARTIAL_USED'].includes(h.status)
+    ['CONFIRMED', 'PARTIALLY_CONVERTED', 'CONVERTED_TO_TAPAL', 'PENDING', 'SENT', 'PENDING_CONFIRMATION', 'OPEN', 'PARTIAL_USED', 'CLOSED'].includes(h.status)
   );
 
   return (
@@ -132,11 +132,16 @@ const NetRate = () => {
         <ErpFieldRow label="Harvest Ref (H No)">
           <select className={erpSelectClass} value={harvestId} onChange={(e) => setHarvestId(e.target.value)}>
             <option value="">— Select harvest slip —</option>
-            {confirmedHarvests.map((h) => (
-              <option key={h._id || h.id} value={h._id || h.id}>
-                {h.hNo || h.harvestNumber || h.tpNo} — {h.farmerName || h.partyName}
-              </option>
-            ))}
+            {confirmedHarvests.map((h) => {
+              const isFinalized = h.netRateCalculated != null;
+              return (
+                <option key={h._id || h.id} value={h._id || h.id}>
+                  {isFinalized ? '★ ' : ''}
+                  {h.hNo || h.harvestNumber || h.tpNo} — {h.farmerName || h.partyName}
+                  {isFinalized ? ` (Finalized: ₹${(h.totalPayableAmount || 0).toLocaleString('en-IN')})` : ''}
+                </option>
+              );
+            })}
           </select>
         </ErpFieldRow>
         <ErpFieldRow label="Farmer">

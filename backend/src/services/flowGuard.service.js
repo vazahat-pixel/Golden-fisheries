@@ -23,13 +23,6 @@ export const flowGuard = {
         400
       );
     }
-
-    if (harvest.netRateCalculated == null) {
-      throw new AppError(
-        'Tapal cannot be created. Purchase invoice (net rate) must be saved on the harvest slip before dispatch.',
-        400
-      );
-    }
   },
 
   async assertHarvestEligibleForProcurementBilling(harvestId) {

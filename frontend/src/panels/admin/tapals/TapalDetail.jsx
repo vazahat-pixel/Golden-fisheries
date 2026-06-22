@@ -94,8 +94,36 @@ const TapalDetail = () => {
   if (!tapal) return <p className="p-8 text-sm">Loading...</p>;
 
   const lines = tapal.products || [];
-  const printDoc = () => window.print();
   const postTrip = trip?.postTripExpenses;
+
+  // Pre-fill item rows for grid visualization (standard 12 row notepad pad replica)
+  const displayItems = [...lines];
+  const minRows = 12;
+  while (displayItems.length < minRows) {
+    displayItems.push({
+      id: `empty-${displayItems.length}`,
+      hsnCode: '',
+      particulars: '',
+      count: '',
+      noOfBoxes: '',
+      boxWeight: '',
+      totalWeight: '',
+      rate: '',
+      totalAmount: ''
+    });
+  }
+
+  const harvest = tapal.harvest || tapal.harvestId || {};
+  const tds = tapal.tds ?? harvest.tds ?? 0;
+  const commission = tapal.commission ?? harvest.commission ?? 0;
+  const soft = tapal.soft ?? harvest.soft ?? 0;
+  const grandTotal = tapal.grandTotal ?? harvest.totalPayableAmount ?? harvest.grandTotal ?? tapal.numericAmount ?? 0;
+
+  const notes = tapal.notes || harvest.remarks || harvest.notes || '';
+  const damageNotes = tapal.damageNotes || harvest.damageComplaint || harvest.damageNotes || '';
+  const deductionsNotes = tapal.deductionsNotes || harvest.deductionsNotes || (tapal.iceRentDeducted || harvest.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED');
+
+  const inWords = tapal.inWords || (grandTotal > 0 ? `${grandTotal} RUPEES ONLY` : `${tapal.totalWeight || tapal.qty || 0} KILOGRAMS ONLY`);
 
   return (
     <div className="space-y-4">
@@ -105,8 +133,8 @@ const TapalDetail = () => {
         </button>
         <button
           type="button"
-          onClick={printDoc}
-          className="flex items-center gap-1 text-xs font-bold uppercase border px-3 py-2"
+          onClick={() => navigate(`/admin/tapals/${tapal._id || tapal.id}/preview`)}
+          className="flex items-center gap-1 text-xs font-bold uppercase border px-3 py-2 bg-white hover:bg-slate-50 transition-all text-text-secondary"
         >
           <Printer size={14} /> Print Tapal
         </button>
@@ -115,47 +143,246 @@ const TapalDetail = () => {
         <AssignDriverPanel tapal={tapal} onAssigned={loadTapal} />
       </div>
 
-      <div className="print-root">
-        <PaperFormFrame title={`Tapal ${tapal.tpNo || tapal.tapalNumber}`} subtitle="Dispatch record">
-          <PaperFieldRow label="Harvest Ref">
-            <input className={paperInputClass} readOnly value={tapal.harvest?.harvestNumber || tapal.harvestId || '—'} />
-          </PaperFieldRow>
-          <PaperFieldRow label="Party">
-            <input className={paperInputClass} readOnly value={tapal.partyName || ''} />
-          </PaperFieldRow>
-          <PaperFieldRow label="Destination">
-            <input className={paperInputClass} readOnly value={tapal.destination || tapal.unloadingPoint || ''} />
-          </PaperFieldRow>
-          <PaperFieldRow label="Vehicle">
-            <input className={paperInputClass} readOnly value={tapal.vehicleNumber || ''} />
-          </PaperFieldRow>
-          <PaperFieldRow label="Driver">
-            <input className={paperInputClass} readOnly value={tapal.driver || ''} />
-          </PaperFieldRow>
-          <PaperFieldRow label="Status">
-            <input className={paperInputClass} readOnly value={tapal.status || ''} />
-          </PaperFieldRow>
-          <table className="w-full border border-black text-xs mt-4">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-black p-1">Item</th>
-                <th className="border border-black p-1">Qty</th>
-                <th className="border border-black p-1">Box</th>
-                <th className="border border-black p-1">Weight</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((p, i) => (
-                <tr key={i}>
-                  <td className="border border-black p-1">{p.name || p.fishName}</td>
-                  <td className="border border-black p-1 text-right">{p.qty}</td>
-                  <td className="border border-black p-1 text-right">{p.boxQty}</td>
-                  <td className="border border-black p-1 text-right">{p.totalWeight}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </PaperFormFrame>
+      <div className="print-root flex justify-center items-center py-4 bg-slate-100/50">
+        <div 
+          className="w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl border border-black/10 font-arial text-black"
+          style={{ fontFamily: 'Arial, sans-serif' }}
+        >
+          {/* Main Border */}
+          <div className="border border-black flex flex-col justify-between">
+            <div>
+              {/* Header Box */}
+              <div className="text-center pb-1 border-b border-black">
+                <h1 className="text-2xl font-bold tracking-wide text-[#1e3a8a] mt-1 mb-0 pb-0">
+                  M. K. FISHERIES
+                </h1>
+                <h2 className="text-sm font-bold text-[#1e3a8a] mt-0">
+                  WHOLE SALE FISH MERCHANTS
+                </h2>
+                <p className="text-xs font-semibold text-[#1e3a8a] mt-0">
+                  KARWAR & MANGALORE (KARNATAKA)
+                </p>
+                <p className="text-[10px] font-semibold text-[#1e3a8a] mt-0 mb-1">
+                  Mob : 9019411439, 9663655558
+                </p>
+                <div className="border-t border-black w-full text-center py-1">
+                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">★ TAPAL / LOGISTICS DISPATCH ★</h3>
+                </div>
+              </div>
+
+              {/* Details Section */}
+              <div className="flex border-b border-black text-[11px] leading-tight font-medium text-black h-[110px]">
+                {/* Left Side Details */}
+                <div className="w-1/2 border-r border-black flex flex-col">
+                  <div className="flex border-b border-black h-1/4 items-center">
+                    <span className="font-bold pl-1 w-full">Customer Details :</span>
+                  </div>
+                  <div className="flex border-b border-black h-1/4 items-center">
+                    <span className="font-semibold pl-1 w-24 uppercase">NAME</span>
+                    <span className="pl-1 w-full uppercase">{tapal.partyName || tapal.party || tapal.buyerName || 'UNASSIGNED BUYER'}</span>
+                  </div>
+                  <div className="flex border-b border-black h-1/4 items-center">
+                    <span className="font-semibold pl-1 w-24 uppercase">CITY</span>
+                    <span className="pl-1 w-full uppercase">{tapal.destination || 'N/A'}</span>
+                  </div>
+                  <div className="flex h-1/4 items-center">
+                    <span className="font-semibold pl-1 w-24 uppercase">MOB NUMBER</span>
+                    <span className="pl-1 w-full">{tapal.buyerPhone || tapal.consigneeContact || ''}</span>
+                  </div>
+                </div>
+
+                {/* Right Side Details */}
+                <div className="w-1/2 flex flex-col">
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      TP NO :
+                    </div>
+                    <div className="w-2/3 pl-1 font-semibold">{tapal.tpNo || tapal.tapalNumber || 'N/A'}</div>
+                  </div>
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Date :
+                    </div>
+                    <div className="w-2/3 pl-1 font-semibold">
+                      {tapal.createdAt ? new Date(tapal.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
+                    </div>
+                  </div>
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Vehicle No :
+                    </div>
+                    <div className="w-2/3 pl-1 font-semibold uppercase">{tapal.vehicleNo || tapal.vehicleNumber || 'N/A'}</div>
+                  </div>
+                  <div className="flex border-b border-black h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Driver Name :
+                    </div>
+                    <div className="w-2/3 pl-1 font-semibold uppercase">{tapal.driver || tapal.driverName || 'N/A'}</div>
+                  </div>
+                  <div className="flex h-1/5 items-center">
+                    <div className="w-1/3 border-r border-black flex items-center h-full justify-end pr-1 font-bold">
+                      Grader Name :
+                    </div>
+                    <div className="w-2/3 pl-1 font-semibold uppercase">{tapal.graderName || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Header */}
+              <div className="w-full">
+                <table className="w-full text-center border-collapse text-[11px] font-semibold text-black">
+                  <thead>
+                    <tr className="border-b border-black">
+                      <th className="py-1 px-1 border-r border-black w-[40px]">Sl No</th>
+                      <th className="py-1 px-1 border-r border-black w-[70px]">Hsn Code</th>
+                      <th className="py-1 px-1 border-r border-black text-left pl-1">Particulars</th>
+                      <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
+                      <th className="py-1 px-1 border-r border-black w-[60px] leading-tight">NO OF<br/>BOXES</th>
+                      <th className="py-1 px-1 border-r border-black w-[70px]">Box Weight</th>
+                      <th className="py-1 px-1 border-r border-black w-[80px]">Total Weight</th>
+                      <th className="py-1 px-1 border-r border-black w-[50px]">Rate</th>
+                      <th className="py-1 px-1 w-[90px]">Total Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayItems.map((item, index) => {
+                      let itemWeight = item.totalWeight || item.weight || item.qty || '';
+                      if (itemWeight && String(itemWeight).includes('KG')) {
+                        itemWeight = String(itemWeight).replace(/[^\d.]/g, '');
+                      }
+                      
+                      let itemRate = item.rate || '';
+                      let itemAmount = item.total || item.totalAmount || '';
+
+                      return (
+                        <tr key={item.id || index} className="border-b border-black h-[22px]">
+                          <td className="border-r border-black">
+                            {index + 1}
+                          </td>
+                          <td className="border-r border-black font-mono text-[10px]">
+                            {item.hsnCode || item.hsn || ''}
+                          </td>
+                          <td className="border-r border-black text-left pl-1">
+                            {item.particulars || item.name || ''}
+                          </td>
+                          <td className="border-r border-black">
+                            {item.count || ''}
+                          </td>
+                          <td className="border-r border-black">
+                            {item.noOfBoxes || item.boxes || item.boxQty || ''}
+                          </td>
+                          <td className="border-r border-black">
+                            {item.boxWeight || item.weightPerBox ? `${item.boxWeight || item.weightPerBox}` : ''}
+                          </td>
+                          <td className="border-r border-black text-right pr-1">
+                            {itemWeight ? `${parseFloat(itemWeight).toFixed(2)}` : ''}
+                          </td>
+                          <td className="border-r border-black text-right pr-1">
+                            {itemRate ? `${parseFloat(String(itemRate).replace(/[^\d.]/g, '')).toFixed(2)}` : ''}
+                          </td>
+                          <td className="text-right pr-1">
+                            {itemAmount ? `${parseFloat(String(itemAmount).replace(/[^\d.]/g, '')).toFixed(2)}` : ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {/* Totals Row */}
+                    <tr className="border-b border-black font-bold h-[22px]">
+                      <td colSpan="4" className="border-r border-black"></td>
+                      <td className="border-r border-black text-center">{tapal.totalBoxes || tapal.totalNoOfBoxes || '0'}</td>
+                      <td className="border-r border-black"></td>
+                      <td className="border-r border-black text-right pr-1">{tapal.totalWeight || tapal.qty ? parseFloat(tapal.totalWeight || tapal.qty).toFixed(2) : '0'}</td>
+                      <td className="border-r border-black"></td>
+                      <td className="text-right pr-1">-</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Calculations & Deductions Footer Block */}
+            <div className="w-full flex flex-col text-[10px] font-bold text-black border-t border-black">
+              
+              {/* Notes Row 1 */}
+              <div className="flex border-b border-black h-[22px]">
+                <div className="w-2/3 border-r border-black bg-[#FDF9EA] flex items-center justify-center">
+                  {notes || ''}
+                </div>
+                <div className="w-1/6 border-r border-black flex items-center justify-center">
+                  TDS @ 194Q
+                </div>
+                <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                  {tds ? parseFloat(tds).toFixed(2) : ''}
+                </div>
+              </div>
+
+              {/* Notes Row 2 */}
+              <div className="flex border-b border-black h-[22px]">
+                <div className="w-2/3 border-r border-black flex items-center justify-center">
+                  {damageNotes || ''}
+                </div>
+                <div className="w-1/6 border-r border-black flex items-center justify-center">
+                  COMISSION
+                </div>
+                <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                   {commission ? parseFloat(commission).toFixed(2) : ''}
+                </div>
+              </div>
+
+              {/* Notes Row 3 */}
+              <div className="flex border-b border-black h-[22px]">
+                <div className="w-2/3 border-r border-black flex items-center justify-center text-red-600">
+                  {deductionsNotes}
+                </div>
+                <div className="w-1/6 border-r border-black flex items-center justify-center">
+                  LOADING
+                </div>
+                <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                  {soft ? parseFloat(soft).toFixed(2) : ''}
+                </div>
+              </div>
+
+              {/* Grand Total Row */}
+              <div className="flex border-b border-black h-[22px]">
+                <div className="w-2/3 border-r border-black flex items-center justify-center">
+                </div>
+                <div className="w-1/6 border-r border-black flex items-center justify-center">
+                  Grand Total
+                </div>
+                <div className="w-1/6 flex items-center justify-end pr-1 font-bold">
+                  {grandTotal ? parseFloat(grandTotal).toFixed(2) : ''}
+                </div>
+              </div>
+
+              {/* Bottom text instructions */}
+              <div className="flex h-[26px] border-b border-black">
+                <div className="w-[80px] border-r border-black flex items-center justify-center font-bold text-[11px]">
+                  (in words)
+                </div>
+                <div className="flex-1 flex items-center pl-2 font-bold text-[11px] uppercase">
+                   {inWords}
+                </div>
+              </div>
+
+              {/* Signature layout */}
+              <div className="flex w-full mt-1 min-h-[90px]">
+                <div className="w-2/3 border-r border-black p-2 flex flex-col justify-between">
+                  <span className="text-[9px] font-bold text-gray-500 uppercase">Receiver Sign & Stamp:</span>
+                  <div className="w-32 border-b border-black/30 border-dashed mb-1"></div>
+                </div>
+                <div className="w-1/3 flex flex-col justify-between pt-1 pb-2">
+                  <div className="text-[10px] pl-2">
+                     For : M.K. FISHERIES
+                  </div>
+                  <div className="text-[10px] pl-2 flex justify-center mt-12 w-full">
+                     Authorised Signatory
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="no-print mt-6">

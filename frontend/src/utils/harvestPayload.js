@@ -60,7 +60,7 @@ export function buildHarvestCreatePayload(slip, { farmers = [], products = [] } 
     logisticsNotes: slip.logisticsNotes || '',
     remarks: slip.notes || '',
     damageComplaint: slip.damageNotes || '',
-    deductionsNotes: slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : '',
+    deductionsNotes: slip.deductionsNotes || (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED'),
     vehicleNo: slip.vehicleNo || '',
     driverName: slip.driverName || '',
     graderName: slip.graderName || '',
@@ -71,6 +71,7 @@ export function buildHarvestCreatePayload(slip, { farmers = [], products = [] } 
 export function mapHarvestFromApi(h) {
   if (!h) return h;
   const farmer = h.farmerId && typeof h.farmerId === 'object' ? h.farmerId : null;
+  const totalPayable = h.totalPayableAmount ?? h.totalAmount ?? 0;
   return {
     ...h,
     id: h._id || h.id,
@@ -84,8 +85,24 @@ export function mapHarvestFromApi(h) {
     graderName: h.graderName || '',
     notes: h.remarks || h.notes || '',
     damageNotes: h.damageComplaint || h.damageNotes || '',
+    deductionsNotes: h.deductionsNotes || (h.deductionTransport ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED'),
     status: h.status || 'PENDING',
     netRateCalculated: h.netRateCalculated ?? null,
+    totalPayableAmount: h.totalPayableAmount ?? null,
+    totalDeductions: h.totalDeductions ?? 0,
+    paidAmount: h.paidAmount ?? 0,
+    pendingAmount: h.pendingAmount ?? null,
+    paymentStatus: h.paymentStatus ?? 'UNPAID',
+    tds: h.tds ?? 0,
+    commission: h.commission ?? 0,
+    soft: h.soft ?? 0,
+    deductionTransport: h.deductionTransport ?? 0,
+    deductionCommission: h.deductionCommission ?? 0,
+    deductionSoft: h.deductionSoft ?? 0,
+    deductionOther: h.deductionOther ?? 0,
+    grandTotal: totalPayable,
+    inWords: h.inWords || (totalPayable > 0 ? `${totalPayable} RUPEES ONLY` : ''),
+    iceRentDeducted: h.deductionsNotes === 'ICE & VEHICLE RENT DEDUCTED' || !!h.deductionTransport,
     products: h.products || [],
     items: (h.products || []).map((p, idx) => ({
       id: String(idx + 1),
@@ -95,6 +112,8 @@ export function mapHarvestFromApi(h) {
       noOfBoxes: p.boxCount != null ? String(p.boxCount) : '',
       boxWeight: p.weightPerBox != null ? String(p.weightPerBox) : '',
       totalWeight: p.totalWeight != null ? String(p.totalWeight) : String(p.estimatedQty || ''),
+      rate: p.rate != null ? String(p.rate) : '',
+      totalAmount: p.totalAmount != null ? String(p.totalAmount) : (p.rate != null ? String(p.rate * (p.totalWeight || p.estimatedQty)) : ''),
     })),
     totalBoxes: (h.products || []).reduce((s, p) => s + (parseInt(p.boxCount, 10) || 0), 0),
     totalWeight: (h.products || []).reduce((s, p) => s + (parseFloat(p.totalWeight || p.estimatedQty) || 0), 0),

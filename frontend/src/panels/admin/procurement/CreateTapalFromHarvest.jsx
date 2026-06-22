@@ -15,7 +15,6 @@ const CONVERTIBLE_STATUS = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', 'PARTIAL
 function harvestReadyForTapal(h) {
   if (!h) return false;
   if (!CONVERTIBLE_STATUS.includes(h.status)) return false;
-  if (h.netRateCalculated == null || h.netRateCalculated === '') return false;
   if (h.status === 'CLOSED' || h.remainingQty <= 0) return false;
   return true;
 }
@@ -428,11 +427,7 @@ const CreateTapalFromHarvest = () => {
               <div className="py-8 text-center text-xs font-bold text-slate-400">Loading harvest slips…</div>
             ) : eligible.length === 0 ? (
               <div className="py-8 text-center text-xs font-bold text-slate-500 border border-dashed border-slate-200">
-                No ready harvest slips available. Confirm a slip and{' '}
-                <Link to="/admin/procurement/net-rate" className="underline font-black text-[#6A7051]">
-                  save net rate (purchase invoice)
-                </Link>{' '}
-                first.
+                No confirmed harvest slips available. Please confirm a harvest slip first.
               </div>
             ) : (
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">

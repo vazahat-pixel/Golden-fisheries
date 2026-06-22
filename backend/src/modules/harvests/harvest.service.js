@@ -420,6 +420,11 @@ class HarvestService extends BaseService {
 
     await harvest.save();
 
+    const farmer = await Farmer.findById(harvest.farmerId);
+    if (!farmer) {
+      throw new AppError(`Farmer not found for harvest slip ${harvest.harvestNumber}`, 404);
+    }
+
     // Auto-update or post to Farmer Ledger
     const { FarmerLedger } = await import('../farmer-ledger/farmerLedger.model.js');
     const { farmerLedgerService } = await import('../farmer-ledger/farmerLedger.service.js');
@@ -445,6 +450,87 @@ class HarvestService extends BaseService {
         creditAmount: 0,
         createdBy: creatorUser.phone
       });
+    }
+
+    // Auto-update or post to Billing (Invoice) & Inventory Stocks
+    try {
+      const { Billing } = await import('../billing/billing.model.js');
+      const { inventoryService } = await import('../inventory/inventory.service.js');
+
+      const existingBilling = await Billing.findOne({ harvestId: harvest._id });
+      const billingItems = harvest.products.map(p => ({
+        productId: p.productId,
+        productName: p.fishName,
+        quantity: p.estimatedQty,
+        rate: p.rate || 0,
+        amount: (p.rate || 0) * (p.estimatedQty || 0)
+      }));
+
+      const subtotal = billingItems.reduce((sum, item) => sum + item.amount, 0);
+
+      const billingData = {
+        type: 'PROCUREMENT',
+        harvestId: harvest._id,
+        partyName: farmer.fullName,
+        partyId: farmer._id,
+        items: billingItems,
+        subtotal,
+        taxRate: 5,
+        taxAmount: (subtotal * 5) / 100,
+        totalAmount: harvest.totalPayableAmount,
+        paymentStatus: harvest.paymentStatus === 'PAID' ? 'PAID' : (harvest.paymentStatus === 'PARTIAL' ? 'PARTIALLY_PAID' : 'PENDING'),
+        paidAmount: harvest.paidAmount || 0,
+        balanceAmount: harvest.pendingAmount || harvest.totalPayableAmount,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdBy: creatorUser._id || harvest.createdBy,
+        remarks: harvest.remarks || ''
+      };
+
+      if (existingBilling) {
+        // Revert old stocks
+        for (const item of existingBilling.items) {
+          await inventoryService.adjustStock(
+            item.productId,
+            -item.quantity,
+            'PROCUREMENT_IN',
+            { referenceId: existingBilling._id, referenceModel: 'Billing' },
+            creatorUser._id,
+            `Stock reverted due to purchase bill update`
+          );
+        }
+
+        Object.assign(existingBilling, billingData);
+        await existingBilling.save();
+
+        // Apply new stocks
+        for (const item of existingBilling.items) {
+          await inventoryService.adjustStock(
+            item.productId,
+            item.quantity,
+            'PROCUREMENT_IN',
+            { referenceId: existingBilling._id, referenceModel: 'Billing' },
+            creatorUser._id,
+            `Stock updated due to purchase bill update`
+          );
+        }
+      } else {
+        const newBilling = new Billing(billingData);
+        await newBilling.save();
+
+        // Apply new stocks
+        for (const item of newBilling.items) {
+          await inventoryService.adjustStock(
+            item.productId,
+            item.quantity,
+            'PROCUREMENT_IN',
+            { referenceId: newBilling._id, referenceModel: 'Billing' },
+            creatorUser._id,
+            `Stock added via finalized purchase bill`
+          );
+        }
+      }
+    } catch (billingErr) {
+      logger.error(`[Billing Sync Error]: Failed to create/update procurement invoice for harvest ${harvest.harvestNumber}: ${billingErr.message}`);
     }
 
     return harvest;

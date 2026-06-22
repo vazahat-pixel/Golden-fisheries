@@ -272,7 +272,10 @@ export const useAdminStore = create(
         set({ loading: true });
         try {
           const res = await harvestService.saveNetRate(id, data);
-          await get().fetchHarvestSlips();
+          await Promise.all([
+            get().fetchHarvestSlips(),
+            get().fetchInvoices()
+          ]);
           set({ loading: false });
           return res?.data?.harvest || res?.harvest || res;
         } catch (err) {
@@ -289,6 +292,7 @@ export const useAdminStore = create(
           const res = await billingService.all(params);
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
           const mapped = list.map(inv => ({
+            ...inv,
             id: inv.invoiceNumber || inv._id,
             client: inv.partyName || 'Unknown Client',
             type: inv.type,
