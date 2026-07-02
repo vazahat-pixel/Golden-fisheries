@@ -449,12 +449,33 @@ const TapalDetail = () => {
             title="End of Trip Sheet & POD Summary"
             subtitle={`Trip Number: ${trip.tripNumber || trip.tripNo || '—'} | Status: ${trip.status}`}
           >
+            {trip.tripStartOdometer?.photoUrl && (
+              <div className="mb-6 border border-black p-4 bg-[#F5F5EC]">
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-2 border-b border-black pb-1">
+                  Trip start odometer
+                </h3>
+                <p className="text-sm font-bold text-[#6A7051] mb-2">
+                  Starting reading: {trip.tripStartOdometer.odometerKm ?? '—'} km
+                  {trip.tripStartOdometer.recordedAt
+                    ? ` · ${new Date(trip.tripStartOdometer.recordedAt).toLocaleString()}`
+                    : ''}
+                </p>
+                <img
+                  src={trip.tripStartOdometer.photoUrl}
+                  alt="Trip start odometer"
+                  className="max-h-48 object-contain border border-gray-400 cursor-pointer"
+                  onClick={() => window.open(trip.tripStartOdometer.photoUrl, '_blank')}
+                />
+              </div>
+            )}
             {/* Odometer Telemetry Metrics Grid */}
             {postTrip ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="border border-black p-3 bg-[#F5F5EC] text-center">
                   <span className="block text-[10px] uppercase font-bold text-gray-600">Start KM</span>
-                  <span className="text-xl font-bold text-[#6A7051]">{postTrip.startingKms || 0}</span>
+                  <span className="text-xl font-bold text-[#6A7051]">
+                    {postTrip.startingKms || trip.tripStartOdometer?.odometerKm || 0}
+                  </span>
                 </div>
                 <div className="border border-black p-3 bg-[#F5F5EC] text-center">
                   <span className="block text-[10px] uppercase font-bold text-gray-600">End KM</span>

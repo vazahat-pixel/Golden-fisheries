@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDriverStore, resolveTapalIdFromTrip } from '../../store/driverStore';
 import {
   ArrowLeft, MapPin, Navigation, Scale, Camera,
-  PenTool, CheckCircle2, AlertTriangle, PackageCheck, FileCheck
+  PenTool, CheckCircle2, AlertTriangle, PackageCheck, FileCheck, Gauge
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { socketService } from '../../services/socketService';
@@ -13,6 +13,7 @@ import { FieldPageWrap } from '../../design-system/field-app';
 import { useSystemSettingsStore } from '../../store/systemSettingsStore';
 import { TripExpenseFields } from './TripExpenseFields';
 import { useTripExpenseForm } from './useTripExpenseForm';
+import { normalizeTripStops, tripStopsSummary } from '../../utils/tripStopsDisplay';
 
 function parseTapalLineKg(p) {
   const tw = Number(p?.totalWeight);
@@ -85,8 +86,13 @@ const ActiveTrip = () => {
   const [signatureDone, setSignatureDone] = useState(false);
   const [proofPhotoData, setProofPhotoData] = useState('');
 
+  const [startOdometerKm, setStartOdometerKm] = useState('');
+  const [startMeterPhotoData, setStartMeterPhotoData] = useState('');
+  const [meterPhotoSnapped, setMeterPhotoSnapped] = useState(false);
+
   const sigCanvasRef = useRef(null);
   const fileInputRef = useRef(null);
+  const meterFileInputRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
   const expense = useTripExpenseForm(trip);
@@ -113,6 +119,14 @@ const ActiveTrip = () => {
     }
     if (trip.signatureUrl) {
       setSignatureDone(true);
+    }
+    const odo = trip.tripStartOdometer;
+    if (odo?.photoUrl) {
+      setStartMeterPhotoData(odo.photoUrl);
+      setMeterPhotoSnapped(true);
+    }
+    if (odo?.odometerKm != null) {
+      setStartOdometerKm(String(odo.odometerKm));
     }
   }, [trip?._id, trip?.id]);
 
@@ -198,12 +212,49 @@ const ActiveTrip = () => {
     setSignatureDone(false);
   };
 
+  const handleMeterPhotoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      setStartMeterPhotoData(uploadEvent.target.result);
+      setMeterPhotoSnapped(true);
+      toast.success('Odometer photo added');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleStartTrip = async () => {
+    const km = parseFloat(startOdometerKm);
+    if (!meterPhotoSnapped || !startMeterPhotoData) {
+      toast.error('Upload odometer / meter photo before starting');
+      return;
+    }
+    if (!Number.isFinite(km) || km < 0) {
+      toast.error('Enter valid starting km reading');
+      return;
+    }
+
     setStarting(true);
     const loadToast = toast.loading('Starting trip...');
     try {
-      await startTripAsync(trip);
-      setTrip((prev) => (prev ? { ...prev, status: 'STARTED' } : null));
+      await startTripAsync(trip, {
+        startMeterPhotoUrl: startMeterPhotoData,
+        startOdometerKm: km,
+      });
+      setTrip((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'STARTED',
+              tripStartOdometer: {
+                photoUrl: startMeterPhotoData,
+                odometerKm: km,
+                recordedAt: new Date().toISOString(),
+              },
+            }
+          : null
+      );
       toast.success('Trip started — fill details below and submit when done', { id: loadToast });
     } catch (err) {
       toast.error(err?.message || 'Failed to start trip', { id: loadToast });
@@ -307,6 +358,8 @@ const ActiveTrip = () => {
   const isClosed = ['CLOSED', 'COMPLETED'].includes(status);
   const hasExpenseSheet = Boolean(trip.postTripExpenses?.submittedAt || trip.postTripExpenses?.totalExpenses != null);
   const cargoSummary = getTapalCargoSummary(trip);
+  const routeStops = normalizeTripStops(trip);
+  const stopsSummary = tripStopsSummary(trip);
 
   const tapalRef = trip.tapalId && typeof trip.tapalId === 'object' ? trip.tapalId : trip.tapal;
   const deliveryLabel =
@@ -332,36 +385,141 @@ const ActiveTrip = () => {
         {/* Route summary */}
         <div className="fa-surface p-4 space-y-3 text-xs">
           <span className="text-[10px] font-black uppercase tracking-wider text-brand-olive block border-b border-card-border pb-1">
-            Route
+            Route {stopsSummary ? `· ${stopsSummary}` : ''}
           </span>
-          <div className="flex items-center gap-2">
-            <MapPin size={14} className="text-[#6A7051]" />
-            <div>
-              <span className="text-[8px] font-black text-text-muted tracking-widest block">Pickup</span>
-              <span className="font-extrabold text-brand-olive">{trip.pickupLocation || '—'}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 border-t border-dashed border-card-border pt-2">
-            <Navigation size={14} className="text-brand-yellow" />
-            <div>
-              <span className="text-[8px] font-black text-text-muted tracking-widest block">Delivery</span>
-              <span className="font-extrabold text-brand-olive">{deliveryLabel}</span>
-            </div>
-          </div>
+
+          {routeStops.length > 0 ? (
+            <ol className="space-y-2">
+              {routeStops.map((stop) => (
+                <li
+                  key={`${stop.sequence}-${stop.title}`}
+                  className="flex gap-2 border border-card-border rounded-lg p-2.5 bg-slate-50/80"
+                >
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-[#6A7051] text-white text-[10px] font-black flex items-center justify-center">
+                    {stop.sequence}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-text-muted">
+                      {stop.isPickup ? 'Procurement pickup' : 'Sale delivery'}
+                    </p>
+                    <p className="font-extrabold text-brand-olive truncate">{stop.title}</p>
+                    {stop.party ? <p className="text-[10px] fa-muted">{stop.party}</p> : null}
+                    <p className="text-[10px] flex items-center gap-1 mt-0.5">
+                      <MapPin size={10} className="shrink-0 text-[#6A7051]" />
+                      <span className="truncate">{stop.location || '—'}</span>
+                    </p>
+                    {stop.qtyLabel ? (
+                      <p className="text-[10px] font-bold text-slate-700 mt-0.5">{stop.qtyLabel}</p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <MapPin size={14} className="text-[#6A7051]" />
+                <div>
+                  <span className="text-[8px] font-black text-text-muted tracking-widest block">Pickup</span>
+                  <span className="font-extrabold text-brand-olive">{trip.pickupLocation || '—'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 border-t border-dashed border-card-border pt-2">
+                <Navigation size={14} className="text-brand-yellow" />
+                <div>
+                  <span className="text-[8px] font-black text-text-muted tracking-widest block">Delivery</span>
+                  <span className="font-extrabold text-brand-olive">{deliveryLabel}</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Step 1: Start only */}
+        {/* Step 1: Odometer + start */}
         {isAssigned && (
-          <button
-            type="button"
-            onClick={handleStartTrip}
-            disabled={starting}
-            className="w-full py-3 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all"
-          >
-            <Navigation size={14} className="animate-pulse" />
-            {starting ? 'Starting...' : 'Start Trip'}
-          </button>
+          <section className="fa-surface p-4 space-y-3">
+            <h2 className="text-[10px] font-black uppercase tracking-wider text-brand-olive flex items-center gap-1.5 border-b border-card-border pb-1.5">
+              <Gauge size={14} /> Starting odometer (required)
+            </h2>
+            <p className="text-[11px] fa-muted">
+              Before starting, photograph the vehicle meter showing the current km reading.
+            </p>
+            <div>
+              <label className="text-[9px] font-black uppercase text-brand-olive mb-1 block">
+                Starting km reading
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                min="0"
+                value={startOdometerKm}
+                onChange={(e) => setStartOdometerKm(e.target.value)}
+                placeholder="e.g. 45230"
+                className="w-full border border-card-border rounded-lg px-3 py-2.5 text-sm font-bold"
+              />
+            </div>
+            <input
+              ref={meterFileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleMeterPhotoFileChange}
+            />
+            {meterPhotoSnapped && startMeterPhotoData ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2">
+                <img
+                  src={startMeterPhotoData}
+                  alt="Odometer"
+                  className="max-h-36 w-full object-contain rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => meterFileInputRef.current?.click()}
+                  className="text-[10px] font-semibold text-[#6A7051] underline mt-2 fa-tap"
+                >
+                  Retake photo
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => meterFileInputRef.current?.click()}
+                className="w-full py-3 border-2 border-dashed border-[#6A7051]/40 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#6A7051] flex items-center justify-center gap-2 fa-tap"
+              >
+                <Camera size={16} /> Upload meter / odometer photo
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleStartTrip}
+              disabled={
+                starting ||
+                !meterPhotoSnapped ||
+                !startMeterPhotoData ||
+                !startOdometerKm.trim()
+              }
+              className="w-full py-3 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              <Navigation size={14} className="animate-pulse" />
+              {starting ? 'Starting...' : 'Start Trip'}
+            </button>
+          </section>
         )}
+
+        {!isAssigned && trip.tripStartOdometer?.photoUrl && (
+          <div className="fa-surface p-4 space-y-2 text-xs">
+            <p className="text-[10px] font-black uppercase text-brand-olive">Trip start odometer</p>
+            <p className="font-bold">{trip.tripStartOdometer.odometerKm} km</p>
+            <img
+              src={trip.tripStartOdometer.photoUrl}
+              alt="Start odometer"
+              className="max-h-32 w-full object-contain rounded border border-card-border"
+            />
+          </div>
+        )}
+
 
         {isInProgress && (
           <div className="fa-surface px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg">

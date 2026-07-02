@@ -38,7 +38,7 @@ export const ADMIN_NAV_ITEMS = [
   { icon: Truck, label: 'Logistics & Trips', path: '/admin/logistics', module: 'logistics' },
   { icon: Car, label: 'Vehicle Management', path: '/admin/vehicles', module: 'logistics' },
   { icon: Users, label: 'Driver Management', path: '/admin/logistics/drivers', module: 'logistics' },
-  { icon: Truck, label: 'Assign Driver', path: '/admin/logistics/assign-driver', module: 'logistics' },
+  { icon: Truck, label: 'Trips & Assign Driver', path: '/admin/logistics/assign-driver', module: 'logistics' },
   { icon: Radio, label: 'Fleet Control', path: '/admin/logistics/control', module: 'logistics' },
   { icon: Receipt, label: 'Expenses', path: '/admin/expenses', module: 'finance', badge: 'expenses' },
   { icon: Wallet, label: 'Finance / P&L', path: '/admin/finance', module: 'finance' },

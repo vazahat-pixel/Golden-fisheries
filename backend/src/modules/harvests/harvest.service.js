@@ -270,7 +270,7 @@ class HarvestService extends BaseService {
         numericAmount: totalAmount,
         status: logistics.assignedTo ? 'ASSIGNED' : 'CREATED',
         assignedTo: logistics.assignedTo || null,
-        driver: logistics.driverName || 'Unassigned',
+        driver: 'Unassigned',
         vehicleNumber: logistics.vehicleNumber || null,
         destination: logistics.destination || null,
         logisticsNotes: logistics.logisticsNotes || null,

@@ -263,7 +263,10 @@ async function run() {
   
   // -- Trip 1 lifecycle --
   console.log('- Trip 1: Starting Journey...');
-  await tapalService.startTrip(tapal1._id, driverUser._id);
+  await tapalService.startTrip(
+    { tapalId: tapal1._id, startMeterPhotoUrl: 'data:image/png;base64,test', startOdometerKm: 1000 },
+    driverUser._id
+  );
   console.log('- Trip 1: Picking up cargo...');
   await tapalService.pickupCargo(tapal1._id, driverUser._id, 50); // scale weight at pickup
   console.log('- Trip 1: Delivering cargo...');
@@ -285,7 +288,10 @@ async function run() {
 
   // -- Trip 2 lifecycle --
   console.log('- Trip 2: Starting Journey...');
-  await tapalService.startTrip(tapal2._id, driverUser._id);
+  await tapalService.startTrip(
+    { tapalId: tapal2._id, startMeterPhotoUrl: 'data:image/png;base64,test', startOdometerKm: 1100 },
+    driverUser._id
+  );
   console.log('- Trip 2: Picking up cargo...');
   await tapalService.pickupCargo(tapal2._id, driverUser._id, 70); 
   console.log('- Trip 2: Delivering cargo...');

@@ -80,13 +80,17 @@ class FarmerLedgerService extends BaseService {
       {
         $project: {
           _id: 1,
+          farmerId: '$_id',
           farmerCode: '$farmer.farmerCode',
           fullName: '$farmer.fullName',
+          farmerName: '$farmer.fullName',
           phone: '$farmer.phone',
           location: '$farmer.location',
           totalSupplied: 1,
           totalPaid: 1,
-          balanceDue: '$lastEntry.balanceAfter'
+          balanceDue: '$lastEntry.balanceAfter',
+          balance: '$lastEntry.balanceAfter',
+          pendingAmount: '$lastEntry.balanceAfter',
         }
       }
     ]);

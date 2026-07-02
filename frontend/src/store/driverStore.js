@@ -122,12 +122,21 @@ export const useDriverStore = create(
         }
       },
 
-      startTripAsync: async (tripOrTapalId) => {
+      startTripAsync: async (tripOrTapalId, { startMeterPhotoUrl, startOdometerKm } = {}) => {
         const tapalId = resolveTapalIdFromTrip(tripOrTapalId);
-        if (!tapalId) throw new Error('Tapal link missing on this trip');
+        const tripId =
+          tripOrTapalId && typeof tripOrTapalId === 'object'
+            ? tripOrTapalId._id || tripOrTapalId.id
+            : undefined;
+        if (!tapalId && !tripId) throw new Error('Trip reference missing');
         set({ loading: true });
         try {
-          await tapalService.startTrip(tapalId);
+          await tapalService.startTrip({
+            tapalId: tapalId || undefined,
+            tripId: tripId ? String(tripId) : undefined,
+            startMeterPhotoUrl,
+            startOdometerKm,
+          });
           await get().fetchMyTrips();
           set({ loading: false });
         } catch (err) {

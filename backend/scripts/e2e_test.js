@@ -409,7 +409,11 @@ async function phase8() {
   const start = await request(
     'PATCH',
     '/tapals/start-trip',
-    { tapalId: STATE.tapalId },
+    {
+      tapalId: STATE.tapalId,
+      startMeterPhotoUrl: 'data:image/png;base64,e2e',
+      startOdometerKm: 1000,
+    },
     driverToken,
     'MOBILE'
   );

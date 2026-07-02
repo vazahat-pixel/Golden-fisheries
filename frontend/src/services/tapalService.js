@@ -42,8 +42,13 @@ export const tapalService = {
   },
 
   // 4. Driver starts the trip
-  startTrip: async (tapalId) => {
-    return await apiClient.patch('/tapals/start-trip', { tapalId });
+  startTrip: async ({ tapalId, tripId, startMeterPhotoUrl, startOdometerKm } = {}) => {
+    return await apiClient.patch('/tapals/start-trip', {
+      tapalId,
+      tripId,
+      startMeterPhotoUrl,
+      startOdometerKm,
+    });
   },
 
   // 5. Driver records scale weight at pickup

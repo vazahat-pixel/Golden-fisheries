@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-do
 import { useAdminStore } from '../../../store/adminStore';
 import { tapalService } from '../../../services/tapalService';
 import { masterService } from '../../../services/masterService';
-import { userService } from '../../../services/userService';
 import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../components/forms/PaperFormFrame';
 import { toast } from 'react-hot-toast';
 import { BuyerFormModal } from '../buyers/BuyerFormModal';
@@ -83,31 +82,18 @@ function normalizePhone10(phone) {
   return digits.length >= 10 ? digits.slice(-10) : digits;
 }
 
-function matchDriverByName(drivers, name) {
-  const needle = String(name || '').trim().toLowerCase();
-  if (!needle) return null;
-  return (
-    drivers.find((d) => (d.fullName || d.name || '').trim().toLowerCase() === needle) ||
-    drivers.find((d) => (d.fullName || d.name || '').trim().toLowerCase().includes(needle))
-  );
-}
-
 const CreateTapalFromHarvest = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const preselectId = searchParams.get('harvestId');
   const preselectBuyerId = location.state?.preselectBuyerId;
-  const { harvestSlips, fetchHarvestSlips, fetchVehicles, vehicles, loading } = useAdminStore();
+  const { harvestSlips, fetchHarvestSlips, loading } = useAdminStore();
 
   // Selected allocations: { [harvestId]: { products: { [productKey]: qtyKg } } }
   const [selectedAllocations, setSelectedAllocations] = useState({});
 
   const [destination, setDestination] = useState('');
-  const [vehicleNumber, setVehicleNumber] = useState('');
-  const [driverName, setDriverName] = useState('');
-  const [drivers, setDrivers] = useState([]);
-  const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [logisticsNotes, setLogisticsNotes] = useState('');
   const [buyerId, setBuyerId] = useState('');
   const [buyers, setBuyers] = useState([]);
@@ -150,21 +136,6 @@ const CreateTapalFromHarvest = () => {
   useEffect(() => {
     if (preselectBuyerId) setBuyerId(String(preselectBuyerId));
   }, [preselectBuyerId]);
-
-  useEffect(() => {
-    fetchVehicles();
-    userService
-      .drivers()
-      .then((res) => {
-        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        setDrivers(list.filter((d) => d.isActive !== false));
-      })
-      .catch(() => {
-        setDrivers([]);
-        toast.error('Could not load registered drivers');
-      })
-      .finally(() => setLoadingDrivers(false));
-  }, [fetchVehicles]);
 
   // Filter harvest lists
   const { eligible, needNetRate, other } = useMemo(() => {
@@ -214,10 +185,6 @@ const CreateTapalFromHarvest = () => {
   }, [selectedAllocations, eligible]);
 
   const selectedBuyer = buyers.find((b) => String(b._id || b.id) === String(buyerId));
-  const matchedDriver = matchDriverByName(drivers, driverName);
-  const driverSuggestions = drivers
-    .map((d) => d.fullName || d.name)
-    .filter(Boolean);
 
   // Handle allocation checkbox toggle
   const toggleHarvestSelection = (hId, h) => {
@@ -316,23 +283,12 @@ const CreateTapalFromHarvest = () => {
     if (keys.length === 0) return false;
     if (Object.keys(validationErrors).length > 0) return false;
     if (!buyerId || !selectedBuyer?.phone) return false;
-    if (!driverName.trim()) return false;
     return true;
-  }, [selectedAllocations, validationErrors, buyerId, selectedBuyer, driverName]);
-
-  const resolveVehicleId = () => {
-    if (!vehicleNumber.trim()) return undefined;
-    const norm = vehicleNumber.replace(/\s|-/g, '').toLowerCase();
-    const match = (vehicles || []).find((v) => {
-      const plate = (v.plateNumber || v.vehicleNumber || '').replace(/\s|-/g, '').toLowerCase();
-      return plate && plate === norm;
-    });
-    return match?._id || match?.id || undefined;
-  };
+  }, [selectedAllocations, validationErrors, buyerId, selectedBuyer]);
 
   const handleCreate = async () => {
     if (!isValid) {
-      toast.error('Select harvest, buyer, and enter a driver name');
+      toast.error('Select harvest slips and buyer');
       return;
     }
 
@@ -358,43 +314,17 @@ const CreateTapalFromHarvest = () => {
       };
     });
 
-    const driverDisplayName = driverName.trim().toUpperCase();
-
     setSubmitting(true);
     try {
-      const createRes = await tapalService.createFromHarvest(null, {
+      await tapalService.createFromHarvest(null, {
         allocations,
         destination,
-        vehicleNumber,
-        driverName: driverDisplayName,
         logisticsNotes,
         buyerId: selectedBuyer._id || selectedBuyer.id,
         buyerPhone: normalizePhone10(selectedBuyer.phone),
       });
 
-      const tapal =
-        createRes?.data?.tapal ||
-        createRes?.tapal ||
-        createRes?.data;
-      const tapalId = tapal?._id || tapal?.id;
-
-      if (!tapalId) {
-        throw new Error('Tapal created but ID missing from server response');
-      }
-
-      if (matchedDriver) {
-        await tapalService.assignDriver(
-          tapalId,
-          matchedDriver._id || matchedDriver.id,
-          resolveVehicleId()
-        );
-        toast.success(
-          `Tapal generated and driver assigned — ${driverDisplayName}${matchedDriver.phone ? ` (${matchedDriver.phone})` : ''}`
-        );
-      } else {
-        await tapalService.assignDriver(tapalId, null, resolveVehicleId(), driverDisplayName);
-        toast.success(`Tapal generated — driver ${driverDisplayName} saved (no registered trip yet)`);
-      }
+      toast.success('Tapal created — build a trip and assign driver from Logistics → Assign Driver');
       navigate('/admin/tapals');
     } catch (err) {
       toast.error(err?.message || 'Failed to create tapal');
@@ -639,41 +569,6 @@ const CreateTapalFromHarvest = () => {
               />
             </PaperFieldRow>
 
-            <PaperFieldRow label="Vehicle Number (optional)">
-              <input
-                className={paperInputClass}
-                value={vehicleNumber}
-                onChange={(e) => setVehicleNumber(e.target.value)}
-                placeholder="Optional — e.g. KA-19-F-1234"
-              />
-            </PaperFieldRow>
-
-            <PaperFieldRow label="Driver Name *">
-              <input
-                className={paperInputClass}
-                value={driverName}
-                onChange={(e) => setDriverName(e.target.value)}
-                placeholder="Type driver name"
-                required
-                list="tapal-drivers-list"
-              />
-              <datalist id="tapal-drivers-list">
-                {driverSuggestions.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-              {!loadingDrivers && driverName.trim() && !matchedDriver && (
-                <p className="text-[10px] text-amber-700 font-bold mt-1">
-                  Name-only assignment — tapal saved; register this driver later to launch a trip in the app.
-                </p>
-              )}
-              {!loadingDrivers && matchedDriver && (
-                <p className="text-[10px] text-emerald-700 font-bold mt-1">
-                  Matched registered driver — trip will be sent to the driver app.
-                </p>
-              )}
-            </PaperFieldRow>
-
             <PaperFieldRow label="Dispatch Notes">
               <textarea
                 className={paperInputClass}
@@ -722,7 +617,7 @@ const CreateTapalFromHarvest = () => {
               onClick={handleCreate}
               className="w-full mt-6 bg-[#6A7051] hover:bg-[#5F6846] text-white py-3.5 font-black uppercase text-xs tracking-widest shadow-md active:translate-y-0.5 disabled:opacity-50 transition-all"
             >
-              {submitting ? 'Generating & assigning driver…' : 'Generate Tapal & Assign Driver'}
+              {submitting ? 'Generating tapal…' : 'Generate Tapal'}
             </button>
           </PaperFormFrame>
         </div>

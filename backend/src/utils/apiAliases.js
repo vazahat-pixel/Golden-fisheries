@@ -23,6 +23,7 @@ export function aliasTripResponse(tr) {
   const o = typeof tr.toObject === 'function' ? tr.toObject({ virtuals: true }) : { ...tr };
   if (o.tripNumber != null) o.tripNo = o.tripNumber;
   if (o.tapalId != null) o.tapal = o.tapalId;
+  if (Array.isArray(o.stops) && o.stops.length) o.stopsCount = o.stops.length;
 
   const tapal =
     o.tapalId && typeof o.tapalId === 'object'

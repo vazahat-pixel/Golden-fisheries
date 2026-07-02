@@ -12,6 +12,7 @@ import {
   FieldSectionHeader,
 } from '../../design-system/field-app';
 import { FieldPillTabs } from '../../design-system/field-app/FieldPillTabs';
+import { tripStopsSummary } from '../../utils/tripStopsDisplay';
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
@@ -62,8 +63,10 @@ const DriverDashboard = () => {
   const tripNo =
     activeTrip?.tripNumber ||
     activeTrip?.tapalNumber ||
+    incomingAssignment?.tripNumber ||
     incomingAssignment?.tapalNumber ||
     null;
+  const activeStopsSummary = tripStopsSummary(activeTrip || incomingAssignment);
   const displayTripNo = tripNo ? String(tripNo).replace(/^#/, '') : '—';
 
   const statusTone = activeTrip
@@ -106,7 +109,12 @@ const DriverDashboard = () => {
       {incomingAssignment && (
         <div className="fa-surface p-4 border border-[var(--fa-accent)]/30">
           <p className="text-[10px] font-bold uppercase text-[var(--fa-accent)]">New assignment</p>
-          <p className="text-sm font-medium mt-1">Tapal #{incomingAssignment.tapalNumber}</p>
+          <p className="text-sm font-medium mt-1">
+            Trip #{incomingAssignment.tripNumber || incomingAssignment.tapalNumber || '—'}
+          </p>
+          {tripStopsSummary(incomingAssignment) ? (
+            <p className="text-[11px] fa-muted mt-1">{tripStopsSummary(incomingAssignment)}</p>
+          ) : null}
           <div className="flex gap-2 mt-3">
             <button
               type="button"
@@ -143,7 +151,10 @@ const DriverDashboard = () => {
           statusTone={statusTone}
           pickup={activeTrip?.pickupLocation || incomingAssignment?.pickupLocation}
           delivery={activeTrip?.deliveryLocation || incomingAssignment?.deliveryLocation}
-          loadValue={activeTrip?.expectedQty ? `${activeTrip.expectedQty} kg` : 'Pending'}
+          loadValue={
+            activeStopsSummary ||
+            (activeTrip?.expectedQty ? `${activeTrip.expectedQty} kg` : 'Pending')
+          }
           onClick={() => navigate('/driver/active-trip')}
         />
       ) : (

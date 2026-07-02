@@ -4,6 +4,7 @@ import { useDriverStore } from '../../store/driverStore';
 import { Loader2, Truck } from 'lucide-react';
 import { FieldPageWrap } from '../../design-system/field-app';
 import { FieldTransactionList } from '../../design-system/field-app';
+import { tripStopsSummary } from '../../utils/tripStopsDisplay';
 
 const LIVE_STATUSES = ['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED', 'ACCEPTED'];
 
@@ -22,16 +23,19 @@ const DriverTasks = () => {
     return { live: liveList, upcoming: rest };
   }, [myTrips]);
 
-  const rows = [...live, ...upcoming].slice(0, 12).map((t) => ({
-    id: t._id || t.id,
-    title: `Trip #${t.tripNumber || t.tapalNumber || '—'}`,
-    subtitle: `${t.pickupLocation || 'Pickup'} → ${t.deliveryLocation || 'Delivery'}`,
-    amount: t.status,
-    amountPositive: LIVE_STATUSES.includes(t.status),
-    type: LIVE_STATUSES.includes(t.status) ? 'Active' : 'Queued',
-    initials: 'TR',
-    onClick: () => navigate('/driver/active-trip'),
-  }));
+  const rows = [...live, ...upcoming].slice(0, 12).map((t) => {
+    const stopInfo = tripStopsSummary(t);
+    return {
+      id: t._id || t.id,
+      title: `Trip #${t.tripNumber || t.tapalNumber || '—'}`,
+      subtitle: stopInfo || `${t.pickupLocation || 'Pickup'} → ${t.deliveryLocation || 'Delivery'}`,
+      amount: t.status,
+      amountPositive: LIVE_STATUSES.includes(t.status),
+      type: LIVE_STATUSES.includes(t.status) ? 'Active' : 'Queued',
+      initials: 'TR',
+      onClick: () => navigate('/driver/active-trip'),
+    };
+  });
 
   return (
     <FieldPageWrap fill subtitle="My assignments">

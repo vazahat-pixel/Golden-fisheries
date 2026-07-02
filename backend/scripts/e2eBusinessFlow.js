@@ -422,7 +422,11 @@ async function main() {
     const start = await api('PATCH', '/tapals/start-trip', {
       token: driverMobile,
       platform: 'MOBILE',
-      body: { tapalId: tapalId.toString() },
+      body: {
+        tapalId: tapalId.toString(),
+        startMeterPhotoUrl: 'data:image/png;base64,e2e',
+        startOdometerKm: 1000,
+      },
     });
     log(start.status === 200, 'Driver', 'Trip start', start.json?.message);
 

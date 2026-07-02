@@ -268,32 +268,92 @@ class TapalService extends BaseService {
   }
 
   /**
-   * Safe Transaction: Drivers flags Trip start
+   * Safe Transaction: Drivers flags Trip start (requires odometer photo + km)
    */
-  async startTrip(tapalId, driverId) {
-    await flowGuard.assertTapalReadyForTripStart(tapalId, driverId);
+  async startTrip(payload, driverId) {
+    const {
+      tapalId,
+      tripId,
+      startMeterPhotoUrl,
+      startOdometerKm,
+    } = payload || {};
+
+    const photo = String(startMeterPhotoUrl || '').trim();
+    const odometerKm = parseFloat(startOdometerKm);
+
+    if (!photo) {
+      throw new AppError('Odometer / meter photo is required before starting the trip', 400);
+    }
+    if (!Number.isFinite(odometerKm) || odometerKm < 0) {
+      throw new AppError('Valid starting odometer reading (km) is required', 400);
+    }
+
+    if (tripId) {
+      await flowGuard.assertTripReadyForTripStart(tripId, driverId);
+    } else if (tapalId) {
+      await flowGuard.assertTapalReadyForTripStart(tapalId, driverId);
+    } else {
+      throw new AppError('Trip ID or Tapal ID is required to start trip', 400);
+    }
 
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      const tapal = await this.model.findById(tapalId).session(session);
-      if (!tapal) throw new AppError('Tapal not found', 404);
+      let trip = null;
+      let tapal = null;
 
-      if (tapal.driverId.toString() !== driverId.toString()) {
+      if (tripId) {
+        trip = await Trip.findById(tripId).session(session);
+      } else if (tapalId) {
+        trip = await Trip.findOne({ tapalId }).session(session);
+        if (!trip) {
+          trip = await Trip.findOne({ 'stops.tapalId': tapalId }).session(session);
+        }
+        tapal = await this.model.findById(tapalId).session(session);
+      }
+
+      if (!trip) throw new AppError('Trip registry not found', 404);
+
+      if (trip.driverId && trip.driverId.toString() !== driverId.toString()) {
         throw new AppError('Access Denied: You are not the assigned driver for this trip', 403);
       }
 
-      const trip = await Trip.findOne({ tapalId: tapal._id }).session(session);
-      if (!trip) throw new AppError('Trip registry not found', 404);
+      if (!['ASSIGNED', 'ACCEPTED'].includes(trip.status)) {
+        throw new AppError(`Trip cannot start. Trip status is "${trip.status}".`, 409);
+      }
 
-      // Transition States
       trip.status = 'STARTED';
+      trip.tripStartOdometer = {
+        photoUrl: photo,
+        odometerKm,
+        recordedAt: new Date(),
+      };
       trip.timeline.push({ status: 'STARTED', timestamp: new Date() });
+
+      if (!trip.postTripExpenses) {
+        trip.postTripExpenses = { startingKms: odometerKm };
+      } else {
+        trip.postTripExpenses.startingKms = odometerKm;
+      }
+
       await trip.save({ session });
 
-      tapal.status = 'TRIP_STARTED';
-      await tapal.save({ session });
+      const tapalIds = new Set();
+      if (trip.tapalId) tapalIds.add(String(trip.tapalId));
+      if (tapal?._id) tapalIds.add(String(tapal._id));
+      (trip.stops || []).forEach((s) => {
+        if (s.tapalId) tapalIds.add(String(s.tapalId));
+      });
+
+      for (const id of tapalIds) {
+        const t = await this.model.findById(id).session(session);
+        if (!t) continue;
+        if (t.driverId && t.driverId.toString() !== driverId.toString()) continue;
+        t.status = 'TRIP_STARTED';
+        await t.save({ session });
+        if (!tapal) tapal = t;
+      }
 
       await session.commitTransaction();
       session.endSession();
@@ -302,9 +362,8 @@ class TapalService extends BaseService {
       broadcastEvent('trip:status_change', startPayload, 'dashboard:updates');
       broadcastEvent('trip:status_change', startPayload, 'role:BUYER');
 
-      logger.info(`[Driver Flow]: Trip ${trip.tripNumber} has started.`);
+      logger.info(`[Driver Flow]: Trip ${trip.tripNumber} started at ${odometerKm} km.`);
       return { tapal, trip };
-
     } catch (error) {
       await session.abortTransaction();
       session.endSession();

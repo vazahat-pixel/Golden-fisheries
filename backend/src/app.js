@@ -18,6 +18,7 @@ import vehicleRoutes from './modules/vehicles/vehicle.routes.js';
 import driverProfileRoutes from './modules/drivers/driverProfile.routes.js'; // multipart-aware driver routes
 import harvestRoutes from './modules/harvests/harvest.routes.js';
 import tapalRoutes from './modules/tapals/tapal.routes.js';
+import tripRoutes from './modules/trips/trip.routes.js';
 import inventoryRoutes from './modules/inventory/inventory.routes.js';
 import billingRoutes from './modules/billing/billing.routes.js';
 import restaurantRoutes from './modules/restaurant/restaurant.routes.js';
@@ -110,6 +111,7 @@ app.use('/api/v1/vehicles', vehicleRoutes);
 app.use('/api/v1/drivers', driverProfileRoutes);
 app.use('/api/v1/harvests', harvestRoutes);
 app.use('/api/v1/tapals', tapalRoutes);
+app.use('/api/v1/trips', tripRoutes);
 
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/stock-transfers', stockTransferRoutes);

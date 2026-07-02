@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { formatSequentialDocNo } from '../../services/sequence.service.js';
+import { tripStopSchema } from './tripStop.schema.js';
 
 // Nested Expense Schema within each Trip
 const tripExpenseSchema = new mongoose.Schema({
@@ -90,6 +91,15 @@ const timelineSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 
+const tripStartOdometerSchema = new mongoose.Schema(
+  {
+    photoUrl: { type: String, default: null },
+    odometerKm: { type: Number, default: null, min: 0 },
+    recordedAt: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 const tripSchema = new mongoose.Schema(
   {
     tripNumber: {
@@ -103,37 +113,62 @@ const tripSchema = new mongoose.Schema(
     tapalId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Tapal',
-      required: [true, 'Tapal reference is required'],
-      unique: true,
-      index: true
+      required: false,
+      default: null,
+      index: true,
     },
     driverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Driver User reference is required'],
-      index: true
+      required: false,
+      default: null,
+      index: true,
+    },
+    stops: {
+      type: [tripStopSchema],
+      default: [],
+    },
+    tripNotes: {
+      type: String,
+      trim: true,
+      default: '',
     },
     vehicleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vehicle',
-      required: false,  // optional — some drivers may not have an assigned vehicle
+      required: false,
       default: null,
       index: true
+    },
+    driverName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    vehicleNumber: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    createdBy: {
+      type: String,
+      trim: true,
+      default: null,
     },
     status: {
       type: String,
       required: true,
-      enum: ['ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED', 'PAYMENT_PENDING', 'CLOSED'],
-      default: 'ASSIGNED',
+      enum: ['PLANNED', 'ASSIGNED', 'STARTED', 'PICKED', 'DELIVERED', 'PAYMENT_PENDING', 'CLOSED'],
+      default: 'PLANNED',
       index: true
     },
     pickupLocation: {
       type: String,
-      required: true
+      default: '',
     },
     deliveryLocation: {
       type: String,
-      required: true
+      default: '',
     },
     pickupCoords: {
       lat: { type: Number, default: null },
@@ -151,7 +186,7 @@ const tripSchema = new mongoose.Schema(
     },
     expectedQty: {
       type: Number,
-      required: true
+      default: 0,
     },
     actualPickupQty: {
       type: Number,
@@ -169,6 +204,10 @@ const tripSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    tripStartOdometer: {
+      type: tripStartOdometerSchema,
+      default: null,
+    },
     timeline: [timelineSchema],
     expenses: [tripExpenseSchema],
     postTripExpenses: {
@@ -180,6 +219,30 @@ const tripSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+tripSchema.index({ tapalId: 1 }, { unique: true, sparse: true });
+
+tripSchema.pre('validate', function (next) {
+  const hasStops = Array.isArray(this.stops) && this.stops.length > 0;
+  if (hasStops) {
+    if (!this.pickupLocation && this.stops[0]?.location) {
+      this.pickupLocation = this.stops[0].location;
+    }
+    if (!this.deliveryLocation && this.stops[this.stops.length - 1]?.location) {
+      this.deliveryLocation = this.stops[this.stops.length - 1].location;
+    }
+    if (!this.expectedQty) {
+      this.expectedQty = this.stops.reduce((s, stop) => s + (stop.expectedQty || 0), 0);
+    }
+    const primaryTapalStop = this.stops.find((s) => s.stopType === 'TAPAL_DELIVERY' && s.tapalId);
+    if (primaryTapalStop?.tapalId && !this.tapalId) {
+      this.tapalId = primaryTapalStop.tapalId;
+    }
+  }
+  if (!this.pickupLocation) this.pickupLocation = 'PICKUP';
+  if (!this.deliveryLocation) this.deliveryLocation = 'DELIVERY';
+  next();
+});
 
 // Auto-generate TRP-XXXX sequence (atomic counter)
 tripSchema.pre('validate', async function (next) {

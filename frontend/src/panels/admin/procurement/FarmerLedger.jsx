@@ -83,9 +83,24 @@ const FarmerLedger = () => {
         loading={loading}
         emptyMessage="No farmer balances — add farmers and harvest slips first"
         columns={[
-          { key: 'farmerName', label: 'Farmer' },
+          { key: 'farmerName', label: 'Farmer', render: (r) => r.farmerName || r.fullName || '—' },
           { key: 'phone', label: 'Mobile' },
-          { key: 'balance', label: 'Balance', render: (r) => `₹${(r.balance || r.pendingAmount || 0).toLocaleString('en-IN')}` },
+          {
+            key: 'balanceDue',
+            label: 'Balance due',
+            render: (r) =>
+              `₹${(r.balanceDue ?? r.balance ?? r.pendingAmount ?? 0).toLocaleString('en-IN')}`,
+          },
+          {
+            key: 'totalSupplied',
+            label: 'Supplied',
+            render: (r) => `₹${(r.totalSupplied || 0).toLocaleString('en-IN')}`,
+          },
+          {
+            key: 'totalPaid',
+            label: 'Paid',
+            render: (r) => `₹${(r.totalPaid || 0).toLocaleString('en-IN')}`,
+          },
           { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.paymentStatus || 'UNPAID'} /> },
         ]}
         rows={filtered}
@@ -132,8 +147,8 @@ const FarmerLedger = () => {
                 <li key={e._id} className="border-b pb-1 flex justify-between">
                   <span>{e.description || e.entryType}</span>
                   <span className="font-mono">
-                    {e.creditAmount ? `+₹${e.creditAmount}` : ''}
-                    {e.debitAmount ? `-₹${e.debitAmount}` : ''}
+                    {e.creditAmount ? `-₹${Number(e.creditAmount).toLocaleString('en-IN')}` : ''}
+                    {e.debitAmount ? `+₹${Number(e.debitAmount).toLocaleString('en-IN')}` : ''}
                   </span>
                 </li>
               ))}

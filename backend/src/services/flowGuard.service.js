@@ -37,6 +37,19 @@ export const flowGuard = {
     }
   },
 
+  async assertTripReadyForTripStart(tripId, driverId) {
+    const trip = await Trip.findById(tripId);
+    if (!trip) throw new AppError('Trip not found', 404);
+
+    if (!trip.driverId || trip.driverId.toString() !== driverId.toString()) {
+      throw new AppError('Access denied: you are not the assigned driver for this trip.', 403);
+    }
+
+    if (!['ASSIGNED', 'ACCEPTED'].includes(trip.status)) {
+      throw new AppError(`Trip cannot start. Trip status is "${trip.status}".`, 409);
+    }
+  },
+
   async assertTapalReadyForTripStart(tapalId, driverId) {
     const tapal = await Tapal.findById(tapalId);
     if (!tapal) throw new AppError('Tapal not found', 404);

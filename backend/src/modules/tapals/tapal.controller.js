@@ -83,11 +83,13 @@ export const tapalController = {
     const limit = Math.min(100, parseInt(req.query.limit, 10) || 20);
     const skip = (page - 1) * limit;
 
-    const filter = req.user.role === 'SUPER_ADMIN' ? {} : { driverId: req.user.id };
+    const filter = req.user.role === 'SUPER_ADMIN' ? { driverId: { $ne: null } } : { driverId: req.user.id };
 
     const [trips, total] = await Promise.all([
       Trip.find(filter)
         .populate('tapalId vehicleId')
+        .populate({ path: 'stops.harvestId', populate: { path: 'farmerId', select: 'fullName phone' } })
+        .populate('stops.tapalId')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -208,15 +210,21 @@ export const tapalController = {
 
   // Driver starts the trip journey
   startTrip: asyncWrapper(async (req, res) => {
-    const { tapalId } = req.body;
+    const { tapalId, tripId, startMeterPhotoUrl, startOdometerKm } = req.body;
     let executionDriverId = req.user.id;
     if (req.user.role === 'SUPER_ADMIN') {
-      const tapal = await Tapal.findById(tapalId);
-      if (tapal && tapal.driverId) {
-        executionDriverId = tapal.driverId.toString();
+      if (tripId) {
+        const trip = await Trip.findById(tripId);
+        if (trip?.driverId) executionDriverId = trip.driverId.toString();
+      } else if (tapalId) {
+        const tapal = await Tapal.findById(tapalId);
+        if (tapal?.driverId) executionDriverId = tapal.driverId.toString();
       }
     }
-    const result = await tapalService.startTrip(tapalId, executionDriverId);
+    const result = await tapalService.startTrip(
+      { tapalId, tripId, startMeterPhotoUrl, startOdometerKm },
+      executionDriverId
+    );
     new ApiResponse(200, aliasTapalTripPair(result), 'Trip started successfully').send(res);
   }),
 
@@ -318,7 +326,10 @@ export const tapalController = {
         query = { tapalId: id };
       }
     }
-    const trip = await Trip.findOne(query).populate('tapalId driverId vehicleId');
+    const trip = await Trip.findOne(query)
+      .populate('tapalId driverId vehicleId')
+      .populate({ path: 'stops.harvestId', populate: { path: 'farmerId', select: 'fullName phone' } })
+      .populate('stops.tapalId');
     new ApiResponse(200, { trip: aliasTripResponse(trip) }, 'Trip retrieved successfully').send(res);
   })
 };
