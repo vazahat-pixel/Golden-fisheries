@@ -306,6 +306,100 @@ class TripService extends BaseService {
     if (!trip) throw new AppError('Trip not found', 404);
     return trip;
   }
+
+  async completeStop(tripId, sequence, { actualQty, proofPhotoUrl, signatureUrl }, user) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const trip = await Trip.findById(tripId).session(session);
+      if (!trip) throw new AppError('Trip not found', 404);
+
+      // Verify authorization: must be the assigned driver or admin/ERP
+      const isDriver = String(user.role).toUpperCase() === 'DRIVER';
+      if (isDriver && trip.driverId && trip.driverId.toString() !== user._id.toString()) {
+        throw new AppError('Access Denied: You are not the driver assigned to this trip', 403);
+      }
+
+      // Check current trip status
+      if (['CLOSED', 'COMPLETED'].includes(trip.status)) {
+        throw new AppError('Cannot complete a stop on a closed or completed trip', 400);
+      }
+
+      // Find the stop
+      const stop = (trip.stops || []).find((s) => s.sequence === Number(sequence));
+      if (!stop) throw new AppError(`Stop #${sequence} not found on this trip`, 404);
+
+      if (stop.status === 'COMPLETED') {
+        throw new AppError(`Stop #${sequence} is already completed`, 400);
+      }
+
+      // Validate inputs
+      const qty = parseFloat(actualQty);
+      if (Number.isNaN(qty) || qty <= 0) {
+        throw new AppError(`Valid quantity in KG is required to complete stop #${sequence}`, 400);
+      }
+
+      if (stop.stopType === 'TAPAL_DELIVERY') {
+        if (!proofPhotoUrl) {
+          throw new AppError(`Delivery proof photo is required for stop #${sequence}`, 400);
+        }
+      }
+
+      // Update stop fields
+      stop.actualQty = qty;
+      stop.status = 'COMPLETED';
+      stop.completedAt = new Date();
+      if (proofPhotoUrl) stop.proofPhotoUrl = proofPhotoUrl;
+      if (signatureUrl) stop.signatureUrl = signatureUrl;
+
+      // Update the linked Tapal or Harvest document
+      if (stop.stopType === 'HARVEST_PICKUP' && stop.harvestId) {
+        const harvest = await Harvest.findById(stop.harvestId).session(session);
+        if (harvest) {
+          harvest.status = 'COMPLETED';
+          harvest.actualQty = qty;
+          await harvest.save({ session });
+        }
+      } else if (stop.stopType === 'TAPAL_DELIVERY' && stop.tapalId) {
+        const tapal = await Tapal.findById(stop.tapalId).session(session);
+        if (tapal) {
+          tapal.status = 'DELIVERED';
+          tapal.actualQty = qty;
+          tapal.proofPhotoUrl = proofPhotoUrl;
+          tapal.signatureUrl = signatureUrl;
+          await tapal.save({ session });
+        }
+      }
+
+      // Check if all stops are now completed
+      const allDone = trip.stops.every((s) => s.status === 'COMPLETED');
+      if (allDone) {
+        trip.status = 'DELIVERED';
+        trip.timeline.push({ status: 'DELIVERED', timestamp: new Date() });
+      } else {
+        // If we completed a pickup, make sure trip status reflects progress
+        if (stop.stopType === 'HARVEST_PICKUP' && trip.status === 'STARTED') {
+          trip.status = 'PICKED';
+          trip.timeline.push({ status: 'PICKED', timestamp: new Date() });
+        }
+      }
+
+      await trip.save({ session });
+      await session.commitTransaction();
+      session.endSession();
+
+      // Broadcast changes
+      const payload = { tripId: trip._id, tripNumber: trip.tripNumber, status: trip.status, sequence, stopStatus: 'COMPLETED' };
+      broadcastEvent('trip:status_change', payload, 'dashboard:updates');
+
+      return trip;
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  }
 }
 
 export const tripService = new TripService();

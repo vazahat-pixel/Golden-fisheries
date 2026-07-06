@@ -258,11 +258,35 @@ class HarvestService extends BaseService {
         };
       });
 
-      // 4. Create Tapal document
+      // 4. Resolve Buyer and Create Tapal document
+      let buyerName = 'UNASSIGNED BUYER';
+      const buyerPhoneRaw = logistics.buyerPhone;
+      let p10 = buyerPhoneRaw ? normalizePhone10(buyerPhoneRaw) : null;
+      let resolvedBuyerId = logistics.buyerId || null;
+
+      if (resolvedBuyerId) {
+        const buyerObj = await Buyer.findById(resolvedBuyerId).session(session);
+        if (buyerObj) {
+          buyerName = buyerObj.buyerName || buyerObj.name || 'UNASSIGNED BUYER';
+          if (!p10 && buyerObj.phone) {
+            p10 = normalizePhone10(buyerObj.phone);
+          }
+        }
+      } else if (p10) {
+        const buyerObj = await Buyer.findOne({
+          isActive: { $ne: false },
+          $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
+        }).session(session);
+        if (buyerObj) {
+          resolvedBuyerId = buyerObj._id;
+          buyerName = buyerObj.buyerName || buyerObj.name || 'UNASSIGNED BUYER';
+        }
+      }
+
       const newTapal = new Tapal({
         type: 'Purchase',
         harvestId: firstHarvest._id, // Backwards compatibility: keep first harvest id
-        partyName: farmer.fullName,
+        partyName: buyerName,
         farmerId: farmer._id,
         qty: `${totalQty.toFixed(2)} KG`,
         numericQty: totalQty,
@@ -278,37 +302,21 @@ class HarvestService extends BaseService {
         products: tapalProducts
       });
 
-      const buyerPhoneRaw = logistics.buyerPhone;
-      if (buyerPhoneRaw || logistics.buyerId) {
-        let p10 = buyerPhoneRaw ? normalizePhone10(buyerPhoneRaw) : null;
-        if (logistics.buyerId) newTapal.buyerId = logistics.buyerId;
-        if (!p10 && logistics.buyerId) {
-          const buyerById = await Buyer.findById(logistics.buyerId).session(session);
-          if (buyerById?.phone) p10 = normalizePhone10(buyerById.phone);
-        }
-        if (p10) newTapal.buyerPhone = p10;
-        if (logistics.assignedBuyer) {
-          newTapal.assignedBuyer = logistics.assignedBuyer;
-        } else if (p10) {
-          const buyerUser = await User.findOne({
-            isActive: { $ne: false },
-            role: { $in: ['BUYER', 'Buyer'] },
-            $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
-          }).session(session);
-          if (buyerUser) newTapal.assignedBuyer = buyerUser._id;
-        }
-        if (!newTapal.buyerId && p10) {
-          const buyerMaster = await Buyer.findOne({
-            isActive: { $ne: false },
-            $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
-          }).session(session);
-          if (buyerMaster) newTapal.buyerId = buyerMaster._id;
-        }
+      if (resolvedBuyerId) newTapal.buyerId = resolvedBuyerId;
+      if (p10) newTapal.buyerPhone = p10;
+      if (logistics.assignedBuyer) {
+        newTapal.assignedBuyer = logistics.assignedBuyer;
+      } else if (p10) {
+        const buyerUser = await User.findOne({
+          isActive: { $ne: false },
+          role: { $in: ['BUYER', 'Buyer'] },
+          $or: [{ phone: buyerPhoneRaw }, { phone: p10 }],
+        }).session(session);
+        if (buyerUser) newTapal.assignedBuyer = buyerUser._id;
       }
 
       await newTapal.save({ session });
 
-      // 5. Create many-to-many allocation mappings in HarvestTapalMapping
       const { HarvestTapalMapping } = await import('./harvestTapalMapping.model.js');
       for (const allocation of allocations) {
         const mapping = new HarvestTapalMapping({

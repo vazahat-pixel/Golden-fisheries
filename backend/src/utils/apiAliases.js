@@ -15,6 +15,15 @@ export function aliasTapalResponse(t) {
   const o = typeof t.toObject === 'function' ? t.toObject({ virtuals: true }) : { ...t };
   if (o.tapalNumber != null) o.tpNo = o.tapalNumber;
   if (o.harvestId != null) o.harvest = o.harvestId;
+  if (o.buyerId && typeof o.buyerId === 'object') {
+    const resolvedName = o.buyerId.buyerName || o.buyerId.name;
+    if (resolvedName) {
+      if (!o.partyName || o.partyName === 'UNASSIGNED BUYER') {
+        o.partyName = resolvedName;
+      }
+      o.buyerName = resolvedName;
+    }
+  }
   return o;
 }
 

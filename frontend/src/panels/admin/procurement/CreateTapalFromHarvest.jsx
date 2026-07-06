@@ -20,8 +20,7 @@ function harvestReadyForTapal(h) {
 
 function harvestLabel(h) {
   const no = h.harvestNumber || h.hNo || '—';
-  const farmer = h.farmerId?.fullName || h.farmerName || 'Farmer';
-  return `${no} — ${farmer}`;
+  return `${no}`;
 }
 
 function getHarvestQuantities(h) {
@@ -94,6 +93,7 @@ const CreateTapalFromHarvest = () => {
   const [selectedAllocations, setSelectedAllocations] = useState({});
 
   const [destination, setDestination] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
   const [logisticsNotes, setLogisticsNotes] = useState('');
   const [buyerId, setBuyerId] = useState('');
   const [buyers, setBuyers] = useState([]);
@@ -319,6 +319,7 @@ const CreateTapalFromHarvest = () => {
       await tapalService.createFromHarvest(null, {
         allocations,
         destination,
+        vehicleNumber,
         logisticsNotes,
         buyerId: selectedBuyer._id || selectedBuyer.id,
         buyerPhone: normalizePhone10(selectedBuyer.phone),
@@ -566,6 +567,15 @@ const CreateTapalFromHarvest = () => {
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 placeholder="e.g. Mangalore Wharf"
+              />
+            </PaperFieldRow>
+
+            <PaperFieldRow label="Vehicle Number">
+              <input
+                className={paperInputClass}
+                value={vehicleNumber}
+                onChange={(e) => setVehicleNumber(e.target.value)}
+                placeholder="e.g. KA-19-M-1234"
               />
             </PaperFieldRow>
 

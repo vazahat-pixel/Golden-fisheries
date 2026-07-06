@@ -12,7 +12,6 @@ export const tripService = {
   getById: async (tripId) => {
     return apiClient.get(`/trips/${tripId}`);
   },
-
   assignDriver: async (tripId, driverId, vehicleId, driverName) => {
     return apiClient.patch('/trips/assign-driver', {
       tripId,
@@ -20,6 +19,10 @@ export const tripService = {
       vehicleId,
       driverName: driverName || undefined,
     });
+  },
+
+  completeStop: async (tripId, sequence, payload) => {
+    return apiClient.patch(`/trips/${tripId}/complete-stop`, { sequence, ...payload });
   },
 };
 

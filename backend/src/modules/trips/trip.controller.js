@@ -30,6 +30,12 @@ export const tripController = {
     if (result.trip) result.trip = aliasTripResponse(result.trip);
     new ApiResponse(200, result, 'Driver assigned to trip successfully').send(res);
   }),
+
+  completeStop: asyncWrapper(async (req, res) => {
+    const { sequence, actualQty, proofPhotoUrl, signatureUrl } = req.body;
+    const trip = await tripService.completeStop(req.params.id, sequence, { actualQty, proofPhotoUrl, signatureUrl }, req.user);
+    new ApiResponse(200, { trip: aliasTripResponse(trip) }, 'Stop marked as completed').send(res);
+  }),
 };
 
 export default tripController;

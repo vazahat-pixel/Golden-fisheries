@@ -7,7 +7,7 @@ import {
   enforcePlatformPolicy,
   blockMobileWrite,
 } from '../../middleware/auth.middleware.js';
-import { WEB_ERP, DISPATCH_ROLES } from '../../constants/roleGroups.js';
+import { WEB_ERP, DISPATCH_ROLES, DRIVER_ROLES } from '../../constants/roleGroups.js';
 
 const router = Router();
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
@@ -17,5 +17,6 @@ router.post('/create', ...web, restrictTo(...DISPATCH_ROLES), tripController.cre
 router.get('/planned', ...web, restrictTo(...WEB_ERP, ...DISPATCH_ROLES), tripController.planned);
 router.get('/:id', protect, enforcePlatformPolicy, restrictTo(...WEB_ERP, ...DISPATCH_ROLES), tripController.getById);
 router.patch('/assign-driver', ...dispatch, restrictTo(...DISPATCH_ROLES), tripController.assignDriver);
+router.patch('/:id/complete-stop', protect, enforcePlatformPolicy, restrictTo(...DRIVER_ROLES, ...WEB_ERP), tripController.completeStop);
 
 export default router;

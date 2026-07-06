@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useDriverStore, resolveTapalIdFromTrip } from '../../store/driverStore';
 import {
   ArrowLeft, MapPin, Navigation, Scale, Camera,
-  PenTool, CheckCircle2, AlertTriangle, PackageCheck, FileCheck, Gauge
+  PenTool, CheckCircle2, AlertTriangle, PackageCheck, FileCheck, Gauge, X
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { socketService } from '../../services/socketService';
 import { mapsService } from '../../services/mapsService';
 import { tapalService } from '../../services/tapalService';
+import { tripService } from '../../services/tripService';
 import { FieldPageWrap } from '../../design-system/field-app';
 import { useSystemSettingsStore } from '../../store/systemSettingsStore';
 import { TripExpenseFields } from './TripExpenseFields';
@@ -89,6 +90,7 @@ const ActiveTrip = () => {
   const [startOdometerKm, setStartOdometerKm] = useState('');
   const [startMeterPhotoData, setStartMeterPhotoData] = useState('');
   const [meterPhotoSnapped, setMeterPhotoSnapped] = useState(false);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
 
   const sigCanvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -263,68 +265,61 @@ const ActiveTrip = () => {
     }
   };
 
-  const handleCompleteTrip = async (e) => {
-    e.preventDefault();
-    if (!trip) return;
-
-    const weight = parseFloat(loadWeight);
-    if (!weight || Number.isNaN(weight) || weight <= 0) {
-      toast.error('Enter valid pickup weight (kg)');
+  const handleCompleteStop = async (sequence) => {
+    const qty = parseFloat(loadWeight);
+    if (!qty || Number.isNaN(qty) || qty <= 0) {
+      toast.error('Enter valid weight (kg) for this stop');
       return;
     }
 
-    const st = normalizeStatus(trip.status);
-    const needsDelivery = !['DELIVERED', 'CLOSED', 'COMPLETED'].includes(st);
+    const currentActiveStop = routeStops.find((s) => s.sequence === Number(sequence));
+    if (!currentActiveStop) return;
 
-    if (needsDelivery) {
+    let finalProofPhoto = null;
+
+    if (currentActiveStop.stopType === 'TAPAL_DELIVERY') {
       if (!photoSnapped || !proofPhotoData) {
         toast.error('Add delivery proof photo');
         return;
       }
-      if (!signatureDone) {
-        toast.error('Customer signature is required');
-        return;
-      }
-    }
-
-    const canvas = sigCanvasRef.current;
-    const finalSignatureData = canvas ? canvas.toDataURL('image/png') : trip.signatureUrl || 'sig_data';
-    const tapalId = resolveTapalIdFromTrip(trip);
-    const tripId = trip._id || trip.id;
-
-    if (!tapalId || !tripId) {
-      toast.error('Trip reference missing');
-      return;
+      finalProofPhoto = proofPhotoData;
     }
 
     setSubmitting(true);
-    const loadToast = toast.loading('Submitting complete trip...');
-
+    const loadToast = toast.loading(`Completing Stop #${sequence}...`);
     try {
-      let currentStatus = st;
+      await tripService.completeStop(trip._id || trip.id, sequence, {
+        actualQty: qty,
+        proofPhotoUrl: finalProofPhoto || undefined,
+      });
 
-      if (currentStatus === 'ASSIGNED') {
-        throw new Error('Start the trip first');
-      }
+      toast.success(`Stop #${sequence} completed successfully!`, { id: loadToast });
+      setLoadWeight('');
+      setProofPhotoData('');
+      setPhotoSnapped(false);
+      clearSignature();
+      await fetchMyTrips();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to complete stop', { id: loadToast });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-      if (['STARTED', 'IN_TRANSIT'].includes(currentStatus)) {
-        await tapalService.pickup(tapalId, weight);
-        currentStatus = 'PICKED';
-      }
+  const handleCompleteTrip = async (e) => {
+    e.preventDefault();
+    if (!trip) return;
 
-      if (!['DELIVERED', 'CLOSED', 'COMPLETED'].includes(currentStatus)) {
-        await tapalService.deliver(tapalId, weight, proofPhotoData, finalSignatureData);
-        currentStatus = 'DELIVERED';
-      }
-
+    const tripId = trip._id || trip.id;
+    setSubmitting(true);
+    const loadToast = toast.loading('Submitting post trip expenses...');
+    try {
       await tapalService.submitPostTripExpense(tripId, expense.buildPayload());
       await fetchMyTrips();
-
-      toast.success('Trip submitted successfully!', { id: loadToast });
+      toast.success('Trip expenses submitted successfully!', { id: loadToast });
       navigate(`/driver/trip-expense/${tripId}/bill`);
     } catch (err) {
-      console.error('[ActiveTrip] complete trip error:', err);
-      toast.error(err?.message || 'Failed to submit trip', { id: loadToast });
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to submit expenses', { id: loadToast });
     } finally {
       setSubmitting(false);
     }
@@ -351,15 +346,17 @@ const ActiveTrip = () => {
     );
   }
 
-  const status = normalizeStatus(trip.status);
-  const isAssigned = status === 'ASSIGNED';
-  const isInProgress = ['STARTED', 'PICKED', 'IN_TRANSIT'].includes(status);
-  const isDelivered = ['DELIVERED'].includes(status);
-  const isClosed = ['CLOSED', 'COMPLETED'].includes(status);
-  const hasExpenseSheet = Boolean(trip.postTripExpenses?.submittedAt || trip.postTripExpenses?.totalExpenses != null);
-  const cargoSummary = getTapalCargoSummary(trip);
   const routeStops = normalizeTripStops(trip);
   const stopsSummary = tripStopsSummary(trip);
+  const activeStop = routeStops.find((s) => s.status === 'PENDING') || null;
+
+  const status = normalizeStatus(trip.status);
+  const isAssigned = status === 'ASSIGNED';
+  const isInProgress = ['STARTED', 'PICKED', 'IN_TRANSIT', 'DELIVERED'].includes(status) && activeStop !== null;
+  const isDelivered = ['DELIVERED'].includes(status) && activeStop === null;
+  const isClosed = ['CLOSED', 'COMPLETED'].includes(status);
+  const hasExpenseSheet = Boolean(trip.postTripExpenses?.submittedAt);
+  const cargoSummary = getTapalCargoSummary(trip);
 
   const tapalRef = trip.tapalId && typeof trip.tapalId === 'object' ? trip.tapalId : trip.tapal;
   const deliveryLabel =
@@ -390,30 +387,61 @@ const ActiveTrip = () => {
 
           {routeStops.length > 0 ? (
             <ol className="space-y-2">
-              {routeStops.map((stop) => (
-                <li
-                  key={`${stop.sequence}-${stop.title}`}
-                  className="flex gap-2 border border-card-border rounded-lg p-2.5 bg-slate-50/80"
-                >
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-[#6A7051] text-white text-[10px] font-black flex items-center justify-center">
-                    {stop.sequence}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-text-muted">
-                      {stop.isPickup ? 'Procurement pickup' : 'Sale delivery'}
-                    </p>
-                    <p className="font-extrabold text-brand-olive truncate">{stop.title}</p>
-                    {stop.party ? <p className="text-[10px] fa-muted">{stop.party}</p> : null}
-                    <p className="text-[10px] flex items-center gap-1 mt-0.5">
-                      <MapPin size={10} className="shrink-0 text-[#6A7051]" />
-                      <span className="truncate">{stop.location || '—'}</span>
-                    </p>
-                    {stop.qtyLabel ? (
-                      <p className="text-[10px] font-bold text-slate-700 mt-0.5">{stop.qtyLabel}</p>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
+              {routeStops.map((stop) => {
+                const isCompleted = stop.status === 'COMPLETED';
+                const isActive = activeStop && activeStop.sequence === stop.sequence;
+                return (
+                  <li
+                    key={`${stop.sequence}-${stop.title}`}
+                    className={`flex gap-2 border rounded-lg p-2.5 relative transition-all ${
+                      isCompleted
+                        ? 'border-emerald-900 bg-emerald-950/20'
+                        : isActive
+                        ? 'border-2 border-[#C5A021] bg-[#1f1f22]'
+                        : 'border-[var(--fa-border)] bg-[#1f1f22]/50 opacity-60'
+                    }`}
+                  >
+                    <span className={`shrink-0 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center ${
+                      isCompleted ? 'bg-emerald-800 text-white' : isActive ? 'bg-[#C5A021] text-brand-dark' : 'bg-zinc-700 text-zinc-300'
+                    }`}>
+                      {stop.sequence}
+                    </span>
+                    <div className="min-w-0 flex-1 relative">
+                      <p className={`text-[8px] font-black uppercase tracking-widest ${
+                        isCompleted ? 'text-emerald-400' : isActive ? 'text-[#C5A021]' : 'text-zinc-500'
+                      }`}>
+                        {stop.isPickup ? 'Procurement pickup' : 'Sale delivery'}
+                      </p>
+                      <p className="font-extrabold text-zinc-100 truncate pr-12">{stop.title}</p>
+                      {stop.party ? <p className="text-[10px] text-zinc-400">{stop.party}</p> : null}
+                      <p className="text-[10px] flex items-center gap-1 mt-0.5 text-zinc-400">
+                        <MapPin size={10} className={`shrink-0 ${isCompleted ? 'text-emerald-500' : isActive ? 'text-[#C5A021]' : 'text-zinc-500'}`} />
+                        <span className="truncate">{stop.location || '—'}</span>
+                      </p>
+                      <div className="flex gap-2 items-center mt-1">
+                        {stop.qtyLabel ? (
+                          <span className="text-[10px] font-bold text-zinc-300">Expected: {stop.qtyLabel}</span>
+                        ) : null}
+                        {isCompleted && stop.actualQty && (
+                          <span className="text-[10px] font-black text-emerald-400">
+                            Actual: {stop.actualQty} KG
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {isActive && (
+                      <span className="text-[7px] font-black uppercase text-[#C5A021] border border-[#C5A021] rounded px-1 py-0.5 bg-[#C5A021]/10 absolute top-2 right-2">
+                        Active
+                      </span>
+                    )}
+                    {isCompleted && (
+                      <span className="text-[7px] font-black uppercase text-emerald-400 border border-emerald-900 rounded px-1 py-0.5 bg-emerald-950/20 absolute top-2 right-2">
+                        Completed
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
           ) : (
             <>
@@ -521,178 +549,216 @@ const ActiveTrip = () => {
         )}
 
 
-        {isInProgress && (
-          <div className="fa-surface px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg">
-            Trip in progress — complete all sections below, then submit
+        {isInProgress && activeStop && (
+          <div className="space-y-4">
+            <div className="fa-surface px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[#C5A021] bg-[#C5A021]/10 border border-[#C5A021]/30 rounded-lg flex items-center gap-1.5 animate-pulse">
+              <Navigation size={14} className="shrink-0" />
+              Active Stop: Stop #{activeStop.sequence} ({activeStop.isPickup ? 'PICKUP' : 'DELIVERY'})
+            </div>
+
+            <section className="fa-surface p-4 space-y-4">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-2 flex items-center justify-between">
+                <span>Complete Stop #{activeStop.sequence}</span>
+                <span className="text-[9px] px-2 py-0.5 rounded bg-[#1f1f22] text-[var(--fa-accent)] font-bold border border-[var(--fa-border)]">
+                  {activeStop.isPickup ? 'Pickup' : 'Delivery'}
+                </span>
+              </h2>
+
+              <div className="bg-[#1f1f22] border border-[var(--fa-border)] p-3 rounded-lg text-xs space-y-1">
+                <p className="font-extrabold text-[var(--fa-accent)]">
+                  {activeStop.title}
+                </p>
+                {activeStop.party ? <p className="text-[10px] text-zinc-400">{activeStop.party}</p> : null}
+                <p className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5">
+                  <MapPin size={10} className="shrink-0 text-zinc-500" />
+                  <span>{activeStop.location || '—'}</span>
+                </p>
+                {activeStop.qtyLabel ? (
+                  <p className="text-[10px] font-bold text-zinc-300 mt-1">Expected: {activeStop.qtyLabel}</p>
+                ) : null}
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">
+                  Actual Weight (KG) Recorded
+                </label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  value={loadWeight}
+                  onChange={(e) => setLoadWeight(e.target.value)}
+                  placeholder="Enter scale weight in kg"
+                  className="w-full bg-[#161618] border border-[var(--fa-border)] rounded-lg px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-[#C5A021]"
+                  required
+                />
+              </div>
+
+              {!activeStop.isPickup && (
+                <div className="space-y-4 border-t border-card-border pt-4">
+                  {/* Delivery proof photo */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 block">
+                      Delivery Proof Photo (Required)
+                    </label>
+                    {photoSnapped && proofPhotoData ? (
+                      <div className="space-y-2">
+                        <div className="bg-emerald-950/40 border border-emerald-900 text-emerald-400 p-2 text-center rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-1.5">
+                          <CheckCircle2 size={14} /> Photo added
+                        </div>
+                        <div className="border border-[var(--fa-border)] p-1 rounded-lg overflow-hidden max-h-32 flex justify-center bg-[#161618]">
+                          <img src={proofPhotoData} alt="Delivery proof" className="max-h-24 object-contain" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setPhotoSnapped(false); setProofPhotoData(''); }}
+                          className="text-[9px] font-black text-red-500 uppercase fa-tap"
+                        >
+                          Remove photo
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full bg-[#161618] border border-dashed border-[#6A7051]/40 p-4 rounded-lg flex flex-col items-center gap-1.5 fa-tap text-slate-400 hover:text-white transition-colors"
+                      >
+                        <Camera size={20} className="text-[#6A7051]" />
+                        <span className="text-[9px] font-black uppercase">Take / upload delivery photo</span>
+                      </button>
+                    )}
+                    <input type="file" ref={fileInputRef} accept="image/*" onChange={handlePhotoFileChange} className="hidden" />
+                  </div>
+
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleCompleteStop(activeStop.sequence)}
+                disabled={submitting || !loadWeight.trim() || (!activeStop.isPickup && !photoSnapped)}
+                className="w-full py-3.5 bg-[#C5A021] text-brand-dark rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md disabled:opacity-40 transition-opacity"
+              >
+                <CheckCircle2 size={16} />
+                {submitting ? 'Completing...' : `Complete Stop #${activeStop.sequence}`}
+              </button>
+            </section>
           </div>
         )}
 
-        {showTripForm && (
-          <form onSubmit={handleCompleteTrip} className="space-y-4">
-            {/* Pickup / cargo */}
-            <section className="fa-surface p-4 space-y-3">
-              <h2 className="text-[10px] font-black uppercase tracking-wider text-brand-olive flex items-center gap-1.5 border-b border-card-border pb-1.5">
-                <PackageCheck size={14} /> Pickup weight
-              </h2>
-              <div className="rounded-lg border border-card-border bg-slate-50 p-3 text-sm space-y-1">
-                <p className="font-bold text-brand-olive">
-                  #{cargoSummary.tapalNumber}
-                  {cargoSummary.partyName ? ` · ${cargoSummary.partyName}` : ''}
-                </p>
-                <p className="text-[11px] fa-muted">
-                  {cargoSummary.boxes ? `${cargoSummary.boxes} boxes · ` : ''}
-                  {cargoSummary.weightKg ? `${cargoSummary.weightKg} kg` : cargoSummary.qtyLabel}
-                </p>
-              </div>
-              {allowManualLoadEdit ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[9px] font-black uppercase text-brand-olive mb-1 block">Boxes</label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={loadBoxes}
-                      onChange={(e) => setLoadBoxes(e.target.value)}
-                      className="w-full border border-card-border rounded-lg px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black uppercase text-brand-olive mb-1 block">Weight (kg)</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      value={loadWeight}
-                      onChange={(e) => setLoadWeight(e.target.value)}
-                      className="w-full border border-card-border rounded-lg px-3 py-2 text-sm font-bold"
-                      required
-                    />
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAllowManualLoadEdit(true)}
-                  className="text-[10px] font-semibold text-[#6A7051] underline fa-tap"
-                >
-                  Weight different at dock? Edit manually
-                </button>
-              )}
-            </section>
+        {isInProgress && !activeStop && (
+          <div className="fa-surface px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/20 border border-emerald-900 rounded-lg flex items-center gap-1.5 animate-pulse">
+            <CheckCircle2 size={14} className="shrink-0 text-emerald-400" />
+            All stops completed! Fill ending metrics and expenses below to close trip.
+          </div>
+        )}
 
-            {/* Delivery proof */}
-            {!isDelivered && (
-              <section className="fa-surface p-4 space-y-3">
-                <h2 className="text-[10px] font-black uppercase tracking-wider text-brand-olive flex items-center gap-1.5 border-b border-card-border pb-1.5">
-                  <Camera size={14} /> Delivery proof
-                </h2>
-                {photoSnapped ? (
-                  <div className="space-y-2">
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 text-center rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-1.5">
-                      <CheckCircle2 size={14} /> Photo added
-                    </div>
-                    {proofPhotoData && (
-                      <div className="border border-card-border p-1 rounded-lg overflow-hidden max-h-32 flex justify-center">
-                        <img src={proofPhotoData} alt="Delivery proof" className="max-h-24 object-contain" />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => { setPhotoSnapped(false); setProofPhotoData(''); }}
-                      className="text-[9px] font-black text-red-500 uppercase"
-                    >
-                      Remove photo
-                    </button>
-                  </div>
-                ) : (
+        {showTripForm && !activeStop && (
+          <div className="space-y-4">
+            {hasExpenseSheet ? (
+              <div className="fa-surface p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-emerald-950/40 border border-emerald-900 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+                  <CheckCircle2 size={24} />
+                </div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Trip Pending Review</h3>
+                <p className="text-xs text-zinc-400 max-w-[280px] mx-auto">
+                  You have successfully completed all stops and submitted your end-trip expenses sheet. The trip is now pending admin approval.
+                </p>
+                {isDelivered && (
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full bg-slate-100 border border-card-border p-3 rounded-lg flex flex-col items-center gap-1 fa-tap"
+                    onClick={() => navigate(`/driver/trip-expense/${trip._id || trip.id}/bill`)}
+                    className="w-full py-3 bg-[#6A7051] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#5F6846] transition-colors"
                   >
-                    <Camera size={18} className="text-brand-olive" />
-                    <span className="text-[8px] font-black uppercase">Take / upload photo</span>
+                    <FileCheck size={14} /> View trip bill
                   </button>
                 )}
-                <input type="file" ref={fileInputRef} accept="image/*" onChange={handlePhotoFileChange} className="hidden" />
-
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[9px] font-black uppercase text-brand-olive flex items-center gap-1">
-                      <PenTool size={12} /> Customer signature
-                    </label>
-                    {signatureDone && (
-                      <button type="button" onClick={clearSignature} className="text-[8px] font-black text-red-500 uppercase">
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <div className="border border-card-border bg-slate-50 rounded-lg overflow-hidden relative">
-                    <canvas
-                      ref={sigCanvasRef}
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={() => setIsDrawing(false)}
-                      onMouseLeave={() => setIsDrawing(false)}
-                      onTouchStart={startDrawing}
-                      onTouchMove={draw}
-                      onTouchEnd={() => setIsDrawing(false)}
-                      className="w-full h-28 cursor-crosshair block"
-                      width={320}
-                      height={112}
-                    />
-                    {!signatureDone && (
-                      <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-300 pointer-events-none uppercase font-bold">
-                        Sign here
-                      </div>
-                    )}
-                  </div>
+              </div>
+            ) : (
+              <div className="fa-surface p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-[#C5A021]/10 border border-[#C5A021]/30 rounded-full flex items-center justify-center mx-auto text-[#C5A021] animate-bounce">
+                  <Scale size={24} />
                 </div>
-              </section>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Stops Completed!</h3>
+                <p className="text-xs text-zinc-400 max-w-[280px] mx-auto">
+                  All stops on this trip have been completed. Please fill out the final trip sheet with ending metrics and expenses to close this trip.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowExpenseModal(true)}
+                  className="w-full py-3.5 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md hover:brightness-110 active:scale-[0.98] transition-all"
+                >
+                  <FileCheck size={16} /> Enter Trip Expenses & Close
+                </button>
+              </div>
             )}
-
-            {/* End trip sheet — fill during trip */}
-            <section className="fa-surface p-4 space-y-3">
-              <h2 className="text-[10px] font-black uppercase tracking-wider text-brand-olive flex items-center gap-1.5 border-b border-card-border pb-1.5">
-                <Scale size={14} /> End trip sheet
-              </h2>
-              <TripExpenseFields
-                variant="field"
-                form={expense.form}
-                setForm={expense.setForm}
-                set={expense.set}
-                totalExpenses={expense.totalExpenses}
-                balancePayable={expense.balancePayable}
-              />
-            </section>
-
-            {showSubmit && (
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3.5 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md sticky bottom-4 z-20"
-              >
-                <FileCheck size={16} />
-                {submitting ? 'Submitting...' : 'Submit Complete Trip'}
-              </button>
-            )}
-          </form>
+          </div>
         )}
 
         {isClosed && (
-          <div className="w-full py-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2">
-            <CheckCircle2 size={14} /> Trip closed
+          <div className="space-y-3">
+            <div className="w-full py-3 bg-emerald-950/20 border border-emerald-900 text-emerald-400 rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2">
+              <CheckCircle2 size={14} /> Trip closed
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/driver/trip-expense/${trip._id || trip.id}/bill`)}
+              className="w-full py-3 bg-[#6A7051] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#5F6846] transition-colors"
+            >
+              <FileCheck size={14} /> View trip bill
+            </button>
           </div>
         )}
 
-        {isDelivered && hasExpenseSheet && (
-          <button
-            type="button"
-            onClick={() => navigate(`/driver/trip-expense/${trip._id || trip.id}/bill`)}
-            className="w-full py-3 bg-[#6A7051] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2"
-          >
-            <FileCheck size={14} /> View trip bill
-          </button>
+        {/* Beautiful, premium, dark-themed Modal Overlay */}
+        {showExpenseModal && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#161618] border border-[var(--fa-border)] w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+              {/* Header */}
+              <div className="px-5 py-4 border-b border-[var(--fa-border)] flex justify-between items-center bg-[#1f1f22] rounded-t-2xl">
+                <h3 className="text-xs font-black uppercase tracking-wider text-[#C5A021] flex items-center gap-1.5">
+                  <Scale size={16} /> End Trip Sheet
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowExpenseModal(false)}
+                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 overflow-y-auto space-y-4 no-scrollbar flex-1">
+                <form
+                  onSubmit={async (e) => {
+                    await handleCompleteTrip(e);
+                    setShowExpenseModal(false);
+                  }}
+                  className="space-y-4"
+                >
+                  <TripExpenseFields
+                    variant="field"
+                    form={expense.form}
+                    setForm={expense.setForm}
+                    set={expense.set}
+                    totalExpenses={expense.totalExpenses}
+                    balancePayable={expense.balancePayable}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full py-3.5 fa-btn-primary rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md sticky bottom-0 z-20 mt-4"
+                  >
+                    <FileCheck size={16} />
+                    {submitting ? 'Submitting...' : 'Submit Expenses & Close Trip'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </FieldPageWrap>

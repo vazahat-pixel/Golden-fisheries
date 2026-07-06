@@ -23,7 +23,6 @@ export function normalizeTripStops(trip) {
       const qty = isPickup
         ? s.expectedQty || harvest?.availableQty || null
         : tapal?.numericQty || tapal?.qty || s.expectedQty || null;
-
       return {
         sequence: s.sequence || index + 1,
         stopType: s.stopType,
@@ -34,6 +33,10 @@ export function normalizeTripStops(trip) {
         title,
         party,
         qtyLabel: qty != null && qty !== '' ? (typeof qty === 'number' ? `${qty} KG` : String(qty)) : '',
+        actualQty: s.actualQty || null,
+        proofPhotoUrl: s.proofPhotoUrl || null,
+        signatureUrl: s.signatureUrl || null,
+        completedAt: s.completedAt || null,
       };
     });
 }

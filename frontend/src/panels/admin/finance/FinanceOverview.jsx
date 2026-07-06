@@ -13,26 +13,28 @@ const FinanceOverview = () => {
     (async () => {
       try {
         const [s, e, p, inv] = await Promise.all([
-          reportsService.getSales(),
-          reportsService.getExpenses(),
-          reportsService.getProfitability(),
-          masterService.inventory.getAll({ limit: 100 }),
+          reportsService.getSales().catch((err) => { console.error('Sales error:', err); return null; }),
+          reportsService.getExpenses().catch((err) => { console.error('Expenses error:', err); return null; }),
+          reportsService.getProfitability().catch((err) => { console.error('P&L error:', err); return null; }),
+          masterService.inventory.getAll({ limit: 100 }).catch((err) => { console.error('Inventory error:', err); return null; }),
         ]);
         setSales(s?.data || s);
         setExpenses(e?.data || e);
         setPnl(p?.data || p);
         const list = inv?.data || inv?.docs || (Array.isArray(inv) ? inv : []);
         setStock(list);
-      } catch {
-        /* empty — no mock */
+      } catch (err) {
+        console.error('Failed to load finance data:', err);
       }
     })();
   }, []);
 
+  const totalExp = pnl?.operationalExpenses ?? (Array.isArray(expenses) ? expenses.reduce((s, x) => s + (x.totalSpent || 0), 0) : '—');
+
   const cards = [
-    { label: 'Sales (period)', value: sales?.totalSales ?? sales?.total ?? '—' },
-    { label: 'Expenses', value: expenses?.totalExpenses ?? expenses?.total ?? '—' },
-    { label: 'Net P&L', value: pnl?.netProfit ?? pnl?.profit ?? '—' },
+    { label: 'Sales (period)', value: sales?.totalCumulativeRevenue ?? '—' },
+    { label: 'Expenses', value: totalExp },
+    { label: 'Net P&L', value: pnl?.netProfits ?? '—' },
     { label: 'SKUs tracked', value: stock.length },
   ];
 

@@ -21,10 +21,10 @@ const TripsAndExpenses = () => {
         actions={
           <button
             type="button"
-            onClick={() => navigate('/admin/logistics/assign-driver')}
+            onClick={() => navigate('/admin/logistics/assign-driver', { state: { view: 'create' } })}
             className="px-4 py-2 bg-[#6A7051] text-white text-[10px] font-black uppercase tracking-wider rounded hover:bg-[#5F6846]"
           >
-            Assign driver
+            Create New Trip & Assign
           </button>
         }
       />

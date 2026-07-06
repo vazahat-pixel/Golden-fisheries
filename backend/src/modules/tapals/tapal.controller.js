@@ -144,11 +144,10 @@ export const tapalController = {
 
   // Get a single Tapal details by database ID
   getById: asyncWrapper(async (req, res) => {
-    const tapal = await tapalService.findById(req.params.id, 'harvestId farmerId assignedTo');
+    const tapal = await tapalService.findById(req.params.id, 'harvestId farmerId assignedTo buyerId');
     new ApiResponse(200, { tapal: aliasTapalResponse(tapal) }, 'Tapal retrieved successfully').send(res);
   }),
 
-  // Update a Tapal (Channpa filling out the Tapal)
   update: asyncWrapper(async (req, res) => {
     const tapal = await tapalService.updateById(req.params.id, req.body);
     new ApiResponse(200, { tapal: aliasTapalResponse(tapal) }, 'Tapal updated successfully').send(res);

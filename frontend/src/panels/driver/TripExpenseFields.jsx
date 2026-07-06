@@ -3,7 +3,7 @@ import { PaperFieldRow, paperInputClass } from '../../components/forms/PaperForm
 import { emptyPump } from './useTripExpenseForm';
 
 const fieldInputClass =
-  'w-full border border-card-border rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-[#6A7051]/40';
+  'w-full border border-[var(--fa-border)] rounded-lg px-3 py-2 text-sm bg-[#161618] text-white outline-none focus:ring-2 focus:ring-[#C5A021]/40';
 
 export function TripExpenseFields({ form, setForm, set, totalExpenses, balancePayable, variant = 'field' }) {
   const inputClass = variant === 'paper' ? paperInputClass : fieldInputClass;
@@ -39,7 +39,7 @@ export function TripExpenseFields({ form, setForm, set, totalExpenses, balancePa
         </Row>
       </div>
       <Row label="Total KM">
-        <input className={inputClass} readOnly value={form.totalKms} />
+        <input className={inputClass} inputMode="decimal" value={form.totalKms} onChange={(e) => set('totalKms', e.target.value)} />
       </Row>
       <div className={variant === 'field' ? 'grid grid-cols-2 gap-3' : ''}>
         <Row label="Mileage">
@@ -123,14 +123,14 @@ export function TripExpenseFields({ form, setForm, set, totalExpenses, balancePa
         <textarea className={inputClass} rows={2} value={form.remarks} onChange={(e) => set('remarks', e.target.value)} />
       </Row>
 
-      <div className="border border-card-border rounded-lg p-3 text-sm space-y-1 bg-slate-50">
+      <div className="border border-[var(--fa-border)] rounded-lg p-3 text-sm space-y-1 bg-[#1f1f22]">
         <div className="flex justify-between">
-          <span className="text-xs uppercase font-bold text-brand-olive">Total expenses</span>
-          <span className="font-bold">₹{totalExpenses.toFixed(2)}</span>
+          <span className="text-xs uppercase font-bold text-[var(--fa-accent)]">Total expenses</span>
+          <span className="font-bold text-white">₹{totalExpenses.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs uppercase font-bold text-brand-olive">Balance payable</span>
-          <span className="font-bold">₹{balancePayable.toFixed(2)}</span>
+          <span className="text-xs uppercase font-bold text-[var(--fa-accent)]">Balance payable</span>
+          <span className="font-bold text-white">₹{balancePayable.toFixed(2)}</span>
         </div>
       </div>
     </div>

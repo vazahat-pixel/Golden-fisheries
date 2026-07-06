@@ -39,7 +39,7 @@ class TapalService extends BaseService {
       ];
     }
 
-    return await this.findMany(filter, { page, limit }, 'harvestId');
+    return await this.findMany(filter, { page, limit }, 'harvestId buyerId');
   }
 
   /**
@@ -942,6 +942,34 @@ class TapalService extends BaseService {
 
     logger.info(`[Admin Flow]: Payment confirmed for Trip ${trip.tripNumber}. UPI Txn: ${upiTransactionId}`);
     return trip;
+  }
+
+  async updateById(id, updateData) {
+    if (updateData && (updateData.buyerId || updateData.buyerPhone)) {
+      let buyerName = null;
+      if (updateData.buyerId) {
+        const { Buyer } = await import('../buyers/buyer.model.js');
+        const buyerObj = await Buyer.findById(updateData.buyerId);
+        if (buyerObj) {
+          buyerName = buyerObj.buyerName || buyerObj.name;
+        }
+      } else if (updateData.buyerPhone) {
+        const { Buyer } = await import('../buyers/buyer.model.js');
+        const { normalizePhone10 } = await import('../../utils/phone.js');
+        const p10 = normalizePhone10(updateData.buyerPhone);
+        const buyerObj = await Buyer.findOne({
+          isActive: { $ne: false },
+          $or: [{ phone: updateData.buyerPhone }, { phone: p10 }],
+        });
+        if (buyerObj) {
+          buyerName = buyerObj.buyerName || buyerObj.name;
+        }
+      }
+      if (buyerName) {
+        updateData.partyName = buyerName;
+      }
+    }
+    return await super.updateById(id, updateData);
   }
 }
 
