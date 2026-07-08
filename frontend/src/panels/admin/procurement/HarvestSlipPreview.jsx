@@ -147,7 +147,12 @@ const HarvestSlipPreview = () => {
   };
 
   const isSaved = !!(slip._id || slip.id);
-  const isInvoice = slip.netRateCalculated != null;
+  // Read print mode flag set by HarvestSlipDetail — if 'harvest_slip', always print as GRN slip
+  // regardless of whether the slip has a netRateCalculated value.
+  const printModeFlag = sessionStorage.getItem('harvest_print_mode');
+  const isInvoice = printModeFlag === 'harvest_slip' ? false : slip.netRateCalculated != null;
+  // Clear the flag so it doesn't affect future navigations
+  if (printModeFlag) sessionStorage.removeItem('harvest_print_mode');
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-500 font-sans print:p-0 print:m-0">
@@ -210,7 +215,7 @@ const HarvestSlipPreview = () => {
       <div className="flex justify-center items-center py-4 bg-slate-100/50 print:bg-transparent print:p-0">
         <div 
           ref={printAreaRef}
-          className="w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl print:shadow-none print:border-none print:p-0 print:w-full font-arial"
+          className="print-root w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl print:shadow-none print:border-none print:p-0 print:w-full font-arial"
           style={{ fontFamily: 'Arial, sans-serif' }}
         >
           {/* Main Border */}
@@ -454,33 +459,6 @@ const HarvestSlipPreview = () => {
         </div>
       </div>
       
-      <style dangerouslySetInnerHTML={{__html: `
-        @media print {
-          body {
-            background: white !important;
-            color: black !important;
-          }
-          #root, header, nav, aside, footer, button, .print\\:hidden {
-            display: none !important;
-          }
-          .print\\:p-0 {
-            padding: 0 !important;
-          }
-          .print\\:m-0 {
-            margin: 0 !important;
-          }
-          .print\\:border-none {
-            border: none !important;
-          }
-          .print\\:shadow-none {
-            box-shadow: none !important;
-          }
-          .print\\:w-full {
-            width: 100% !important;
-            max-width: 100% !important;
-          }
-        }
-      `}} />
     </div>
   );
 };

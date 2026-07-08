@@ -122,7 +122,7 @@ class RestaurantMenuService {
           maxServings = Math.min(maxServings, Math.floor(avail / perServe));
         }
       } else {
-        maxServings = 0;
+        maxServings = 999;
       }
       return { ...menu, stock: Number.isFinite(maxServings) ? maxServings : 0 };
     });

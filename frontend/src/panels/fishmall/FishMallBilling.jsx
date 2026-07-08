@@ -393,8 +393,8 @@ const FishMallBilling = () => {
       {/* Step 5: Invoice Modal */}
       {showInvoice && lastBill && (
         <div className="fixed inset-0 z-[70] bg-white flex flex-col animate-in slide-in-from-bottom duration-500 overflow-y-auto font-sans">
-          <div className="max-w-md mx-auto w-full p-8 space-y-8 print:p-0">
-            <div className="flex justify-between items-center print:hidden">
+          <div className="max-w-md mx-auto w-full p-8 space-y-8">
+            <div className="no-print flex justify-between items-center">
               <button onClick={resetBilling} className="flex items-center gap-2 text-gray-400 hover:text-gray-900 font-bold uppercase tracking-widest text-[10px]">
                 <X size={16} /> Close Terminal
               </button>
@@ -403,6 +403,7 @@ const FishMallBilling = () => {
               </button>
             </div>
 
+            <div className="print-root space-y-8">
             <div className="text-center space-y-2">
               <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-20 mx-auto mb-4" />
               <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">GOLDEN FISH MALL</h2>
@@ -480,6 +481,7 @@ const FishMallBilling = () => {
                 <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Freshness Guaranteed • Golden Fish Mall</p>
               </div>
             </div>
+            </div>{/* end print-root */}
           </div>
         </div>
       )}

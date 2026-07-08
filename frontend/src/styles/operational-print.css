@@ -1,31 +1,71 @@
-/* Operational print — seafood office paperwork */
+/* ============================================================
+   Golden Fisheries — Operational Print Stylesheet
+   All bills, slips, invoices, and reports use this stylesheet.
+   The .print-root class marks the ONLY thing that should print.
+   ============================================================ */
+
 @media print {
+
+  /* ── 1. Page Setup ─────────────────────────────────────── */
+  /*
+     Setting margin: 0 on @page removes the browser's built-in
+     header/footer zone — this eliminates the date/time printed
+     at the top and the URL + page number printed at the bottom.
+     Content margins are handled by padding inside .print-root.
+  */
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 0mm;
+  }
+
+  /* ── 2. Hide Everything on the Page ────────────────────── */
+  /*
+     The core fix: make the entire body invisible, then selectively
+     reveal only the .print-root container. This ensures sidebars,
+     navbars, modals, action buttons, etc. are NEVER printed.
+  */
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   body * {
     visibility: hidden;
   }
 
-  .print-root,
-  .print-root * {
-    visibility: visible;
-  }
-
+  /* ── 3. Reveal the Print Root ───────────────────────────── */
   .print-root {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    visibility: visible !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
     background: white !important;
+    padding: 10mm !important;
+    margin: 0 !important;
+    z-index: 99999 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
   }
 
-  .no-print {
+  .print-root * {
+    visibility: visible !important;
+  }
+
+  /* ── 4. No-Print Utility ────────────────────────────────── */
+  /* Any element with .no-print is forcibly hidden at print time */
+  .no-print,
+  .no-print * {
     display: none !important;
+    visibility: hidden !important;
   }
 
+  /* ── 5. Print Table Styles ──────────────────────────────── */
   .print-table {
     width: 100%;
     border-collapse: collapse;
@@ -43,5 +83,51 @@
     background: #f3f3f3 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* ── 6. Force Color Printing ────────────────────────────── */
+  /* Ensure colored text and backgrounds actually print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── 7. Receipt / Bill Content ──────────────────────────── */
+  /* Thermal receipt / A4 bill container styles */
+  .print-receipt {
+    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-size: 10pt;
+    color: #000;
+    background: white;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .print-receipt table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .print-receipt th,
+  .print-receipt td {
+    border: 1px solid #000;
+    padding: 3px 5px;
+    font-size: 10pt;
+  }
+
+  /* ── 8. A4 Slip / Tapal / Harvest Bill ──────────────────── */
+  .print-a4-slip {
+    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-size: 10pt;
+    color: #000;
+    background: white;
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+  }
+
+  /* ── 9. Prevent page breaks inside critical rows ─────────── */
+  tr, .no-break {
+    page-break-inside: avoid;
   }
 }

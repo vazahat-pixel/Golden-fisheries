@@ -915,7 +915,7 @@ const RestaurantDashboard = () => {
                 </div>
 
                 {/* PRINTABLE SLIP SUMMARY */}
-                <div id="shift-eod-print" className="p-8 bg-white border border-slate-200 space-y-6 text-slate-900 font-sans print:border-none print:p-0">
+                <div id="shift-eod-print" className="print-root p-8 bg-white border border-slate-200 space-y-6 text-slate-900 font-sans">
                   <div className="text-center space-y-1">
                     <h2 className="text-xl font-serif italic font-black tracking-tight uppercase">GOLDEN <span className="text-accent-olive">FISHERIES.</span></h2>
                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">RESTAURANT CASHIER CLOSING SLIP</p>
@@ -990,7 +990,7 @@ const RestaurantDashboard = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="no-print flex gap-2">
                   <Button onClick={() => window.print()} variant="outline" className="flex-1 h-12 text-[9px] font-black uppercase tracking-widest border-slate-200 flex items-center justify-center gap-2">
                     <Printer size={14} /> PRINT REPORT
                   </Button>

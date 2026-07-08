@@ -266,14 +266,14 @@ const ActiveTrip = () => {
   };
 
   const handleCompleteStop = async (sequence) => {
-    const qty = parseFloat(loadWeight);
-    if (!qty || Number.isNaN(qty) || qty <= 0) {
+    const currentActiveStop = routeStops.find((s) => s.sequence === Number(sequence));
+    if (!currentActiveStop) return;
+
+    const qty = currentActiveStop.isHub ? 0 : parseFloat(loadWeight);
+    if (!currentActiveStop.isHub && (!qty || Number.isNaN(qty) || qty <= 0)) {
       toast.error('Enter valid weight (kg) for this stop');
       return;
     }
-
-    const currentActiveStop = routeStops.find((s) => s.sequence === Number(sequence));
-    if (!currentActiveStop) return;
 
     let finalProofPhoto = null;
 
@@ -410,7 +410,7 @@ const ActiveTrip = () => {
                       <p className={`text-[8px] font-black uppercase tracking-widest ${
                         isCompleted ? 'text-emerald-400' : isActive ? 'text-[#C5A021]' : 'text-zinc-500'
                       }`}>
-                        {stop.isPickup ? 'Procurement pickup' : 'Sale delivery'}
+                        {stop.isHub ? 'Return to Hub' : stop.isPickup ? 'Procurement pickup' : 'Sale delivery'}
                       </p>
                       <p className="font-extrabold text-zinc-100 truncate pr-12">{stop.title}</p>
                       {stop.party ? <p className="text-[10px] text-zinc-400">{stop.party}</p> : null}
@@ -553,14 +553,14 @@ const ActiveTrip = () => {
           <div className="space-y-4">
             <div className="fa-surface px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[#C5A021] bg-[#C5A021]/10 border border-[#C5A021]/30 rounded-lg flex items-center gap-1.5 animate-pulse">
               <Navigation size={14} className="shrink-0" />
-              Active Stop: Stop #{activeStop.sequence} ({activeStop.isPickup ? 'PICKUP' : 'DELIVERY'})
+              Active Stop: Stop #{activeStop.sequence} ({activeStop.isHub ? 'RETURN TO HUB' : activeStop.isPickup ? 'PICKUP' : 'DELIVERY'})
             </div>
 
             <section className="fa-surface p-4 space-y-4">
               <h2 className="text-[11px] font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-2 flex items-center justify-between">
                 <span>Complete Stop #{activeStop.sequence}</span>
                 <span className="text-[9px] px-2 py-0.5 rounded bg-[#1f1f22] text-[var(--fa-accent)] font-bold border border-[var(--fa-border)]">
-                  {activeStop.isPickup ? 'Pickup' : 'Delivery'}
+                  {activeStop.isHub ? 'Return to Hub' : activeStop.isPickup ? 'Pickup' : 'Delivery'}
                 </span>
               </h2>
 
@@ -578,24 +578,26 @@ const ActiveTrip = () => {
                 ) : null}
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">
-                  Actual Weight (KG) Recorded
-                </label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
-                  value={loadWeight}
-                  onChange={(e) => setLoadWeight(e.target.value)}
-                  placeholder="Enter scale weight in kg"
-                  className="w-full bg-[#161618] border border-[var(--fa-border)] rounded-lg px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-[#C5A021]"
-                  required
-                />
-              </div>
+              {!activeStop.isHub && (
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">
+                    Actual Weight (KG) Recorded
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={loadWeight}
+                    onChange={(e) => setLoadWeight(e.target.value)}
+                    placeholder="Enter scale weight in kg"
+                    className="w-full bg-[#161618] border border-[var(--fa-border)] rounded-lg px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-[#C5A021]"
+                    required
+                  />
+                </div>
+              )}
 
-              {!activeStop.isPickup && (
+              {!activeStop.isPickup && !activeStop.isHub && (
                 <div className="space-y-4 border-t border-card-border pt-4">
                   {/* Delivery proof photo */}
                   <div className="space-y-1">
@@ -637,7 +639,7 @@ const ActiveTrip = () => {
               <button
                 type="button"
                 onClick={() => handleCompleteStop(activeStop.sequence)}
-                disabled={submitting || !loadWeight.trim() || (!activeStop.isPickup && !photoSnapped)}
+                disabled={submitting || (!activeStop.isHub && !loadWeight.trim()) || (!activeStop.isPickup && !activeStop.isHub && !photoSnapped)}
                 className="w-full py-3.5 bg-[#C5A021] text-brand-dark rounded-lg font-bold text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 shadow-md disabled:opacity-40 transition-opacity"
               >
                 <CheckCircle2 size={16} />

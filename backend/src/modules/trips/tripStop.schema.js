@@ -6,7 +6,7 @@ export const tripStopSchema = new mongoose.Schema(
     stopType: {
       type: String,
       required: true,
-      enum: ['HARVEST_PICKUP', 'TAPAL_DELIVERY'],
+      enum: ['HARVEST_PICKUP', 'TAPAL_DELIVERY', 'HUB'],
       uppercase: true,
     },
     harvestId: {

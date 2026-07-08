@@ -22,6 +22,7 @@ const DEFAULT_STOP_COUNT = 5;
 const STOP_TYPES = [
   { value: 'HARVEST_PICKUP', label: 'Procurement pickup (harvest slip)' },
   { value: 'TAPAL_DELIVERY', label: 'Sale delivery (tapal)' },
+  { value: 'HUB', label: 'Return to Hub' },
 ];
 
 function emptyStop(sequence) {
@@ -180,13 +181,17 @@ const TapalAssignDriver = () => {
         if (t && !location) location = t.destination || t.unloadingPoint || '';
         if (t && !label) label = tapalOptionLabel(t);
       }
+      if (stopType === 'HUB') {
+        if (!location) location = 'HUB';
+        if (!label) label = 'Return to Hub';
+      }
 
       return {
         sequence: index + 1,
         stopType,
         harvestId: stopType === 'HARVEST_PICKUP' ? stop.harvestId || undefined : undefined,
         tapalId: stopType === 'TAPAL_DELIVERY' ? stop.tapalId || undefined : undefined,
-        location: location || (stopType === 'HARVEST_PICKUP' ? 'FARM PICKUP' : 'DELIVERY'),
+        location: location || (stopType === 'HARVEST_PICKUP' ? 'FARM PICKUP' : stopType === 'HUB' ? 'HUB' : 'DELIVERY'),
         label,
       };
     });
@@ -196,6 +201,7 @@ const TapalAssignDriver = () => {
     const filled = stops.filter((s) => {
       if (s.stopType === 'HARVEST_PICKUP') return Boolean(s.harvestId);
       if (s.stopType === 'TAPAL_DELIVERY') return Boolean(s.tapalId);
+      if (s.stopType === 'HUB') return true;
       return false;
     });
     return filled.length >= 2;
@@ -416,7 +422,11 @@ const TapalAssignDriver = () => {
 
                   <div className="lg:col-span-4">
                     <label className="text-[9px] font-black uppercase text-text-muted flex items-center gap-1">
-                      {stop.stopType === 'HARVEST_PICKUP' ? (
+                      {stop.stopType === 'HUB' ? (
+                        <>
+                          <MapPin size={10} /> Hub Return
+                        </>
+                      ) : stop.stopType === 'HARVEST_PICKUP' ? (
                         <>
                           <Sprout size={10} /> Harvest slip
                         </>
@@ -426,7 +436,11 @@ const TapalAssignDriver = () => {
                         </>
                       )}
                     </label>
-                    {stop.stopType === 'HARVEST_PICKUP' ? (
+                    {stop.stopType === 'HUB' ? (
+                      <div className="text-sm font-semibold text-slate-400 mt-3 h-[38px] flex items-center">
+                        No association needed (Return empty)
+                      </div>
+                    ) : stop.stopType === 'HARVEST_PICKUP' ? (
                       <select
                         className="w-full border border-card-border bg-white px-2 py-2 text-sm mt-1"
                         value={stop.harvestId}
@@ -546,7 +560,14 @@ const TapalAssignDriver = () => {
                         <ol className="list-decimal list-inside space-y-1">
                           {(selectedTrip.stops || []).map((s, i) => (
                             <li key={s._id || i}>
-                              <span className="font-bold">{s.stopType === 'HARVEST_PICKUP' ? 'Pickup' : 'Delivery'}:</span>{' '}
+                              <span className="font-bold">
+                                {s.stopType === 'HARVEST_PICKUP'
+                                  ? 'Pickup'
+                                  : s.stopType === 'HUB'
+                                  ? 'Hub'
+                                  : 'Delivery'}
+                                :
+                              </span>{' '}
                               {s.label || s.location}
                             </li>
                           ))}

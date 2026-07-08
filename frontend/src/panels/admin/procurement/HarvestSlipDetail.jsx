@@ -109,11 +109,12 @@ const HarvestSlipDetail = () => {
           <button
             onClick={() => {
               sessionStorage.setItem('current_harvest_slip_creation', JSON.stringify(slip));
+              sessionStorage.setItem('harvest_print_mode', 'harvest_slip');
               navigate('/admin/procurement/harvest/preview');
             }}
             className="border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
           >
-            <Printer size={14} /> {slip.netRateCalculated != null ? 'Print Purchase Invoice' : 'Print Harvest Slip'}
+            <Printer size={14} /> Print Harvest Slip
           </button>
         </div>
       </div>

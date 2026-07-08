@@ -165,7 +165,7 @@ const TapalPreview = () => {
       <div className="flex justify-center items-center py-4 bg-slate-100/50 print:bg-transparent print:p-0">
         <div 
           ref={printAreaRef}
-          className="w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl print:shadow-none print:border-none print:p-0 print:w-full font-arial"
+          className="print-root w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl print:shadow-none print:border-none print:p-0 print:w-full font-arial"
           style={{ fontFamily: 'Arial, sans-serif' }}
         >
           {/* Main Border */}

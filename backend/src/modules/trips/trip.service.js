@@ -42,7 +42,7 @@ class TripService extends BaseService {
         const sequence = i + 1;
         const stopType = String(raw.stopType || '').toUpperCase();
 
-        if (!['HARVEST_PICKUP', 'TAPAL_DELIVERY'].includes(stopType)) {
+        if (!['HARVEST_PICKUP', 'TAPAL_DELIVERY', 'HUB'].includes(stopType)) {
           throw new AppError(`Stop ${sequence}: invalid stop type`, 400);
         }
 
@@ -97,6 +97,12 @@ class TripService extends BaseService {
           if (!location) location = tapal.destination || tapal.unloadingPoint || 'DELIVERY';
           if (!expectedQty) expectedQty = tapal.numericQty || 0;
           if (!label) label = `${tapal.tapalNumber} — ${tapal.partyName || 'Buyer'}`;
+        }
+
+        if (stopType === 'HUB') {
+          if (!location) location = 'HUB';
+          if (!label) label = 'Return to Hub';
+          expectedQty = 0;
         }
 
         normalizedStops.push({
@@ -335,9 +341,11 @@ class TripService extends BaseService {
       }
 
       // Validate inputs
-      const qty = parseFloat(actualQty);
-      if (Number.isNaN(qty) || qty <= 0) {
-        throw new AppError(`Valid quantity in KG is required to complete stop #${sequence}`, 400);
+      const qty = stop.stopType === 'HUB' ? 0 : parseFloat(actualQty);
+      if (stop.stopType !== 'HUB') {
+        if (Number.isNaN(qty) || qty <= 0) {
+          throw new AppError(`Valid quantity in KG is required to complete stop #${sequence}`, 400);
+        }
       }
 
       if (stop.stopType === 'TAPAL_DELIVERY') {

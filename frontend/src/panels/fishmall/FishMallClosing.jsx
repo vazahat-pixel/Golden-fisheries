@@ -321,8 +321,8 @@ const FishMallClosing = () => {
       case 6:
         const report = lastSessionReport || {};
         return (
-          <div className="max-w-md mx-auto w-full p-8 bg-white border border-gray-100 rounded-3xl shadow-xl space-y-8 animate-in zoom-in-95 duration-500 print:shadow-none print:p-0">
-            <div className="flex justify-between items-center print:hidden">
+          <div className="max-w-md mx-auto w-full">
+            <div className="no-print flex justify-between items-center mb-6">
               <button 
                 onClick={() => { setStep(1); setLastSessionReport(null); }} 
                 className="flex items-center gap-2 text-gray-400 hover:text-gray-900 font-bold uppercase tracking-widest text-[9px]"
@@ -336,6 +336,8 @@ const FishMallClosing = () => {
                 <Printer size={14} /> Print Balance Sheet
               </button>
             </div>
+
+            <div className="print-root p-8 bg-white border border-gray-100 rounded-3xl shadow-xl space-y-8 animate-in zoom-in-95 duration-500">
 
             <div className="text-center space-y-2">
               <img src="/IMG_8643-removebg-preview.png" alt="Logo" className="w-16 mx-auto mb-2" />
@@ -425,6 +427,7 @@ const FishMallClosing = () => {
             <div className="text-center pt-8 border-t border-gray-100 text-[8px] text-gray-400 font-bold uppercase tracking-widest">
               Shift Sealed & locked • Golden Fish Mall Terminal Management
             </div>
+            </div>{/* end print-root */}
           </div>
         );
       default: return null;
