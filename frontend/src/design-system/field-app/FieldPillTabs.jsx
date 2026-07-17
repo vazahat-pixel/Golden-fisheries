@@ -2,7 +2,7 @@ import React from 'react';
 
 export function FieldPillTabs({ options, value, onChange }) {
   return (
-    <div className="flex gap-2 p-1 fa-surface !rounded-full !py-1.5">
+    <div className="fa-segment">
       {options.map((opt) => (
         <button
           key={opt.value}

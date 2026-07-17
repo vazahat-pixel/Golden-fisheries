@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverStore } from '../../store/driverStore';
 import { useAuthStore } from '../../store/authStore';
-import { DollarSign, History, Loader2, Navigation, Receipt, Route } from 'lucide-react';
+import { DollarSign, History, Navigation, Receipt, Route } from 'lucide-react';
 import { unlockNotificationAudio, playTripAlertSound, vibrateTripAlert } from '../../utils/notificationSound';
 import {
   FieldScreen,
@@ -10,6 +10,7 @@ import {
   FieldQuickActions,
   FieldTransactionList,
   FieldSectionHeader,
+  FieldInlineLoader,
 } from '../../design-system/field-app';
 import { FieldPillTabs } from '../../design-system/field-app/FieldPillTabs';
 import { tripStopsSummary } from '../../utils/tripStopsDisplay';
@@ -107,29 +108,29 @@ const DriverDashboard = () => {
   return (
     <FieldScreen userName={driverName} notifyHref="/driver/notifications">
       {incomingAssignment && (
-        <div className="fa-surface p-4 border border-[var(--fa-accent)]/30">
-          <p className="text-[10px] font-bold uppercase text-[var(--fa-accent)]">New assignment</p>
-          <p className="text-sm font-medium mt-1">
+        <div className="fa-alert-banner">
+          <p className="fa-eyebrow fa-hero-accent">New assignment</p>
+          <p className="text-base font-bold mt-1.5 tracking-tight">
             Trip #{incomingAssignment.tripNumber || incomingAssignment.tapalNumber || '—'}
           </p>
           {tripStopsSummary(incomingAssignment) ? (
-            <p className="text-[11px] fa-muted mt-1">{tripStopsSummary(incomingAssignment)}</p>
+            <p className="text-xs fa-muted mt-1.5 leading-relaxed">{tripStopsSummary(incomingAssignment)}</p>
           ) : null}
-          <div className="flex gap-2 mt-3">
+          <div className="flex gap-2.5 mt-4">
             <button
               type="button"
               onClick={() => {
                 clearIncomingAssignment();
                 navigate('/driver/active-trip');
               }}
-              className="flex-1 py-2.5 fa-btn-primary text-[10px] font-bold uppercase fa-tap"
+              className="flex-1 py-3 fa-btn-primary text-[10px] fa-tap"
             >
               Open trip
             </button>
             <button
               type="button"
               onClick={clearIncomingAssignment}
-              className="flex-1 py-2.5 rounded-[var(--fa-radius-md)] border border-[var(--fa-border)] text-[10px] font-bold fa-tap"
+              className="flex-1 py-3 fa-btn-ghost fa-tap"
             >
               Dismiss
             </button>
@@ -190,9 +191,7 @@ const DriverDashboard = () => {
       />
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="animate-spin text-[var(--fa-accent)]" size={28} />
-        </div>
+        <FieldInlineLoader label="Loading activity" />
       ) : (
         <FieldTransactionList
           title="Recent activity"

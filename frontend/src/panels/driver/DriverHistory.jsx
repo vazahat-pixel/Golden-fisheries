@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useDriverStore } from '../../store/driverStore';
+import { FieldPageWrap, FieldInlineLoader } from '../../design-system/field-app';
 
 const DriverHistory = () => {
   const { myTrips, fetchMyTrips, loading } = useDriverStore();
@@ -9,31 +9,36 @@ const DriverHistory = () => {
     fetchMyTrips();
   }, [fetchMyTrips]);
 
-  const closed = (myTrips || []).filter((t) => ['CLOSED', 'COMPLETED'].includes(t.status));
+  const closed = (myTrips || []).filter((t) => ['CLOSED', 'COMPLETED', 'DELIVERED'].includes(t.status));
 
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-lg font-black uppercase tracking-wide">Trip history</h1>
+    <FieldPageWrap subtitle="Completed runs">
+      <div className="mb-4">
+        <h1 className="fa-page-title">Trip history</h1>
+        <p className="fa-page-subtitle">Your completed deliveries and runs</p>
+      </div>
       {loading ? (
-        <p className="text-sm text-gray-500">Loading...</p>
+        <FieldInlineLoader label="Loading history" />
       ) : closed.length === 0 ? (
-        <p className="text-sm text-gray-500">No completed trips</p>
+        <div className="fa-empty-state py-12">
+          <p className="text-sm fa-muted">No completed trips yet</p>
+        </div>
       ) : (
         <ul className="space-y-2">
           {closed.map((t) => (
-            <li key={t._id} className="bg-white border rounded-lg p-3 text-sm">
-              <p className="font-bold">{t.tripNumber || t.tapalNumber}</p>
-              <p className="text-[10px] text-gray-500">{t.status}</p>
-              {t._id && (
-                <Link to={`/driver/trip/${t._id}/end`} className="text-xs text-blue-600 underline mt-1 inline-block">
-                  View sheet
-                </Link>
-              )}
+            <li key={t._id || t.id} className="fa-glass-card fa-card-interactive p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="fa-display-num fa-text-gradient text-lg">#{t.tripNumber || t.tapalNumber || '—'}</p>
+                <span className="fa-badge fa-badge--success">{t.status}</span>
+              </div>
+              <p className="text-xs fa-muted mt-2 truncate leading-relaxed">
+                {t.pickupLocation} → {t.deliveryLocation}
+              </p>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </FieldPageWrap>
   );
 };
 

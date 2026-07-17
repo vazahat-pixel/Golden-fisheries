@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverStore } from '../../store/driverStore';
-import { Loader2, Truck } from 'lucide-react';
-import { FieldPageWrap } from '../../design-system/field-app';
-import { FieldTransactionList } from '../../design-system/field-app';
+import { Truck } from 'lucide-react';
+import { FieldPageWrap, FieldInlineLoader, FieldTransactionList } from '../../design-system/field-app';
 import { tripStopsSummary } from '../../utils/tripStopsDisplay';
 
 const LIVE_STATUSES = ['Assigned', 'In Transit', 'Picked', 'ASSIGNED', 'STARTED', 'PICKED', 'ACCEPTED'];
@@ -39,13 +38,13 @@ const DriverTasks = () => {
 
   return (
     <FieldPageWrap fill subtitle="My assignments">
-      <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
-      <p className="text-sm fa-muted mb-4">Tap a trip to open the transit console</p>
+      <div className="mb-4">
+        <h1 className="fa-page-title">Tasks</h1>
+        <p className="fa-page-subtitle">Tap a trip to open the transit console</p>
+      </div>
 
       {loading ? (
-        <div className="flex-1 flex items-center justify-center min-h-[40vh]">
-          <Loader2 className="animate-spin text-[var(--fa-accent)]" size={28} />
-        </div>
+        <FieldInlineLoader label="Loading tasks" />
       ) : rows.length === 0 ? (
         <div className="fa-empty-state fa-empty-state--fill space-y-4">
           <Truck className="fa-empty-icon" size={44} strokeWidth={1.5} />

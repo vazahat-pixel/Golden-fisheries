@@ -1,42 +1,62 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 
-/** Premium dark bottom nav — 4 items, no center FAB */
 export function FieldBottomNav({ items = [] }) {
-  const NavItem = ({ item }) => (
-    <NavLink
-      to={item.path}
-      className={({ isActive }) =>
-        `fa-tap flex flex-col items-center flex-1 py-1.5 transition-all duration-300 ${
-          isActive ? 'fa-nav-active' : 'fa-muted'
-        }`
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <div
-            className={`fa-nav-icon-wrap p-1.5 rounded-xl transition-all duration-300 ${
-              isActive ? '' : 'bg-transparent'
-            }`}
-          >
-            <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-          </div>
-          <span className={`text-[9px] font-medium mt-0.5 ${isActive ? 'text-[var(--fa-accent)]' : ''}`}>
-            {item.label}
-          </span>
-        </>
-      )}
-    </NavLink>
-  );
+  const location = useLocation();
+  const [pendingPath, setPendingPath] = useState(null);
+
+  useEffect(() => {
+    setPendingPath(null);
+  }, [location.pathname]);
+
+  const NavItem = ({ item }) => {
+    const isPending = pendingPath === item.path && location.pathname !== item.path;
+
+    return (
+      <NavLink
+        to={item.path}
+        onClick={() => setPendingPath(item.path)}
+        className={({ isActive }) =>
+          [
+            'fa-tap fa-nav-item flex flex-col items-center flex-1 py-2',
+            isActive ? 'fa-nav-active' : 'fa-muted',
+            isPending ? 'fa-nav-item--pending' : '',
+          ].join(' ')
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <div
+              className={[
+                'fa-nav-icon-wrap p-2 rounded-xl transition-all duration-300',
+                isActive ? '' : 'bg-transparent border border-transparent',
+                isPending ? 'fa-nav-icon-wrap--pulse' : '',
+              ].join(' ')}
+            >
+              <item.icon size={19} strokeWidth={isActive ? 2.5 : 2} />
+            </div>
+            <span
+              className={[
+                'text-[9px] font-bold mt-1 tracking-wide',
+                isActive ? 'text-[var(--fa-accent)] fa-text-glow' : '',
+              ].join(' ')}
+            >
+              {item.label}
+            </span>
+          </>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
-    <footer className="sticky bottom-0 z-40 w-full bg-black/98 backdrop-blur-md border-t border-[var(--fa-border)] pb-[env(safe-area-inset-bottom)]">
-      <nav className="flex items-center justify-around w-full px-2 pt-1.5 pb-0.5">
+    <footer className="fa-bottom-nav sticky bottom-0 z-40 w-full pb-[env(safe-area-inset-bottom)]">
+      <nav className="flex items-center justify-around w-full px-3 pt-2.5 pb-0.5">
         {items.map((item) => (
           <NavItem key={item.path} item={item} />
         ))}
       </nav>
-      <div className="w-[134px] h-1 bg-white/10 mx-auto mb-2 mt-1 rounded-full" />
+      <div className="fa-home-indicator" aria-hidden />
     </footer>
   );
 }

@@ -5,16 +5,18 @@ export function FieldQuickActions({ actions = [] }) {
   const navigate = useNavigate();
 
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-4 gap-2.5">
       {actions.map((a) => {
         const Icon = a.icon;
         const className =
-          'fa-action-tile p-2 flex flex-col items-center justify-center min-h-[68px] fa-tap';
+          'fa-action-tile p-2.5 flex flex-col items-center justify-center min-h-[76px] fa-tap';
 
         const inner = (
           <>
-            <Icon size={18} strokeWidth={1.75} className="text-[var(--fa-text)]" />
-            <span className="text-[10px] text-[var(--fa-muted)] font-medium mt-1.5 text-center leading-tight">
+            <div className="fa-action-icon">
+              <Icon size={18} strokeWidth={2} />
+            </div>
+            <span className="text-[10px] text-[var(--fa-muted)] font-semibold text-center leading-tight tracking-tight">
               {a.label}
             </span>
           </>
