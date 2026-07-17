@@ -15,6 +15,11 @@ class FarmerLedgerService extends BaseService {
   async addEntry(data) {
     const { farmerId, harvestId, entryType, description, debitAmount = 0, creditAmount = 0, createdBy } = data;
 
+    const createdByIdentity =
+      createdBy ||
+      data.creatorUserId?.toString?.() ||
+      'erp-system';
+
     // Verify farmer exists
     const farmer = await Farmer.findById(farmerId);
     if (!farmer) {
@@ -36,7 +41,7 @@ class FarmerLedgerService extends BaseService {
       debitAmount,
       creditAmount,
       balanceAfter,
-      createdBy
+      createdBy: createdByIdentity
     });
 
     return entry;

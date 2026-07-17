@@ -29,7 +29,7 @@ export const farmerLedgerController = {
       description: description || 'Cash/Online Payment to Farmer',
       debitAmount: 0,
       creditAmount: parseFloat(creditAmount) || 0,
-      createdBy: req.user.phone
+      createdBy: req.user.phone || String(req.user._id || req.user.id || 'erp-system')
     });
 
     // If payment is linked to a specific harvest slip, let's update that harvest's paid/pending balances

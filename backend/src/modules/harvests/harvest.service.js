@@ -298,7 +298,7 @@ class HarvestService extends BaseService {
         vehicleNumber: logistics.vehicleNumber || null,
         destination: logistics.destination || null,
         logisticsNotes: logistics.logisticsNotes || null,
-        createdBy: creatorUser.phone,
+        createdBy: creatorUser?.phone || String(creatorUser?._id || creatorUser?.id || 'erp-system'),
         products: tapalProducts
       });
 
@@ -437,27 +437,42 @@ class HarvestService extends BaseService {
     const { FarmerLedger } = await import('../farmer-ledger/farmerLedger.model.js');
     const { farmerLedgerService } = await import('../farmer-ledger/farmerLedger.service.js');
 
-    const existingLedger = await FarmerLedger.findOne({ harvestId: harvest._id });
-    if (existingLedger) {
-      existingLedger.debitAmount = harvest.totalPayableAmount;
-      const prev = await FarmerLedger.findOne({
-        farmerId: harvest.farmerId,
-        _id: { $ne: existingLedger._id },
-        createdAt: { $lt: existingLedger.createdAt }
-      }).sort({ createdAt: -1 });
-      const prevBal = prev ? prev.balanceAfter : 0;
-      existingLedger.balanceAfter = prevBal + harvest.totalPayableAmount - existingLedger.creditAmount;
-      await existingLedger.save();
-    } else {
-      await farmerLedgerService.addEntry({
-        farmerId: harvest.farmerId,
-        harvestId: harvest._id,
-        entryType: 'SUPPLY',
-        description: `Finalized Harvest Supply ${harvest.harvestNumber}`,
-        debitAmount: harvest.totalPayableAmount,
-        creditAmount: 0,
-        createdBy: creatorUser.phone
-      });
+    const ledgerCreatedBy =
+      creatorUser?.phone ||
+      creatorUser?.email ||
+      String(creatorUser?._id || creatorUser?.id || 'erp-system');
+
+    try {
+      const existingLedger = await FarmerLedger.findOne({ harvestId: harvest._id });
+      if (existingLedger) {
+        existingLedger.debitAmount = harvest.totalPayableAmount;
+        const prev = await FarmerLedger.findOne({
+          farmerId: harvest.farmerId,
+          _id: { $ne: existingLedger._id },
+          createdAt: { $lt: existingLedger.createdAt }
+        }).sort({ createdAt: -1 });
+        const prevBal = prev ? prev.balanceAfter : 0;
+        existingLedger.balanceAfter = prevBal + harvest.totalPayableAmount - existingLedger.creditAmount;
+        await existingLedger.save();
+      } else {
+        await farmerLedgerService.addEntry({
+          farmerId: harvest.farmerId,
+          harvestId: harvest._id,
+          entryType: 'SUPPLY',
+          description: `Finalized Harvest Supply ${harvest.harvestNumber}`,
+          debitAmount: harvest.totalPayableAmount,
+          creditAmount: 0,
+          createdBy: ledgerCreatedBy,
+        });
+      }
+    } catch (ledgerErr) {
+      logger.error(
+        `[Farmer Ledger Sync Error]: Failed for harvest ${harvest.harvestNumber}: ${ledgerErr.message}`
+      );
+      throw new AppError(
+        `Purchase invoice saved but farmer ledger update failed: ${ledgerErr.message}`,
+        500
+      );
     }
 
     // Auto-update or post to Billing (Invoice) & Inventory Stocks

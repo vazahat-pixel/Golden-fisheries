@@ -8,6 +8,7 @@ import {
   requireWeb,
   requireMobile,
   enforcePlatformPolicy,
+  enforceProcurementPolicy,
   blockMobileWrite,
 } from '../../middleware/auth.middleware.js';
 import {
@@ -21,6 +22,7 @@ import {
 const router = Router();
 const web = [protect, requireWeb, enforcePlatformPolicy, blockMobileWrite];
 const mobile = [protect, requireMobile, enforcePlatformPolicy, blockMobileWrite];
+const procurementWrite = [protect, enforceProcurementPolicy, blockMobileWrite];
 /** Assign driver: buyer + procurement on phone, super admin on web */
 const dispatch = [protect, enforcePlatformPolicy, blockMobileWrite];
 
@@ -38,7 +40,7 @@ router.patch('/reject-trip', (req, res) => {
 // Procurement: Tapal from Harvest only
 router.post(
   '/create-from-harvest',
-  ...mobile,
+  ...procurementWrite,
   restrictTo(...PROCUREMENT),
   tapalController.createFromHarvest
 );

@@ -8,12 +8,14 @@ import {
   requireMobile,
   requireWeb,
   enforcePlatformPolicy,
+  enforceProcurementPolicy,
   blockMobileWrite,
 } from '../../middleware/auth.middleware.js';
 import { PROCUREMENT, WEB_ERP } from '../../constants/roleGroups.js';
 
 const router = Router();
 const mobile = [protect, requireMobile, enforcePlatformPolicy, blockMobileWrite];
+const procurementWrite = [protect, enforceProcurementPolicy, blockMobileWrite];
 const webRead = [protect, requireWeb, enforcePlatformPolicy];
 
 router.use(protect);
@@ -71,7 +73,7 @@ router.post(
 
 router.post(
   '/net-rate/:id',
-  ...mobile,
+  ...procurementWrite,
   restrictTo(...PROCUREMENT),
   harvestController.saveNetRate
 );

@@ -162,12 +162,14 @@ const NetRate = () => {
     navigate(targetPath);
   };
 
+const SAVEABLE_HARVEST_STATUSES = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', 'PARTIAL_USED'];
+
   const handleSave = async () => {
     if (!harvestId) {
       toast.error('Select harvest reference');
       return;
     }
-    if (harvest?.status && !['CONFIRMED', 'PARTIALLY_CONVERTED'].includes(harvest.status)) {
+    if (harvest?.status && !SAVEABLE_HARVEST_STATUSES.includes(harvest.status)) {
       toast.error(`Harvest status "${harvest.status}" — confirm farmer approval first`);
       return;
     }
@@ -177,19 +179,24 @@ const NetRate = () => {
       return;
     }
     try {
+      const sourceProducts = harvest?.products || harvest?.items || [];
       await saveNetRateAsync(harvestId, {
-        productRates: productRates.map((r) => ({
-          fishName: r.fishName,
-          estimatedQty: parseFloat(r.grossWeight) || 0,
-          rate: parseFloat(r.rate) || 0,
-        })),
+        productRates: productRates.map((r, idx) => {
+          const line = sourceProducts[idx];
+          return {
+            productId: line?.productId?._id || line?.productId,
+            fishName: r.fishName,
+            estimatedQty: parseFloat(r.grossWeight) || 0,
+            rate: parseFloat(r.rate) || 0,
+          };
+        }),
         ...Object.fromEntries(Object.entries(deductions).map(([k, v]) => [k, parseFloat(v) || 0])),
       });
       sessionStorage.removeItem('current_harvest_slip_creation');
       toast.success('Purchase invoice saved');
       navigate('/admin/procurement/harvest');
     } catch (err) {
-      toast.error(err?.message || 'Failed to save');
+      toast.error(err?.message || err?.data?.message || 'Failed to save');
     }
   };
 

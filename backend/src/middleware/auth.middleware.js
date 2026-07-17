@@ -200,3 +200,26 @@ export const enforcePlatformPolicy = (req, res, next) => {
   }
   return next();
 };
+
+/** Procurement APIs — allow PROCUREMENT_MANAGER on web ERP as well as mobile */
+export const enforceProcurementPolicy = (req, res, next) => {
+  const role = req.userRole;
+  const client = req.clientPlatform;
+  if (!client) return next();
+
+  const webOnly = [
+    ROLES.REST_MANAGER,
+    ROLES.REST_CASHIER,
+    ROLES.FISHMALL_MANAGER,
+    ROLES.FISHMALL_CASHIER,
+  ];
+  const mobileOnly = [ROLES.BUYER, ROLES.DRIVER, ROLES.VEHICLE_MANAGER];
+
+  if (client === PLATFORM_ACCESS.WEB && mobileOnly.includes(role)) {
+    return sendError(res, 'Your role is restricted to the mobile application.', 403);
+  }
+  if (client === PLATFORM_ACCESS.MOBILE && webOnly.includes(role)) {
+    return sendError(res, 'Your role is restricted to the web panel.', 403);
+  }
+  return next();
+};

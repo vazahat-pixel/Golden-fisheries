@@ -328,7 +328,7 @@ const CreateTapalFromHarvest = () => {
       toast.success('Tapal created — build a trip and assign driver from Logistics → Assign Driver');
       navigate('/admin/tapals');
     } catch (err) {
-      toast.error(err?.message || 'Failed to create tapal');
+      toast.error(err?.message || err?.data?.message || 'Failed to create tapal');
     } finally {
       setSubmitting(false);
     }

@@ -115,7 +115,6 @@ const tripSchema = new mongoose.Schema(
       ref: 'Tapal',
       required: false,
       default: null,
-      index: true,
     },
     driverId: {
       type: mongoose.Schema.Types.ObjectId,

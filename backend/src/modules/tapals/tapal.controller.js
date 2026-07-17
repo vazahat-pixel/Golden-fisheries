@@ -7,6 +7,7 @@ import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { broadcastEvent } from '../../sockets/socket.js';
 import { aliasTapalResponse, aliasTripResponse } from '../../utils/apiAliases.js';
+import { AppError } from '../../utils/appError.js';
 
 function aliasTapalTripPair(result) {
   if (!result) return result;
