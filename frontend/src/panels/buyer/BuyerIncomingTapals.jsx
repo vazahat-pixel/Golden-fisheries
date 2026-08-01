@@ -6,7 +6,18 @@ import { toast } from 'react-hot-toast';
 import { FieldPageWrap } from '../../design-system/field-app';
 import { useBuyerPaths } from './buyerPaths';
 
-const VERIFY_STATUSES = ['DELIVERED', 'IN_TRANSIT', 'BILL_PENDING', 'DRIVER_ASSIGNED'];
+const VERIFY_STATUSES = [
+  'CREATED',
+  'ASSIGNED',
+  'CONFIRMED',
+  'DRIVER_ASSIGNED',
+  'DRIVER_ACCEPTED',
+  'TRIP_STARTED',
+  'PICKED_UP',
+  'IN_TRANSIT',
+  'DELIVERED',
+  'BILL_PENDING'
+];
 
 function unwrapList(res) {
   if (Array.isArray(res)) return res;

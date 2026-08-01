@@ -22,20 +22,26 @@ async function buyerTapalFilter(user) {
   const phoneVariants = [...new Set([user.phone, p10].filter(Boolean))];
   const phoneTail = p10 ? new RegExp(`${p10.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) : null;
 
-  const buyerMaster = await Buyer.findOne({
+  // Use find() (not findOne) — the same buyer can end up with more than one
+  // Buyer master record (auto-synced from their user account + manually added
+  // via "+ Add Buyer" on different screens). A tapal may be linked to whichever
+  // duplicate was picked at creation time, so match against all of them.
+  const buyerMasters = await Buyer.find({
     isActive: { $ne: false },
     $or: [
       { phone: { $in: phoneVariants } },
       ...(phoneTail ? [{ phone: phoneTail }] : []),
     ],
-  });
+  }).select('_id');
 
   const or = [{ assignedBuyer: user._id }];
   if (phoneVariants.length) {
     or.push({ buyerPhone: { $in: phoneVariants } });
     if (phoneTail) or.push({ buyerPhone: phoneTail });
   }
-  if (buyerMaster) or.push({ buyerId: buyerMaster._id });
+  if (buyerMasters.length) {
+    or.push({ buyerId: { $in: buyerMasters.map((b) => b._id) } });
+  }
   return { $or: or, isDeleted: { $ne: true } };
 }
 

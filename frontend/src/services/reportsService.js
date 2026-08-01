@@ -2,23 +2,23 @@ import { apiClient } from './apiClient';
 
 export const reportsService = {
   // 1. Fetch Sales Summary
-  getSales: async () => {
-    return await apiClient.get('/reports/sales');
+  getSales: async (params = {}) => {
+    return await apiClient.get('/reports/sales', { params });
   },
 
   // 2. Fetch Expense Summary
-  getExpenses: async () => {
-    return await apiClient.get('/reports/expenses');
+  getExpenses: async (params = {}) => {
+    return await apiClient.get('/reports/expenses', { params });
   },
 
   // 3. Fetch Inventory Summary
-  getInventory: async () => {
-    return await apiClient.get('/reports/inventory');
+  getInventory: async (params = {}) => {
+    return await apiClient.get('/reports/inventory', { params });
   },
 
   // 4. Fetch Profitability (P&L) Summary
-  getProfitability: async () => {
-    return await apiClient.get('/reports/profitability');
+  getProfitability: async (params = {}) => {
+    return await apiClient.get('/reports/profitability', { params });
   },
 
   // 5. Fetch Dashboard Stats

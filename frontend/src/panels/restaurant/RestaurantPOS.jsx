@@ -511,6 +511,10 @@ const RestaurantPOS = () => {
                   navigate('/restaurant/dashboard');
                   return;
                 }
+                if (orderType === 'Dine In' && !tableLabel) {
+                  toast.error('Please select a Table Number before checkout');
+                  return;
+                }
                 setBillingView(true);
               }} 
               disabled={cart.length === 0} 

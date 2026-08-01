@@ -96,6 +96,19 @@ const TapalDetail = () => {
   const lines = tapal.products || [];
   const postTrip = trip?.postTripExpenses;
 
+  const computedTotalBoxes = lines.reduce(
+    (sum, item) => sum + (parseInt(item.noOfBoxes ?? item.boxes ?? item.boxQty, 10) || 0),
+    0
+  );
+  const computedTotalCount = lines.reduce(
+    (sum, item) => sum + (parseInt(item.count, 10) || 0),
+    0
+  );
+  const computedTotalBoxWeight = lines.reduce(
+    (sum, item) => sum + (parseFloat(item.boxWeight ?? item.weightPerBox) || 0),
+    0
+  );
+
   // Pre-fill item rows for grid visualization (standard 12 row notepad pad replica)
   const displayItems = [...lines];
   const minRows = 12;
@@ -121,9 +134,9 @@ const TapalDetail = () => {
 
   const notes = tapal.notes || harvest.remarks || harvest.notes || '';
   const damageNotes = tapal.damageNotes || harvest.damageComplaint || harvest.damageNotes || '';
-  const deductionsNotes = tapal.deductionsNotes || harvest.deductionsNotes || (tapal.iceRentDeducted || harvest.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED');
+  const deductionsNotes = tapal.deductionsNotes ?? harvest.deductionsNotes ?? (tapal.iceRentDeducted || harvest.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED');
 
-  const inWords = tapal.inWords || (grandTotal > 0 ? `${grandTotal} RUPEES ONLY` : `${tapal.totalWeight || tapal.qty || 0} KILOGRAMS ONLY`);
+  const inWords = tapal.inWords || (tapal.numericQty ? `${tapal.numericQty} KILOGRAMS ONLY` : `${tapal.totalWeight || tapal.qty || 0} KILOGRAMS ONLY`);
 
   return (
     <div className="space-y-4">
@@ -239,9 +252,7 @@ const TapalDetail = () => {
                       <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
                       <th className="py-1 px-1 border-r border-black w-[60px] leading-tight">NO OF<br/>BOXES</th>
                       <th className="py-1 px-1 border-r border-black w-[70px]">Box Weight</th>
-                      <th className="py-1 px-1 border-r border-black w-[80px]">Total Weight</th>
-                      <th className="py-1 px-1 border-r border-black w-[50px]">Rate</th>
-                      <th className="py-1 px-1 w-[90px]">Total Amount</th>
+                      <th className="py-1 px-1 w-[80px]">Total Weight</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -250,9 +261,6 @@ const TapalDetail = () => {
                       if (itemWeight && String(itemWeight).includes('KG')) {
                         itemWeight = String(itemWeight).replace(/[^\d.]/g, '');
                       }
-                      
-                      let itemRate = item.rate || '';
-                      let itemAmount = item.total || item.totalAmount || '';
 
                       return (
                         <tr key={item.id || index} className="border-b border-black h-[22px]">
@@ -274,14 +282,8 @@ const TapalDetail = () => {
                           <td className="border-r border-black">
                             {item.boxWeight || item.weightPerBox ? `${item.boxWeight || item.weightPerBox}` : ''}
                           </td>
-                          <td className="border-r border-black text-right pr-1">
-                            {itemWeight ? `${parseFloat(itemWeight).toFixed(2)}` : ''}
-                          </td>
-                          <td className="border-r border-black text-right pr-1">
-                            {itemRate ? `${parseFloat(String(itemRate).replace(/[^\d.]/g, '')).toFixed(2)}` : ''}
-                          </td>
                           <td className="text-right pr-1">
-                            {itemAmount ? `${parseFloat(String(itemAmount).replace(/[^\d.]/g, '')).toFixed(2)}` : ''}
+                            {itemWeight ? `${parseFloat(itemWeight).toFixed(2)}` : ''}
                           </td>
                         </tr>
                       );
@@ -289,69 +291,31 @@ const TapalDetail = () => {
 
                     {/* Totals Row */}
                     <tr className="border-b border-black font-bold h-[22px]">
-                      <td colSpan="4" className="border-r border-black"></td>
-                      <td className="border-r border-black text-center">{tapal.totalBoxes || tapal.totalNoOfBoxes || '0'}</td>
-                      <td className="border-r border-black"></td>
-                      <td className="border-r border-black text-right pr-1">{tapal.totalWeight || tapal.qty ? parseFloat(tapal.totalWeight || tapal.qty).toFixed(2) : '0'}</td>
-                      <td className="border-r border-black"></td>
-                      <td className="text-right pr-1">-</td>
+                      <td colSpan="3" className="border-r border-black"></td>
+                      <td className="border-r border-black text-center">{computedTotalCount > 0 ? computedTotalCount : ''}</td>
+                      <td className="border-r border-black text-center">{tapal.totalBoxes || tapal.totalNoOfBoxes || computedTotalBoxes || '0'}</td>
+                      <td className="border-r border-black text-center">{computedTotalBoxWeight > 0 ? parseFloat(computedTotalBoxWeight.toFixed(2)) : ''}</td>
+                      <td className="text-right pr-1">{tapal.totalWeight || tapal.qty ? parseFloat(tapal.totalWeight || tapal.qty).toFixed(2) : '0'}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Calculations & Deductions Footer Block */}
+            {/* Notes & Signatures Footer Block */}
             <div className="w-full flex flex-col text-[10px] font-bold text-black border-t border-black">
               
               {/* Notes Row 1 */}
               <div className="flex border-b border-black h-[22px]">
-                <div className="w-2/3 border-r border-black bg-[#FDF9EA] flex items-center justify-center">
+                <div className="w-full border-black bg-[#FDF9EA] flex items-center justify-center">
                   {notes || ''}
-                </div>
-                <div className="w-1/6 border-r border-black flex items-center justify-center">
-                  TDS @ 194Q
-                </div>
-                <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
-                  {tds ? parseFloat(tds).toFixed(2) : ''}
                 </div>
               </div>
 
               {/* Notes Row 2 */}
               <div className="flex border-b border-black h-[22px]">
-                <div className="w-2/3 border-r border-black flex items-center justify-center">
-                  {damageNotes || ''}
-                </div>
-                <div className="w-1/6 border-r border-black flex items-center justify-center">
-                  COMISSION
-                </div>
-                <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
-                   {commission ? parseFloat(commission).toFixed(2) : ''}
-                </div>
-              </div>
-
-              {/* Notes Row 3 */}
-              <div className="flex border-b border-black h-[22px]">
-                <div className="w-2/3 border-r border-black flex items-center justify-center text-red-600">
+                <div className="w-full flex items-center justify-center text-red-600">
                   {deductionsNotes}
-                </div>
-                <div className="w-1/6 border-r border-black flex items-center justify-center">
-                  LOADING
-                </div>
-                <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
-                  {soft ? parseFloat(soft).toFixed(2) : ''}
-                </div>
-              </div>
-
-              {/* Grand Total Row */}
-              <div className="flex border-b border-black h-[22px]">
-                <div className="w-2/3 border-r border-black flex items-center justify-center">
-                </div>
-                <div className="w-1/6 border-r border-black flex items-center justify-center">
-                  Grand Total
-                </div>
-                <div className="w-1/6 flex items-center justify-end pr-1 font-bold">
-                  {grandTotal ? parseFloat(grandTotal).toFixed(2) : ''}
                 </div>
               </div>
 

@@ -24,7 +24,7 @@
      reveal only the .print-root container. This ensures sidebars,
      navbars, modals, action buttons, etc. are NEVER printed.
   */
-  body {
+  body, body.is-field-app {
     background: white !important;
     color: black !important;
     margin: 0 !important;
@@ -33,6 +33,12 @@
 
   body * {
     visibility: hidden;
+  }
+
+  body *:not(.print-root):not(.print-root *) {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
   }
 
   /* ── 3. Reveal the Print Root ───────────────────────────── */

@@ -32,15 +32,15 @@ const FishMallBilling = () => {
   const addToCart = (fish) => {
     const weight = scale.getBillingWeight();
     if (Number.isNaN(weight) || weight <= 0) {
-      toast.error('Scale par weight nahi — machine check karein');
+      toast.error('No weight detected — please check the scale machine');
       return;
     }
     if (!scale.stable && scale.connected && !manualEntry) {
-      toast.error('Weight abhi stable nahi — thoda ruken ya scale settle karein');
+      toast.error('Weight is not stable yet — please wait for the scale to settle');
       return;
     }
     if (weight > fish.qty) {
-      toast.error(`Sirf ${fish.qty.toFixed(2)} kg available`);
+      toast.error(`Only ${fish.qty.toFixed(2)} kg available in stock`);
       return;
     }
 

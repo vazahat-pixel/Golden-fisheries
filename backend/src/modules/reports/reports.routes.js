@@ -14,13 +14,13 @@ import { WEB_ERP } from '../../constants/roleGroups.js';
 export const reportsController = {
   // Sales summaries
   getSalesSummary: asyncWrapper(async (req, res) => {
-    const data = await reportsService.getSalesSummary();
+    const data = await reportsService.getSalesSummary(req.query);
     new ApiResponse(200, data, 'Sales report summary aggregated successfully').send(res);
   }),
 
   // Expense summaries
   getExpenseSummary: asyncWrapper(async (req, res) => {
-    const data = await reportsService.getExpenseSummary();
+    const data = await reportsService.getExpenseSummary(req.query);
     new ApiResponse(200, data, 'Expense report summary aggregated successfully').send(res);
   }),
 
@@ -32,7 +32,7 @@ export const reportsController = {
 
   // P&L metrics
   getProfitSummary: asyncWrapper(async (req, res) => {
-    const data = await reportsService.getProfitSummary();
+    const data = await reportsService.getProfitSummary(req.query);
     new ApiResponse(200, data, 'Net profit ledger report aggregated successfully').send(res);
   }),
 

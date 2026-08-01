@@ -12,9 +12,10 @@ import {
 } from 'lucide-react';
 import { useFishMallStore } from '../../store/fishMallStore';
 import { fishmallService } from '../../services/fishmallService';
+import { restaurantOutletService, unwrapOutletList } from '../../services/restaurantOutletService';
 import { Button } from '../../design-system/components/Button';
 
-const DESTINATIONS = [{ id: 'RESTAURANT', label: 'GF Restaurant Kitchen' }];
+const DEFAULT_DESTINATION = 'GF Restaurant Kitchen';
 
 const emptyLine = () => ({ fishMallItemId: '', quantity: '', rate: '' });
 
@@ -39,7 +40,8 @@ const FishMallInternalSupply = () => {
   const { stock, fetchStock } = useFishMallStore();
   const [lines, setLines] = useState([emptyLine()]);
   const [remarks, setRemarks] = useState('');
-  const [destination, setDestination] = useState(DESTINATIONS[0].label);
+  const [destination, setDestination] = useState(DEFAULT_DESTINATION);
+  const [destinations, setDestinations] = useState([{ id: 'RESTAURANT', label: DEFAULT_DESTINATION }]);
   const [submitting, setSubmitting] = useState(false);
   const [history, setHistory] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -49,6 +51,18 @@ const FishMallInternalSupply = () => {
 
   useEffect(() => {
     fetchStock();
+    // Fetch restaurant outlets dynamically
+    restaurantOutletService.list({ active: true })
+      .then((res) => {
+        const list = unwrapOutletList(res);
+        if (list.length > 0) {
+          setDestinations(list.map((o) => ({ id: o._id || o.id, label: o.name || o.outletName || 'GF Restaurant Kitchen' })));
+          setDestination(list[0].name || list[0].outletName || DEFAULT_DESTINATION);
+        }
+      })
+      .catch(() => {
+        // Silently fall back to default
+      });
   }, [fetchStock]);
 
   const loadHistory = useCallback(async () => {
@@ -204,7 +218,7 @@ const FishMallInternalSupply = () => {
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
               >
-                {DESTINATIONS.map((d) => (
+                {destinations.map((d) => (
                   <option key={d.id} value={d.label}>
                     {d.label}
                   </option>

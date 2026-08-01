@@ -121,8 +121,8 @@ const CreateHarvestSlipV2 = () => {
   ]);
 
   // Bottom notes & settings
-  const [notes, setNotes] = useState('BLACK GILL SECOND QUALITY ( EXP )');
-  const [damageNotes, setDamageNotes] = useState('THIRD QUALITY DAMAGE MATERIALS & DIO COMPLAINT');
+  const [notes, setNotes] = useState('');
+  const [damageNotes, setDamageNotes] = useState('');
   const [iceRentDeducted, setIceRentDeducted] = useState(false);
   const [deductionsNotes, setDeductionsNotes] = useState('ICE & VEHICLE RENT NOT DEDUCTED');
   const [inWords, setInWords] = useState('');
@@ -141,10 +141,10 @@ const CreateHarvestSlipV2 = () => {
           if (parsed.vehicleNo) setVehicleNo(parsed.vehicleNo);
           if (parsed.driverName) setDriverName(parsed.driverName);
           if (parsed.graderName) setGraderName(parsed.graderName);
-          if (parsed.notes) setNotes(parsed.notes);
-          if (parsed.damageNotes) setDamageNotes(parsed.damageNotes);
+          if (parsed.notes !== undefined) setNotes(parsed.notes);
+          if (parsed.damageNotes !== undefined) setDamageNotes(parsed.damageNotes);
           if (parsed.iceRentDeducted !== undefined) setIceRentDeducted(parsed.iceRentDeducted);
-          if (parsed.deductionsNotes) {
+          if (parsed.deductionsNotes !== undefined) {
             setDeductionsNotes(parsed.deductionsNotes);
           } else if (parsed.iceRentDeducted !== undefined) {
             setDeductionsNotes(parsed.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED');

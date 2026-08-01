@@ -409,7 +409,10 @@ class InternalSupplyService {
   }
 
   async getSummary(query = {}) {
-    const filter = { status: 'ISSUED', toScope: 'RESTAURANT' };
+    const filter = { 
+      status: { $in: ['PENDING_ACCEPTANCE', 'ACCEPTED', 'PARTIAL_ACCEPTED'] }, 
+      toScope: 'RESTAURANT' 
+    };
     if (query.from || query.to) {
       filter.billDate = {};
       if (query.from) filter.billDate.$gte = new Date(query.from);
@@ -442,7 +445,7 @@ class InternalSupplyService {
       .limit(parseInt(limit, 10))
       .populate('itemId', 'name rate unit')
       .populate('performedBy', 'fullName');
-    const bills = await InternalSupplyBill.find({ status: 'ISSUED' }).sort({ billDate: -1 }).limit(50);
+    const bills = await InternalSupplyBill.find({ status: { $ne: 'CANCELLED' } }).sort({ billDate: -1 }).limit(50);
     return {
       scope: INVENTORY_SCOPES.FISHMALL,
       movementLogs: logs,
@@ -494,7 +497,7 @@ class InternalSupplyService {
     end.setHours(23, 59, 59, 999);
 
     const bills = await InternalSupplyBill.find({
-      status: 'ISSUED',
+      status: { $in: ['PENDING_ACCEPTANCE', 'ACCEPTED', 'PARTIAL_ACCEPTED'] },
       billDate: { $gte: start, $lte: end },
     });
 

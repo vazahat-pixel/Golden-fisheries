@@ -15,11 +15,21 @@ export const reportsService = {
   /**
    * Aggregates dynamic sales trends across all panels (Wholesale Billing, Restaurant POS, FishMall Retail)
    */
-  getSalesSummary: async () => {
+  /**
+   * Aggregates dynamic sales trends across all panels (Wholesale Billing, Restaurant POS, FishMall Retail)
+   */
+  getSalesSummary: async (query = {}) => {
     try {
+      const matchDate = {};
+      if (query.from || query.to) {
+        matchDate.createdAt = {};
+        if (query.from) matchDate.createdAt.$gte = new Date(query.from);
+        if (query.to) matchDate.createdAt.$lte = new Date(query.to);
+      }
+
       // 1. Wholesale Invoicing
       const wholesale = await Billing.aggregate([
-        { $match: { paymentStatus: { $ne: 'OVERDUE' } } },
+        { $match: { paymentStatus: { $ne: 'OVERDUE' }, ...matchDate } },
         {
           $group: {
             _id: null,
@@ -33,7 +43,7 @@ export const reportsService = {
 
       // 2. Restaurant POS Dine-In/Takeaway
       const restaurant = await RestaurantOrder.aggregate([
-        { $match: { status: 'PAID' } },
+        { $match: { status: 'PAID', ...matchDate } },
         {
           $group: {
             _id: null,
@@ -56,6 +66,7 @@ export const reportsService = {
 
       // 3. FishMall retail stores
       const fishmall = await FishMallSale.aggregate([
+        { $match: matchDate },
         {
           $group: {
             _id: null,
@@ -88,9 +99,15 @@ export const reportsService = {
   /**
    * Aggregates corporate operational expenses
    */
-  getExpenseSummary: async () => {
+  getExpenseSummary: async (query = {}) => {
+    const matchDate = { status: 'APPROVED' };
+    if (query.from || query.to) {
+      matchDate.createdAt = {};
+      if (query.from) matchDate.createdAt.$gte = new Date(query.from);
+      if (query.to) matchDate.createdAt.$lte = new Date(query.to);
+    }
     return await Expense.aggregate([
-      { $match: { status: 'APPROVED' } },
+      { $match: matchDate },
       {
         $group: {
           _id: '$expenseType',
@@ -143,11 +160,11 @@ export const reportsService = {
   /**
    * Calculates corporate net profitability metrics (Sales - Expenses)
    */
-  getProfitSummary: async () => {
-    const sales = await reportsService.getSalesSummary();
-    const expensesAgg = await reportsService.getExpenseSummary();
+  getProfitSummary: async (query = {}) => {
+    const sales = await reportsService.getSalesSummary(query);
+    const expensesAgg = await reportsService.getExpenseSummary(query);
 
-    const totalSpentExpenses = expensesAgg.reduce((sum, item) => sum + item.totalSpent, 0);
+    const totalSpentExpenses = expensesAgg.reduce((sum, item) => sum + (item.totalSpent || 0), 0);
     const netProfit = sales.totalCumulativeRevenue - totalSpentExpenses;
 
     return {

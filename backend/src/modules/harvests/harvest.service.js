@@ -96,6 +96,7 @@ class HarvestService extends BaseService {
         productId: item.productId,
         fishName: item.fishName,
         hsnCode: item.hsnCode,
+        count: item.count || '',
         numericQty: 0,
         boxQty: 0,
         rate: activeRate,
@@ -248,6 +249,7 @@ class HarvestService extends BaseService {
         return {
           name: p.fishName.toUpperCase(),
           hsnCode: p.hsnCode,
+          count: p.count || '',
           qty: `${p.numericQty.toFixed(2)} KG`,
           numericQty: p.numericQty,
           rate: `₹${p.rate}`,

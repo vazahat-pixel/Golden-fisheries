@@ -77,9 +77,22 @@ export const flowGuard = {
   async assertBuyerCanVerify(tapalId) {
     const tapal = await Tapal.findById(tapalId);
     if (!tapal) throw new AppError('Tapal not found', 404);
-    if (!['IN_TRANSIT', 'DELIVERED', 'BILL_PENDING'].includes(tapal.status)) {
+    
+    const allowed = [
+      'CREATED',
+      'ASSIGNED',
+      'CONFIRMED',
+      'DRIVER_ASSIGNED',
+      'DRIVER_ACCEPTED',
+      'TRIP_STARTED',
+      'PICKED_UP',
+      'IN_TRANSIT',
+      'DELIVERED',
+      'BILL_PENDING'
+    ];
+    if (!allowed.includes(tapal.status)) {
       throw new AppError(
-        `Cannot verify. Tapal status is "${tapal.status}". Must be IN_TRANSIT, DELIVERED, or BILL_PENDING.`,
+        `Cannot verify. Tapal status is "${tapal.status}".`,
         400
       );
     }

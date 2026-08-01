@@ -311,9 +311,9 @@ const HarvestSlipPreview = () => {
                       <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
                       <th className="py-1 px-1 border-r border-black w-[60px] leading-tight">NO OF<br/>BOXES</th>
                       <th className="py-1 px-1 border-r border-black w-[70px]">Box Weight</th>
-                      <th className="py-1 px-1 border-r border-black w-[80px]">Total Weight</th>
-                      <th className="py-1 px-1 border-r border-black w-[50px]">Rate</th>
-                      <th className="py-1 px-1 w-[90px]">Total Amount</th>
+                      <th className="py-1 px-1 w-[80px]">Total Weight</th>
+                      {isInvoice && <th className="py-1 px-1 border-l border-black border-r border-black w-[50px]">Rate</th>}
+                      {isInvoice && <th className="py-1 px-1 w-[90px]">Total Amount</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -348,15 +348,15 @@ const HarvestSlipPreview = () => {
                           <td className="border-r border-black">
                             {item.boxWeight ? `${item.boxWeight}` : ''}
                           </td>
-                          <td className="border-r border-black">
-                            {item.totalWeight ? `${parseFloat(item.totalWeight).toFixed(2)}` : (placeholderTotalWeight || '')}
+                          <td className={isInvoice ? 'border-r border-black' : 'text-right pr-1'}>
+                            {item.totalWeight ? `${parseFloat(item.totalWeight).toFixed(2)}` : ''}
                           </td>
-                          <td className="border-r border-black">
-                            {item.rate || placeholderRate || ''}
-                          </td>
-                          <td className="text-right pr-1">
-                            {item.totalAmount ? `${parseFloat(item.totalAmount).toFixed(2)}` : (placeholderTotalAmount || '-')}
-                          </td>
+                          {isInvoice && <td className="border-r border-black">
+                            {item.rate || ''}
+                          </td>}
+                          {isInvoice && <td className="text-right pr-1">
+                            {item.totalAmount ? `${parseFloat(item.totalAmount).toFixed(2)}` : '-'}
+                          </td>}
                         </tr>
                       );
                     })}
@@ -366,9 +366,9 @@ const HarvestSlipPreview = () => {
                       <td colSpan="4" className="border-r border-black"></td>
                       <td className="border-r border-black text-center">{slip.totalBoxes || '0'}</td>
                       <td className="border-r border-black"></td>
-                      <td className="border-r border-black text-center">{slip.totalWeight ? parseFloat(slip.totalWeight).toFixed(2) : '0'}</td>
-                      <td className="border-r border-black"></td>
-                      <td className="text-right pr-1">-</td>
+                      <td className={isInvoice ? 'border-r border-black text-center' : 'text-right pr-1'}>{slip.totalWeight ? parseFloat(slip.totalWeight).toFixed(2) : '0'}</td>
+                      {isInvoice && <td className="border-r border-black"></td>}
+                      {isInvoice && <td className="text-right pr-1">-</td>}
                     </tr>
                   </tbody>
                 </table>
@@ -382,12 +382,12 @@ const HarvestSlipPreview = () => {
                   <div className="w-2/3 border-r border-black bg-[#FDF9EA] flex items-center justify-center">
                     {slip.notes || ''}
                   </div>
-                  <div className="w-1/6 border-r border-black flex items-center justify-center">
+                  {isInvoice && <div className="w-1/6 border-r border-black flex items-center justify-center">
                     TDS @ 194Q
-                  </div>
-                  <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                  </div>}
+                  {isInvoice && <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
                     {slip.tds ? parseFloat(slip.tds).toFixed(2) : ''}
-                  </div>
+                  </div>}
                 </div>
 
                 {/* Notes Row 2 */}
@@ -395,29 +395,29 @@ const HarvestSlipPreview = () => {
                   <div className="w-2/3 border-r border-black flex items-center justify-center">
                     {slip.damageNotes || ''}
                   </div>
-                  <div className="w-1/6 border-r border-black flex items-center justify-center">
+                  {isInvoice && <div className="w-1/6 border-r border-black flex items-center justify-center">
                     COMISSION
-                  </div>
-                  <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                  </div>}
+                  {isInvoice && <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
                      {slip.commission ? parseFloat(slip.commission).toFixed(2) : ''}
-                  </div>
+                  </div>}
                 </div>
 
                 {/* Notes Row 3 */}
                 <div className="flex border-b border-black h-[22px]">
                   <div className="w-2/3 border-r border-black flex items-center justify-center text-red-600">
-                    {slip.deductionsNotes || (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED')}
+                    {slip.deductionsNotes ?? (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED')}
                   </div>
-                  <div className="w-1/6 border-r border-black flex items-center justify-center">
+                  {isInvoice && <div className="w-1/6 border-r border-black flex items-center justify-center">
                     SOFT
-                  </div>
-                  <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
+                  </div>}
+                  {isInvoice && <div className="w-1/6 flex items-center justify-end pr-1 font-semibold">
                     {slip.soft ? parseFloat(slip.soft).toFixed(2) : ''}
-                  </div>
+                  </div>}
                 </div>
 
-                {/* Grand Total Row */}
-                <div className="flex h-[22px]">
+                {/* Grand Total Row — invoice only */}
+                {isInvoice && <div className="flex h-[22px]">
                   <div className="w-2/3 border-r border-black flex items-center justify-center">
                   </div>
                   <div className="w-1/6 border-r border-black flex items-center justify-center">
@@ -426,7 +426,7 @@ const HarvestSlipPreview = () => {
                   <div className="w-1/6 flex items-center justify-end pr-1 font-bold">
                     {slip.grandTotal ? parseFloat(slip.grandTotal).toFixed(2) : ''}
                   </div>
-                </div>
+                </div>}
 
               </div>
 

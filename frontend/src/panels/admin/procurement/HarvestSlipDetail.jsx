@@ -225,7 +225,7 @@ const HarvestSlipDetail = () => {
                 : 'bg-red-50 text-red-700 border-red-200'
             }`}>
               <ShieldAlert size={16} />
-              {slip.deductionsNotes || (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTION CONFIRMED' : 'ICE & VEHICLE RENT NOT DEDUCTED IN THIS LOADS ENTRY')}
+              {slip.deductionsNotes ?? (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTION CONFIRMED' : 'ICE & VEHICLE RENT NOT DEDUCTED IN THIS LOADS ENTRY')}
             </div>
           </div>
         </div>
@@ -270,6 +270,13 @@ const HarvestSlipDetail = () => {
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-100/60 text-emerald-800 border border-emerald-200 font-extrabold text-[10px] uppercase">
                 <CheckCircle size={12} /> Status: Approved
               </div>
+              {/* Admin override — re-force confirm if needed */}
+              <button
+                onClick={handleApprove}
+                className="w-full border border-emerald-400 bg-white text-emerald-700 hover:bg-emerald-50 py-2.5 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
+              >
+                <Check size={14} /> Admin Override — Re-Confirm Approval
+              </button>
             </div>
           )}
 
@@ -281,6 +288,12 @@ const HarvestSlipDetail = () => {
               <p className="text-xs text-red-800 leading-relaxed font-medium">
                 This shipment has been rejected by administration. No stocks will be updated, and transaction logs are cancelled.
               </p>
+              <button
+                onClick={handleApprove}
+                className="w-full bg-[#6A7051] text-white py-3 text-xs font-black uppercase tracking-widest hover:bg-[#5F6846] transition-all flex items-center justify-center gap-2 shadow-md active:translate-y-0.5"
+              >
+                <Check size={16} /> Override & Approve Anyway
+              </button>
             </div>
           )}
 

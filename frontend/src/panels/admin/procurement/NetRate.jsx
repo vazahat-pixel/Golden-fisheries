@@ -19,6 +19,7 @@ const NetRate = () => {
 
   const [harvestId, setHarvestId] = useState(preselectId || '');
   const [productRates, setProductRates] = useState([]);
+  const userEditedRef = React.useRef(false); // tracks if user manually edited any rate
   const [deductions, setDeductions] = useState({
     tds: '',
     commission: '',
@@ -31,6 +32,7 @@ const NetRate = () => {
 
   const handleHarvestChange = (val) => {
     setHarvestId(val);
+    userEditedRef.current = false; // reset dirty flag on harvest change
     if (val) {
       setSearchParams({ harvestId: val }, { replace: true });
     } else {
@@ -49,6 +51,8 @@ const NetRate = () => {
 
   useEffect(() => {
     if (!harvest) return;
+    // Don't reset user-entered rates unless harvest selection changed
+    if (userEditedRef.current) return;
 
     // Check if we have temporary preview data in sessionStorage matching this harvest ID
     const rawTemp = sessionStorage.getItem('current_harvest_slip_creation');
@@ -193,6 +197,7 @@ const SAVEABLE_HARVEST_STATUSES = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', '
         ...Object.fromEntries(Object.entries(deductions).map(([k, v]) => [k, parseFloat(v) || 0])),
       });
       sessionStorage.removeItem('current_harvest_slip_creation');
+      userEditedRef.current = false; // allow useEffect to re-sync rates after save
       toast.success('Purchase invoice saved');
       navigate('/admin/procurement/harvest');
     } catch (err) {
@@ -291,13 +296,14 @@ const SAVEABLE_HARVEST_STATUSES = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', '
                     />
                   </td>
                   <td className="text-right">
-                    <input
+                  <input
                       className={`${erpInputClass} text-right min-w-[88px]`}
                       inputMode="decimal"
                       placeholder="Enter rate"
                       aria-label={`Rate per kg for ${row.fishName || `line ${idx + 1}`}`}
                       value={row.rate}
                       onChange={(e) => {
+                        userEditedRef.current = true; // mark as user-edited
                         const next = [...productRates];
                         next[idx] = { ...row, rate: e.target.value };
                         setProductRates(next);
