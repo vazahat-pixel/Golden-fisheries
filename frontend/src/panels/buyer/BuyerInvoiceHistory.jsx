@@ -1,12 +1,44 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { buyerPortalService } from '../../services/buyerPortalService';
-import { Printer } from 'lucide-react';
+import { Printer, Download } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { FieldPageWrap } from '../../design-system/field-app';
 
 const BuyerInvoiceHistory = () => {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [printBill, setPrintBill] = useState(null);
+  const printAreaRef = useRef(null);
+
+  const handleDownloadPDF = async () => {
+    const element = printAreaRef.current;
+    if (!element) return;
+
+    const loadToast = toast.loading('Generating bill PDF...');
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#FFFFFF',
+      });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+      const imgX = (pdfWidth - canvas.width * ratio) / 2;
+
+      pdf.addImage(imgData, 'PNG', imgX, 10, canvas.width * ratio, canvas.height * ratio);
+      pdf.save(`BuyerBill_${printBill?.billNo || 'bill'}.pdf`);
+      toast.success('Bill PDF downloaded', { id: loadToast });
+    } catch (error) {
+      console.error('Error generating bill PDF', error);
+      toast.error('Error generating PDF', { id: loadToast });
+    }
+  };
 
   useEffect(() => {
     buyerPortalService
@@ -61,13 +93,24 @@ const BuyerInvoiceHistory = () => {
               </button>
               <button
                 type="button"
+                onClick={handleDownloadPDF}
+                className="text-sm font-bold uppercase flex items-center gap-1 text-[var(--fa-accent)] fa-tap"
+              >
+                <Download size={14} /> PDF
+              </button>
+              <button
+                type="button"
                 onClick={() => window.print()}
                 className="text-sm font-bold uppercase flex items-center gap-1 text-[var(--fa-accent)] fa-tap"
               >
                 <Printer size={14} /> Print
               </button>
             </div>
-            <div className="print-root p-6 border-2 border-black m-4 text-sm bg-white text-black rounded-md">
+            <div
+              ref={printAreaRef}
+              className="print-root p-6 border-2 border-black m-4 text-sm rounded-md"
+              style={{ background: '#ffffff', color: '#000000' }}
+            >
               <h2 className="text-center font-bold uppercase border-b pb-2 mb-3">Buyer Bill</h2>
               <p>
                 <strong>Bill No:</strong> {printBill.billNo}

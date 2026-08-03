@@ -30,7 +30,10 @@ const DriverExpenseBillPrint = () => {
   return (
     <div className="p-4 md:p-8 bg-gray-100 min-h-screen">
       <PrintActions onBack={() => navigate(-1)} title="Driver End Trip Sheet" />
-      <div className="print-root max-w-[210mm] mx-auto bg-white border-2 border-black p-[10mm] text-black text-sm">
+      <div
+        className="print-root max-w-[210mm] mx-auto border-2 border-black p-[10mm] text-sm"
+        style={{ background: '#ffffff', color: '#000000' }}
+      >
         <div className="text-center border-b-2 border-black pb-2 mb-3">
           <h1 className="text-base font-bold uppercase tracking-widest">Golden Fisheries</h1>
           <p className="text-xs uppercase">Driver End Trip / Expense Sheet</p>

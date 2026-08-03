@@ -254,7 +254,7 @@ class HarvestService extends BaseService {
           numericQty: p.numericQty,
           rate: `₹${p.rate}`,
           total: `₹${p.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
-          boxQty: p.boxQty ? Math.round(p.boxQty) : null,
+          boxQty: p.boxQty ? Math.ceil(p.boxQty) : null,
           weightPerBox: p.weightPerBox,
           totalWeight: p.numericQty
         };

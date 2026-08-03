@@ -271,17 +271,11 @@ const TapalPreview = () => {
                       <th className="py-1 px-1 border-r border-black text-left pl-1">Particulars</th>
                       <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
                       <th className="py-1 px-1 border-r border-black w-[60px] leading-tight">NO OF<br/>BOXES</th>
-                      <th className="py-1 px-1 border-r border-black w-[70px]">Box Weight</th>
-                      <th className="py-1 px-1 w-[80px]">Total Weight</th>
+                      <th className="py-1 px-1 w-[70px]">Box Weight</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayItems.map((item, index) => {
-                      let itemWeight = item.totalWeight || item.weight || item.qty || '';
-                      if (itemWeight && String(itemWeight).includes('KG')) {
-                        itemWeight = String(itemWeight).replace(/[^\d.]/g, '');
-                      }
-
                       return (
                         <tr key={item.id || index} className="border-b border-black h-[22px]">
                           <td className="border-r border-black">
@@ -299,11 +293,8 @@ const TapalPreview = () => {
                           <td className="border-r border-black">
                             {item.noOfBoxes || item.boxes || item.boxQty || ''}
                           </td>
-                          <td className="border-r border-black">
+                          <td>
                             {item.boxWeight || item.weightPerBox ? `${item.boxWeight || item.weightPerBox}` : ''}
-                          </td>
-                          <td className="text-right pr-1">
-                            {itemWeight ? `${parseFloat(itemWeight).toFixed(2)}` : ''}
                           </td>
                         </tr>
                       );
@@ -314,8 +305,7 @@ const TapalPreview = () => {
                       <td colSpan="3" className="border-r border-black"></td>
                       <td className="border-r border-black text-center">{computedTotalCount > 0 ? computedTotalCount : ''}</td>
                       <td className="border-r border-black text-center">{tapal.totalBoxes || tapal.totalNoOfBoxes || computedTotalBoxes || '0'}</td>
-                      <td className="border-r border-black text-center">{computedTotalBoxWeight > 0 ? parseFloat(computedTotalBoxWeight.toFixed(2)) : ''}</td>
-                      <td className="text-right pr-1">{tapal.totalWeight || tapal.qty ? parseFloat(tapal.totalWeight || tapal.qty).toFixed(2) : '0'}</td>
+                      <td className="text-center">{computedTotalBoxWeight > 0 ? parseFloat(computedTotalBoxWeight.toFixed(2)) : ''}</td>
                     </tr>
                   </tbody>
                 </table>
