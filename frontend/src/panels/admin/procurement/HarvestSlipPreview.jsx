@@ -406,7 +406,7 @@ const HarvestSlipPreview = () => {
                 {/* Notes Row 3 */}
                 <div className="flex border-b border-black h-[22px]">
                   <div className="w-2/3 border-r border-black flex items-center justify-center text-red-600">
-                    {slip.deductionsNotes ?? (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED')}
+                    {slip.iceRentDeducted ? (slip.deductionsNotes || 'ICE & VEHICLE RENT DEDUCTED') : ''}
                   </div>
                   {isInvoice && <div className="w-1/6 border-r border-black flex items-center justify-center">
                     SOFT

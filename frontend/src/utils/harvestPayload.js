@@ -102,7 +102,7 @@ export function mapHarvestFromApi(h) {
     deductionOther: h.deductionOther ?? 0,
     grandTotal: totalPayable,
     inWords: h.inWords || (totalPayable > 0 ? `${totalPayable} RUPEES ONLY` : ''),
-    iceRentDeducted: h.deductionsNotes === 'ICE & VEHICLE RENT DEDUCTED' || !!h.deductionTransport,
+    iceRentDeducted: h.deductionsNotes === 'ICE & VEHICLE RENT DEDUCTED',
     products: h.products || [],
     items: (h.products || []).map((p, idx) => ({
       id: String(idx + 1),

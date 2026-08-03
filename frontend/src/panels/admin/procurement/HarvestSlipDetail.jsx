@@ -218,15 +218,13 @@ const HarvestSlipDetail = () => {
               </div>
             </div>
 
-            {/* Rent warning */}
-            <div className={`p-3 border text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
-              slip.iceRentDeducted 
-                ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                : 'bg-red-50 text-red-700 border-red-200'
-            }`}>
-              <ShieldAlert size={16} />
-              {slip.deductionsNotes ?? (slip.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTION CONFIRMED' : 'ICE & VEHICLE RENT NOT DEDUCTED IN THIS LOADS ENTRY')}
-            </div>
+            {/* Rent warning — only shown when the deduction was actually applied */}
+            {slip.iceRentDeducted && (
+              <div className="p-3 border text-xs font-bold uppercase tracking-wider flex items-center gap-2 bg-amber-50 text-amber-700 border-amber-200">
+                <ShieldAlert size={16} />
+                {slip.deductionsNotes || 'ICE & VEHICLE RENT DEDUCTION CONFIRMED'}
+              </div>
+            )}
           </div>
         </div>
 

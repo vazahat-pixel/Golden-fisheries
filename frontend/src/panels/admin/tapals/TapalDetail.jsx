@@ -134,7 +134,8 @@ const TapalDetail = () => {
 
   const notes = tapal.notes || harvest.remarks || harvest.notes || '';
   const damageNotes = tapal.damageNotes || harvest.damageComplaint || harvest.damageNotes || '';
-  const deductionsNotes = tapal.deductionsNotes ?? harvest.deductionsNotes ?? (tapal.iceRentDeducted || harvest.iceRentDeducted ? 'ICE & VEHICLE RENT DEDUCTED' : 'ICE & VEHICLE RENT NOT DEDUCTED');
+  const rawDeductionsNotes = tapal.deductionsNotes ?? harvest.deductionsNotes ?? '';
+  const deductionsNotes = !rawDeductionsNotes || /NOT\s+DEDUCTED/i.test(rawDeductionsNotes) ? '' : rawDeductionsNotes;
 
   const inWords = tapal.inWords || (tapal.numericQty ? `${tapal.numericQty} KILOGRAMS ONLY` : `${tapal.totalWeight || tapal.qty || 0} KILOGRAMS ONLY`);
 
