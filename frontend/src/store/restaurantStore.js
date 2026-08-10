@@ -308,16 +308,15 @@ export const useRestaurantStore = create(
           const res = await restaurantService.getMenu();
           const list = res?.docs || res?.data || (Array.isArray(res) ? res : []);
           const mapped = list
-            .filter((item) => isValidObjectId(item._id || item.id))
+            .filter((item) => Boolean(item && (item._id || item.id)))
             .map((item) => {
-              const hasMenu = isValidObjectId(item.menuItemId);
-              const rowId = item._id || item.id;
+              const rowId = String(item._id || item.id);
+              const hasMenu = Boolean(item.menuItemId || item._id);
               return {
                 ...item,
                 id: rowId,
-                menuItemId: hasMenu ? item.menuItemId : null,
-                inventoryItemId:
-                  item.inventoryItemId || (!hasMenu && item.menuItemId == null ? rowId : null),
+                menuItemId: item.menuItemId ? String(item.menuItemId) : String(rowId),
+                inventoryItemId: item.inventoryItemId ? String(item.inventoryItemId) : null,
                 price: item.price ?? item.sellingPrice ?? item.rate ?? 0,
                 stock: item.stock ?? item.quantity ?? 0,
                 isKitchenSku: !hasMenu && item.menuItemId == null,
