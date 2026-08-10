@@ -296,7 +296,6 @@ const AppRouter = () => {
               <PanelLayout
                 navItems={restaurantNav}
                 panelName="GF Restaurant"
-                userName="Suresh"
                 panelKind="restaurant"
                 alertsHref="/restaurant/received-stock"
               >
@@ -332,7 +331,6 @@ const AppRouter = () => {
               <PanelLayout
                 navItems={fishMallNav}
                 panelName="GF Fish Mall"
-                userName="Ramesh"
                 panelKind="fishmall"
                 alertsHref="/fishmall/alerts"
               >
