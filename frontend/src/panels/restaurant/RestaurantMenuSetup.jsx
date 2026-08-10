@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Plus, ChefHat, Package, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, ChefHat, Package, RefreshCw, Edit2, Trash2, X, Check } from 'lucide-react';
 import { restaurantService } from '../../services/restaurantService';
 import { useRestaurantStore } from '../../store/restaurantStore';
 import { Button } from '../../design-system/components/Button';
+import { Card } from '../../design-system/components/Card';
+import { Badge } from '../../design-system/components/Badge';
 
 const emptyIngredient = () => ({ inventoryItemId: '', itemName: '', quantityPerServe: '' });
 
@@ -17,8 +19,11 @@ const RestaurantMenuSetup = () => {
   const [category, setCategory] = useState('Main Course');
   const [price, setPrice] = useState('');
   const [recipe, setRecipe] = useState([emptyIngredient()]);
+  const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loadingStock, setLoadingStock] = useState(false);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loadingMenu, setLoadingMenu] = useState(false);
 
   const loadStock = async () => {
     setLoadingStock(true);
@@ -29,8 +34,22 @@ const RestaurantMenuSetup = () => {
     }
   };
 
+  const loadMenuItems = async () => {
+    setLoadingMenu(true);
+    try {
+      const res = await restaurantService.getMenu();
+      const docs = Array.isArray(res?.data) ? res.data : res?.docs ?? res ?? [];
+      setMenuItems(docs);
+    } catch (err) {
+      console.warn('Failed to fetch menu items:', err);
+    } finally {
+      setLoadingMenu(false);
+    }
+  };
+
   useEffect(() => {
     loadStock();
+    loadMenuItems();
   }, []);
 
   const inventory = (kitchenStock || []).filter((item) => invId(item));
@@ -54,6 +73,45 @@ const RestaurantMenuSetup = () => {
 
   const updateRecipeLine = (idx, field, value) => {
     setRecipe((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
+  };
+
+  const startEdit = (item) => {
+    setEditingId(item._id || item.id);
+    setName(item.name || '');
+    setCategory(item.category || 'Main Course');
+    setPrice(String(item.sellingPrice ?? item.price ?? ''));
+    if (item.recipe && item.recipe.length > 0) {
+      setRecipe(
+        item.recipe.map((r) => ({
+          inventoryItemId: String(r.inventoryItemId || ''),
+          itemName: r.itemName || '',
+          quantityPerServe: String(r.quantityPerServe || ''),
+        }))
+      );
+    } else {
+      setRecipe([emptyIngredient()]);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setName('');
+    setCategory('Main Course');
+    setPrice('');
+    setRecipe([emptyIngredient()]);
+  };
+
+  const handleDelete = async (item) => {
+    if (!window.confirm(`Are you sure you want to delete "${item.name}" from menu?`)) return;
+    try {
+      await restaurantService.deleteMenuItem(item._id || item.id);
+      toast.success(`Dish "${item.name}" deleted`);
+      if (editingId === (item._id || item.id)) cancelEdit();
+      await loadMenuItems();
+    } catch (err) {
+      toast.error(err?.message || err?.response?.data?.message || 'Failed to delete menu item');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -81,18 +139,25 @@ const RestaurantMenuSetup = () => {
 
     setSaving(true);
     try {
-      await restaurantService.createMenuItem({
+      const payload = {
         name: name.trim(),
         category,
         sellingPrice: parseFloat(price) || 0,
         gstRate: 5,
         recipe: lines,
-      });
-      toast.success(`Menu "${name}" saved — POS par dish dikhegi`);
-      setName('');
-      setPrice('');
-      setRecipe([emptyIngredient()]);
+      };
+
+      if (editingId) {
+        await restaurantService.updateMenuItem(editingId, payload);
+        toast.success(`Dish "${name}" updated successfully`);
+      } else {
+        await restaurantService.createMenuItem(payload);
+        toast.success(`Menu "${name}" saved — POS par dish dikhegi`);
+      }
+
+      cancelEdit();
       await loadStock();
+      await loadMenuItems();
     } catch (err) {
       toast.error(err?.message || err?.response?.data?.message || 'Failed to save menu item');
     } finally {
@@ -101,104 +166,112 @@ const RestaurantMenuSetup = () => {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       <button
         type="button"
         onClick={() => navigate('/restaurant/inventory')}
-        className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 mb-6"
+        className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 mb-6 hover:text-black transition-colors"
       >
         <ArrowLeft size={14} /> Back to inventory
       </button>
-      <h1 className="text-xl font-black uppercase flex items-center gap-2 mb-2">
-        <ChefHat className="text-accent-olive" /> Menu & recipes
-      </h1>
-      <p className="text-sm text-slate-600 mb-6">
-        POS dish ko kitchen stock se link karein. Bill settle par recipe ke hisaab se stock minus hoga
-        (e.g. Fish Curry → ROHU 0.15 KG per plate).
-      </p>
+
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-black uppercase flex items-center gap-2 mb-1">
+            <ChefHat className="text-accent-olive" /> Menu & Recipes Setup
+          </h1>
+          <p className="text-xs text-slate-500">
+            POS dish add / edit / delete karein. Recipe optional hai — bina recipe ke bhi POS billing chalegi.
+          </p>
+        </div>
+        <Link to="/restaurant/pos">
+          <Button variant="outline" size="sm" className="text-[10px] font-black uppercase">
+            Open POS Terminal
+          </Button>
+        </Link>
+      </div>
 
       {inventory.length === 0 ? (
-        <div className="bg-amber-50 border border-amber-200 p-6 space-y-4 mb-6">
-          <p className="text-sm font-bold text-amber-900">
-            Kitchen stock khali hai — recipe ke liye pehle ingredient chahiye.
+        <div className="bg-amber-50 border border-amber-200 p-4 mb-6">
+          <p className="text-xs font-bold text-amber-900">
+            Note: Kitchen stock khali hai. Aap bina recipe ke dish create/edit kar sakte hain, billing chalegi.
           </p>
-          <ol className="text-[11px] text-amber-800 space-y-1 list-decimal list-inside">
-            <li>Fish Mall se internal bill bhejwayein</li>
-            <li>Received Stock par jaake Accept karein</li>
-            <li>Yahan wapas aake ROHU select karein</li>
-          </ol>
-          <div className="flex gap-2 flex-wrap">
-            <Link to="/restaurant/received-stock">
-              <Button type="button" className="text-[10px] font-black uppercase gap-2">
-                <Package size={14} /> Received Stock
-              </Button>
-            </Link>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={loadStock}
-              disabled={loadingStock}
-              className="text-[10px] font-black uppercase gap-2"
-            >
-              <RefreshCw size={14} className={loadingStock ? 'animate-spin' : ''} /> Refresh stock
-            </Button>
-          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between mb-4 text-[10px] font-bold uppercase text-slate-500">
-          <span>{inventory.length} kitchen ingredient(s) available</span>
+          <span>{inventory.length} kitchen ingredient(s) available for recipe linking</span>
           <button
             type="button"
             onClick={loadStock}
             className="flex items-center gap-1 text-accent-olive hover:underline"
           >
-            <RefreshCw size={12} className={loadingStock ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={12} className={loadingStock ? 'animate-spin' : ''} /> Refresh stock
           </button>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white border border-card-border p-6 space-y-4">
+      {/* --- FORM SECTION --- */}
+      <form onSubmit={handleSubmit} className="bg-white border border-card-border p-6 space-y-4 mb-10 shadow-sm">
+        <div className="flex items-center justify-between border-b pb-3 mb-2">
+          <h2 className="text-sm font-black uppercase tracking-wider text-black">
+            {editingId ? 'Edit Dish / Menu Item' : 'Add New Menu Dish'}
+          </h2>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="text-[10px] font-black uppercase text-red-600 flex items-center gap-1 hover:underline"
+            >
+              <X size={14} /> Cancel edit
+            </button>
+          )}
+        </div>
+
         <div>
-          <label className="text-[10px] font-black uppercase text-slate-500">Dish name</label>
+          <label className="text-[10px] font-black uppercase text-slate-500">Dish name *</label>
           <input
-            className="w-full border px-3 py-2 mt-1 font-bold uppercase"
+            className="w-full border px-3 py-2 mt-1 font-bold uppercase text-sm"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="FISH CURRY"
+            placeholder="JEERA RICE"
             required
           />
         </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-[10px] font-black uppercase text-slate-500">Category</label>
             <input
-              className="w-full border px-3 py-2 mt-1"
+              className="w-full border px-3 py-2 mt-1 text-sm font-semibold"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              placeholder="Main Course"
             />
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase text-slate-500">Selling price (₹)</label>
+            <label className="text-[10px] font-black uppercase text-slate-500">Selling price (₹) *</label>
             <input
               type="number"
               min="0"
-              className="w-full border px-3 py-2 mt-1 font-mono"
+              step="1"
+              className="w-full border px-3 py-2 mt-1 font-mono text-sm font-bold"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
+              placeholder="150"
               required
             />
           </div>
         </div>
 
         <div>
-          <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Recipe per serving</p>
+          <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Recipe per serving (Optional)</p>
           <p className="text-[9px] text-slate-400 mb-3">
-            Ingredient select karein (Optional) + qty per plate (KG).
+            Kitchen ingredient select karein (Optional) + qty per plate (KG).
           </p>
           {recipe.map((line, idx) => (
             <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-center">
               <select
-                className="col-span-7 border px-2 py-2 text-sm"
+                className="col-span-7 border px-2 py-2 text-xs"
                 value={line.inventoryItemId || ''}
                 onChange={(e) => pickIngredient(idx, e.target.value)}
               >
@@ -218,7 +291,7 @@ const RestaurantMenuSetup = () => {
                 min="0.001"
                 placeholder="Qty / serve"
                 title="Quantity per one plate (KG)"
-                className="col-span-4 border px-2 py-2 font-mono text-sm"
+                className="col-span-4 border px-2 py-2 font-mono text-xs"
                 value={line.quantityPerServe}
                 onChange={(e) => updateRecipeLine(idx, 'quantityPerServe', e.target.value)}
               />
@@ -228,16 +301,95 @@ const RestaurantMenuSetup = () => {
           <button
             type="button"
             onClick={() => setRecipe((p) => [...p, emptyIngredient()])}
-            className="text-[10px] font-black uppercase text-accent-olive flex items-center gap-1 mt-2"
+            className="text-[10px] font-black uppercase text-accent-olive flex items-center gap-1 mt-2 hover:underline"
           >
             <Plus size={12} /> Add ingredient line
           </button>
         </div>
 
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Save menu item'}
-        </Button>
+        <div className="flex items-center gap-3 pt-2">
+          <Button type="submit" disabled={saving} className="px-6 py-3 text-[10px] font-black uppercase tracking-wider">
+            {saving ? (editingId ? 'Updating…' : 'Saving…') : editingId ? 'Update Dish' : 'Save Menu Item'}
+          </Button>
+          {editingId && (
+            <Button type="button" variant="outline" onClick={cancelEdit} className="text-[10px] font-black uppercase">
+              Cancel
+            </Button>
+          )}
+        </div>
       </form>
+
+      {/* --- MENU CATALOG LIST WITH EDIT & DELETE --- */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b pb-2">
+          <h2 className="text-sm font-black uppercase tracking-wider text-black flex items-center gap-2">
+            Active POS Menu Items ({menuItems.length})
+          </h2>
+          <button
+            type="button"
+            onClick={loadMenuItems}
+            className="text-[10px] font-bold uppercase text-slate-500 hover:text-black flex items-center gap-1"
+          >
+            <RefreshCw size={12} className={loadingMenu ? 'animate-spin' : ''} /> Refresh list
+          </button>
+        </div>
+
+        {menuItems.length === 0 ? (
+          <div className="bg-white border border-card-border p-8 text-center">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">No menu items created yet</p>
+          </div>
+        ) : (
+          <div className="bg-white border border-card-border divide-y divide-card-border shadow-sm">
+            {menuItems.map((item) => {
+              const id = item._id || item.id;
+              const isEditingThis = editingId === id;
+              const recipeCount = item.recipe?.length || 0;
+
+              return (
+                <div
+                  key={id}
+                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${
+                    isEditingThis ? 'bg-amber-50/60' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black uppercase text-black font-serif italic">{item.name}</span>
+                      <Badge className="bg-slate-100 text-slate-600 border-none text-[8px] font-black uppercase">
+                        {item.category || 'Main Course'}
+                      </Badge>
+                    </div>
+                    <div className="text-[10px] text-slate-500 flex items-center gap-3">
+                      <span>Price: <strong className="text-black font-mono">₹{item.sellingPrice ?? item.price}</strong></span>
+                      <span>•</span>
+                      <span>
+                        Recipe: {recipeCount > 0 ? `${recipeCount} ingredient(s)` : <em className="text-slate-400">None (Optional)</em>}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(item)}
+                      className="px-3 py-1.5 border border-slate-200 text-slate-700 bg-white hover:bg-black hover:text-white hover:border-black text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all"
+                    >
+                      <Edit2 size={12} /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item)}
+                      className="px-3 py-1.5 border border-red-200 text-red-600 bg-white hover:bg-red-600 hover:text-white hover:border-red-600 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

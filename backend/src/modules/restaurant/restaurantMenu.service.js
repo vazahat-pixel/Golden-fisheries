@@ -77,6 +77,12 @@ class RestaurantMenuService {
     return item;
   }
 
+  async delete(id) {
+    const item = await RestaurantMenuItem.findByIdAndDelete(id);
+    if (!item) throw new AppError('Menu item not found', 404);
+    return item;
+  }
+
   async _normalizeRecipe(recipeLines) {
     const normalized = [];
     for (const line of recipeLines) {

@@ -91,6 +91,10 @@ export const restaurantService = {
     return await apiClient.patch(`/restaurant/menu/${id}`, data);
   },
 
+  deleteMenuItem: async (id) => {
+    return await apiClient.delete(`/restaurant/menu/${id}`);
+  },
+
   getMenuCatalog: async () => {
     return await apiClient.get('/restaurant/menu/catalog');
   },

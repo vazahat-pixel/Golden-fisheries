@@ -70,6 +70,11 @@ export const restaurantController = {
     new ApiResponse(200, item, 'Menu item updated').send(res);
   }),
 
+  deleteMenuItem: asyncWrapper(async (req, res) => {
+    await restaurantMenuService.delete(req.params.id);
+    new ApiResponse(200, { success: true }, 'Menu item deleted').send(res);
+  }),
+
   listMenuAdmin: asyncWrapper(async (req, res) => {
     const result = await restaurantMenuService.list({ ...req.query, limit: 500 });
     new ApiResponse(200, result.docs, 'Menu catalog fetched', result.meta).send(res);

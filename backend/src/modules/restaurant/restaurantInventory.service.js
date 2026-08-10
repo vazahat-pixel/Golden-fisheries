@@ -140,14 +140,12 @@ class RestaurantInventoryService {
             isActive: true,
           }).session(session);
         }
-        if (!item) {
-          throw new AppError(
-            `No recipe or kitchen stock for "${line.name}". Configure menu recipe or inventory link.`,
-            400
-          );
+        if (item) {
+          const key = item._id.toString();
+          consumptionMap.set(key, (consumptionMap.get(key) || 0) + servings);
+        } else {
+          logger.info(`[POS Stock Deduction]: Dish "${line.name}" billed without stock deduction (no recipe configured)`);
         }
-        const key = item._id.toString();
-        consumptionMap.set(key, (consumptionMap.get(key) || 0) + servings);
       }
     }
 

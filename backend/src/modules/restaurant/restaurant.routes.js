@@ -46,6 +46,7 @@ router.post(
   restaurantController.createMenuItem
 );
 router.patch('/menu/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.updateMenuItem);
+router.delete('/menu/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.deleteMenuItem);
 
 router.get('/tables', ...web, restrictTo(...REST_ALL), restaurantController.getTables);
 
