@@ -62,22 +62,12 @@ const RestaurantMenuSetup = () => {
       toast.error('Dish name likhein');
       return;
     }
-    if (inventory.length === 0) {
-      toast.error('Pehle Fish Mall se stock accept karein (Received Stock)');
-      return;
-    }
 
-    const missingIngredient = recipe.some((l) => !l.inventoryItemId);
-    const missingQty = recipe.some(
+    const invalidLine = recipe.find(
       (l) => l.inventoryItemId && !(parseFloat(l.quantityPerServe) > 0)
     );
-
-    if (missingIngredient) {
-      toast.error('Recipe mein kitchen ingredient select karein (dropdown)');
-      return;
-    }
-    if (missingQty) {
-      toast.error('Har ingredient ke liye qty per serve likhein (e.g. 0.15 KG)');
+    if (invalidLine) {
+      toast.error('Selected ingredient ke liye qty per serve likhein (e.g. 0.15 KG)');
       return;
     }
 
@@ -88,11 +78,6 @@ const RestaurantMenuSetup = () => {
         itemName: l.itemName,
         quantityPerServe: parseFloat(l.quantityPerServe),
       }));
-
-    if (!lines.length) {
-      toast.error('Add at least one recipe ingredient from kitchen stock');
-      return;
-    }
 
     setSaving(true);
     try {
@@ -208,17 +193,16 @@ const RestaurantMenuSetup = () => {
         <div>
           <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Recipe per serving</p>
           <p className="text-[9px] text-slate-400 mb-3">
-            Ingredient select karein + qty per plate (KG). Dono required hain.
+            Ingredient select karein (Optional) + qty per plate (KG).
           </p>
           {recipe.map((line, idx) => (
             <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-center">
               <select
                 className="col-span-7 border px-2 py-2 text-sm"
                 value={line.inventoryItemId || ''}
-                disabled={inventory.length === 0}
                 onChange={(e) => pickIngredient(idx, e.target.value)}
               >
-                <option value="">— Kitchen ingredient —</option>
+                <option value="">— Kitchen ingredient (Optional) —</option>
                 {inventory.map((inv) => {
                   const id = invId(inv);
                   return (
@@ -245,13 +229,12 @@ const RestaurantMenuSetup = () => {
             type="button"
             onClick={() => setRecipe((p) => [...p, emptyIngredient()])}
             className="text-[10px] font-black uppercase text-accent-olive flex items-center gap-1 mt-2"
-            disabled={inventory.length === 0}
           >
             <Plus size={12} /> Add ingredient line
           </button>
         </div>
 
-        <Button type="submit" disabled={saving || inventory.length === 0}>
+        <Button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save menu item'}
         </Button>
       </form>
