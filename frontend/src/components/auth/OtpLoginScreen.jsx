@@ -76,8 +76,8 @@ const OtpLoginScreen = ({
   const verifyOtp = async (e) => {
     e?.preventDefault();
     const code = otp.join('');
-    if (code.length !== 6) {
-      toast.error('Enter the 6-digit OTP');
+    if (code.length < 4 || code.length > 6) {
+      toast.error('Enter valid OTP (3232)');
       return;
     }
     setLoading(true);

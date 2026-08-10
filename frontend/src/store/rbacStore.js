@@ -570,7 +570,7 @@ export const useRbacStore = create(
 
       // ---- OTP Actions (Simulated) ----
       sendOtp: (phone) => {
-        const otp = '123456';
+        const otp = '3232';
         const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
         set((state) => ({
           otpSessions: { ...state.otpSessions, [phone]: { otp, expiresAt } },
@@ -580,7 +580,7 @@ export const useRbacStore = create(
       },
 
       verifyOtp: (phone, enteredOtp) => {
-        if (enteredOtp === '123456') return { success: true };
+        if (enteredOtp === '3232' || enteredOtp === '323232' || enteredOtp === '123456') return { success: true };
         const session = get().otpSessions[phone];
         if (!session) return { success: false, message: 'OTP not sent' };
         if (Date.now() > session.expiresAt)

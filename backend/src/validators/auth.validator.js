@@ -44,9 +44,10 @@ export const authValidators = {
       'string.pattern.base': 'Phone number must be exactly 10 digits'
     }),
     loginPortal: Joi.string().valid(...PORTAL_LIST).optional(),
-    otp: Joi.string().required().length(6).pattern(/^[0-9]+$/).messages({
+    otp: Joi.string().required().min(4).max(6).pattern(/^[0-9]+$/).messages({
       'any.required': 'OTP is required',
-      'string.length': 'OTP must be exactly 6 characters long',
+      'string.min': 'OTP must be at least 4 characters long',
+      'string.max': 'OTP cannot exceed 6 characters',
       'string.pattern.base': 'OTP must contain only digits'
     })
   }),
