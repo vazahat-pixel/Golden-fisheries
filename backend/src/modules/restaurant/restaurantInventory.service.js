@@ -6,6 +6,7 @@ import {
 import { RestaurantMenuItem } from './restaurantMenu.model.js';
 import { AppError } from '../../utils/appError.js';
 import { INVENTORY_SCOPES } from '../../constants/inventoryScopes.js';
+import { logger } from '../../utils/logger.js';
 
 class RestaurantInventoryService {
   async list(query = {}) {
