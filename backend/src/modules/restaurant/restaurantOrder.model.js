@@ -100,10 +100,11 @@ const restaurantOrderSchema = new mongoose.Schema(
     upiAmount: { type: Number, default: 0, min: 0 },
     discountAmount: { type: Number, default: 0, min: 0 },
     couponCode: { type: String, default: '' },
-    kitchenTicketId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'KitchenTicket',
-      default: null,
+    // A running dine-in tab can span several kitchen rounds (starters, then mains, ...);
+    // each round gets its own ticket, all of which close together when the table is billed.
+    kitchenTicketIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'KitchenTicket' }],
+      default: [],
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -113,7 +114,10 @@ const restaurantOrderSchema = new mongoose.Schema(
     remarks: {
       type: String,
       default: ''
-    }
+    },
+    voidReason: { type: String, default: '' },
+    voidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    voidedAt: { type: Date, default: null }
   },
   {
     timestamps: true

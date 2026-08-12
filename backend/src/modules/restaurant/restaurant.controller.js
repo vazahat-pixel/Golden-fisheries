@@ -4,6 +4,7 @@ import { restaurantInventoryService } from './restaurantInventory.service.js';
 import { kitchenService } from './kitchen.service.js';
 import { restaurantReportsService } from './restaurantReports.service.js';
 import { restaurantAccountingService } from './restaurantAccounting.service.js';
+import { restaurantOutletService } from '../restaurant-outlet/restaurantOutlet.service.js';
 import { ApiResponse } from '../../utils/apiResponse.js';
 import { asyncWrapper } from '../../utils/asyncWrapper.js';
 import { broadcastEvent } from '../../sockets/socket.js';
@@ -35,6 +36,16 @@ export const restaurantController = {
   updateStatus: asyncWrapper(async (req, res) => {
     const order = await restaurantService.updateOrderStatus(req.params.id, req.body.status);
     new ApiResponse(200, { order }, 'Order status updated').send(res);
+  }),
+
+  removeOrderItem: asyncWrapper(async (req, res) => {
+    const order = await restaurantService.removeOrderItem(req.params.orderId, req.params.itemId);
+    new ApiResponse(200, { order }, 'Item removed from the bill').send(res);
+  }),
+
+  voidOrder: asyncWrapper(async (req, res) => {
+    const order = await restaurantService.voidOrder(req.params.id, req.body.reason, req.user.id);
+    new ApiResponse(200, { order }, 'Bill voided — stock and cashbook reversed').send(res);
   }),
 
   getMenu: asyncWrapper(async (req, res) => {
@@ -115,6 +126,31 @@ export const restaurantController = {
     new ApiResponse(200, { ticket }, 'Kitchen line status updated').send(res);
   }),
 
+  cancelKitchenTicket: asyncWrapper(async (req, res) => {
+    const ticket = await kitchenService.cancelTicket(req.params.id);
+    new ApiResponse(200, { ticket }, 'Kitchen ticket cancelled').send(res);
+  }),
+
+  voidKitchenLine: asyncWrapper(async (req, res) => {
+    const ticket = await kitchenService.voidLine(
+      req.params.ticketId,
+      req.params.lineId,
+      req.body.reason
+    );
+    new ApiResponse(200, { ticket }, 'Kitchen line voided').send(res);
+  }),
+
+  // Restaurant's own bill/GST identity — self-service for managers, no full outlet CRUD access needed
+  getOutletSettings: asyncWrapper(async (req, res) => {
+    const outlet = await restaurantOutletService.getMySettings();
+    new ApiResponse(200, { outlet }, 'Restaurant bill settings fetched').send(res);
+  }),
+
+  updateOutletSettings: asyncWrapper(async (req, res) => {
+    const outlet = await restaurantOutletService.updateMySettings(req.body);
+    new ApiResponse(200, { outlet }, 'Restaurant bill settings updated').send(res);
+  }),
+
   listInventory: asyncWrapper(async (req, res) => {
     const result = await restaurantInventoryService.list(req.query);
     new ApiResponse(200, result.docs, 'Restaurant kitchen inventory fetched', result.meta).send(
@@ -156,13 +192,18 @@ export const restaurantController = {
   }),
 
   getTables: asyncWrapper(async (req, res) => {
-    const tables = Array.from({ length: 20 }, (_, i) => ({
-      id: i + 1,
-      label: `T${String(i + 1).padStart(2, '0')}`,
-      status: 'available',
-      capacity: i < 4 ? 2 : i < 14 ? 4 : 6,
-    }));
+    const tables = await restaurantService.getTablesWithStatus();
     new ApiResponse(200, tables, 'Tables fetched successfully').send(res);
+  }),
+
+  // Fetch a dine-in table's currently open (unpaid) running tab, if any
+  getTableOrder: asyncWrapper(async (req, res) => {
+    const { tableNumber } = req.query;
+    if (!tableNumber) {
+      return new ApiResponse(200, { order: null }, 'No table specified').send(res);
+    }
+    const order = await restaurantService.findOpenTableOrder('DINE_IN', tableNumber);
+    new ApiResponse(200, { order: order || null }, 'Table running tab fetched').send(res);
   }),
 
   reportDailySales: asyncWrapper(async (req, res) => {

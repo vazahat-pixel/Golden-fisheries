@@ -33,9 +33,11 @@ const RestaurantDashboard = () => {
     accountingSummary,
     cashbook,
     expenses,
+    tables,
     fetchOrders,
     fetchMenu,
     fetchKitchenStock,
+    fetchTables,
     fetchActiveSessionAsync,
     openSessionAsync,
     closeSessionAsync,
@@ -90,16 +92,17 @@ const RestaurantDashboard = () => {
   };
 
   // Dashboard Active Tab
-  const [activeTab, setActiveTab] = useState('cashbook'); // 'cashbook' | 'expenses' | 'stock'
+  const [activeTab, setActiveTab] = useState('cashbook'); // 'cashbook' | 'expenses' | 'stock' | 'tables'
 
   // Fetch initial data
   useEffect(() => {
     fetchOrders();
     fetchMenu();
     fetchKitchenStock();
+    fetchTables();
     fetchActiveSessionAsync();
     loadPendingSupplies();
-  }, [fetchOrders, fetchMenu, fetchKitchenStock, fetchActiveSessionAsync]);
+  }, [fetchOrders, fetchMenu, fetchKitchenStock, fetchTables, fetchActiveSessionAsync]);
 
   // Fetch shift aggregates once active session is verified
   useEffect(() => {
@@ -386,11 +389,17 @@ const RestaurantDashboard = () => {
               >
                 KITCHEN EXPENSES
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('stock')}
                 className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border transition-all ${activeTab === 'stock' ? 'bg-black text-white border-black' : 'text-slate-400 border-transparent hover:border-slate-200'}`}
               >
                 LOW INVENTORY
+              </button>
+              <button
+                onClick={() => setActiveTab('tables')}
+                className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border transition-all ${activeTab === 'tables' ? 'bg-black text-white border-black' : 'text-slate-400 border-transparent hover:border-slate-200'}`}
+              >
+                TABLES
               </button>
             </div>
             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">SHIFT_LEDGER_FEED // LIVE</span>
@@ -544,6 +553,40 @@ const RestaurantDashboard = () => {
                   )}
                 </tbody>
               </table>
+            )}
+
+            {activeTab === 'tables' && (
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-4 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> Available</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Occupied</span>
+                </div>
+                {(!tables || tables.length === 0) ? (
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center py-16">Loading table status...</p>
+                ) : (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3">
+                    {tables.map((table) => {
+                      const isOccupied = table.status === 'occupied';
+                      return (
+                        <Link
+                          key={table.id}
+                          to="/restaurant/pos"
+                          className={`aspect-square rounded-xl border-2 flex flex-col items-center justify-center gap-1 p-2 transition-all ${
+                            isOccupied
+                              ? 'bg-amber-50 border-amber-300 text-amber-800 hover:border-amber-400'
+                              : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:border-emerald-400'
+                          }`}
+                        >
+                          <span className="text-sm font-black">{table.label}</span>
+                          {isOccupied && (
+                            <span className="text-[8px] font-black">₹{Number(table.runningTotal || 0).toLocaleString('en-IN')}</span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

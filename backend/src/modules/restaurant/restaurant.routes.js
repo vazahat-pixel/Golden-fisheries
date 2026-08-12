@@ -49,6 +49,16 @@ router.patch('/menu/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantC
 router.delete('/menu/:id', ...web, restrictTo(...REST_MANAGER_ROLES), restaurantController.deleteMenuItem);
 
 router.get('/tables', ...web, restrictTo(...REST_ALL), restaurantController.getTables);
+router.get('/tables/order', ...web, restrictTo(...REST_ALL), restaurantController.getTableOrder);
+
+// Restaurant's own name/address/GSTIN — printed on every bill
+router.get('/outlet-settings', ...web, restrictTo(...REST_ALL), restaurantController.getOutletSettings);
+router.patch(
+  '/outlet-settings',
+  ...web,
+  restrictTo(...REST_MANAGER_ROLES),
+  restaurantController.updateOutletSettings
+);
 
 router.get(
   '/kitchen-tickets',
@@ -80,6 +90,18 @@ router.patch(
   ...web,
   restrictTo(...REST_ALL),
   restaurantController.updateKitchenLine
+);
+router.patch(
+  '/kitchen-tickets/:id/cancel',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.cancelKitchenTicket
+);
+router.patch(
+  '/kitchen-tickets/:ticketId/lines/:lineId/void',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.voidKitchenLine
 );
 
 router.get('/reports/daily-sales', ...web, restrictTo(...REST_ALL), restaurantController.reportDailySales);
@@ -114,6 +136,18 @@ router.patch(
   restaurantController.settle
 );
 router.patch('/:id/status', ...web, restrictTo(...REST_ALL), restaurantController.updateStatus);
+router.delete(
+  '/:orderId/items/:itemId',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.removeOrderItem
+);
+router.patch(
+  '/:id/void',
+  ...web,
+  restrictTo(...REST_MANAGER_ROLES),
+  restaurantController.voidOrder
+);
 
 router.get(
   '/internal-supplies/reports/receives',

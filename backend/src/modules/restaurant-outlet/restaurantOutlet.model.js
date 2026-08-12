@@ -18,6 +18,7 @@ const restaurantOutletSchema = new mongoose.Schema(
     location: { type: String, default: '', trim: true },
     phone: { type: String, default: '', trim: true },
     email: { type: String, default: '', trim: true },
+    gstin: { type: String, default: '', trim: true, uppercase: true },
     kitchenLabel: { type: String, default: 'Kitchen', trim: true },
     isActive: { type: Boolean, default: true, index: true },
     isDefault: { type: Boolean, default: false },

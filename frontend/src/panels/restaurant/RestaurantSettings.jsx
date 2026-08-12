@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Settings, User, Bell, Lock, Store, Clock, Shield, CreditCard, ChefHat, 
-  IndianRupee, ChevronRight, ArrowLeft, Save, RefreshCw, Smartphone, 
+import {
+  Settings, User, Bell, Lock, Store, Clock, Shield, CreditCard, ChefHat,
+  IndianRupee, ChevronRight, ArrowLeft, Save, RefreshCw, Smartphone,
   Database, BellRing, Key, LogOut, Check, X, Sliders
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -10,17 +10,52 @@ import { Button } from '../../design-system/components/Button';
 import { Card } from '../../design-system/components/Card';
 import { Badge } from '../../design-system/components/Badge';
 import { useAuthStore } from '../../store/authStore';
+import { useRestaurantStore } from '../../store/restaurantStore';
 import { socketService } from '../../services/socketService';
 
 const RestaurantSettings = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { outletSettings, fetchOutletSettingsAsync, updateOutletSettingsAsync } = useRestaurantStore();
   const [activeTab, setActiveTab] = useState('GENERAL');
+  const [form, setForm] = useState({ name: '', location: '', phone: '', gstin: '' });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchOutletSettingsAsync();
+  }, [fetchOutletSettingsAsync]);
+
+  useEffect(() => {
+    if (outletSettings) {
+      setForm({
+        name: outletSettings.name || '',
+        location: outletSettings.location || '',
+        phone: outletSettings.phone || '',
+        gstin: outletSettings.gstin || '',
+      });
+    }
+  }, [outletSettings]);
 
   const handleSignOut = async () => {
     await logout();
     socketService.disconnect();
     navigate('/restaurant/auth', { replace: true });
+  };
+
+  const handleSaveGeneral = async () => {
+    if (!form.name.trim()) {
+      toast.error('Restaurant name is required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateOutletSettingsAsync(form);
+      toast.success('Bill details saved — new bills will use these right away.');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Couldn't save — please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const tabs = [
@@ -35,20 +70,26 @@ const RestaurantSettings = () => {
       case 'GENERAL':
         return (
           <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-amber-50 border border-amber-200 p-3">
+              <p className="text-[9px] font-bold text-amber-800">
+                These details print on every bill (including the GSTIN) — keep them accurate for tax compliance.
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
-                { label: 'INSTITUTION_NAME', value: 'GOLDEN FISHERIES RESTAURANT', type: 'text' },
-                { label: 'MASTER_REGISTRY_ID', value: 'GF-MKE-5501', type: 'text', disabled: true },
-                { label: 'PRIMARY_CONTACT', value: '+91 98765 43210', type: 'text' },
-                { label: 'PHYSICAL_COORDINATES', value: 'Bay View Road, Sector 4, Mangaluru', type: 'text' }
-              ].map((field, i) => (
-                <div key={i} className="bg-white border border-slate-200 p-3 space-y-1">
+                { key: 'name', label: 'RESTAURANT_NAME' },
+                { key: 'gstin', label: 'GSTIN' },
+                { key: 'phone', label: 'PHONE' },
+                { key: 'location', label: 'ADDRESS' },
+              ].map((field) => (
+                <div key={field.key} className="bg-white border border-slate-200 p-3 space-y-1">
                   <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{field.label}</label>
-                  <input 
-                    type={field.type} 
-                    defaultValue={field.value}
-                    disabled={field.disabled}
-                    className="w-full bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-tight focus:ring-0 disabled:opacity-30"
+                  <input
+                    type="text"
+                    value={form[field.key]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
+                    placeholder={field.key === 'gstin' ? '29ABCDE1234F1Z5' : ''}
+                    className="w-full bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-tight focus:ring-0"
                   />
                 </div>
               ))}
@@ -135,12 +176,18 @@ const RestaurantSettings = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 relative z-10">
-           <Button className="h-10 px-6 bg-black text-white text-[9px] font-black uppercase tracking-[0.3em] border-none shadow-xl active:scale-95 transition-all">
-             <Save size={14} className="mr-2" /> COMMIT_ALL
-           </Button>
-        </div>
-        
+        {activeTab === 'GENERAL' && (
+          <div className="flex items-center gap-2 relative z-10">
+             <Button
+               onClick={handleSaveGeneral}
+               disabled={saving}
+               className="h-10 px-6 bg-black text-white text-[9px] font-black uppercase tracking-[0.3em] border-none shadow-xl active:scale-95 transition-all disabled:opacity-50"
+             >
+               <Save size={14} className="mr-2" /> {saving ? 'SAVING...' : 'SAVE'}
+             </Button>
+          </div>
+        )}
+
         {/* Abstract design element */}
         <div className="absolute right-0 top-0 bottom-0 w-32 bg-slate-50 skew-x-12 translate-x-16" />
       </header>

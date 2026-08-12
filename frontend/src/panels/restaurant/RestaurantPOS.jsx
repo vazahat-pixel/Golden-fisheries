@@ -16,9 +16,12 @@ import { restaurantService } from '../../services/restaurantService';
 const RestaurantPOS = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { 
+  const {
     menuItems, tables, coupons,
+    currentTableOrder,
     createKOTAsync,
+    appendOrderRoundAsync,
+    fetchTableOrderAsync,
     settleOrderAsync,
     fetchOrders,
     fetchMenu,
@@ -27,6 +30,8 @@ const RestaurantPOS = () => {
     loading,
     activeSession,
     fetchActiveSessionAsync,
+    outletSettings,
+    fetchOutletSettingsAsync,
   } = useRestaurantStore();
 
   React.useEffect(() => {
@@ -35,7 +40,8 @@ const RestaurantPOS = () => {
     fetchTables();
     fetchKitchenTickets();
     fetchActiveSessionAsync();
-  }, [fetchOrders, fetchMenu, fetchTables, fetchKitchenTickets, fetchActiveSessionAsync]);
+    fetchOutletSettingsAsync();
+  }, [fetchOrders, fetchMenu, fetchTables, fetchKitchenTickets, fetchActiveSessionAsync, fetchOutletSettingsAsync]);
 
   const [orderType, setOrderType] = useState('Dine In');
   const [tableLabel, setTableLabel] = useState('');
@@ -52,9 +58,21 @@ const RestaurantPOS = () => {
   const [mixedPayment, setMixedPayment] = useState({ cash: 0, upi: 0 });
   const [billingView, setBillingView] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [sendingToKitchen, setSendingToKitchen] = useState(false);
+  const [showFloorPlan, setShowFloorPlan] = useState(false);
 
   const categories = ["All Items", ...new Set(menuItems.map(item => item.category))];
   const orderTypes = ['Dine In', 'Parcel', 'Takeaway', 'Online Order', 'Bulk Order'];
+
+  // A dine-in table can already have a running tab (e.g. starters sent earlier).
+  // Load it whenever the selected table changes so new rounds add onto it.
+  React.useEffect(() => {
+    if (orderType === 'Dine In' && tableLabel) {
+      fetchTableOrderAsync(tableLabel);
+    } else {
+      fetchTableOrderAsync(null);
+    }
+  }, [orderType, tableLabel, fetchTableOrderAsync]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -85,10 +103,10 @@ const RestaurantPOS = () => {
           recipe: []
         });
       }
-      toast.success('Coastal menu items seeded successfully!', { id: loadToast });
+      toast.success('Sample menu added. Tip: link each dish to kitchen ingredients in Menu Setup so stock tracks correctly.', { id: loadToast, duration: 6000 });
       fetchMenu();
     } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to seed menu items', { id: loadToast });
+      toast.error(err?.response?.data?.message || err?.message || "Couldn't add the sample menu — please try again.", { id: loadToast });
     } finally {
       setSeeding(false);
     }
@@ -153,51 +171,92 @@ const RestaurantPOS = () => {
 
   const fmtRupee = (n) => Number(n ?? 0).toLocaleString('en-IN');
 
+  // Sends the current round to the kitchen AND commits it onto the table's running
+  // tab (creating one if this is the first round). This is what lets "starters now,
+  // mains later" become ONE final bill instead of two disconnected orders — each
+  // round is billed the moment it's sent, so nothing is ever missed at checkout.
+  const sendToKitchen = async ({ silent = false } = {}) => {
+    const kot = await createKOTAsync({
+      tableId: tableLabel || 'COUNTER',
+      tableLabel: tableLabel || 'COUNTER',
+      orderType,
+      items: cart,
+      staffName: user?.fullName || user?.name || 'Staff',
+      notes: '',
+    });
+    const order = await appendOrderRoundAsync({
+      tableId: tableLabel || 'COUNTER',
+      tableLabel: tableLabel || 'COUNTER',
+      orderType,
+      items: cart,
+      kitchenTicketId: kot?.id,
+    });
+    setCart([]);
+    if (!silent) {
+      toast.success(
+        kot?.ticketNumber
+          ? `Sent to kitchen — Ticket ${kot.ticketNumber}. Running bill for ${tableLabel || 'Counter'}: ₹${fmtRupee(order?.totalAmount)}.`
+          : `Sent to kitchen for ${tableLabel || 'Counter'}.`
+      );
+    }
+    return { kot, order };
+  };
+
   const handleSendToKitchen = async () => {
     if (cart.length === 0) return;
     if (orderType === 'Dine In' && !tableLabel) {
-      toast.error('Please select a Table Number');
+      toast.error('Please pick a table number first — Dine In orders need one.');
       return;
     }
+    if (!activeSession) {
+      toast.error('Your shift isn\'t open yet — open it from the dashboard before taking orders.');
+      navigate('/restaurant/dashboard');
+      return;
+    }
+    setSendingToKitchen(true);
     try {
-      const kot = await createKOTAsync({
-        tableId: tableLabel || 'COUNTER',
-        tableLabel: tableLabel || 'COUNTER',
-        orderType,
-        items: cart,
-        staffName: user?.fullName || user?.name || 'Staff',
-        notes: '',
-      });
-      toast.success(
-        kot?.ticketNumber
-          ? `KOT ${kot.ticketNumber} sent to kitchen`
-          : `KOT sent for ${tableLabel || 'COUNTER'}`
-      );
-    } catch {
-      toast.error('Failed to send kitchen ticket');
+      await sendToKitchen();
+    } catch (err) {
+      toast.error(err?.message || "Couldn't reach the kitchen — please try again in a moment.");
+    } finally {
+      setSendingToKitchen(false);
     }
   };
 
   const handleApplyCoupon = () => {
+    if (!couponCode.trim()) {
+      toast.error('Type a coupon code first.');
+      return;
+    }
     const coupon = coupons[couponCode.toUpperCase()];
     if (coupon) {
       setAppliedCoupon(coupon);
-      toast.success('Coupon Applied: ' + coupon.description);
+      toast.success(`Coupon applied — ${coupon.description}`);
     } else {
-      toast.error('Invalid Coupon Code');
+      toast.error(`"${couponCode.toUpperCase()}" isn't a valid coupon code.`);
     }
   };
 
   const handleSettle = async () => {
     if (orderType === 'Dine In' && !tableLabel) {
-      toast.error('Please select a Table Number');
+      toast.error('Please pick a table number first — Dine In orders need one.');
       return;
     }
+    if (cart.length === 0 && !currentTableOrder) {
+      toast.error('The cart is empty — add items before settling the bill.');
+      return;
+    }
+
+    const settleToast = toast.loading(
+      currentTableOrder ? 'Closing out the table\'s bill...' : 'Generating the bill...'
+    );
+
     const total = calculateTotal();
     const orderData = {
       tableId: tableLabel || 'COUNTER',
       tableLabel: tableLabel || 'COUNTER',
       orderType,
+      existingOrder: currentTableOrder,
       items: cart.map((item) => ({
         menuItemId: item.menuItemId || undefined,
         inventoryItemId: item.inventoryItemId || undefined,
@@ -210,9 +269,6 @@ const RestaurantPOS = () => {
       })),
       discountAmount: calculateDiscount(),
       mixedPayment: isMixedPayment ? mixedPayment : undefined,
-      subtotal: calculateSubtotal(),
-      gstAmount: calculateTax(),
-      discount: calculateDiscount(),
       coupon: appliedCoupon ? appliedCoupon.code : null,
       total,
       paymentMethod: paymentMode.toUpperCase(),
@@ -223,25 +279,34 @@ const RestaurantPOS = () => {
     try {
       const res = await settleOrderAsync(orderData);
       const settled = res?.data?.order ?? res?.order;
+      // Build the printed invoice from the server's final order — it holds every
+      // round that was sent for this table, not just what's in the cart right now.
       setLastOrder({
-        ...orderData,
-        items: cart.map((item) => ({
-          id: item.id,
+        tableLabel: orderData.tableLabel,
+        orderType,
+        items: (settled?.items || []).map((item) => ({
+          id: item._id || item.menuItemId || item.name,
           name: item.name,
-          price: item.price ?? item.rate ?? 0,
-          qty: item.qty ?? item.quantity ?? 1,
+          price: item.rate,
+          qty: item.quantity,
         })),
-        invoiceNo: settled?.orderNumber || res?.orderNumber || `ORD-${Date.now()}`,
-        total: settled?.totalAmount ?? orderData.total ?? 0,
-        subtotal: settled?.subtotal ?? orderData.subtotal ?? 0,
-        gstAmount: (settled?.cgst ?? 0) + (settled?.sgst ?? 0) || orderData.gstAmount ?? 0,
-        discount: orderData.discount ?? orderData.discountAmount ?? 0,
+        invoiceNo: settled?.orderNumber || `ORD-${Date.now()}`,
+        total: settled?.totalAmount ?? total,
+        subtotal: settled?.subtotal ?? 0,
+        gstAmount: (settled?.cgst ?? 0) + (settled?.sgst ?? 0),
+        discount: settled?.discountAmount ?? orderData.discountAmount ?? 0,
         timestamp: new Date().toISOString(),
       });
       setShowInvoice(true);
-      toast.success('Order Settled Successfully!');
+      toast.success(
+        `Bill ${settled?.orderNumber || ''} settled — payment recorded and kitchen stock updated.`,
+        { id: settleToast }
+      );
     } catch (err) {
-      toast.error(err?.message || 'Failed to settle order', { duration: 6000 });
+      toast.error(
+        err?.message || "Couldn't complete the bill — please check and try again.",
+        { id: settleToast, duration: 6000 }
+      );
     }
   };
 
@@ -306,9 +371,24 @@ const RestaurantPOS = () => {
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[#6A7051] outline-none focus:border-[#6A7051] focus:bg-white transition-all cursor-pointer shadow-sm"
               >
                 <option className="text-slate-400" value="">SELECT TABLE</option>
-                {tables.map(table => <option className="text-slate-800 font-bold" key={table.id} value={table.label}>{table.label}</option>)}
+                {tables.map(table => (
+                  <option className="text-slate-800 font-bold" key={table.id} value={table.label}>
+                    {table.label}{table.status === 'occupied' ? ` — running ₹${fmtRupee(table.runningTotal)}` : ''}
+                  </option>
+                ))}
               </select>
             </div>
+
+            {/* Floor Plan Trigger */}
+            <button
+              type="button"
+              onClick={() => setShowFloorPlan(true)}
+              disabled={orderType !== 'Dine In'}
+              title="View table floor plan"
+              className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-xl bg-white text-slate-600 hover:text-[#6A7051] hover:border-[#6A7051] transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+            >
+              <LayoutGrid size={16} />
+            </button>
 
             {/* Search Input */}
             <div className="relative w-52">
@@ -379,12 +459,13 @@ const RestaurantPOS = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMenuItems.map((item) => {
                 const isOutOfStock = item.stock <= 0;
+                const isUntracked = item.stock === 999 && !item.isKitchenSku && !item.hasRecipe;
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
                       if (isOutOfStock) {
-                        toast.error('Item is currently out of stock!');
+                        toast.error(`${item.name} is sold out — kitchen stock ran out for its recipe.`);
                         return;
                       }
                       addToCart(item);
@@ -406,6 +487,13 @@ const RestaurantPOS = () => {
                         <p className="mt-1">
                           {isOutOfStock ? (
                             <span className="inline-block px-1.5 py-0.5 text-[7px] font-black tracking-wider uppercase text-rose-700 bg-rose-50 border border-rose-100 rounded-md">SOLD OUT</span>
+                          ) : isUntracked ? (
+                            <span
+                              title="No recipe set up for this dish — selling it won't reduce kitchen stock. Add a recipe in Menu Setup to track it."
+                              className="inline-block px-1.5 py-0.5 text-[7px] font-black tracking-wider uppercase text-amber-700 bg-amber-50 border border-amber-200 rounded-md"
+                            >
+                              Stock Not Tracked
+                            </span>
                           ) : item.stock === 999 ? (
                             <span className="inline-block px-1.5 py-0.5 text-[7px] font-black tracking-wider uppercase text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md">Always Available</span>
                           ) : (
@@ -440,11 +528,29 @@ const RestaurantPOS = () => {
           <Badge className="bg-slate-900 text-white px-2 py-0.5 text-[8px] font-black border-none">{cart.length} ITEMS</Badge>
         </div>
 
+        {currentTableOrder && (
+          <div className="px-4 pt-3 shrink-0">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[8px] font-black text-amber-700 uppercase tracking-widest">
+                  Running tab — {currentTableOrder.orderNumber}
+                </p>
+                <p className="text-[9px] font-bold text-amber-900 mt-0.5">
+                  Already ordered: {currentTableOrder.items?.length || 0} item(s) worth ₹{fmtRupee(currentTableOrder.totalAmount)}
+                </p>
+              </div>
+              <Receipt size={16} className="text-amber-500 shrink-0" />
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-40">
               <ChefHat size={44} className="mb-3 text-slate-400" />
-              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">System Idling</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">
+                {currentTableOrder ? 'Add the next round here' : 'Cart is empty'}
+              </p>
             </div>
           ) : (
             cart.map((item) => (
@@ -478,46 +584,52 @@ const RestaurantPOS = () => {
 
         <div className="p-4 bg-white border-t border-slate-200/80 space-y-4 shrink-0">
           <div className="space-y-2">
+             {currentTableOrder && (
+               <div className="flex justify-between text-[9px] font-black text-amber-600 uppercase tracking-widest">
+                  <span>Already sent (this table)</span>
+                  <span>₹{fmtRupee(currentTableOrder.totalAmount)}</span>
+               </div>
+             )}
              <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                <span>Gross Payload</span>
+                <span>{currentTableOrder ? 'This round' : 'Gross Payload'}</span>
                 <span>₹{fmtRupee(calculateSubtotal())}</span>
              </div>
              <div className="flex justify-between text-base font-serif italic font-black text-slate-900 tracking-tight border-t border-slate-100 pt-3">
-                <span>TOTAL COST</span>
-                <span className="text-[#6A7051]">₹{fmtRupee(calculateTotal())}</span>
+                <span>{currentTableOrder ? 'TABLE TOTAL' : 'TOTAL COST'}</span>
+                <span className="text-[#6A7051]">₹{fmtRupee((currentTableOrder?.totalAmount || 0) + calculateTotal())}</span>
              </div>
           </div>
-          
+
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => {
                 if (!activeSession) {
-                  toast.error('Operations are locked! Shift is not open. Please open your shift first.');
+                  toast.error('Your shift isn\'t open yet — open it from the dashboard before taking orders.');
                   navigate('/restaurant/dashboard');
                   return;
                 }
                 handleSendToKitchen();
-              }} 
-              disabled={cart.length === 0} 
+              }}
+              disabled={cart.length === 0 || sendingToKitchen}
               className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <ChefHat size={14} /> KOT
+              <ChefHat size={14} /> {sendingToKitchen ? 'Sending...' : 'Send to Kitchen'}
             </button>
             
-            <button 
+            <button
               onClick={() => {
                 if (!activeSession) {
-                  toast.error('Operations are locked! Shift is not open. Please open shift first in the dashboard.');
+                  toast.error('Your shift isn\'t open yet — open it from the dashboard before taking payments.');
                   navigate('/restaurant/dashboard');
                   return;
                 }
                 if (orderType === 'Dine In' && !tableLabel) {
-                  toast.error('Please select a Table Number before checkout');
+                  toast.error('Please pick a table number first — Dine In orders need one.');
                   return;
                 }
                 setBillingView(true);
-              }} 
-              disabled={cart.length === 0} 
+              }}
+              disabled={cart.length === 0}
               className="flex-1 py-3 bg-[#6A7051] text-white hover:bg-[#5F6846] rounded-lg text-[9px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Receipt size={14} /> CHECKOUT
@@ -525,6 +637,61 @@ const RestaurantPOS = () => {
           </div>
         </div>
       </div>
+
+      {/* Table Floor Plan */}
+      {showFloorPlan && (
+        <div className="fixed inset-0 z-[65] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl border border-slate-200/80 shadow-2xl rounded-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="p-5 border-b border-slate-200/80 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-800">Table Floor Plan</h2>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Tap a table to select it</p>
+              </div>
+              <button onClick={() => setShowFloorPlan(false)} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              <div className="flex items-center gap-4 mb-4 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> Available</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Occupied</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#6A7051]" /> Selected</span>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                {tables.map((table) => {
+                  const isSelected = table.label === tableLabel;
+                  const isOccupied = table.status === 'occupied';
+                  return (
+                    <button
+                      key={table.id}
+                      onClick={() => {
+                        setOrderType('Dine In');
+                        setTableLabel(table.label);
+                        setShowFloorPlan(false);
+                      }}
+                      className={`aspect-square rounded-xl border-2 flex flex-col items-center justify-center gap-1 p-2 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#6A7051] border-[#6A7051] text-white shadow-lg scale-105'
+                          : isOccupied
+                          ? 'bg-amber-50 border-amber-300 text-amber-800 hover:border-amber-400'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:border-emerald-400'
+                      }`}
+                    >
+                      <span className="text-sm font-black">{table.label}</span>
+                      <span className="text-[7px] font-bold uppercase tracking-wider opacity-80">
+                        {table.capacity} seats
+                      </span>
+                      {isOccupied && (
+                        <span className="text-[8px] font-black">₹{fmtRupee(table.runningTotal)}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settlement Billing Modal */}
       {billingView && (
@@ -592,8 +759,14 @@ const RestaurantPOS = () => {
             <div className="w-[280px] bg-slate-50 p-6 flex flex-col border-l border-slate-200/80">
               <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 italic">Manifest Summary</h3>
               <div className="flex-1 space-y-3 text-xs">
+                {currentTableOrder && (
+                  <div className="flex justify-between text-amber-600 uppercase tracking-widest text-[9px]">
+                    <span>Already sent to kitchen</span>
+                    <span className="font-bold">₹{fmtRupee(currentTableOrder.totalAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-slate-500 uppercase tracking-widest text-[9px]">
-                  <span>Subtotal</span>
+                  <span>{currentTableOrder ? 'This round — subtotal' : 'Subtotal'}</span>
                   <span className="text-slate-850 font-bold">₹{fmtRupee(calculateSubtotal())}</span>
                 </div>
                 <div className="flex justify-between text-slate-500 uppercase tracking-widest text-[9px]">
@@ -607,8 +780,12 @@ const RestaurantPOS = () => {
                   </div>
                 )}
                 <div className="pt-4 border-t border-slate-200 flex flex-col gap-1">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Payable Net</span>
-                  <p className="text-3xl font-serif italic font-black text-[#6A7051]">₹{fmtRupee(calculateTotal())}</p>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    {currentTableOrder ? 'Full Table Bill' : 'Payable Net'}
+                  </span>
+                  <p className="text-3xl font-serif italic font-black text-[#6A7051]">
+                    ₹{fmtRupee((currentTableOrder?.totalAmount || 0) + calculateTotal())}
+                  </p>
                 </div>
               </div>
 
@@ -649,12 +826,18 @@ const RestaurantPOS = () => {
             <div className="print-root bg-white border border-slate-200 p-6 rounded-2xl space-y-6">
               <div className="text-center space-y-1">
                 <h2 className="text-xl font-serif italic font-black text-slate-800 uppercase tracking-tight">
-                  Golden <span className="text-[#6A7051]">Fisheries.</span>
+                  {outletSettings?.name || 'Golden Fisheries Restaurant'}
                 </h2>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Fresh Seafood & Fish Mall HQ</p>
+                {outletSettings?.location && (
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">{outletSettings.location}</p>
+                )}
                 <div className="pt-2 flex flex-col gap-0.5 text-slate-500">
-                  <p className="text-[7px] font-bold uppercase tracking-widest">GSTIN: 27AAGFG1234F1Z1</p>
-                  <p className="text-[7px] font-bold uppercase tracking-widest">TEL: +91 98765 43210</p>
+                  {outletSettings?.gstin && (
+                    <p className="text-[7px] font-bold uppercase tracking-widest">GSTIN: {outletSettings.gstin}</p>
+                  )}
+                  {outletSettings?.phone && (
+                    <p className="text-[7px] font-bold uppercase tracking-widest">TEL: {outletSettings.phone}</p>
+                  )}
                 </div>
               </div>
 

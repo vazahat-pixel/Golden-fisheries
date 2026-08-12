@@ -1,12 +1,13 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Clock,
   ChefHat,
   Utensils,
-  User,
-  Timer,
+  XCircle,
+  Ban,
+  X,
 } from 'lucide-react';
 import { useRestaurantStore } from '../../store/restaurantStore';
 import { toast } from 'react-hot-toast';
@@ -18,11 +19,16 @@ const STATUS_LABEL = {
   preparing: 'Cooking',
   ready: 'Ready',
   served: 'Served',
+  cancelled: 'Voided',
 };
 
 const RestaurantKitchen = () => {
   const navigate = useNavigate();
-  const { kots, fetchKitchenTickets, updateKOTItemStatus } = useRestaurantStore();
+  const { kots, fetchKitchenTickets, updateKOTItemStatus, cancelKitchenTicketAsync, voidKitchenLineAsync } = useRestaurantStore();
+  const [cancellingId, setCancellingId] = useState(null);
+  const [voidLineTarget, setVoidLineTarget] = useState(null); // { kotId, lineId, name }
+  const [voidLineReason, setVoidLineReason] = useState('');
+  const [voidingLine, setVoidingLine] = useState(false);
 
   const load = useCallback(() => {
     fetchKitchenTickets();
@@ -41,7 +47,22 @@ const RestaurantKitchen = () => {
     const flow = ['pending', 'preparing', 'ready', 'served'];
     const idx = flow.indexOf(currentStatus);
     const next = flow[Math.min(idx + 1, flow.length - 1)];
-    toast.success(`Line → ${STATUS_LABEL[next] || next}`);
+    toast.success(`Marked "${STATUS_LABEL[next] || next}"`);
+  };
+
+  const handleCancelTicket = async (kot) => {
+    if (!window.confirm(`Cancel ticket ${kot.ticketNumber || kot.id} for ${kot.tableLabel}? This can't be undone.`)) {
+      return;
+    }
+    setCancellingId(kot.id);
+    try {
+      await cancelKitchenTicketAsync(kot.id);
+      toast.success(`Ticket ${kot.ticketNumber || ''} cancelled and cleared from the board.`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Couldn't cancel this ticket — please try again.");
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -52,8 +73,28 @@ const RestaurantKitchen = () => {
         return 'text-emerald-600 bg-emerald-50 border-emerald-100 animate-pulse';
       case 'served':
         return 'text-slate-400 bg-slate-50 border-slate-100';
+      case 'cancelled':
+        return 'text-rose-400 bg-rose-50 border-rose-100 opacity-70';
       default:
         return 'text-slate-500 bg-slate-50 border-slate-100';
+    }
+  };
+
+  const handleVoidLineSubmit = async () => {
+    if (!voidLineReason.trim()) {
+      toast.error('Please say why this dish is being voided.');
+      return;
+    }
+    setVoidingLine(true);
+    try {
+      await voidKitchenLineAsync(voidLineTarget.kotId, voidLineTarget.lineId, voidLineReason.trim());
+      toast.success(`"${voidLineTarget.name}" voided.`);
+      setVoidLineTarget(null);
+      setVoidLineReason('');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Couldn't void this dish — please try again.");
+    } finally {
+      setVoidingLine(false);
     }
   };
 
@@ -122,34 +163,100 @@ const RestaurantKitchen = () => {
                 </div>
               </div>
               <div className="p-4 space-y-2">
-                {kot.items.map((item) => (
-                  <button
+                {kot.items.map((item) => {
+                  const isDone = item.kotStatus === 'served' || item.kotStatus === 'cancelled';
+                  return (
+                  <div
                     key={item.id}
-                    type="button"
-                    onClick={() => handleStatusUpdate(kot.id, item.id, item.kotStatus)}
-                    className={`w-full text-left p-3 border transition-all ${getStatusColor(item.kotStatus)}`}
+                    className={`w-full text-left p-3 border transition-all flex items-start gap-2 ${getStatusColor(item.kotStatus)}`}
                   >
-                    <div className="flex justify-between items-start">
+                    <button
+                      type="button"
+                      onClick={() => !isDone && handleStatusUpdate(kot.id, item.id, item.kotStatus)}
+                      disabled={isDone}
+                      className="flex-1 flex justify-between items-start text-left disabled:cursor-default"
+                    >
                       <div>
-                        <p className="text-sm font-black uppercase">{item.name}</p>
+                        <p className={`text-sm font-black uppercase ${item.kotStatus === 'cancelled' ? 'line-through' : ''}`}>{item.name}</p>
                         <p className="text-[10px] font-bold mt-1">× {item.qty || item.quantity}</p>
                         {item.notes && (
                           <p className="text-[9px] text-slate-500 mt-1 italic">{item.notes}</p>
+                        )}
+                        {item.kotStatus === 'cancelled' && item.voidReason && (
+                          <p className="text-[9px] text-rose-500 mt-1 italic">Voided: {item.voidReason}</p>
                         )}
                       </div>
                       <span className="text-[9px] font-black uppercase">
                         {STATUS_LABEL[item.kotStatus] || item.kotStatus}
                       </span>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                    {item.kotStatus !== 'served' && item.kotStatus !== 'cancelled' && (
+                      <button
+                        type="button"
+                        onClick={() => { setVoidLineTarget({ kotId: kot.id, lineId: item.id, name: item.name }); setVoidLineReason(''); }}
+                        title="Void this dish"
+                        className="text-rose-400 hover:text-rose-600 shrink-0 mt-0.5"
+                      >
+                        <Ban size={14} />
+                      </button>
+                    )}
+                  </div>
+                  );
+                })}
               </div>
-              <div className="px-4 py-2 border-t bg-slate-50 flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase">
-                <ChefHat size={12} />
-                Tap item: Pending → Cooking → Ready → Served
+              <div className="px-4 py-2 border-t bg-slate-50 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase">
+                  <ChefHat size={12} />
+                  Tap item: Pending → Cooking → Ready → Served
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCancelTicket(kot)}
+                  disabled={cancellingId === kot.id}
+                  className="flex items-center gap-1 text-[8px] font-black uppercase text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+                >
+                  <XCircle size={12} /> {cancellingId === kot.id ? 'Cancelling...' : 'Cancel Ticket'}
+                </button>
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Void Line Reason Modal */}
+      {voidLineTarget && (
+        <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase text-slate-800">Void "{voidLineTarget.name}"?</h3>
+              <button onClick={() => setVoidLineTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
+            </div>
+            <div>
+              <label className="text-[9px] font-black uppercase text-slate-500">Reason (required)</label>
+              <textarea
+                value={voidLineReason}
+                onChange={(e) => setVoidLineReason(e.target.value)}
+                placeholder="e.g. Ran out of this ingredient"
+                rows={3}
+                className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-rose-400 outline-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setVoidLineTarget(null)}
+                className="flex-1 py-2.5 border border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVoidLineSubmit}
+                disabled={voidingLine}
+                className="flex-1 py-2.5 bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-rose-700 disabled:opacity-50"
+              >
+                {voidingLine ? 'Voiding...' : 'Void Dish'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

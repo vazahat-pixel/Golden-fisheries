@@ -103,21 +103,25 @@ const RestaurantMenuSetup = () => {
   };
 
   const handleDelete = async (item) => {
-    if (!window.confirm(`Are you sure you want to delete "${item.name}" from menu?`)) return;
+    if (!window.confirm(`Remove "${item.name}" from the menu? It will no longer be sellable on POS.`)) return;
     try {
       await restaurantService.deleteMenuItem(item._id || item.id);
-      toast.success(`Dish "${item.name}" deleted`);
+      toast.success(`"${item.name}" removed from the menu.`);
       if (editingId === (item._id || item.id)) cancelEdit();
       await loadMenuItems();
     } catch (err) {
-      toast.error(err?.message || err?.response?.data?.message || 'Failed to delete menu item');
+      toast.error(err?.message || err?.response?.data?.message || "Couldn't delete this dish — please try again.");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Dish name likhein');
+      toast.error('Please enter a dish name.');
+      return;
+    }
+    if (!price || parseFloat(price) <= 0) {
+      toast.error('Please enter a selling price greater than ₹0.');
       return;
     }
 
@@ -125,7 +129,7 @@ const RestaurantMenuSetup = () => {
       (l) => l.inventoryItemId && !(parseFloat(l.quantityPerServe) > 0)
     );
     if (invalidLine) {
-      toast.error('Selected ingredient ke liye qty per serve likhein (e.g. 0.15 KG)');
+      toast.error('Please enter a quantity-per-serve for the selected ingredient (e.g. 0.15 KG).');
       return;
     }
 
@@ -149,17 +153,21 @@ const RestaurantMenuSetup = () => {
 
       if (editingId) {
         await restaurantService.updateMenuItem(editingId, payload);
-        toast.success(`Dish "${name}" updated successfully`);
+        toast.success(`"${name}" updated.`);
       } else {
         await restaurantService.createMenuItem(payload);
-        toast.success(`Menu "${name}" saved — POS par dish dikhegi`);
+        if (lines.length > 0) {
+          toast.success(`"${name}" added — now live on POS and its stock will be tracked.`);
+        } else {
+          toast.success(`"${name}" added and live on POS. Note: no recipe set, so selling it won't reduce kitchen stock.`, { duration: 5000 });
+        }
       }
 
       cancelEdit();
       await loadStock();
       await loadMenuItems();
     } catch (err) {
-      toast.error(err?.message || err?.response?.data?.message || 'Failed to save menu item');
+      toast.error(err?.message || err?.response?.data?.message || "Couldn't save this dish — please check the details and try again.");
     } finally {
       setSaving(false);
     }
@@ -362,9 +370,16 @@ const RestaurantMenuSetup = () => {
                     <div className="text-[10px] text-slate-500 flex items-center gap-3">
                       <span>Price: <strong className="text-black font-mono">₹{item.sellingPrice ?? item.price}</strong></span>
                       <span>•</span>
-                      <span>
-                        Recipe: {recipeCount > 0 ? `${recipeCount} ingredient(s)` : <em className="text-slate-400">None (Optional)</em>}
-                      </span>
+                      {recipeCount > 0 ? (
+                        <span>Recipe: {recipeCount} ingredient(s) linked</span>
+                      ) : (
+                        <span
+                          title="Selling this dish won't reduce kitchen stock — add a recipe so it does."
+                          className="px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold uppercase text-[9px] rounded"
+                        >
+                          ⚠ No recipe — stock not tracked
+                        </span>
+                      )}
                     </div>
                   </div>
 

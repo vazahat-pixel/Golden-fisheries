@@ -31,6 +31,10 @@ export const restaurantService = {
     return await apiClient.get('/restaurant/tables');
   },
 
+  getTableOrder: async (tableNumber) => {
+    return await apiClient.get('/restaurant/tables/order', { params: { tableNumber } });
+  },
+
   getInventory: async (params = {}) => {
     return await apiClient.get('/restaurant/inventory', { params });
   },
@@ -81,6 +85,30 @@ export const restaurantService = {
 
   advanceKitchenLine: async (ticketId, lineId) => {
     return await apiClient.patch(`/restaurant/kitchen-tickets/${ticketId}/lines/${lineId}/advance`);
+  },
+
+  cancelKitchenTicket: async (ticketId) => {
+    return await apiClient.patch(`/restaurant/kitchen-tickets/${ticketId}/cancel`);
+  },
+
+  voidKitchenLine: async (ticketId, lineId, reason) => {
+    return await apiClient.patch(`/restaurant/kitchen-tickets/${ticketId}/lines/${lineId}/void`, { reason });
+  },
+
+  removeOrderItem: async (orderId, itemId) => {
+    return await apiClient.delete(`/restaurant/${orderId}/items/${itemId}`);
+  },
+
+  voidOrder: async (orderId, reason) => {
+    return await apiClient.patch(`/restaurant/${orderId}/void`, { reason });
+  },
+
+  getOutletSettings: async () => {
+    return await apiClient.get('/restaurant/outlet-settings');
+  },
+
+  updateOutletSettings: async (data) => {
+    return await apiClient.patch('/restaurant/outlet-settings', data);
   },
 
   createMenuItem: async (data) => {

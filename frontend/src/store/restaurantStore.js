@@ -55,6 +55,7 @@ const mapTicketToKot = (ticket) => ({
     quantity: line.quantity,
     notes: line.notes,
     kotStatus: (line.lineStatus || 'PENDING').toLowerCase(),
+    voidReason: line.voidReason || '',
   })),
   staffName: ticket.createdBy?.fullName || 'Staff',
   notes: ticket.remarks || '',
@@ -81,6 +82,7 @@ export const useRestaurantStore = create(
       kitchenStock: [],
       coupons: COUPONS,
       activeSession: null,
+      currentTableOrder: null, // the selected dine-in table's open running tab, if any
       accountingSummary: null,
       cashbook: [],
       expenses: [],
@@ -174,6 +176,30 @@ export const useRestaurantStore = create(
 
       updateKOTItemStatus: (kotId, itemId) => {
         get().advanceKitchenLineAsync(kotId, itemId);
+      },
+
+      voidKitchenLineAsync: async (kotId, lineId, reason) => {
+        const res = await restaurantService.voidKitchenLine(kotId, lineId, reason);
+        const ticket = res?.data?.ticket ?? res?.data?.data?.ticket;
+        if (ticket) {
+          const kot = mapTicketToKot(ticket);
+          set((state) => ({
+            kots: kot.status === 'active'
+              ? state.kots.map((k) => (k.id === kotId ? kot : k))
+              : state.kots.filter((k) => k.id !== kotId),
+          }));
+        } else {
+          await get().fetchKitchenTickets();
+        }
+      },
+
+      cancelKitchenTicketAsync: async (kotId) => {
+        const res = await restaurantService.cancelKitchenTicket(kotId);
+        const ticket = res?.data?.ticket ?? res?.data?.data?.ticket;
+        set((state) => ({
+          kots: state.kots.filter((k) => k.id !== kotId),
+        }));
+        return ticket;
       },
 
       updateKOTStatus: (kotId, status) => set((state) => ({
@@ -311,15 +337,18 @@ export const useRestaurantStore = create(
             .filter((item) => Boolean(item && (item._id || item.id)))
             .map((item) => {
               const rowId = String(item._id || item.id);
-              const hasMenu = Boolean(item.menuItemId || item._id);
+              const menuItemId = item.menuItemId != null ? String(item.menuItemId) : null;
+              const inventoryItemId = item.inventoryItemId != null ? String(item.inventoryItemId) : null;
+              const isKitchenSku = !menuItemId && !!inventoryItemId;
               return {
                 ...item,
                 id: rowId,
-                menuItemId: item.menuItemId ? String(item.menuItemId) : String(rowId),
-                inventoryItemId: item.inventoryItemId ? String(item.inventoryItemId) : null,
+                menuItemId,
+                inventoryItemId,
                 price: item.price ?? item.sellingPrice ?? item.rate ?? 0,
                 stock: item.stock ?? item.quantity ?? 0,
-                isKitchenSku: !hasMenu && item.menuItemId == null,
+                isKitchenSku,
+                hasRecipe: Array.isArray(item.recipe) && item.recipe.length > 0,
               };
             });
           set({ menuItems: mapped, loading: false });
@@ -345,6 +374,65 @@ export const useRestaurantStore = create(
         }
       },
 
+      // Fetches the currently open (unpaid) running tab for a dine-in table, if any —
+      // lets the POS resume a table that already had a "starters" round sent earlier.
+      fetchTableOrderAsync: async (tableNumber) => {
+        if (!tableNumber || tableNumber === 'COUNTER') {
+          set({ currentTableOrder: null });
+          return null;
+        }
+        try {
+          const res = await restaurantService.getTableOrder(tableNumber);
+          const order = res?.data?.order ?? res?.order ?? null;
+          set({ currentTableOrder: order });
+          return order;
+        } catch (err) {
+          console.error('Failed to fetch table running tab', err);
+          set({ currentTableOrder: null });
+          return null;
+        }
+      },
+
+      // Sends one round of items to the kitchen/bill. If the table already has an
+      // open tab, the backend appends to it instead of starting a second bill —
+      // this is what lets "starters now, mains later" become ONE final bill.
+      appendOrderRoundAsync: async (roundData) => {
+        const payload = {
+          orderType: ORDER_TYPE_TO_API[roundData.orderType] || roundData.orderType || 'DINE_IN',
+          tableNumber: roundData.tableLabel || roundData.tableId || 'COUNTER',
+          items: (roundData.items || []).map((item) => {
+            const line = {
+              name: item.name,
+              quantity: item.qty ?? item.quantity,
+              rate: item.rate ?? item.price,
+            };
+            if (isValidObjectId(item.menuItemId)) {
+              line.menuItemId = item.menuItemId;
+            } else if (isValidObjectId(item.inventoryItemId)) {
+              line.inventoryItemId = item.inventoryItemId;
+            } else if (item.isKitchenSku && isValidObjectId(item.id)) {
+              line.inventoryItemId = item.id;
+            }
+            return line;
+          }),
+          discountAmount: roundData.discount ?? roundData.discountAmount ?? 0,
+          coupon: roundData.coupon ? String(roundData.coupon) : '',
+        };
+        if (isValidObjectId(roundData.kitchenTicketId)) {
+          payload.kitchenTicketId = roundData.kitchenTicketId;
+        }
+
+        const res = await restaurantService.create(payload);
+        const order = res?.data?.order ?? res?.order;
+        if (!order?._id && !order?.id) {
+          throw new Error('Order was not saved on the server — please try again');
+        }
+        set({ currentTableOrder: order });
+        return order;
+      },
+
+      // Settles payment for an existing order (a table's fully accumulated running tab,
+      // or a fresh quick-sale order) and closes out every kitchen round tied to it.
       settleOrderAsync: async (settleData) => {
         set({ loading: true });
         try {
@@ -354,37 +442,13 @@ export const useRestaurantStore = create(
           const pm = (settleData.paymentMethod || 'CASH').toUpperCase();
           const isSplit = pm === 'SPLIT' || (cash > 0 && upi > 0);
 
-          const payload = {
-            orderType: ORDER_TYPE_TO_API[settleData.orderType] || settleData.orderType || 'DINE_IN',
-            tableNumber: settleData.tableLabel || settleData.tableId || 'COUNTER',
-            items: (settleData.items || []).map((item) => {
-              const line = {
-                name: item.name,
-                quantity: item.qty ?? item.quantity,
-                rate: item.rate ?? item.price,
-              };
-              if (isValidObjectId(item.menuItemId)) {
-                line.menuItemId = item.menuItemId;
-              } else if (isValidObjectId(item.inventoryItemId)) {
-                line.inventoryItemId = item.inventoryItemId;
-              } else if (item.isKitchenSku && isValidObjectId(item.id)) {
-                line.inventoryItemId = item.id;
-              }
-              return line;
-            }),
-            discountAmount: settleData.discount ?? settleData.discountAmount ?? 0,
-            coupon: settleData.coupon ? String(settleData.coupon) : '',
-          };
-          if (isValidObjectId(settleData.kitchenTicketId)) {
-            payload.kitchenTicketId = settleData.kitchenTicketId;
+          let order = settleData.existingOrder || null;
+          if ((settleData.items || []).length > 0) {
+            order = await get().appendOrderRoundAsync(settleData);
           }
-
-          const res = await restaurantService.create(payload);
-          const order = res?.data?.order ?? res?.order;
           const orderId = order?._id || order?.id;
-
           if (!orderId) {
-            throw new Error('Order was not created on server — cannot settle payment');
+            throw new Error('No order to settle — add items to the bill first');
           }
 
           await restaurantService.settle(orderId, {
@@ -405,7 +469,8 @@ export const useRestaurantStore = create(
           await get().fetchOrders();
           await get().fetchMenu();
           await get().fetchKitchenTickets();
-          set({ loading: false });
+          await get().fetchTables();
+          set({ loading: false, currentTableOrder: null });
           return { data: { order }, order };
         } catch (err) {
           const msg =
@@ -417,6 +482,54 @@ export const useRestaurantStore = create(
           wrapped.cause = err;
           throw wrapped;
         }
+      },
+
+      // Removes one dish from a table's still-open bill before it's paid — the
+      // "I want to void this before we settle" case.
+      removeOrderItemAsync: async (orderId, itemId) => {
+        const res = await restaurantService.removeOrderItem(orderId, itemId);
+        const order = res?.data?.order ?? res?.order ?? null;
+        set({ currentTableOrder: order && order.status === 'PENDING' ? order : null });
+        await get().fetchTables();
+        return order;
+      },
+
+      // Reverses an already-paid bill: restores kitchen stock, reverses the
+      // cashbook entry, and adjusts the open shift's totals.
+      voidOrderAsync: async (orderId, reason) => {
+        set({ loading: true });
+        try {
+          const res = await restaurantService.voidOrder(orderId, reason);
+          const order = res?.data?.order ?? res?.order;
+          await get().fetchOrders();
+          await get().fetchAccountingSummaryAsync();
+          set({ loading: false });
+          return order;
+        } catch (err) {
+          const msg = err?.response?.data?.message || err?.message || 'Failed to void the bill';
+          set({ loading: false });
+          throw new Error(msg);
+        }
+      },
+
+      // ── Restaurant identity / bill header settings ──────────────────────────
+      outletSettings: null,
+      fetchOutletSettingsAsync: async () => {
+        try {
+          const res = await restaurantService.getOutletSettings();
+          const outlet = res?.data?.outlet ?? res?.outlet ?? null;
+          set({ outletSettings: outlet });
+          return outlet;
+        } catch (err) {
+          console.error('Failed to fetch restaurant bill settings', err);
+          return null;
+        }
+      },
+      updateOutletSettingsAsync: async (payload) => {
+        const res = await restaurantService.updateOutletSettings(payload);
+        const outlet = res?.data?.outlet ?? res?.outlet;
+        set({ outletSettings: outlet });
+        return outlet;
       },
 
       fetchActiveSessionAsync: async () => {

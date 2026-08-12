@@ -164,6 +164,42 @@ class RestaurantInventoryService {
     }
   }
 
+  /**
+   * Voiding a paid order should give back exactly what was taken — reads the
+   * original deduction log (not the recipe again, which may have changed
+   * since) and credits each item back by that same amount.
+   */
+  async restoreForOrder(order, userId, session) {
+    const logs = await RestaurantInventoryLog.find({
+      referenceId: order._id,
+      referenceModel: 'RestaurantOrder',
+      type: 'RECIPE_CONSUMPTION',
+    }).session(session);
+
+    for (const log of logs) {
+      const item = await RestaurantInventoryItem.findById(log.itemId).session(session);
+      if (!item) continue;
+      const restoreQty = Math.abs(log.quantityChange);
+      const prev = item.quantity || 0;
+      const next = Math.round((prev + restoreQty) * 1000) / 1000;
+      item.quantity = next;
+      item.recordDate = new Date();
+      await item.save({ session });
+      await this._log(
+        item._id,
+        'VOID_RESTORE',
+        restoreQty,
+        prev,
+        next,
+        userId,
+        `Voided order ${order.orderNumber} — stock restored`,
+        order._id,
+        'RestaurantOrder',
+        session
+      );
+    }
+  }
+
   async _deductItem(
     itemId,
     quantity,

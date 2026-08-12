@@ -119,7 +119,7 @@ const restaurantCashbookEntrySchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['OPENING_BALANCE', 'POS_SALE', 'EXPENSE', 'CLOSING_SESSION', 'OTHER'],
+      enum: ['OPENING_BALANCE', 'POS_SALE', 'POS_SALE_VOID', 'EXPENSE', 'CLOSING_SESSION', 'OTHER'],
       required: true,
       index: true
     },

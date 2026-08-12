@@ -91,14 +91,51 @@ class KitchenService {
     if (!line) throw new AppError('Kitchen line not found', 404);
     line.lineStatus = lineStatus;
 
-    const allServed = ticket.items.every((i) => i.lineStatus === 'SERVED');
-    const allReadyOrServed = ticket.items.every((i) =>
-      ['READY', 'SERVED'].includes(i.lineStatus)
-    );
-    if (allServed) ticket.status = 'COMPLETED';
-    else if (allReadyOrServed && ticket.items.some((i) => i.lineStatus === 'READY')) {
-      /* keep active until all served */
+    this._maybeAutoCompleteTicket(ticket);
+
+    await ticket.save();
+    broadcastEvent('restaurant:kot_updated', { ticket });
+    return ticket;
+  }
+
+  /**
+   * A ticket is done once every non-voided line has been served. If every
+   * single line ended up voided, the whole ticket is pointless — cancel it.
+   */
+  _maybeAutoCompleteTicket(ticket) {
+    const live = ticket.items.filter((i) => i.lineStatus !== 'CANCELLED');
+    if (live.length === 0) {
+      ticket.status = 'CANCELLED';
+    } else if (live.every((i) => i.lineStatus === 'SERVED')) {
+      ticket.status = 'COMPLETED';
     }
+  }
+
+  /**
+   * Voids one dish on an active ticket — e.g. kitchen ran out of it, or the
+   * customer changed their mind before it was served. Leaves an audit trail
+   * (reason) instead of silently deleting the line.
+   */
+  async voidLine(ticketId, lineId, reason) {
+    const ticket = await KitchenTicket.findById(ticketId);
+    if (!ticket) throw new AppError('Kitchen ticket not found', 404);
+    if (ticket.status !== 'ACTIVE') {
+      throw new AppError('Kitchen ticket is no longer active', 400);
+    }
+
+    const line = ticket.items.id(lineId);
+    if (!line) throw new AppError('Kitchen line not found', 404);
+    if (line.lineStatus === 'SERVED') {
+      throw new AppError('This dish was already served — it can\'t be voided from the kitchen anymore', 400);
+    }
+    if (line.lineStatus === 'CANCELLED') {
+      throw new AppError('This dish is already voided', 400);
+    }
+
+    line.lineStatus = 'CANCELLED';
+    line.voidReason = (reason || '').trim() || 'No reason given';
+
+    this._maybeAutoCompleteTicket(ticket);
 
     await ticket.save();
     broadcastEvent('restaurant:kot_updated', { ticket });
@@ -110,6 +147,9 @@ class KitchenService {
     if (!ticket) throw new AppError('Kitchen ticket not found', 404);
     const line = ticket.items.id(lineId);
     if (!line) throw new AppError('Kitchen line not found', 404);
+    if (line.lineStatus === 'CANCELLED') {
+      throw new AppError('This dish was voided and can\'t be advanced', 400);
+    }
 
     const flow = ['PENDING', 'PREPARING', 'READY', 'SERVED'];
     const idx = flow.indexOf(line.lineStatus);
@@ -120,6 +160,12 @@ class KitchenService {
   async cancelTicket(ticketId) {
     const ticket = await KitchenTicket.findById(ticketId);
     if (!ticket) throw new AppError('Kitchen ticket not found', 404);
+    if (ticket.status === 'COMPLETED') {
+      throw new AppError('This ticket is already completed and cannot be cancelled', 400);
+    }
+    if (ticket.status === 'CANCELLED') {
+      throw new AppError('This ticket is already cancelled', 400);
+    }
     ticket.status = 'CANCELLED';
     await ticket.save();
     broadcastEvent('restaurant:kot_updated', { ticket });

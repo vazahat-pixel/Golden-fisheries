@@ -33,13 +33,14 @@ class RestaurantService extends BaseService {
   }
 
   /**
-   * Create POS order ticket (PENDING until settled).
+   * Validates raw POS cart lines against the menu/inventory catalog and
+   * returns priced line items ready to store on an order.
    */
-  async createOrder(orderData, userId) {
+  async _verifyItems(items) {
     let subtotal = 0;
     const verifiedItems = [];
 
-    for (const item of orderData.items) {
+    for (const item of items) {
       const qty = parseFloat(item.quantity) || 1;
       let rate = parseFloat(item.rate);
       let name = item.name;
@@ -85,28 +86,81 @@ class RestaurantService extends BaseService {
       });
     }
 
-    subtotal = Math.round(subtotal * 100) / 100;
-    const discountAmount = Math.round((parseFloat(orderData.discountAmount ?? orderData.discount) || 0) * 100) / 100;
+    return { verifiedItems, subtotal: Math.round(subtotal * 100) / 100 };
+  }
+
+  _recalculateOrderTotals(order, discountAmount) {
+    const subtotal = Math.round(
+      order.items.reduce((sum, i) => sum + i.amount, 0) * 100
+    ) / 100;
     const taxable = Math.max(0, subtotal - discountAmount);
     const cgst = Math.round(taxable * 0.025 * 100) / 100;
     const sgst = Math.round(taxable * 0.025 * 100) / 100;
-    const totalAmount = Math.round((taxable + cgst + sgst) * 100) / 100;
+    order.subtotal = subtotal;
+    order.cgst = cgst;
+    order.sgst = sgst;
+    order.discountAmount = discountAmount;
+    order.totalAmount = Math.round((taxable + cgst + sgst) * 100) / 100;
+  }
 
+  /**
+   * Finds the still-open (unpaid) running tab for a dine-in table, if any.
+   * Takeaway/Delivery/Counter sales never have a running tab — each is its own order.
+   */
+  async findOpenTableOrder(orderType, tableNumber) {
+    if (normalizeOrderType(orderType) !== 'DINE_IN') return null;
+    if (!tableNumber || ['TAKEAWAY', 'COUNTER', ''].includes(tableNumber.toUpperCase())) return null;
+    return this.model.findOne({
+      orderType: 'DINE_IN',
+      tableNumber,
+      status: 'PENDING',
+    });
+  }
+
+  /**
+   * Create a POS order ticket, or — for a dine-in table that already has an
+   * open running tab — append this round's items onto it instead of starting
+   * a second, disconnected bill. This is what lets "starters now, mains later"
+   * settle as ONE bill at the end, the way a real table service works.
+   */
+  async createOrder(orderData, userId) {
+    const { verifiedItems } = await this._verifyItems(orderData.items);
+    const tableNumber = orderData.tableNumber || orderData.tableLabel || 'TAKEAWAY';
+    const orderType = normalizeOrderType(orderData.orderType);
+
+    const existing = await this.findOpenTableOrder(orderType, tableNumber);
+    const newDiscount = orderData.discountAmount ?? orderData.discount;
+
+    if (existing) {
+      existing.items.push(...verifiedItems);
+      // Discounts/coupons are applied once at final billing, not per kitchen round —
+      // only overwrite the running tab's discount if this call actually carries a real one.
+      const parsedDiscount = parseFloat(newDiscount) || 0;
+      const discountAmount = parsedDiscount > 0 ? Math.round(parsedDiscount * 100) / 100 : existing.discountAmount;
+      this._recalculateOrderTotals(existing, discountAmount);
+      if (orderData.kitchenTicketId) {
+        existing.kitchenTicketIds.push(orderData.kitchenTicketId);
+      }
+      if (orderData.coupon || orderData.couponCode) {
+        existing.couponCode = orderData.coupon || orderData.couponCode;
+      }
+      await existing.save();
+      logger.info(`[Restaurant POS]: Added ${verifiedItems.length} item(s) to running tab ${existing.orderNumber} (${tableNumber})`);
+      return existing;
+    }
+
+    const discountAmount = Math.round((parseFloat(newDiscount) || 0) * 100) / 100;
     const order = new RestaurantOrder({
-      orderType: normalizeOrderType(orderData.orderType),
-      tableNumber: orderData.tableNumber || orderData.tableLabel || 'TAKEAWAY',
+      orderType,
+      tableNumber,
       items: verifiedItems,
-      subtotal,
-      cgst,
-      sgst,
-      totalAmount,
-      discountAmount,
+      kitchenTicketIds: orderData.kitchenTicketId ? [orderData.kitchenTicketId] : [],
       couponCode: orderData.coupon || orderData.couponCode || '',
-      kitchenTicketId: orderData.kitchenTicketId || null,
       status: 'PENDING',
       createdBy: userId,
       remarks: orderData.remarks || '',
     });
+    this._recalculateOrderTotals(order, discountAmount);
 
     await order.save();
     logger.info(`[Restaurant POS]: Order ${order.orderNumber} created for ${order.tableNumber}`);
@@ -223,12 +277,18 @@ class RestaurantService extends BaseService {
 
       await restaurantInventoryService.deductForOrder(order, userId, session);
 
-      if (order.kitchenTicketId) {
-        await KitchenTicket.findByIdAndUpdate(
-          order.kitchenTicketId,
-          { status: 'COMPLETED' },
-          { session }
-        );
+      // Close every kitchen round tied to this table's tab (starters, mains, etc.) —
+      // billing the table settles all of them together.
+      for (const ticketId of order.kitchenTicketIds || []) {
+        const ticket = await KitchenTicket.findById(ticketId).session(session);
+        if (ticket && ticket.status === 'ACTIVE') {
+          ticket.items.forEach((line) => {
+            line.lineStatus = 'SERVED';
+          });
+          ticket.status = 'COMPLETED';
+          ticket.orderId = order._id;
+          await ticket.save({ session });
+        }
       }
 
       await session.commitTransaction();
@@ -246,6 +306,35 @@ class RestaurantService extends BaseService {
     }
   }
 
+  /**
+   * Real occupancy for the POS table picker — any table with an open (PENDING)
+   * dine-in tab shows as occupied with its running total, instead of a static list.
+   */
+  async getTablesWithStatus() {
+    const tables = Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      label: `T${String(i + 1).padStart(2, '0')}`,
+      status: 'available',
+      capacity: i < 4 ? 2 : i < 14 ? 4 : 6,
+    }));
+
+    const openOrders = await this.model.find({ orderType: 'DINE_IN', status: 'PENDING' });
+    const byTable = new Map(openOrders.map((o) => [o.tableNumber, o]));
+
+    return tables.map((t) => {
+      const order = byTable.get(t.label);
+      if (!order) return t;
+      return {
+        ...t,
+        status: 'occupied',
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        runningTotal: order.totalAmount,
+        itemCount: order.items.length,
+      };
+    });
+  }
+
   async updateOrderStatus(orderId, status) {
     const allowed = ['PENDING', 'PREPARING', 'SERVED', 'PAID', 'CANCELLED'];
     if (!allowed.includes(status)) throw new AppError(`Invalid status: ${status}`, 400);
@@ -253,6 +342,120 @@ class RestaurantService extends BaseService {
     if (!order) throw new AppError('Order not found', 404);
     broadcastEvent('restaurant:order_updated', { order });
     return order;
+  }
+
+  /**
+   * Removes one dish from a table's still-open (unpaid) running tab — e.g. the
+   * customer changed their mind before the bill was closed. If that was the
+   * last item, the whole tab is cancelled and the table frees up.
+   */
+  async removeOrderItem(orderId, itemId) {
+    const order = await this.model.findById(orderId);
+    if (!order) throw new AppError('Order not found', 404);
+    if (order.status !== 'PENDING') {
+      throw new AppError('Only an unpaid, still-open bill can have items removed', 400);
+    }
+    const item = order.items.id(itemId);
+    if (!item) throw new AppError('Item not found on this order', 404);
+
+    order.items.pull(itemId);
+    if (order.items.length === 0) {
+      order.status = 'CANCELLED';
+      order.subtotal = 0;
+      order.cgst = 0;
+      order.sgst = 0;
+      order.totalAmount = 0;
+    } else {
+      this._recalculateOrderTotals(order, order.discountAmount);
+    }
+    await order.save();
+    broadcastEvent('restaurant:order_updated', { order });
+    return order;
+  }
+
+  /**
+   * Reverses a PAID order: restores kitchen stock, posts a reversal entry to
+   * the cashbook, and adjusts the shift session's totals — all inside one
+   * transaction so nothing is left half-reversed. Only possible while the
+   * order's shift is still open; a closed shift's books are locked.
+   */
+  async voidOrder(orderId, reason, userId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const order = await this.model.findById(orderId).session(session);
+      if (!order) throw new AppError('Order not found', 404);
+      if (order.status !== 'PAID') {
+        throw new AppError('Only a paid, settled bill can be voided', 400);
+      }
+      if (!reason || !reason.trim()) {
+        throw new AppError('A reason is required to void a bill', 400);
+      }
+
+      const shiftSession = order.sessionId
+        ? await RestaurantSession.findById(order.sessionId).session(session)
+        : null;
+      if (!shiftSession || shiftSession.status !== 'OPEN') {
+        throw new AppError(
+          "This bill's shift has already been closed — it can no longer be voided.",
+          400
+        );
+      }
+
+      await restaurantInventoryService.restoreForOrder(order, userId, session);
+
+      const cashAmt = order.paymentMethod === 'CASH' ? order.totalAmount : (order.paymentMethod === 'SPLIT' ? order.cashAmount : 0);
+      const upiAmt = order.paymentMethod === 'UPI' ? order.totalAmount : (order.paymentMethod === 'SPLIT' ? order.upiAmount : 0);
+      const cardAmt = order.paymentMethod === 'CARD' ? order.totalAmount : 0;
+
+      await RestaurantCashbookEntry.create(
+        [
+          {
+            sessionId: shiftSession._id,
+            type: 'OUTFLOW',
+            category: 'POS_SALE_VOID',
+            paymentMethod: order.paymentMethod,
+            amount: order.totalAmount,
+            cashAmount: cashAmt,
+            upiAmount: upiAmt,
+            cardAmount: cardAmt,
+            description: `Voided bill ${order.orderNumber} — ${reason.trim()}`,
+            referenceId: order._id,
+            referenceModel: 'RestaurantOrder',
+            createdBy: userId,
+          },
+        ],
+        { session }
+      );
+
+      shiftSession.salesTotal -= order.totalAmount;
+      shiftSession.cashSalesTotal -= cashAmt;
+      shiftSession.upiSalesTotal -= upiAmt;
+      shiftSession.cardSalesTotal -= cardAmt;
+      shiftSession.discountTotal -= order.discountAmount || 0;
+      shiftSession.expectedClosingCash = shiftSession.openingCash + shiftSession.cashSalesTotal - shiftSession.cashExpensesTotal;
+      shiftSession.expectedClosingUpi = shiftSession.upiSalesTotal - shiftSession.upiExpensesTotal;
+      shiftSession.netPnL = shiftSession.salesTotal - shiftSession.expensesTotal;
+      await shiftSession.save({ session });
+
+      order.status = 'CANCELLED';
+      order.voidReason = reason.trim();
+      order.voidedBy = userId;
+      order.voidedAt = new Date();
+      await order.save({ session });
+
+      await session.commitTransaction();
+
+      broadcastEvent('restaurant:order_voided', { order });
+      broadcastEvent('restaurant:inventory_updated', {});
+      logger.info(`[Restaurant POS]: Voided ${order.orderNumber} — ${reason.trim()}`);
+      return order;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }
 

@@ -13,9 +13,10 @@ const kitchenLineSchema = new mongoose.Schema(
     notes: { type: String, default: '' },
     lineStatus: {
       type: String,
-      enum: ['PENDING', 'PREPARING', 'READY', 'SERVED'],
+      enum: ['PENDING', 'PREPARING', 'READY', 'SERVED', 'CANCELLED'],
       default: 'PENDING',
     },
+    voidReason: { type: String, default: '' },
   },
   { _id: true }
 );

@@ -62,6 +62,7 @@ const restaurantInventoryLogSchema = new mongoose.Schema(
         'INTERNAL_TRANSFER_IN',
         'RECIPE_CONSUMPTION',
         'WASTAGE',
+        'VOID_RESTORE',
       ],
       required: true,
     },

@@ -67,6 +67,7 @@ class RestaurantOutletService {
       location: payload.location?.trim() || '',
       phone: payload.phone?.trim() || '',
       email: payload.email?.trim() || '',
+      gstin: payload.gstin?.trim() || '',
       kitchenLabel: payload.kitchenLabel?.trim() || 'Kitchen',
       isActive: payload.isActive !== false,
       createdBy: userId,
@@ -94,6 +95,7 @@ class RestaurantOutletService {
     if (payload.location != null) outlet.location = payload.location.trim();
     if (payload.phone != null) outlet.phone = payload.phone.trim();
     if (payload.email != null) outlet.email = payload.email.trim();
+    if (payload.gstin != null) outlet.gstin = payload.gstin.trim();
     if (payload.kitchenLabel != null) outlet.kitchenLabel = payload.kitchenLabel.trim();
     if (payload.isActive != null) outlet.isActive = payload.isActive;
     if (payload.isDefault === true) {
@@ -102,6 +104,15 @@ class RestaurantOutletService {
     }
     await outlet.save();
     return outlet;
+  }
+
+  async getMySettings() {
+    return this.ensureDefaultOutlet();
+  }
+
+  async updateMySettings(payload) {
+    const outlet = await this.ensureDefaultOutlet();
+    return this.update(outlet._id, payload);
   }
 }
 
