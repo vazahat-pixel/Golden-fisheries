@@ -8,6 +8,7 @@ import {
   XCircle,
   Ban,
   X,
+  Printer,
 } from 'lucide-react';
 import { useRestaurantStore } from '../../store/restaurantStore';
 import { toast } from 'react-hot-toast';
@@ -24,15 +25,17 @@ const STATUS_LABEL = {
 
 const RestaurantKitchen = () => {
   const navigate = useNavigate();
-  const { kots, fetchKitchenTickets, updateKOTItemStatus, cancelKitchenTicketAsync, voidKitchenLineAsync } = useRestaurantStore();
+  const { kots, fetchKitchenTickets, updateKOTItemStatus, cancelKitchenTicketAsync, voidKitchenLineAsync, outletSettings, fetchOutletSettingsAsync } = useRestaurantStore();
   const [cancellingId, setCancellingId] = useState(null);
   const [voidLineTarget, setVoidLineTarget] = useState(null); // { kotId, lineId, name }
   const [voidLineReason, setVoidLineReason] = useState('');
   const [voidingLine, setVoidingLine] = useState(false);
+  const [kotToPrint, setKotToPrint] = useState(null);
 
   const load = useCallback(() => {
     fetchKitchenTickets();
-  }, [fetchKitchenTickets]);
+    fetchOutletSettingsAsync();
+  }, [fetchKitchenTickets, fetchOutletSettingsAsync]);
 
   useEffect(() => {
     load();
@@ -50,8 +53,16 @@ const RestaurantKitchen = () => {
     toast.success(`Marked "${STATUS_LABEL[next] || next}"`);
   };
 
+  const handlePrintKOT = (kot) => {
+    setKotToPrint(kot);
+    // Instant direct print — without any confirmation popup
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
   const handleCancelTicket = async (kot) => {
-    if (!window.confirm(`Cancel ticket ${kot.ticketNumber || kot.id} for ${kot.tableLabel}? This can't be undone.`)) {
+    if (!window.confirm(`Cancel ticket ${kot.ticketNumber || kot.id} for ${kot.tableLabel}?`)) {
       return;
     }
     setCancellingId(kot.id);
@@ -105,7 +116,7 @@ const RestaurantKitchen = () => {
           <button
             type="button"
             onClick={() => navigate('/restaurant/dashboard')}
-            className="w-10 h-10 border border-card-border hover:bg-slate-50 flex items-center justify-center"
+            className="w-10 h-10 border border-card-border hover:bg-slate-50 flex items-center justify-center cursor-pointer"
           >
             <ArrowLeft size={18} />
           </button>
@@ -114,7 +125,7 @@ const RestaurantKitchen = () => {
               Kitchen <span className="text-accent-olive">Ops</span>
             </h1>
             <p className="text-[9px] text-text-muted font-bold uppercase tracking-[0.3em] mt-1">
-              Live queue · tap line to advance status
+              Live queue · 1-click print KOT · tap line to advance status
             </p>
           </div>
         </div>
@@ -126,7 +137,7 @@ const RestaurantKitchen = () => {
           <button
             type="button"
             onClick={load}
-            className="px-4 py-2 border border-card-border text-[10px] font-black uppercase hover:bg-slate-50"
+            className="px-4 py-2 border border-card-border text-[10px] font-black uppercase hover:bg-slate-50 cursor-pointer"
           >
             Refresh
           </button>
@@ -141,7 +152,7 @@ const RestaurantKitchen = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {activeKots.map((kot) => (
-            <Card key={kot.id} padding="none" className="border border-card-border overflow-hidden">
+            <Card key={kot.id} padding="none" className="border border-card-border overflow-hidden bg-white">
               <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-black text-white flex items-center justify-center font-black">
@@ -152,14 +163,24 @@ const RestaurantKitchen = () => {
                     <Badge className="text-[7px] mt-1">{kot.orderType}</Badge>
                   </div>
                 </div>
-                <div className="text-right text-[8px] font-bold text-slate-400">
-                  <Clock size={10} className="inline mr-1" />
-                  {kot.createdAt
-                    ? new Date(kot.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : '—'}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePrintKOT(kot)}
+                    title="Print KOT Slip directly"
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-black text-slate-700 hover:text-black rounded text-[9px] font-black uppercase flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                  >
+                    <Printer size={12} /> Print KOT
+                  </button>
+                  <div className="text-right text-[8px] font-bold text-slate-400">
+                    <Clock size={10} className="inline mr-1" />
+                    {kot.createdAt
+                      ? new Date(kot.createdAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '—'}
+                  </div>
                 </div>
               </div>
               <div className="p-4 space-y-2">
@@ -174,13 +195,13 @@ const RestaurantKitchen = () => {
                       type="button"
                       onClick={() => !isDone && handleStatusUpdate(kot.id, item.id, item.kotStatus)}
                       disabled={isDone}
-                      className="flex-1 flex justify-between items-start text-left disabled:cursor-default"
+                      className="flex-1 flex justify-between items-start text-left disabled:cursor-default cursor-pointer"
                     >
                       <div>
                         <p className={`text-sm font-black uppercase ${item.kotStatus === 'cancelled' ? 'line-through' : ''}`}>{item.name}</p>
-                        <p className="text-[10px] font-bold mt-1">× {item.qty || item.quantity}</p>
+                        <p className="text-[10px] font-black mt-1 text-slate-900">× {item.qty || item.quantity}</p>
                         {item.notes && (
-                          <p className="text-[9px] text-slate-500 mt-1 italic">{item.notes}</p>
+                          <p className="text-[9px] text-amber-700 bg-amber-50/80 px-1.5 py-0.5 rounded mt-1 italic font-semibold">Note: {item.notes}</p>
                         )}
                         {item.kotStatus === 'cancelled' && item.voidReason && (
                           <p className="text-[9px] text-rose-500 mt-1 italic">Voided: {item.voidReason}</p>
@@ -195,7 +216,7 @@ const RestaurantKitchen = () => {
                         type="button"
                         onClick={() => { setVoidLineTarget({ kotId: kot.id, lineId: item.id, name: item.name }); setVoidLineReason(''); }}
                         title="Void this dish"
-                        className="text-rose-400 hover:text-rose-600 shrink-0 mt-0.5"
+                        className="text-rose-400 hover:text-rose-600 shrink-0 mt-0.5 cursor-pointer"
                       >
                         <Ban size={14} />
                       </button>
@@ -207,13 +228,13 @@ const RestaurantKitchen = () => {
               <div className="px-4 py-2 border-t bg-slate-50 flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase">
                   <ChefHat size={12} />
-                  Tap item: Pending → Cooking → Ready → Served
+                  Tap dish: Cooking → Ready → Served
                 </span>
                 <button
                   type="button"
                   onClick={() => handleCancelTicket(kot)}
                   disabled={cancellingId === kot.id}
-                  className="flex items-center gap-1 text-[8px] font-black uppercase text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+                  className="flex items-center gap-1 text-[8px] font-black uppercase text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors cursor-pointer"
                 >
                   <XCircle size={12} /> {cancellingId === kot.id ? 'Cancelling...' : 'Cancel Ticket'}
                 </button>
@@ -229,7 +250,7 @@ const RestaurantKitchen = () => {
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black uppercase text-slate-800">Void "{voidLineTarget.name}"?</h3>
-              <button onClick={() => setVoidLineTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
+              <button onClick={() => setVoidLineTarget(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer"><X size={16} /></button>
             </div>
             <div>
               <label className="text-[9px] font-black uppercase text-slate-500">Reason (required)</label>
@@ -244,18 +265,74 @@ const RestaurantKitchen = () => {
             <div className="flex gap-2">
               <button
                 onClick={() => setVoidLineTarget(null)}
-                className="flex-1 py-2.5 border border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50"
+                className="flex-1 py-2.5 border border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleVoidLineSubmit}
                 disabled={voidingLine}
-                className="flex-1 py-2.5 bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-rose-700 disabled:opacity-50"
+                className="flex-1 py-2.5 bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
               >
                 {voidingLine ? 'Voiding...' : 'Void Dish'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Thermal KOT Slip (Rendered only on print) */}
+      {kotToPrint && (
+        <div className="print-root hidden print:block" style={{ width: '80mm', margin: '0 auto', padding: '5mm', fontFamily: 'monospace', color: '#000000' }}>
+          <div style={{ textAlign: 'center', borderBottom: '2px dashed #000', paddingBottom: '6px', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 2px 0' }}>KITCHEN ORDER TICKET (KOT)</h2>
+            <p style={{ fontSize: '12px', margin: '0', fontWeight: 'bold' }}>{outletSettings?.name || 'GOLDEN SEAFOOD RESTAURANT'}</p>
+          </div>
+
+          <div style={{ fontSize: '13px', lineHeight: '1.4', marginBottom: '8px', borderBottom: '1px solid #000', paddingBottom: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span><strong>KOT #:</strong> {kotToPrint.ticketNumber || kotToPrint.id}</span>
+              <span><strong>Type:</strong> {kotToPrint.orderType}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', margin: '4px 0' }}>
+              <span>TABLE: {kotToPrint.tableLabel || 'COUNTER'}</span>
+              <span>{kotToPrint.createdAt ? new Date(kotToPrint.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+            </div>
+            {kotToPrint.staffName && (
+              <div style={{ fontSize: '11px' }}>Server: {kotToPrint.staffName}</div>
+            )}
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <th style={{ padding: '4px 0', width: '70%' }}>ITEM</th>
+                <th style={{ padding: '4px 0', textAlign: 'right', width: '30%' }}>QTY</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kotToPrint.items.map((item, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px dotted #ccc' }}>
+                  <td style={{ padding: '6px 0' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{item.name}</div>
+                    {item.notes && <div style={{ fontSize: '11px', fontStyle: 'italic' }}>* {item.notes}</div>}
+                  </td>
+                  <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '16px' }}>
+                    × {item.qty || item.quantity}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {kotToPrint.notes && (
+            <div style={{ borderTop: '1px solid #000', marginTop: '8px', paddingTop: '4px', fontSize: '12px' }}>
+              <strong>Special Instructions:</strong> {kotToPrint.notes}
+            </div>
+          )}
+
+          <div style={{ textAlign: 'center', borderTop: '2px dashed #000', marginTop: '10px', paddingTop: '6px', fontSize: '10px' }}>
+            *** KITCHEN COPY · DISPATCH FAST ***
           </div>
         </div>
       )}
@@ -264,3 +341,4 @@ const RestaurantKitchen = () => {
 };
 
 export default RestaurantKitchen;
+

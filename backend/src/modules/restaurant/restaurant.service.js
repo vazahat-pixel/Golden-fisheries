@@ -457,6 +457,127 @@ class RestaurantService extends BaseService {
       session.endSession();
     }
   }
+
+  /**
+   * Merges two dine-in table running orders together into a single tab.
+   * Transports all dish lines and linked kitchen tickets to the primary table.
+   */
+  async mergeTables({ sourceTable, targetTable }, userId) {
+    const src = (sourceTable || '').trim().toUpperCase();
+    const tgt = (targetTable || '').trim().toUpperCase();
+
+    if (!src || !tgt) {
+      throw new AppError('Both source and target table numbers are required', 400);
+    }
+    if (src === tgt) {
+      throw new AppError('Cannot merge a table with itself', 400);
+    }
+
+    const sourceOrder = await this.findOpenTableOrder('DINE_IN', src);
+    const targetOrder = await this.findOpenTableOrder('DINE_IN', tgt);
+
+    if (!sourceOrder && !targetOrder) {
+      throw new AppError(`Neither ${src} nor ${tgt} has an active running order to merge`, 404);
+    }
+
+    // If source exists but target is empty: transfer running order to target table
+    if (sourceOrder && !targetOrder) {
+      sourceOrder.tableNumber = tgt;
+      if (sourceOrder.remarks) {
+        sourceOrder.remarks += ` (Transferred from ${src})`;
+      } else {
+        sourceOrder.remarks = `Transferred from ${src}`;
+      }
+      await sourceOrder.save();
+
+      // Update any active kitchen tickets
+      await KitchenTicket.updateMany(
+        { tableNumber: src, status: 'ACTIVE' },
+        { $set: { tableNumber: tgt } }
+      );
+
+      broadcastEvent('restaurant:table_merged', {
+        sourceTable: src,
+        targetTable: tgt,
+        order: sourceOrder,
+      });
+      broadcastEvent('restaurant:order_updated', { order: sourceOrder });
+
+      logger.info(`[Restaurant POS]: Transferred running tab ${sourceOrder.orderNumber} from ${src} to ${tgt}`);
+      return {
+        targetOrder: sourceOrder,
+        sourceTable: src,
+        targetTable: tgt,
+        mergedItemsCount: sourceOrder.items.length,
+      };
+    }
+
+    // If target exists but source is empty: target already has order, nothing to merge from source
+    if (!sourceOrder && targetOrder) {
+      return {
+        targetOrder,
+        sourceTable: src,
+        targetTable: tgt,
+        mergedItemsCount: targetOrder.items.length,
+      };
+    }
+
+    // Both source and target have running tabs: combine them into targetOrder
+    targetOrder.items.push(...sourceOrder.items);
+
+    // Merge kitchen ticket IDs without duplicates
+    const combinedTicketIds = new Set([
+      ...(targetOrder.kitchenTicketIds || []).map((id) => id.toString()),
+      ...(sourceOrder.kitchenTicketIds || []).map((id) => id.toString()),
+    ]);
+    targetOrder.kitchenTicketIds = Array.from(combinedTicketIds);
+
+    // Combine discounts if any
+    const totalDiscount = (targetOrder.discountAmount || 0) + (sourceOrder.discountAmount || 0);
+    this._recalculateOrderTotals(targetOrder, totalDiscount);
+
+    if (sourceOrder.couponCode && !targetOrder.couponCode) {
+      targetOrder.couponCode = sourceOrder.couponCode;
+    }
+
+    targetOrder.remarks = (targetOrder.remarks ? `${targetOrder.remarks} | ` : '') +
+      `Merged with ${src} (${sourceOrder.orderNumber})`;
+
+    await targetOrder.save();
+
+    // Cancel source order with audit reason
+    sourceOrder.status = 'CANCELLED';
+    sourceOrder.voidReason = `Merged into ${tgt} (#${targetOrder.orderNumber})`;
+    sourceOrder.voidedBy = userId;
+    sourceOrder.voidedAt = new Date();
+    await sourceOrder.save();
+
+    // Update active kitchen tickets for source table to point to target table
+    await KitchenTicket.updateMany(
+      { tableNumber: src, status: 'ACTIVE' },
+      { $set: { tableNumber: tgt, orderId: targetOrder._id } }
+    );
+
+    broadcastEvent('restaurant:table_merged', {
+      sourceTable: src,
+      targetTable: tgt,
+      targetOrder,
+      sourceOrder,
+    });
+    broadcastEvent('restaurant:order_updated', { order: targetOrder });
+
+    logger.info(
+      `[Restaurant POS]: Merged table ${src} (#${sourceOrder.orderNumber}) into ${tgt} (#${targetOrder.orderNumber}). Total items: ${targetOrder.items.length}`
+    );
+
+    return {
+      targetOrder,
+      sourceOrder,
+      sourceTable: src,
+      targetTable: tgt,
+      mergedItemsCount: targetOrder.items.length,
+    };
+  }
 }
 
 export const restaurantService = new RestaurantService();

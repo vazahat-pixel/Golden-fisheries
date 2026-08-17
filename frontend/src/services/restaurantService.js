@@ -139,6 +139,14 @@ export const restaurantService = {
     return await apiClient.get('/restaurant/reports/item-sales', { params });
   },
 
+  getReportDishHistory: async (params) => {
+    return await apiClient.get('/restaurant/reports/dish-history', { params });
+  },
+
+  mergeTables: async (data) => {
+    return await apiClient.post('/restaurant/tables/merge', data);
+  },
+
   getReportConsumption: async (params) => {
     return await apiClient.get('/restaurant/reports/consumption', { params });
   },

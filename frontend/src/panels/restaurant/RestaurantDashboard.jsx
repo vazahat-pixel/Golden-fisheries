@@ -294,10 +294,15 @@ const RestaurantDashboard = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Button onClick={() => setShowExpenseModal(true)} variant="outline" className="h-11 px-6 text-[9px] font-black uppercase tracking-widest border-slate-200 hover:border-black transition-all gap-2">
+          <Link to="/restaurant/order-history">
+            <Button variant="outline" className="h-11 px-4 text-[9px] font-black uppercase tracking-widest border-slate-200 hover:border-black transition-all gap-2">
+              <Utensils size={14} className="text-accent-olive" /> DISH ANALYSIS
+            </Button>
+          </Link>
+          <Button onClick={() => setShowExpenseModal(true)} variant="outline" className="h-11 px-4 text-[9px] font-black uppercase tracking-widest border-slate-200 hover:border-black transition-all gap-2">
             <Wallet size={14} /> LOG KITCHEN EXPENSE
           </Button>
-          <Button onClick={() => { setClosingStep(1); setShowClosingModal(true); }} variant="outline" className="h-11 px-6 text-[9px] font-black uppercase tracking-widest border-red-200 text-red-600 hover:bg-red-50 transition-all gap-2">
+          <Button onClick={() => { setClosingStep(1); setShowClosingModal(true); }} variant="outline" className="h-11 px-4 text-[9px] font-black uppercase tracking-widest border-red-200 text-red-600 hover:bg-red-50 transition-all gap-2">
             <CheckCircle2 size={14} /> RECONCILE & CLOSE SHIFT
           </Button>
           <Link to="/restaurant/pos">

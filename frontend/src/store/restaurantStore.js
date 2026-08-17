@@ -494,6 +494,39 @@ export const useRestaurantStore = create(
         return order;
       },
 
+      // Merges two dine-in table running tabs into one
+      mergeTablesAsync: async (sourceTable, targetTable) => {
+        set({ loading: true });
+        try {
+          const res = await restaurantService.mergeTables({ sourceTable, targetTable });
+          const result = res?.data ?? res;
+          await get().fetchTables();
+          await get().fetchKitchenTickets();
+          await get().fetchOrders();
+          if (result.targetOrder) {
+            set({ currentTableOrder: result.targetOrder, loading: false });
+          } else {
+            set({ loading: false });
+          }
+          return result;
+        } catch (err) {
+          const msg = err?.response?.data?.message || err?.message || 'Failed to merge tables';
+          set({ loading: false });
+          throw new Error(msg);
+        }
+      },
+
+      // Fetches dish history analytics (portions per day, revenue, etc.)
+      fetchDishHistoryAsync: async (params = {}) => {
+        try {
+          const res = await restaurantService.getReportDishHistory(params);
+          return res?.data ?? res;
+        } catch (err) {
+          console.error('Failed to fetch dish history', err);
+          return null;
+        }
+      },
+
       // Reverses an already-paid bill: restores kitchen stock, reverses the
       // cashbook entry, and adjusts the open shift's totals.
       voidOrderAsync: async (orderId, reason) => {

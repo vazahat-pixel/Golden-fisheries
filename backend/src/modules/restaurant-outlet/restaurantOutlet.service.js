@@ -12,13 +12,17 @@ class RestaurantOutletService {
         outlet = any;
       } else {
         outlet = await RestaurantOutlet.create({
-          name: 'Main Restaurant',
-          location: 'Head Office',
-          kitchenLabel: 'GF Restaurant Kitchen',
+          name: 'Golden Seafood Restaurant',
+          location: 'Fresh Seafood & Dine-In',
+          kitchenLabel: 'Golden Kitchen',
           isDefault: true,
           isActive: true,
         });
       }
+    }
+    if (outlet && (outlet.name === 'Main Restaurant' || outlet.name === 'Golden Fisheries')) {
+      outlet.name = 'Golden Seafood Restaurant';
+      await outlet.save();
     }
     return outlet;
   }

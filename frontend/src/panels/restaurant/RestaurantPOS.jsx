@@ -4,7 +4,8 @@ import {
   ArrowLeft, Search, ShoppingCart, Trash2, X, Utensils, 
   Minus, Plus, Banknote, CreditCard, Printer, CheckCircle2, 
   Clock, User, Hash, Info, Percent, Tag, QrCode, SplitSquareVertical,
-  ChevronRight, ChefHat, Receipt, AlertCircle, LayoutGrid, Globe, MessageSquare, Database
+  ChevronRight, ChefHat, Receipt, AlertCircle, LayoutGrid, Globe, MessageSquare, Database,
+  Layers, GitMerge, ChevronDown, ChevronUp, Check, Sparkles
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useRestaurantStore } from '../../store/restaurantStore';
@@ -23,6 +24,7 @@ const RestaurantPOS = () => {
     appendOrderRoundAsync,
     fetchTableOrderAsync,
     settleOrderAsync,
+    mergeTablesAsync,
     fetchOrders,
     fetchMenu,
     fetchTables,
@@ -60,6 +62,16 @@ const RestaurantPOS = () => {
   const [seeding, setSeeding] = useState(false);
   const [sendingToKitchen, setSendingToKitchen] = useState(false);
   const [showFloorPlan, setShowFloorPlan] = useState(false);
+
+  // Merge Tables state
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeSource, setMergeSource] = useState('');
+  const [mergeTarget, setMergeTarget] = useState('');
+  const [merging, setMerging] = useState(false);
+
+  // 1-Click KOT Print state (Direct thermal print without confirmation popups)
+  const [kotPrintSlip, setKotPrintSlip] = useState(null);
+  const [viewRunningItems, setViewRunningItems] = useState(false);
 
   const categories = ["All Items", ...new Set(menuItems.map(item => item.category))];
   const orderTypes = ['Dine In', 'Parcel', 'Takeaway', 'Online Order', 'Bulk Order'];
@@ -202,7 +214,15 @@ const RestaurantPOS = () => {
     return { kot, order };
   };
 
-  const handleSendToKitchen = async () => {
+  const handleDirectPrintKOT = (kot) => {
+    if (!kot) return;
+    setKotPrintSlip(kot);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const handleSendToKitchen = async ({ andPrint = false } = {}) => {
     if (cart.length === 0) return;
     if (orderType === 'Dine In' && !tableLabel) {
       toast.error('Please pick a table number first — Dine In orders need one.');
@@ -215,11 +235,39 @@ const RestaurantPOS = () => {
     }
     setSendingToKitchen(true);
     try {
-      await sendToKitchen();
+      const { kot, order } = await sendToKitchen();
+      if (andPrint && kot) {
+        handleDirectPrintKOT(kot);
+      }
     } catch (err) {
       toast.error(err?.message || "Couldn't reach the kitchen — please try again in a moment.");
     } finally {
       setSendingToKitchen(false);
+    }
+  };
+
+  const handleMergeTablesSubmit = async () => {
+    if (!mergeSource || !mergeTarget) {
+      toast.error('Please select both source and destination tables to merge.');
+      return;
+    }
+    if (mergeSource === mergeTarget) {
+      toast.error('Source and destination table cannot be the same.');
+      return;
+    }
+    setMerging(true);
+    try {
+      const res = await mergeTablesAsync(mergeSource, mergeTarget);
+      toast.success(`Merged Table ${mergeSource} into Table ${mergeTarget} successfully!`);
+      setTableLabel(mergeTarget);
+      setOrderType('Dine In');
+      setShowMergeModal(false);
+      setMergeSource('');
+      setMergeTarget('');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to merge tables.');
+    } finally {
+      setMerging(false);
     }
   };
 
@@ -379,6 +427,23 @@ const RestaurantPOS = () => {
               </select>
             </div>
 
+            {/* Merge Tables Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                const occupied = tables.filter(t => t.status === 'occupied');
+                if (occupied.length === 0) {
+                  toast('No occupied tables with running bills to merge right now.');
+                  return;
+                }
+                setShowMergeModal(true);
+              }}
+              title="Merge two table bills into one"
+              className="h-10 px-3 flex items-center gap-1.5 border border-slate-200 rounded-xl bg-white text-slate-700 hover:text-black hover:border-black transition-all active:scale-95 cursor-pointer shadow-sm text-[9px] font-black uppercase tracking-wider shrink-0"
+            >
+              <SplitSquareVertical size={15} className="text-[#6A7051]" /> Merge Tables
+            </button>
+
             {/* Floor Plan Trigger */}
             <button
               type="button"
@@ -403,6 +468,38 @@ const RestaurantPOS = () => {
             </div>
           </div>
         </header>
+
+        {/* Active Draft Tabs Strip (Tables currently with open draft orders) */}
+        {tables.some(t => t.status === 'occupied') && (
+          <div className="bg-amber-50/70 border-b border-amber-200 px-6 py-2 flex items-center gap-2 overflow-x-auto scrollbar-hide shrink-0 shadow-xs">
+            <span className="text-[8px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-1 shrink-0">
+              <Receipt size={12} className="text-amber-600" /> Active Draft Tabs:
+            </span>
+            <div className="flex items-center gap-2">
+              {tables.filter(t => t.status === 'occupied').map((tbl) => {
+                const isSelected = tableLabel === tbl.label && orderType === 'Dine In';
+                return (
+                  <button
+                    key={tbl.id}
+                    onClick={() => {
+                      setOrderType('Dine In');
+                      setTableLabel(tbl.label);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      isSelected
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                        : 'bg-white text-amber-900 border-amber-300 hover:border-amber-500 hover:bg-amber-100/50'
+                    }`}
+                  >
+                    <span>{tbl.label}</span>
+                    <span className="opacity-75">· ₹{fmtRupee(tbl.runningTotal)}</span>
+                    <span className="text-[7px] px-1 py-0.2 rounded bg-black/10 font-bold">{tbl.itemCount} dishes</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Category Filter Bar */}
         {menuItems.length > 0 && (
@@ -530,16 +627,41 @@ const RestaurantPOS = () => {
 
         {currentTableOrder && (
           <div className="px-4 pt-3 shrink-0">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
-              <div>
-                <p className="text-[8px] font-black text-amber-700 uppercase tracking-widest">
-                  Running tab — {currentTableOrder.orderNumber}
-                </p>
-                <p className="text-[9px] font-bold text-amber-900 mt-0.5">
-                  Already ordered: {currentTableOrder.items?.length || 0} item(s) worth ₹{fmtRupee(currentTableOrder.totalAmount)}
-                </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[8px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-1">
+                    <Receipt size={11} className="text-amber-600" />
+                    Running Draft Tab — {currentTableOrder.orderNumber}
+                  </p>
+                  <p className="text-[9px] font-black text-amber-950 mt-0.5">
+                    {currentTableOrder.items?.length || 0} item(s) on tab · ₹{fmtRupee(currentTableOrder.totalAmount)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewRunningItems(!viewRunningItems)}
+                  className="px-2 py-1 bg-white border border-amber-200 rounded text-[8px] font-black uppercase text-amber-800 hover:bg-amber-100/60 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  {viewRunningItems ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                  {viewRunningItems ? 'Hide Items' : 'View Items'}
+                </button>
               </div>
-              <Receipt size={16} className="text-amber-500 shrink-0" />
+
+              {viewRunningItems && currentTableOrder.items?.length > 0 && (
+                <div className="pt-2 border-t border-amber-200/80 space-y-1.5 max-h-40 overflow-y-auto">
+                  {currentTableOrder.items.map((item) => (
+                    <div key={item._id || item.name} className="flex justify-between items-center text-[9px] bg-white/80 px-2 py-1 rounded border border-amber-100">
+                      <span className="font-bold text-slate-800 truncate max-w-[170px]">
+                        {item.name} <span className="text-amber-700 font-black">× {item.quantity}</span>
+                      </span>
+                      <span className="font-serif italic font-black text-[#6A7051]">
+                        ₹{fmtRupee((item.rate || 0) * (item.quantity || 1))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -549,7 +671,7 @@ const RestaurantPOS = () => {
             <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-40">
               <ChefHat size={44} className="mb-3 text-slate-400" />
               <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">
-                {currentTableOrder ? 'Add the next round here' : 'Cart is empty'}
+                {currentTableOrder ? 'Add next round / Checkout below' : 'Cart is empty'}
               </p>
             </div>
           ) : (
@@ -586,12 +708,12 @@ const RestaurantPOS = () => {
           <div className="space-y-2">
              {currentTableOrder && (
                <div className="flex justify-between text-[9px] font-black text-amber-600 uppercase tracking-widest">
-                  <span>Already sent (this table)</span>
+                  <span>Already on Draft Tab</span>
                   <span>₹{fmtRupee(currentTableOrder.totalAmount)}</span>
                </div>
              )}
              <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                <span>{currentTableOrder ? 'This round' : 'Gross Payload'}</span>
+                <span>{currentTableOrder ? 'New round payload' : 'Gross Payload'}</span>
                 <span>₹{fmtRupee(calculateSubtotal())}</span>
              </div>
              <div className="flex justify-between text-base font-serif italic font-black text-slate-900 tracking-tight border-t border-slate-100 pt-3">
@@ -600,22 +722,43 @@ const RestaurantPOS = () => {
              </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                if (!activeSession) {
-                  toast.error('Your shift isn\'t open yet — open it from the dashboard before taking orders.');
-                  navigate('/restaurant/dashboard');
-                  return;
-                }
-                handleSendToKitchen();
-              }}
-              disabled={cart.length === 0 || sendingToKitchen}
-              className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChefHat size={14} /> {sendingToKitchen ? 'Sending...' : 'Send to Kitchen'}
-            </button>
+          <div className="space-y-2">
+            {/* Send to kitchen options */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (!activeSession) {
+                    toast.error('Your shift isn\'t open yet — open it from the dashboard before taking orders.');
+                    navigate('/restaurant/dashboard');
+                    return;
+                  }
+                  handleSendToKitchen({ andPrint: false });
+                }}
+                disabled={cart.length === 0 || sendingToKitchen}
+                title="Send items to Kitchen queue"
+                className="flex-1 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-700 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChefHat size={13} /> {sendingToKitchen ? 'Sending...' : 'Send to Kitchen'}
+              </button>
+
+              <button
+                onClick={() => {
+                  if (!activeSession) {
+                    toast.error('Your shift isn\'t open yet — open it from the dashboard before taking orders.');
+                    navigate('/restaurant/dashboard');
+                    return;
+                  }
+                  handleSendToKitchen({ andPrint: true });
+                }}
+                disabled={cart.length === 0 || sendingToKitchen}
+                title="Send to Kitchen and print thermal KOT immediately"
+                className="flex-1 py-2.5 bg-slate-900 text-white hover:bg-black rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Printer size={13} /> Send & Print KOT
+              </button>
+            </div>
             
+            {/* Consolidated Checkout */}
             <button
               onClick={() => {
                 if (!activeSession) {
@@ -629,14 +772,128 @@ const RestaurantPOS = () => {
                 }
                 setBillingView(true);
               }}
-              disabled={cart.length === 0}
-              className="flex-1 py-3 bg-[#6A7051] text-white hover:bg-[#5F6846] rounded-lg text-[9px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={cart.length === 0 && !currentTableOrder}
+              className="w-full py-3.5 bg-[#6A7051] text-white hover:bg-[#5F6846] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              <Receipt size={14} /> CHECKOUT
+              <Receipt size={15} /> CHECKOUT TABLE BILL
             </button>
           </div>
         </div>
       </div>
+
+      {/* Merge Tables Modal */}
+      {showMergeModal && (
+        <div className="fixed inset-0 z-[66] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md border border-slate-200 shadow-2xl rounded-2xl overflow-hidden flex flex-col space-y-4 p-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-accent-olive/10 text-accent-olive flex items-center justify-center">
+                  <SplitSquareVertical size={16} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">Merge Two Tables</h2>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Combine running orders into 1 single bill</p>
+                </div>
+              </div>
+              <button onClick={() => setShowMergeModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-1">
+                    Source Table (To Merge)
+                  </label>
+                  <select
+                    value={mergeSource}
+                    onChange={(e) => setMergeSource(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[10px] font-bold uppercase text-slate-800 outline-none focus:border-[#6A7051]"
+                  >
+                    <option value="">SELECT TABLE</option>
+                    {tables.filter(t => t.status === 'occupied' && t.label !== mergeTarget).map(t => (
+                      <option key={t.id} value={t.label}>
+                        {t.label} (₹{fmtRupee(t.runningTotal)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-1">
+                    Primary Table (Keep & Checkout)
+                  </label>
+                  <select
+                    value={mergeTarget}
+                    onChange={(e) => setMergeTarget(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[10px] font-bold uppercase text-slate-800 outline-none focus:border-[#6A7051]"
+                  >
+                    <option value="">SELECT TABLE</option>
+                    {tables.filter(t => t.label !== mergeSource).map(t => (
+                      <option key={t.id} value={t.label}>
+                        {t.label} {t.status === 'occupied' ? `(₹${fmtRupee(t.runningTotal)})` : '(Empty)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {mergeSource && mergeTarget && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-1.5">
+                  <p className="text-[9px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="text-amber-600" />
+                    Merge Preview
+                  </p>
+                  {(() => {
+                    const srcTbl = tables.find(t => t.label === mergeSource);
+                    const tgtTbl = tables.find(t => t.label === mergeTarget);
+                    const srcTot = srcTbl?.runningTotal || 0;
+                    const tgtTot = tgtTbl?.runningTotal || 0;
+                    return (
+                      <div className="text-[10px] text-slate-700 space-y-1">
+                        <div className="flex justify-between">
+                          <span>{mergeSource} Running Bill:</span>
+                          <span className="font-bold">₹{fmtRupee(srcTot)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{mergeTarget} Running Bill:</span>
+                          <span className="font-bold">₹{fmtRupee(tgtTot)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-amber-200 pt-1 font-black text-amber-950 text-[11px]">
+                          <span>New Combined Bill for {mergeTarget}:</span>
+                          <span className="text-[#6A7051]">₹{fmtRupee(srcTot + tgtTot)}</span>
+                        </div>
+                        <p className="text-[8px] text-slate-500 italic mt-1">
+                          * {mergeSource} will become available and all its dish items will transfer to {mergeTarget}.
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowMergeModal(false)}
+                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleMergeTablesSubmit}
+                disabled={!mergeSource || !mergeTarget || merging}
+                className="flex-1 py-2.5 bg-[#6A7051] text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:brightness-110 disabled:opacity-40 cursor-pointer shadow-lg"
+              >
+                {merging ? 'Merging...' : 'Confirm Merge'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table Floor Plan */}
       {showFloorPlan && (
@@ -826,11 +1083,11 @@ const RestaurantPOS = () => {
             <div className="print-root bg-white border border-slate-200 p-6 rounded-2xl space-y-6">
               <div className="text-center space-y-1">
                 <h2 className="text-xl font-serif italic font-black text-slate-800 uppercase tracking-tight">
-                  {outletSettings?.name || 'Golden Fisheries Restaurant'}
+                  {outletSettings?.name || 'Golden Seafood Restaurant'}
                 </h2>
-                {outletSettings?.location && (
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">{outletSettings.location}</p>
-                )}
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  {outletSettings?.location || 'Fresh Seafood & Dine-In'}
+                </p>
                 <div className="pt-2 flex flex-col gap-0.5 text-slate-500">
                   {outletSettings?.gstin && (
                     <p className="text-[7px] font-bold uppercase tracking-widest">GSTIN: {outletSettings.gstin}</p>
@@ -917,6 +1174,60 @@ const RestaurantPOS = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Thermal KOT Slip (Rendered only on KOT Print) */}
+      {kotPrintSlip && (
+        <div className="print-root hidden print:block" style={{ width: '80mm', margin: '0 auto', padding: '5mm', fontFamily: 'monospace', color: '#000000' }}>
+          <div style={{ textAlign: 'center', borderBottom: '2px dashed #000', paddingBottom: '6px', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 2px 0' }}>KITCHEN ORDER TICKET (KOT)</h2>
+            <p style={{ fontSize: '12px', margin: '0', fontWeight: 'bold' }}>{outletSettings?.name || 'GOLDEN SEAFOOD RESTAURANT'}</p>
+          </div>
+
+          <div style={{ fontSize: '13px', lineHeight: '1.4', marginBottom: '8px', borderBottom: '1px solid #000', paddingBottom: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span><strong>KOT #:</strong> {kotPrintSlip.ticketNumber || kotPrintSlip.id || 'NEW'}</span>
+              <span><strong>Type:</strong> {kotPrintSlip.orderType || orderType}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', margin: '4px 0' }}>
+              <span>TABLE: {kotPrintSlip.tableLabel || tableLabel || 'COUNTER'}</span>
+              <span>{kotPrintSlip.createdAt ? new Date(kotPrintSlip.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div style={{ fontSize: '11px' }}>Server: {user?.fullName || user?.name || 'Staff'}</div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <th style={{ padding: '4px 0', width: '70%' }}>ITEM</th>
+                <th style={{ padding: '4px 0', textAlign: 'right', width: '30%' }}>QTY</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(kotPrintSlip.items || []).map((item, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px dotted #ccc' }}>
+                  <td style={{ padding: '6px 0' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{item.name}</div>
+                    {item.notes && <div style={{ fontSize: '11px', fontStyle: 'italic' }}>* {item.notes}</div>}
+                  </td>
+                  <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '16px' }}>
+                    × {item.qty || item.quantity || 1}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {kotPrintSlip.notes && (
+            <div style={{ borderTop: '1px solid #000', marginTop: '8px', paddingTop: '4px', fontSize: '12px' }}>
+              <strong>Special Instructions:</strong> {kotPrintSlip.notes}
+            </div>
+          )}
+
+          <div style={{ textAlign: 'center', borderTop: '2px dashed #000', marginTop: '10px', paddingTop: '6px', fontSize: '10px' }}>
+            *** KITCHEN COPY · DISPATCH FAST ***
           </div>
         </div>
       )}

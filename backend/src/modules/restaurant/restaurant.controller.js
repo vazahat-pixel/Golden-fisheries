@@ -218,6 +218,16 @@ export const restaurantController = {
     new ApiResponse(200, data, 'Item-wise sales report').send(res);
   }),
 
+  reportDishHistory: asyncWrapper(async (req, res) => {
+    const data = await restaurantReportsService.getDishHistoryAnalysis(req.query);
+    new ApiResponse(200, data, 'Dish history and daily order count analysis').send(res);
+  }),
+
+  mergeTables: asyncWrapper(async (req, res) => {
+    const result = await restaurantService.mergeTables(req.body, req.user.id);
+    new ApiResponse(200, result, 'Tables merged successfully').send(res);
+  }),
+
   reportConsumption: asyncWrapper(async (req, res) => {
     const data = await restaurantReportsService.getKitchenConsumptionReport(req.query);
     new ApiResponse(200, data, 'Kitchen consumption report').send(res);
