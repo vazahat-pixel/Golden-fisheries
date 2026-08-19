@@ -715,30 +715,31 @@ const RestaurantPOS = () => {
                     return (
                       <div
                         key={item._id || item.name}
-                        className="flex justify-between items-center text-[9px] bg-white/90 px-2 py-1.5 rounded-lg border border-amber-100 shadow-2xs gap-2"
+                        className="flex flex-col text-[9px] bg-white/90 px-2.5 py-2 rounded-lg border border-amber-100 shadow-2xs gap-1.5"
                       >
-                        <div className="truncate flex-1">
-                          <span className="font-bold text-slate-800">
-                            {item.name}
-                          </span>
-                          <span className="text-amber-700 font-black ml-1.5">
-                            × {item.quantity}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-serif italic font-black text-[#6A7051]">
+                        <div className="flex justify-between items-center gap-2">
+                          <div className="truncate flex-1">
+                            <span className="font-bold text-slate-800">
+                              {item.name}
+                            </span>
+                            <span className="text-amber-700 font-black ml-1.5">
+                              × {item.quantity}
+                            </span>
+                          </div>
+                          <span className="font-serif italic font-black text-[#6A7051] shrink-0">
                             ₹{fmtRupee((item.rate || 0) * (item.quantity || 1))}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveDraftItem(item._id, item.name)}
-                            disabled={isRemoving}
-                            title="Remove this dish from table draft"
-                            className="w-5 h-5 flex items-center justify-center rounded text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-40"
-                          >
-                            <Trash2 size={11} />
-                          </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDraftItem(item._id, item.name)}
+                          disabled={isRemoving}
+                          title="Remove this dish from table draft"
+                          className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-rose-50 border border-rose-200 rounded-md text-[8px] font-black uppercase tracking-wider text-rose-600 hover:bg-rose-100 hover:text-rose-700 hover:border-rose-300 transition-all cursor-pointer disabled:opacity-40"
+                        >
+                          <Trash2 size={12} />
+                          {isRemoving ? 'Removing...' : 'Remove Item'}
+                        </button>
                       </div>
                     );
                   })}
