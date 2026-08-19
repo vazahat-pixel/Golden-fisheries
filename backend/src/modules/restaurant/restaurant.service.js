@@ -145,6 +145,7 @@ class RestaurantService extends BaseService {
         existing.couponCode = orderData.coupon || orderData.couponCode;
       }
       await existing.save();
+      broadcastEvent('restaurant:order_updated', { order: existing });
       logger.info(`[Restaurant POS]: Added ${verifiedItems.length} item(s) to running tab ${existing.orderNumber} (${tableNumber})`);
       return existing;
     }
@@ -163,6 +164,8 @@ class RestaurantService extends BaseService {
     this._recalculateOrderTotals(order, discountAmount);
 
     await order.save();
+    broadcastEvent('restaurant:order_created', { order });
+    broadcastEvent('restaurant:order_updated', { order });
     logger.info(`[Restaurant POS]: Order ${order.orderNumber} created for ${order.tableNumber}`);
     return order;
   }
@@ -361,15 +364,52 @@ class RestaurantService extends BaseService {
     order.items.pull(itemId);
     if (order.items.length === 0) {
       order.status = 'CANCELLED';
+      order.voidReason = 'All items removed from draft';
       order.subtotal = 0;
       order.cgst = 0;
       order.sgst = 0;
       order.totalAmount = 0;
+
+      if (order.kitchenTicketIds && order.kitchenTicketIds.length > 0) {
+        await KitchenTicket.updateMany(
+          { _id: { $in: order.kitchenTicketIds }, status: 'ACTIVE' },
+          { $set: { status: 'CANCELLED' } }
+        );
+      }
     } else {
       this._recalculateOrderTotals(order, order.discountAmount);
     }
     await order.save();
     broadcastEvent('restaurant:order_updated', { order });
+    broadcastEvent('restaurant:kot_updated', {});
+    return order;
+  }
+
+  /**
+   * Cancels an entire unpaid draft order / running tab for a table.
+   */
+  async cancelDraftOrder(orderId, reason = 'Draft cancelled by staff', userId) {
+    const order = await this.model.findById(orderId);
+    if (!order) throw new AppError('Order not found', 404);
+    if (order.status !== 'PENDING') {
+      throw new AppError('Only an unpaid, still-open draft bill can be cancelled', 400);
+    }
+    order.status = 'CANCELLED';
+    order.voidReason = reason || 'Draft cancelled by staff';
+    order.voidedBy = userId;
+    order.voidedAt = new Date();
+    await order.save();
+
+    if (order.kitchenTicketIds && order.kitchenTicketIds.length > 0) {
+      await KitchenTicket.updateMany(
+        { _id: { $in: order.kitchenTicketIds }, status: 'ACTIVE' },
+        { $set: { status: 'CANCELLED' } }
+      );
+    }
+
+    broadcastEvent('restaurant:order_updated', { order });
+    broadcastEvent('restaurant:kot_updated', {});
+    logger.info(`[Restaurant POS]: Draft order ${order.orderNumber} cancelled for table ${order.tableNumber}`);
     return order;
   }
 

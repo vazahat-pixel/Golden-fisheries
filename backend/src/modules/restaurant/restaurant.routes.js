@@ -145,6 +145,18 @@ router.delete(
   restaurantController.removeOrderItem
 );
 router.patch(
+  '/:id/cancel-draft',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.cancelDraftOrder
+);
+router.delete(
+  '/:id/cancel',
+  ...web,
+  restrictTo(...REST_ALL),
+  restaurantController.cancelDraftOrder
+);
+router.patch(
   '/:id/void',
   ...web,
   restrictTo(...REST_MANAGER_ROLES),

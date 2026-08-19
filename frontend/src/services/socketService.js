@@ -198,8 +198,35 @@ class SocketService {
 
     // 5. Restaurant Order Sync
     this.socket.on('restaurant:order_created', (data) => {
-      console.log('[Socket Received - Restaurant Order]:', data);
-      useRestaurantStore.getState().fetchOrders?.();
+      console.log('[Socket Received - Restaurant Order Created]:', data);
+      const store = useRestaurantStore.getState();
+      store.fetchOrders?.();
+      store.fetchTables?.();
+      store.fetchKitchenTickets?.();
+    });
+
+    this.socket.on('restaurant:order_updated', (data) => {
+      console.log('[Socket Received - Restaurant Order Updated]:', data);
+      const store = useRestaurantStore.getState();
+      store.fetchOrders?.();
+      store.fetchTables?.();
+      store.fetchKitchenTickets?.();
+    });
+
+    this.socket.on('restaurant:table_merged', (data) => {
+      console.log('[Socket Received - Restaurant Table Merged]:', data);
+      const store = useRestaurantStore.getState();
+      store.fetchOrders?.();
+      store.fetchTables?.();
+      store.fetchKitchenTickets?.();
+    });
+
+    this.socket.on('restaurant:order_voided', (data) => {
+      console.log('[Socket Received - Restaurant Order Voided]:', data);
+      const store = useRestaurantStore.getState();
+      store.fetchOrders?.();
+      store.fetchTables?.();
+      store.fetchKitchenTickets?.();
     });
 
     // 6. Fish Mall Sale Sync
@@ -285,11 +312,15 @@ class SocketService {
     });
 
     this.socket.on('restaurant:kot_created', () => {
-      useRestaurantStore.getState().fetchKitchenTickets?.();
+      const store = useRestaurantStore.getState();
+      store.fetchKitchenTickets?.();
+      store.fetchTables?.();
     });
 
     this.socket.on('restaurant:kot_updated', () => {
-      useRestaurantStore.getState().fetchKitchenTickets?.();
+      const store = useRestaurantStore.getState();
+      store.fetchKitchenTickets?.();
+      store.fetchTables?.();
     });
 
     this.socket.on('restaurant:order_settled', () => {
@@ -297,6 +328,7 @@ class SocketService {
       store.fetchMenu?.();
       store.fetchOrders?.();
       store.fetchKitchenTickets?.();
+      store.fetchTables?.();
     });
 
     this.socket.on('internal:bill_issued', (data) => {

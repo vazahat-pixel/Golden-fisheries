@@ -43,6 +43,15 @@ export const restaurantController = {
     new ApiResponse(200, { order }, 'Item removed from the bill').send(res);
   }),
 
+  cancelDraftOrder: asyncWrapper(async (req, res) => {
+    const order = await restaurantService.cancelDraftOrder(
+      req.params.id,
+      req.body?.reason || 'Draft cancelled by staff',
+      req.user.id
+    );
+    new ApiResponse(200, { order }, 'Draft order cancelled successfully').send(res);
+  }),
+
   voidOrder: asyncWrapper(async (req, res) => {
     const order = await restaurantService.voidOrder(req.params.id, req.body.reason, req.user.id);
     new ApiResponse(200, { order }, 'Bill voided — stock and cashbook reversed').send(res);

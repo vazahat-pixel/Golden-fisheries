@@ -428,6 +428,9 @@ export const useRestaurantStore = create(
           throw new Error('Order was not saved on the server — please try again');
         }
         set({ currentTableOrder: order });
+        await get().fetchTables();
+        await get().fetchOrders();
+        await get().fetchKitchenTickets();
         return order;
       },
 
@@ -491,6 +494,19 @@ export const useRestaurantStore = create(
         const order = res?.data?.order ?? res?.order ?? null;
         set({ currentTableOrder: order && order.status === 'PENDING' ? order : null });
         await get().fetchTables();
+        await get().fetchOrders();
+        await get().fetchKitchenTickets();
+        return order;
+      },
+
+      // Cancels the whole open draft order for a table and frees it up
+      cancelDraftOrderAsync: async (orderId, reason = 'Draft cancelled by staff') => {
+        const res = await restaurantService.cancelDraftOrder(orderId, reason);
+        const order = res?.data?.order ?? res?.order ?? null;
+        set({ currentTableOrder: null });
+        await get().fetchTables();
+        await get().fetchOrders();
+        await get().fetchKitchenTickets();
         return order;
       },
 

@@ -99,6 +99,10 @@ export const restaurantService = {
     return await apiClient.delete(`/restaurant/${orderId}/items/${itemId}`);
   },
 
+  cancelDraftOrder: async (orderId, reason = 'Draft cancelled by staff') => {
+    return await apiClient.patch(`/restaurant/${orderId}/cancel-draft`, { reason });
+  },
+
   voidOrder: async (orderId, reason) => {
     return await apiClient.patch(`/restaurant/${orderId}/void`, { reason });
   },

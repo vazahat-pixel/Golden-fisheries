@@ -25,6 +25,8 @@ const RestaurantPOS = () => {
     fetchTableOrderAsync,
     settleOrderAsync,
     mergeTablesAsync,
+    removeOrderItemAsync,
+    cancelDraftOrderAsync,
     fetchOrders,
     fetchMenu,
     fetchTables,
@@ -71,7 +73,9 @@ const RestaurantPOS = () => {
 
   // 1-Click KOT Print state (Direct thermal print without confirmation popups)
   const [kotPrintSlip, setKotPrintSlip] = useState(null);
-  const [viewRunningItems, setViewRunningItems] = useState(false);
+  const [viewRunningItems, setViewRunningItems] = useState(true);
+  const [removingDraftItemId, setRemovingDraftItemId] = useState(null);
+  const [cancellingDraft, setCancellingDraft] = useState(false);
 
   const categories = ["All Items", ...new Set(menuItems.map(item => item.category))];
   const orderTypes = ['Dine In', 'Parcel', 'Takeaway', 'Online Order', 'Bulk Order'];
@@ -87,6 +91,47 @@ const RestaurantPOS = () => {
   }, [orderType, tableLabel, fetchTableOrderAsync]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleRemoveDraftItem = async (itemId, itemName) => {
+    if (!currentTableOrder?._id && !currentTableOrder?.id) return;
+    const orderId = currentTableOrder._id || currentTableOrder.id;
+    setRemovingDraftItemId(itemId);
+    try {
+      const updated = await removeOrderItemAsync(orderId, itemId);
+      toast.success(`Removed "${itemName}" from draft tab.`);
+      if (!updated || updated.status === 'CANCELLED' || !updated.items?.length) {
+        toast('Draft tab cleared — table is now free.');
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Failed to remove dish from draft.');
+    } finally {
+      setRemovingDraftItemId(null);
+    }
+  };
+
+  const handleCancelEntireDraft = async () => {
+    if (!currentTableOrder?._id && !currentTableOrder?.id) return;
+    const orderId = currentTableOrder._id || currentTableOrder.id;
+    const confirmCancel = window.confirm(
+      `Cancel the entire draft tab for Table ${tableLabel}? This will void the draft and free up the table.`
+    );
+    if (!confirmCancel) return;
+
+    setCancellingDraft(true);
+    try {
+      await cancelDraftOrderAsync(orderId, 'Cancelled by cashier');
+      toast.success(`Draft tab cancelled for Table ${tableLabel}. Table is now free.`);
+      setCart([]);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to cancel draft tab.');
+    } finally {
+      setCancellingDraft(false);
+    }
+  };
+
+  const removeCartItem = (id) => {
+    setCart(cart.filter(item => item.id !== id));
+  };
 
   const handleSeedSampleMenu = async () => {
     setSeeding(true);
@@ -627,39 +672,76 @@ const RestaurantPOS = () => {
 
         {currentTableOrder && (
           <div className="px-4 pt-3 shrink-0">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2 shadow-xs">
               <div className="flex items-center justify-between gap-2">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-[8px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-1">
-                    <Receipt size={11} className="text-amber-600" />
-                    Running Draft Tab — {currentTableOrder.orderNumber}
+                    <Receipt size={11} className="text-amber-600 shrink-0" />
+                    Running Draft — {tableLabel} ({currentTableOrder.orderNumber})
                   </p>
-                  <p className="text-[9px] font-black text-amber-950 mt-0.5">
+                  <p className="text-[9px] font-black text-amber-950 mt-0.5 truncate">
                     {currentTableOrder.items?.length || 0} item(s) on tab · ₹{fmtRupee(currentTableOrder.totalAmount)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setViewRunningItems(!viewRunningItems)}
-                  className="px-2 py-1 bg-white border border-amber-200 rounded text-[8px] font-black uppercase text-amber-800 hover:bg-amber-100/60 transition-colors flex items-center gap-1 cursor-pointer"
-                >
-                  {viewRunningItems ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                  {viewRunningItems ? 'Hide Items' : 'View Items'}
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setViewRunningItems(!viewRunningItems)}
+                    className="px-2 py-1 bg-white border border-amber-200 rounded text-[8px] font-black uppercase text-amber-800 hover:bg-amber-100/60 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    {viewRunningItems ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                    {viewRunningItems ? 'Hide' : 'View'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEntireDraft}
+                    disabled={cancellingDraft}
+                    title="Void this table's draft order and free up table"
+                    className="px-2 py-1 bg-rose-50 border border-rose-200 rounded text-[8px] font-black uppercase text-rose-700 hover:bg-rose-100 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 size={10} />
+                    {cancellingDraft ? '...' : 'Void Tab'}
+                  </button>
+                </div>
               </div>
 
               {viewRunningItems && currentTableOrder.items?.length > 0 && (
-                <div className="pt-2 border-t border-amber-200/80 space-y-1.5 max-h-40 overflow-y-auto">
-                  {currentTableOrder.items.map((item) => (
-                    <div key={item._id || item.name} className="flex justify-between items-center text-[9px] bg-white/80 px-2 py-1 rounded border border-amber-100">
-                      <span className="font-bold text-slate-800 truncate max-w-[170px]">
-                        {item.name} <span className="text-amber-700 font-black">× {item.quantity}</span>
-                      </span>
-                      <span className="font-serif italic font-black text-[#6A7051]">
-                        ₹{fmtRupee((item.rate || 0) * (item.quantity || 1))}
-                      </span>
-                    </div>
-                  ))}
+                <div className="pt-2 border-t border-amber-200/80 space-y-1.5 max-h-48 overflow-y-auto">
+                  <div className="text-[8px] font-black uppercase tracking-wider text-amber-900/70 pb-0.5">
+                    Items Sent To Kitchen:
+                  </div>
+                  {currentTableOrder.items.map((item) => {
+                    const isRemoving = removingDraftItemId === item._id;
+                    return (
+                      <div
+                        key={item._id || item.name}
+                        className="flex justify-between items-center text-[9px] bg-white/90 px-2 py-1.5 rounded-lg border border-amber-100 shadow-2xs gap-2"
+                      >
+                        <div className="truncate flex-1">
+                          <span className="font-bold text-slate-800">
+                            {item.name}
+                          </span>
+                          <span className="text-amber-700 font-black ml-1.5">
+                            × {item.quantity}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-serif italic font-black text-[#6A7051]">
+                            ₹{fmtRupee((item.rate || 0) * (item.quantity || 1))}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDraftItem(item._id, item.name)}
+                            disabled={isRemoving}
+                            title="Remove this dish from table draft"
+                            className="w-5 h-5 flex items-center justify-center rounded text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-40"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -678,7 +760,7 @@ const RestaurantPOS = () => {
             cart.map((item) => (
               <div key={item.id} className="p-3 bg-white border border-slate-200/80 rounded-xl hover:border-slate-300 transition-all space-y-2 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center text-lg border border-slate-100">{item.image}</div>
+                  <div className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center text-lg border border-slate-100 shrink-0">{item.image}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-black text-slate-800 uppercase truncate tracking-tight">{item.name}</p>
                     <p className="text-[11px] font-black text-[#6A7051] italic font-serif mt-0.5">₹{item.price * item.qty}</p>
@@ -688,6 +770,14 @@ const RestaurantPOS = () => {
                     <span className="w-6 text-center text-[10px] font-black font-serif italic text-slate-800">{item.qty}</span>
                     <button onClick={() => updateQty(item.id, 1)} className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"><Plus size={10} /></button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => removeCartItem(item.id)}
+                    title="Remove from cart"
+                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-2 py-1.5 rounded-lg">
                    <MessageSquare size={10} className="text-slate-400" />
