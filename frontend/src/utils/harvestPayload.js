@@ -35,8 +35,10 @@ export function buildHarvestCreatePayload(slip, { farmers = [], products = [] } 
     if (!prod) throw new Error('No products in system. Add products in master data first.');
 
     const boxCount = parseInt(item.noOfBoxes, 10) || 0;
-    const weightPerBox = parseFloat(item.boxWeight) || 0;
-    const totalWeight = parseFloat(item.totalWeight) || boxCount * weightPerBox || 0.1;
+    const boxWeightRaw = item.boxWeight != null ? String(item.boxWeight).trim() : '';
+    const numericBoxWeight = parseFloat(boxWeightRaw);
+    const weightPerBox = Number.isFinite(numericBoxWeight) && numericBoxWeight > 0 ? numericBoxWeight : (boxWeightRaw || null);
+    const totalWeight = parseFloat(item.totalWeight) || (boxCount * (Number.isFinite(numericBoxWeight) ? numericBoxWeight : 0)) || 0.1;
 
     return {
       productId: prod._id || prod.id,

@@ -45,7 +45,7 @@ export const harvestValidators = {
         rate: Joi.number().min(0).allow(null),
         count: Joi.string().allow('', null),
         boxCount: Joi.number().integer().min(1).allow(null),
-        weightPerBox: Joi.number().min(0.1).allow(null),
+        weightPerBox: Joi.alternatives().try(Joi.number().min(0), Joi.string().allow('', null)).allow(null),
         qualityType: Joi.string().valid('A', 'B', 'Mix').default('Mix')
       })
     ).messages({
@@ -71,7 +71,7 @@ export const harvestValidators = {
         estimatedQty: Joi.number().required().min(0.1),
         rate: Joi.number().min(0).allow(null),
         boxCount: Joi.number().integer().min(1).allow(null),
-        weightPerBox: Joi.number().min(0.1).allow(null),
+        weightPerBox: Joi.alternatives().try(Joi.number().min(0), Joi.string().allow('', null)).allow(null),
         qualityType: Joi.string().valid('A', 'B', 'Mix')
       })
     )

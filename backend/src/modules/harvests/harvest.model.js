@@ -36,8 +36,7 @@ const harvestItemSchema = new mongoose.Schema({
     default: null
   },
   weightPerBox: {
-    type: Number,
-    min: [0, 'Weight per box cannot be negative'],
+    type: mongoose.Schema.Types.Mixed,
     default: null
   },
   qualityType: {

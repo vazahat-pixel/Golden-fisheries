@@ -10,7 +10,7 @@ const tapalLineItemSchema = new mongoose.Schema({
   total: { type: String }, // e.g. "₹28,500"
   // Optional box-based weight fields (matches real Tapal slip format)
   boxQty: { type: Number, default: null }, // Number of boxes (optional)
-  weightPerBox: { type: Number, default: null }, // KG per box (optional)
+  weightPerBox: { type: mongoose.Schema.Types.Mixed, default: null }, // KG or string per box (optional e.g. "Full Box" or 25)
   totalWeight: { type: Number, default: null }
 });
 

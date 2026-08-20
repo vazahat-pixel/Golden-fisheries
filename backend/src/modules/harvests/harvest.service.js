@@ -379,15 +379,46 @@ class HarvestService extends BaseService {
       throw new AppError(`Harvest Slip ${harvestId} not found`, 404);
     }
 
-    // Update individual product rates if provided (map by id or array from UI)
+    // Update individual product rates if provided (map by id, index, or array from UI)
     if (productRates) {
       if (Array.isArray(productRates)) {
-        for (const pr of productRates) {
-          const item = harvest.products.find(
-            (p) =>
-              (pr.productId && String(p.productId) === String(pr.productId)) ||
-              (pr.fishName && String(p.fishName).toUpperCase() === String(pr.fishName).toUpperCase())
-          );
+        const usedIndices = new Set();
+        for (let idx = 0; idx < productRates.length; idx++) {
+          const pr = productRates[idx];
+          let item = null;
+
+          // 1. Try direct line item ID / _id matching if provided
+          if (pr.lineItemId || pr._id || pr.id) {
+            const targetId = String(pr.lineItemId || pr._id || pr.id);
+            item = harvest.products.find(
+              (p) => String(p._id || p.id) === targetId
+            );
+          }
+
+          // 2. Try index position matching if within bounds and not yet used
+          if (!item && pr.lineIndex != null && harvest.products[pr.lineIndex] && !usedIndices.has(pr.lineIndex)) {
+            item = harvest.products[pr.lineIndex];
+            usedIndices.add(pr.lineIndex);
+          } else if (!item && harvest.products[idx] && !usedIndices.has(idx)) {
+            // Fallback to array index alignment
+            item = harvest.products[idx];
+            usedIndices.add(idx);
+          }
+
+          // 3. Fallback to productId or fishName matching, skipping already used indices
+          if (!item) {
+            const matchIndex = harvest.products.findIndex(
+              (p, pIdx) =>
+                !usedIndices.has(pIdx) &&
+                ((pr.productId && String(p.productId) === String(pr.productId)) ||
+                  (pr.fishName && String(p.fishName).toUpperCase() === String(pr.fishName).toUpperCase()))
+            );
+            if (matchIndex !== -1) {
+              item = harvest.products[matchIndex];
+              usedIndices.add(matchIndex);
+            }
+          }
+
           if (item) {
             if (pr.rate != null) item.rate = parseFloat(pr.rate) || 0;
             if (pr.estimatedQty != null) item.estimatedQty = parseFloat(pr.estimatedQty) || item.estimatedQty;

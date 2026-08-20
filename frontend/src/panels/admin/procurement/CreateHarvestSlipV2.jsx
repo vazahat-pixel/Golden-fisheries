@@ -8,9 +8,9 @@ import { Modal } from '../../../design-system';
 
 function getRowTotalWeight(item) {
   const boxes = parseFloat(item.noOfBoxes) || 0;
-  const boxWeight = parseFloat(item.boxWeight) || 0;
-  if (boxes > 0 && boxWeight > 0) {
-    return Number((boxes * boxWeight).toFixed(2));
+  const boxWeightNum = parseFloat(item.boxWeight);
+  if (boxes > 0 && Number.isFinite(boxWeightNum) && boxWeightNum > 0) {
+    return Number((boxes * boxWeightNum).toFixed(2));
   }
   const manual = parseFloat(item.totalWeight);
   return Number.isFinite(manual) ? manual : 0;
@@ -180,11 +180,11 @@ const CreateHarvestSlipV2 = () => {
         if (field === 'totalWeight') return updatedItem;
 
         const boxes = parseFloat(field === 'noOfBoxes' ? value : updatedItem.noOfBoxes) || 0;
-        const boxWeight = parseFloat(field === 'boxWeight' ? value : updatedItem.boxWeight) || 0;
-        if (boxes > 0 && boxWeight > 0) {
-          updatedItem.totalWeight = String(Number((boxes * boxWeight).toFixed(2)));
-        } else if (field === 'noOfBoxes' || field === 'boxWeight') {
-          updatedItem.totalWeight = '';
+        const boxWeightVal = field === 'boxWeight' ? value : updatedItem.boxWeight;
+        const boxWeightNum = parseFloat(boxWeightVal);
+
+        if (boxes > 0 && Number.isFinite(boxWeightNum) && boxWeightNum > 0) {
+          updatedItem.totalWeight = String(Number((boxes * boxWeightNum).toFixed(2)));
         }
         return updatedItem;
       })
@@ -473,13 +473,23 @@ const CreateHarvestSlipV2 = () => {
                     {/* Box Weight */}
                     <td className="py-3 px-3">
                       <input 
-                        type="number" 
-                        step="any"
+                        type="text" 
                         value={item.boxWeight} 
                         onChange={e => handleItemChange(item.id, 'boxWeight', e.target.value)}
-                        placeholder="Box Wt"
+                        placeholder="Box Wt / Full Box"
+                        list="box-weight-presets"
                         className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
                       />
+                      <datalist id="box-weight-presets">
+                        <option value="Full Box" />
+                        <option value="Half Box" />
+                        <option value="20 kg" />
+                        <option value="25 kg" />
+                        <option value="30 kg" />
+                        <option value="35 kg" />
+                        <option value="40 kg" />
+                        <option value="50 kg" />
+                      </datalist>
                     </td>
 
                     {/* Total Weight */}
@@ -491,7 +501,7 @@ const CreateHarvestSlipV2 = () => {
                         onChange={(e) => handleItemChange(item.id, 'totalWeight', e.target.value)}
                         placeholder="Total Wt"
                         readOnly={
-                          (parseFloat(item.noOfBoxes) || 0) > 0 && (parseFloat(item.boxWeight) || 0) > 0
+                          (parseFloat(item.noOfBoxes) || 0) > 0 && Number.isFinite(parseFloat(item.boxWeight)) && parseFloat(item.boxWeight) > 0
                         }
                         className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none font-bold read-only:opacity-80"
                       />

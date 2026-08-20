@@ -191,7 +191,7 @@ const HarvestSlipDetail = () => {
                       <td className="py-3 px-3 font-extrabold text-brand-olive uppercase">{item.particulars}</td>
                       <td className="py-3 px-3 text-center font-bold">{item.count || 'N/A'}</td>
                       <td className="py-3 px-3 text-center font-extrabold text-brand-olive">{item.noOfBoxes || 0}</td>
-                      <td className="py-3 px-3 text-right font-medium">{item.boxWeight ? `${item.boxWeight} kg` : 'N/A'}</td>
+                      <td className="py-3 px-3 text-right font-medium">{item.boxWeight ? (Number.isFinite(parseFloat(item.boxWeight)) && !isNaN(Number(item.boxWeight)) ? `${item.boxWeight} kg` : `${item.boxWeight}`) : 'N/A'}</td>
                       <td className="py-3 px-3 text-right font-black text-brand-olive pr-4">{parseFloat(item.totalWeight || 0).toFixed(2)} kg</td>
                     </tr>
                   ))}

@@ -166,7 +166,18 @@ const NetRate = () => {
     navigate(targetPath);
   };
 
-const SAVEABLE_HARVEST_STATUSES = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', 'PARTIAL_USED'];
+const SAVEABLE_HARVEST_STATUSES = [
+  'CONFIRMED',
+  'PARTIALLY_CONVERTED',
+  'CONVERTED_TO_TAPAL',
+  'OPEN',
+  'PARTIAL_USED',
+  'PENDING_CONFIRMATION',
+  'APPROVED',
+  'SENT',
+  'CLOSED',
+  'COMPLETED',
+];
 
   const handleSave = async () => {
     if (!harvestId) {
@@ -188,6 +199,8 @@ const SAVEABLE_HARVEST_STATUSES = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', '
         productRates: productRates.map((r, idx) => {
           const line = sourceProducts[idx];
           return {
+            lineItemId: line?._id || line?.id,
+            lineIndex: idx,
             productId: line?.productId?._id || line?.productId,
             fishName: r.fishName,
             estimatedQty: parseFloat(r.grossWeight) || 0,
