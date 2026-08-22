@@ -206,6 +206,7 @@ const SAVEABLE_HARVEST_STATUSES = [
       await saveNetRateAsync(harvestId, {
         productRates: productRates.map((r, idx) => {
           const line = sourceProducts[idx];
+          return {
             lineItemId: r.lineItemId || line?._id || line?.id,
             lineIndex: idx,
             index: idx,
