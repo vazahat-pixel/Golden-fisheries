@@ -302,6 +302,7 @@ const CreateTapalFromHarvest = () => {
             lineItemId: item._id || undefined,
             productId: item.productId?._id || item.productId,
             fishName: item.fishName || item.particulars,
+            count: item.count || '',
             allocatedQty,
           };
         })
@@ -474,6 +475,11 @@ const CreateTapalFromHarvest = () => {
                               <tr key={lineKey} className="hover:bg-slate-50/50">
                                 <td className="border-b border-slate-100 p-2 font-bold uppercase text-slate-800">
                                   {item.fishName || item.particulars}
+                                  {item.count ? (
+                                    <span className="ml-2 inline-block text-[9px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded uppercase">
+                                      Count: {item.count}
+                                    </span>
+                                  ) : null}
                                 </td>
                                 <td className="border-b border-slate-100 p-2 text-right tabular-nums text-slate-600">
                                   {availableKg.toFixed(2)}

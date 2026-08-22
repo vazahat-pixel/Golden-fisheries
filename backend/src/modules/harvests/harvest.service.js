@@ -85,8 +85,9 @@ class HarvestService extends BaseService {
   }
 
   _mergeIntoProductMap(productMap, item, qty, activeRate) {
-    // Key by fish name so PRAWNS / SEABASS stay separate even if productId was duplicated on harvest slip
-    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}`;
+    // Key by fish name and count so different counts of PRAWNS stay separate line items
+    const countKey = (item.count || '').toString().trim();
+    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}:${countKey}`;
     const boxRatio = (item.estimatedQty || 0) > 0 ? qty / item.estimatedQty : 0;
     const scaledBoxes = (item.boxCount || 0) * boxRatio;
     const lineTotal = qty * activeRate;
@@ -96,7 +97,7 @@ class HarvestService extends BaseService {
         productId: item.productId,
         fishName: item.fishName,
         hsnCode: item.hsnCode,
-        count: item.count || '',
+        count: countKey,
         numericQty: 0,
         boxQty: 0,
         rate: activeRate,
@@ -244,18 +245,28 @@ class HarvestService extends BaseService {
       }
 
       // Convert product map to Tapal products array format
+      let totalBoxes = 0;
       const tapalProducts = Object.values(productMap).map(p => {
         totalAmount += p.totalAmount;
+        const bQty = p.boxQty ? Math.ceil(p.boxQty) : (p.numericQty && p.weightPerBox ? Math.ceil(p.numericQty / p.weightPerBox) : null);
+        if (bQty) totalBoxes += bQty;
+        const formattedName = p.count
+          ? `${p.fishName.toUpperCase()} (COUNT ${p.count})`
+          : p.fishName.toUpperCase();
         return {
-          name: p.fishName.toUpperCase(),
+          name: formattedName,
+          particulars: formattedName,
           hsnCode: p.hsnCode,
           count: p.count || '',
           qty: `${p.numericQty.toFixed(2)} KG`,
           numericQty: p.numericQty,
           rate: `₹${p.rate}`,
           total: `₹${p.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
-          boxQty: p.boxQty ? Math.ceil(p.boxQty) : null,
+          boxQty: bQty,
+          boxes: bQty,
+          noOfBoxes: bQty,
           weightPerBox: p.weightPerBox,
+          boxWeight: p.weightPerBox,
           totalWeight: p.numericQty
         };
       });
@@ -294,6 +305,8 @@ class HarvestService extends BaseService {
         numericQty: totalQty,
         amount: `₹${totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
         numericAmount: totalAmount,
+        totalBoxes: totalBoxes || null,
+        inWords: totalBoxes > 0 ? `${totalBoxes} BOXES ONLY` : `${totalQty.toFixed(2)} KILOGRAMS ONLY`,
         status: logistics.assignedTo ? 'ASSIGNED' : 'CREATED',
         assignedTo: logistics.assignedTo || null,
         driver: 'Unassigned',
@@ -381,7 +394,6 @@ class HarvestService extends BaseService {
 
     // Update individual product rates if provided (map by id, index, or array from UI)
     if (productRates) {
-      if (Array.isArray(productRates)) {
         const usedIndices = new Set();
         for (let idx = 0; idx < productRates.length; idx++) {
           const pr = productRates[idx];
@@ -390,22 +402,44 @@ class HarvestService extends BaseService {
           // 1. Try direct line item ID / _id matching if provided
           if (pr.lineItemId || pr._id || pr.id) {
             const targetId = String(pr.lineItemId || pr._id || pr.id);
-            item = harvest.products.find(
+            const foundIdx = harvest.products.findIndex(
               (p) => String(p._id || p.id) === targetId
             );
+            if (foundIdx !== -1) {
+              item = harvest.products[foundIdx];
+              usedIndices.add(foundIdx);
+            }
           }
 
           // 2. Try index position matching if within bounds and not yet used
           if (!item && pr.lineIndex != null && harvest.products[pr.lineIndex] && !usedIndices.has(pr.lineIndex)) {
             item = harvest.products[pr.lineIndex];
             usedIndices.add(pr.lineIndex);
+          } else if (!item && pr.index != null && harvest.products[pr.index] && !usedIndices.has(pr.index)) {
+            item = harvest.products[pr.index];
+            usedIndices.add(pr.index);
           } else if (!item && harvest.products[idx] && !usedIndices.has(idx)) {
             // Fallback to array index alignment
             item = harvest.products[idx];
             usedIndices.add(idx);
           }
 
-          // 3. Fallback to productId or fishName matching, skipping already used indices
+          // 3. Match by count + fishName if available
+          if (!item && pr.count) {
+            const matchIndex = harvest.products.findIndex(
+              (p, pIdx) =>
+                !usedIndices.has(pIdx) &&
+                String(p.count) === String(pr.count) &&
+                pr.fishName &&
+                String(p.fishName).toUpperCase() === String(pr.fishName).toUpperCase()
+            );
+            if (matchIndex !== -1) {
+              item = harvest.products[matchIndex];
+              usedIndices.add(matchIndex);
+            }
+          }
+
+          // 4. Fallback to productId or fishName matching, skipping already used indices
           if (!item) {
             const matchIndex = harvest.products.findIndex(
               (p, pIdx) =>

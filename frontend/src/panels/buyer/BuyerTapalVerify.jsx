@@ -84,22 +84,24 @@ const BuyerTapalVerify = () => {
                 <thead>
                   <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">Item</th>
+                    <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Count</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Boxes</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-right">Weight (KG)</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-right">Rate (₹)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-card-border text-xs">
-                  {tapal.items?.length > 0 ? tapal.items.map((item, idx) => (
+                  {(tapal.products || tapal.items)?.length > 0 ? (tapal.products || tapal.items).map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50">
                       <td className="py-3 px-3 font-black uppercase">{item.particulars || item.name}</td>
-                      <td className="py-3 px-3 text-center font-bold">{item.noOfBoxes || item.boxes || '-'}</td>
-                      <td className="py-3 px-3 text-right font-bold">{item.totalWeight || item.weight}</td>
+                      <td className="py-3 px-3 text-center font-bold">{item.count || '-'}</td>
+                      <td className="py-3 px-3 text-center font-bold">{item.noOfBoxes || item.boxes || item.boxQty || '-'}</td>
+                      <td className="py-3 px-3 text-right font-bold">{item.totalWeight || item.numericQty || item.weight}</td>
                       <td className="py-3 px-3 text-right">
                         <input
                           type="number"
-                          value={rates[item.id] || ''}
-                          onChange={(e) => handleRateChange(item.id, e.target.value)}
+                          value={rates[item.id || item._id] || ''}
+                          onChange={(e) => handleRateChange(item.id || item._id, e.target.value)}
                           className="w-24 border border-card-border px-2 py-1.5 text-right font-bold focus:ring-1 focus:ring-brand-olive outline-none"
                           placeholder="0.00"
                         />
@@ -107,7 +109,7 @@ const BuyerTapalVerify = () => {
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="4" className="py-4 text-center text-text-muted italic">No items available to rate.</td>
+                      <td colSpan="5" className="py-4 text-center text-text-muted italic">No items available to rate.</td>
                     </tr>
                   )}
                 </tbody>

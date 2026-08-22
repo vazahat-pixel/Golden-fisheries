@@ -3,14 +3,17 @@ import { formatSequentialDocNo } from '../../services/sequence.service.js';
 
 const tapalLineItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  particulars: { type: String, trim: true },
   hsnCode: { type: String, trim: true },
   count: { type: String, trim: true },
   qty: { type: String }, // e.g. "300 KG" — total weight display string
   rate: { type: String }, // e.g. "₹95"
-  total: { type: String }, // e.g. "₹28,500"
-  // Optional box-based weight fields (matches real Tapal slip format)
-  boxQty: { type: Number, default: null }, // Number of boxes (optional)
-  weightPerBox: { type: mongoose.Schema.Types.Mixed, default: null }, // KG or string per box (optional e.g. "Full Box" or 25)
+  // Box-based weight fields
+  boxQty: { type: Number, default: null }, // Number of boxes
+  boxes: { type: Number, default: null },
+  noOfBoxes: { type: Number, default: null },
+  weightPerBox: { type: mongoose.Schema.Types.Mixed, default: null }, // KG or mixed (optional)
+  boxWeight: { type: mongoose.Schema.Types.Mixed, default: null },
   totalWeight: { type: Number, default: null }
 });
 
@@ -81,6 +84,15 @@ const tapalSchema = new mongoose.Schema(
     },
     numericAmount: {
       type: Number,
+    },
+    totalBoxes: {
+      type: Number,
+      default: null,
+    },
+    inWords: {
+      type: String,
+      trim: true,
+      default: null,
     },
     status: {
       type: String,
