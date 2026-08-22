@@ -394,6 +394,7 @@ class HarvestService extends BaseService {
 
     // Update individual product rates if provided (map by id, index, or array from UI)
     if (productRates) {
+      if (Array.isArray(productRates)) {
         const usedIndices = new Set();
         for (let idx = 0; idx < productRates.length; idx++) {
           const pr = productRates[idx];
