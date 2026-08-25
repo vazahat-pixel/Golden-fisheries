@@ -63,24 +63,26 @@ const TapalDetails = () => {
         <h3 className="text-xs font-black uppercase tracking-wider text-brand-olive border-b border-card-border pb-2 mb-4">
           Cargo Particulars
         </h3>
-        {tapal.items && tapal.items.length > 0 ? (
+        {(tapal.products || tapal.items) && (tapal.products || tapal.items).length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive w-12 text-center">No</th>
-                  <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">Item</th>
+                  <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">Particulars</th>
+                  <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Count</th>
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Boxes</th>
-                  <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-right">Weight</th>
+                  <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-right">Box Wt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-card-border text-xs">
-                {tapal.items.map((item, idx) => (
+                {(tapal.products || tapal.items).map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50">
                     <td className="py-3 px-3 text-center font-bold">{idx + 1}</td>
                     <td className="py-3 px-3 font-black uppercase">{item.particulars || item.name}</td>
-                    <td className="py-3 px-3 text-center font-bold">{item.noOfBoxes || item.boxes || '-'}</td>
-                    <td className="py-3 px-3 text-right font-bold text-brand-olive">{item.totalWeight || item.weight} kg</td>
+                    <td className="py-3 px-3 text-center font-bold">{item.count || '-'}</td>
+                    <td className="py-3 px-3 text-center font-bold">{item.noOfBoxes || item.boxes || item.boxQty || '-'}</td>
+                    <td className="py-3 px-3 text-right font-medium">{item.boxWeight || item.weightPerBox ? `${item.boxWeight || item.weightPerBox} kg` : '-'}</td>
                   </tr>
                 ))}
               </tbody>

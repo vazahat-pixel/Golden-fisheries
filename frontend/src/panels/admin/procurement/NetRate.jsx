@@ -70,13 +70,21 @@ const NetRate = () => {
 
     const sourceData = tempData || harvest;
 
-    const lines = (sourceData.products || sourceData.items || []).map((p, i) => ({
-      id: String(i),
-      fishName: p.fishName || p.particulars || p.name || '',
-      grossWeight: String(p.estimatedQty || p.totalWeight || ''),
-      rate: String(p.rate || ''),
-    }));
-    setProductRates(lines.length ? lines : [{ id: '1', fishName: '', grossWeight: '', rate: '' }]);
+    const lines = (sourceData.products || sourceData.items || []).map((p, i) => {
+      const fish = p.fishName || p.particulars || p.name || '';
+      const countVal = p.count ? String(p.count) : '';
+      return {
+        id: String(p._id || i),
+        lineItemId: p._id ? String(p._id) : undefined,
+        index: i,
+        fishName: fish,
+        count: countVal,
+        displayName: countVal ? `${fish} (Count: ${countVal})` : fish,
+        grossWeight: String(p.estimatedQty || p.totalWeight || ''),
+        rate: String(p.rate || ''),
+      };
+    });
+    setProductRates(lines.length ? lines : [{ id: '1', fishName: '', count: '', displayName: '', grossWeight: '', rate: '' }]);
     setDeductions({
       tds: sourceData.tds != null ? String(sourceData.tds) : '',
       commission: sourceData.commission != null ? String(sourceData.commission) : '',
@@ -199,10 +207,12 @@ const SAVEABLE_HARVEST_STATUSES = [
         productRates: productRates.map((r, idx) => {
           const line = sourceProducts[idx];
           return {
-            lineItemId: line?._id || line?.id,
+            lineItemId: r.lineItemId || line?._id || line?.id,
             lineIndex: idx,
+            index: idx,
             productId: line?.productId?._id || line?.productId,
             fishName: r.fishName,
+            count: r.count,
             estimatedQty: parseFloat(r.grossWeight) || 0,
             rate: parseFloat(r.rate) || 0,
           };
@@ -282,6 +292,7 @@ const SAVEABLE_HARVEST_STATUSES = [
           <thead>
             <tr>
               <th>Fish Item</th>
+              <th className="text-center w-24">Count</th>
               <th className="text-right w-28">Gross Wt (KG)</th>
               <th className="text-right w-32">Rate (₹ / kg)</th>
               <th className="text-right w-28">Amount (₹)</th>
@@ -294,11 +305,14 @@ const SAVEABLE_HARVEST_STATUSES = [
                 <tr key={row.id}>
                   <td>
                     <input
-                      className="erp-table-readonly"
+                      className="erp-table-readonly font-bold"
                       readOnly
-                      value={row.fishName}
+                      value={row.displayName || row.fishName}
                       tabIndex={-1}
                     />
+                  </td>
+                  <td className="text-center font-bold text-text-primary text-xs">
+                    {row.count || '—'}
                   </td>
                   <td className="text-right">
                     <input
@@ -310,10 +324,10 @@ const SAVEABLE_HARVEST_STATUSES = [
                   </td>
                   <td className="text-right">
                   <input
-                      className={`${erpInputClass} text-right min-w-[88px]`}
+                      className={`${erpInputClass} text-right min-w-[88px] font-bold`}
                       inputMode="decimal"
                       placeholder="Enter rate"
-                      aria-label={`Rate per kg for ${row.fishName || `line ${idx + 1}`}`}
+                      aria-label={`Rate per kg for ${row.displayName || row.fishName || `line ${idx + 1}`}`}
                       value={row.rate}
                       onChange={(e) => {
                         userEditedRef.current = true; // mark as user-edited
@@ -330,7 +344,7 @@ const SAVEABLE_HARVEST_STATUSES = [
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={3} className="text-right uppercase text-[10px]">
+              <td colSpan={4} className="text-right uppercase text-[10px]">
                 Gross Amount
               </td>
               <td className="text-right tabular-nums text-brand-olive">₹{grossAmount.toFixed(2)}</td>
