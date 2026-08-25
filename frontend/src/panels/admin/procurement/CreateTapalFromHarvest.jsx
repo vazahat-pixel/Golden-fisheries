@@ -7,7 +7,7 @@ import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../compone
 import { toast } from 'react-hot-toast';
 import { BuyerFormModal } from '../buyers/BuyerFormModal';
 import { unwrapBuyers } from '../../../utils/buyerHelpers';
-import { ArrowLeft, Check, Plus, Trash2, Sprout, AlertCircle, ShoppingCart, Weight, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Check, Plus, Trash2, Sprout, AlertCircle, ShoppingCart, Weight, ClipboardCheck, Package } from 'lucide-react';
 
 const CONVERTIBLE_STATUS = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', 'PARTIAL_USED'];
 
@@ -37,8 +37,9 @@ function getProductLineKey(item, index = 0) {
   if (item._id) return String(item._id);
   const pid = item.productId?._id || item.productId;
   const name = (item.fishName || item.particulars || 'line').toUpperCase();
-  if (pid) return `${String(pid)}:${index}`;
-  return `${name}:${index}`;
+  const count = item.count ? `:${String(item.count).trim()}` : '';
+  if (pid) return `${String(pid)}:${index}${count}`;
+  return `${name}:${index}${count}`;
 }
 
 function getHarvestProductLines(h) {
@@ -67,13 +68,35 @@ function getProductRemaining(h, item) {
 function buildDefaultProductAllocations(h) {
   const products = {};
   getHarvestProductLines(h).forEach(({ item, index, lineKey }) => {
-    products[lineKey] = getProductRemaining(h, item).toFixed(2);
+    const remainingKg = getProductRemaining(h, item);
+    const lineEstKg = getLineEstimatedKg(item);
+    const itemBoxes = parseInt(item.boxCount ?? item.noOfBoxes ?? item.boxes, 10) || 0;
+    const remainingBoxes = (lineEstKg > 0 && itemBoxes > 0)
+      ? Math.max(1, Math.round(itemBoxes * (remainingKg / lineEstKg)))
+      : (itemBoxes > 0 ? itemBoxes : '');
+    const boxWeight = item.weightPerBox != null ? String(item.weightPerBox) : (item.boxWeight || 'Full Box');
+
+    products[lineKey] = {
+      boxes: remainingBoxes > 0 ? String(remainingBoxes) : '',
+      boxWeight: boxWeight || 'Full Box',
+      totalWeight: remainingKg > 0 ? remainingKg.toFixed(2) : '',
+    };
   });
   return products;
 }
 
-function sumProductAllocations(products = {}) {
-  return Object.values(products).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+function sumHarvestAllocatedKg(products = {}) {
+  return Object.values(products).reduce((s, v) => {
+    const kg = typeof v === 'object' ? parseFloat(v?.totalWeight) : parseFloat(v);
+    return s + (Number.isFinite(kg) ? kg : 0);
+  }, 0);
+}
+
+function sumHarvestAllocatedBoxes(products = {}) {
+  return Object.values(products).reduce((s, v) => {
+    const b = typeof v === 'object' ? parseInt(v?.boxes, 10) : 0;
+    return s + (Number.isFinite(b) ? b : 0);
+  }, 0);
 }
 
 function normalizePhone10(phone) {
@@ -89,7 +112,7 @@ const CreateTapalFromHarvest = () => {
   const preselectBuyerId = location.state?.preselectBuyerId;
   const { harvestSlips, fetchHarvestSlips, loading } = useAdminStore();
 
-  // Selected allocations: { [harvestId]: { products: { [productKey]: qtyKg } } }
+  // Selected allocations: { [harvestId]: { products: { [productKey]: { boxes, boxWeight, totalWeight } } } }
   const [selectedAllocations, setSelectedAllocations] = useState({});
 
   const [destination, setDestination] = useState('');
@@ -199,16 +222,35 @@ const CreateTapalFromHarvest = () => {
     });
   };
 
-  const handleProductQtyChange = (hId, lineKey, val) => {
-    setSelectedAllocations((prev) => ({
-      ...prev,
-      [hId]: {
-        products: {
-          ...(prev[hId]?.products || {}),
-          [lineKey]: val,
+  const handleProductFieldChange = (hId, lineKey, field, val) => {
+    setSelectedAllocations((prev) => {
+      const currentH = prev[hId]?.products || {};
+      const currentItem = typeof currentH[lineKey] === 'object'
+        ? currentH[lineKey]
+        : { boxes: '', boxWeight: 'Full Box', totalWeight: currentH[lineKey] || '' };
+
+      const updated = { ...currentItem, [field]: val };
+
+      // Auto-compute totalWeight when boxes or numeric boxWeight change
+      if (field === 'boxes' || field === 'boxWeight') {
+        const b = parseFloat(field === 'boxes' ? val : updated.boxes) || 0;
+        const bwStr = field === 'boxWeight' ? val : updated.boxWeight;
+        const bwNum = parseFloat(bwStr);
+        if (b > 0 && Number.isFinite(bwNum) && bwNum > 0) {
+          updated.totalWeight = String(Number((b * bwNum).toFixed(2)));
+        }
+      }
+
+      return {
+        ...prev,
+        [hId]: {
+          products: {
+            ...currentH,
+            [lineKey]: updated,
+          },
         },
-      },
-    }));
+      };
+    });
   };
 
   // Compute live consolidated products
@@ -219,23 +261,30 @@ const CreateTapalFromHarvest = () => {
       if (!h) return;
 
       getHarvestProductLines(h).forEach(({ item, lineKey }) => {
-        const manifestKey = (item.fishName || item.particulars || '').toUpperCase();
-        if (!manifestKey) return;
-        const qty = parseFloat(allocation?.products?.[lineKey]) || 0;
-        if (qty <= 0) return;
-        const lineEst = getLineEstimatedKg(item);
-        const boxRatio = lineEst > 0 ? qty / lineEst : 0;
-        const scaledBoxes = (parseFloat(item.boxCount ?? item.noOfBoxes) || 0) * boxRatio;
+        const prodData = allocation?.products?.[lineKey];
+        const qty = typeof prodData === 'object' ? (parseFloat(prodData.totalWeight) || 0) : (parseFloat(prodData) || 0);
+        const boxes = typeof prodData === 'object' ? (parseInt(prodData.boxes, 10) || 0) : 0;
+        const boxWeight = typeof prodData === 'object' ? (prodData.boxWeight || '') : '';
+        const count = item.count ? String(item.count).trim() : '';
+
+        const name = (item.fishName || item.particulars || '').toUpperCase();
+        if (!name || (qty <= 0 && boxes <= 0)) return;
+
+        const countLabel = count ? ` (COUNT ${count})` : '';
+        const manifestKey = `${name}${countLabel}`;
 
         if (!productsMap[manifestKey]) {
           productsMap[manifestKey] = {
-            fishName: manifestKey,
+            fishName: `${name}${countLabel}`,
+            count: count,
             estimatedQty: 0,
             boxCount: 0,
+            boxWeight: boxWeight,
           };
         }
         productsMap[manifestKey].estimatedQty += qty;
-        productsMap[manifestKey].boxCount += scaledBoxes;
+        productsMap[manifestKey].boxCount += boxes;
+        if (boxWeight) productsMap[manifestKey].boxWeight = boxWeight;
       });
     });
     return Object.values(productsMap);
@@ -243,7 +292,14 @@ const CreateTapalFromHarvest = () => {
 
   const totalAllocatedWeight = useMemo(() => {
     return Object.values(selectedAllocations).reduce(
-      (sum, allocation) => sum + sumProductAllocations(allocation?.products),
+      (sum, allocation) => sum + sumHarvestAllocatedKg(allocation?.products),
+      0
+    );
+  }, [selectedAllocations]);
+
+  const totalAllocatedBoxes = useMemo(() => {
+    return Object.values(selectedAllocations).reduce(
+      (sum, allocation) => sum + sumHarvestAllocatedBoxes(allocation?.products),
       0
     );
   }, [selectedAllocations]);
@@ -256,10 +312,11 @@ const CreateTapalFromHarvest = () => {
       if (!h) return;
 
       const { remaining } = getHarvestQuantities(h);
-      const totalQty = sumProductAllocations(allocation?.products);
+      const totalQty = sumHarvestAllocatedKg(allocation?.products);
+      const totalBoxes = sumHarvestAllocatedBoxes(allocation?.products);
 
-      if (totalQty <= 0) {
-        errors[hId] = 'Enter KG for at least one fish product';
+      if (totalQty <= 0 && totalBoxes <= 0) {
+        errors[hId] = 'Enter Boxes or Weight for at least one fish product';
         return;
       }
       if (totalQty > remaining + 0.001) {
@@ -267,7 +324,8 @@ const CreateTapalFromHarvest = () => {
       }
 
       getHarvestProductLines(h).forEach(({ item, lineKey }) => {
-        const qty = parseFloat(allocation?.products?.[lineKey]) || 0;
+        const prodData = allocation?.products?.[lineKey];
+        const qty = typeof prodData === 'object' ? (parseFloat(prodData.totalWeight) || 0) : (parseFloat(prodData) || 0);
         if (qty <= 0) return;
         const productRemaining = getProductRemaining(h, item);
         if (qty > productRemaining + 0.001) {
@@ -296,20 +354,31 @@ const CreateTapalFromHarvest = () => {
       const h = eligible.find((x) => String(x._id || x.id) === hId);
       const products = getHarvestProductLines(h || {})
         .map(({ item, lineKey }) => {
-          const allocatedQty = parseFloat(allocation?.products?.[lineKey]) || 0;
-          if (allocatedQty <= 0) return null;
+          const prodData = allocation?.products?.[lineKey];
+          const allocatedQty = typeof prodData === 'object' ? (parseFloat(prodData.totalWeight) || 0) : (parseFloat(prodData) || 0);
+          const boxes = typeof prodData === 'object' ? (parseInt(prodData.boxes, 10) || 0) : 0;
+          const boxWeight = typeof prodData === 'object' ? (prodData.boxWeight || '') : '';
+
+          if (allocatedQty <= 0 && boxes <= 0) return null;
           return {
             lineItemId: item._id || undefined,
             productId: item.productId?._id || item.productId,
             fishName: item.fishName || item.particulars,
+            count: item.count || '',
+            boxCount: boxes,
+            boxes: boxes,
+            noOfBoxes: boxes,
+            boxWeight: boxWeight,
+            weightPerBox: boxWeight,
             allocatedQty,
+            totalWeight: allocatedQty,
           };
         })
         .filter(Boolean);
 
       return {
         harvestId: hId,
-        allocatedQty: sumProductAllocations(allocation?.products),
+        allocatedQty: sumHarvestAllocatedKg(allocation?.products),
         products,
       };
     });
@@ -336,13 +405,25 @@ const CreateTapalFromHarvest = () => {
 
   return (
     <div className="space-y-6 pb-16 font-sans animate-in fade-in duration-300">
+      {/* Preset options for box weight */}
+      <datalist id="tapal-box-weight-presets">
+        <option value="Full Box" />
+        <option value="Loose Box" />
+        <option value="20 kg" />
+        <option value="25 kg" />
+        <option value="30 kg" />
+        <option value="35 kg" />
+        <option value="40 kg" />
+        <option value="50 kg" />
+      </datalist>
+
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => navigate(-1)} className="p-1 hover:bg-slate-100 transition-colors">
           <ArrowLeft size={20} className="text-slate-700" />
         </button>
         <div>
           <h1 className="text-xl font-black uppercase tracking-wider text-[#6A7051]">Create Consolidated Tapal</h1>
-          <p className="text-xs text-slate-500">Allocate custom weights across multiple farmer harvests into a single dispatch</p>
+          <p className="text-xs text-slate-500">Allocate boxes and weights across farmer harvest slips into a dispatch slip</p>
         </div>
       </div>
 
@@ -432,10 +513,10 @@ const CreateTapalFromHarvest = () => {
           {Object.keys(selectedAllocations).length > 0 && (
             <div className="bg-white border border-slate-200 p-6 shadow-sm space-y-4">
               <h2 className="text-xs font-black uppercase tracking-widest text-[#6A7051] border-b border-slate-100 pb-3 mb-2 flex items-center gap-2">
-                <Weight size={16} /> 2. Enter KG Per Fish Product
+                <Package size={16} /> 2. Enter Boxes & Box Weight Per Fish Product
               </h2>
               <p className="text-[11px] text-slate-500 -mt-2">
-                Har product ke liye alag KG daalein — poora harvest ek saath bhejna ho to default values rakhein ya badlein.
+                Har product ke liye Boxes aur Box Weight (Full Box / Loose Box / Custom Wt) daalein — Total Weight automatically calculate hoga.
               </p>
 
               <div className="space-y-6">
@@ -443,7 +524,8 @@ const CreateTapalFromHarvest = () => {
                   const h = eligible.find((x) => String(x._id || x.id) === hId);
                   if (!h) return null;
                   const { remaining } = getHarvestQuantities(h);
-                  const harvestTotal = sumProductAllocations(allocation?.products);
+                  const harvestTotalKg = sumHarvestAllocatedKg(allocation?.products);
+                  const harvestTotalBoxes = sumHarvestAllocatedBoxes(allocation?.products);
                   const harvestError = validationErrors[hId];
                   const lines = getHarvestProductLines(h);
 
@@ -454,57 +536,100 @@ const CreateTapalFromHarvest = () => {
                         <p className="text-[10px] text-slate-500">
                           Stock remaining: <span className="font-bold text-slate-700">{remaining.toFixed(2)} KG</span>
                           {' · '}
-                          Allocating: <span className="font-bold text-[#6A7051]">{harvestTotal.toFixed(2)} KG</span>
+                          Allocating: <span className="font-bold text-[#6A7051]">{harvestTotalBoxes} Boxes ({harvestTotalKg.toFixed(2)} KG)</span>
                         </p>
                       </div>
 
-                      <table className="w-full text-[11px]">
-                        <thead>
-                          <tr className="bg-slate-50 text-slate-600">
-                            <th className="border-b border-slate-200 p-2 text-left uppercase font-black">Fish Item</th>
-                            <th className="border-b border-slate-200 p-2 text-right uppercase font-black w-28">Available (KG)</th>
-                            <th className="border-b border-slate-200 p-2 text-right uppercase font-black w-32">Tapal KG</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {lines.map(({ item, lineKey }) => {
-                            const availableKg = getProductRemaining(h, item);
-                            const lineError = validationErrors[`${hId}:${lineKey}`];
-                            return (
-                              <tr key={lineKey} className="hover:bg-slate-50/50">
-                                <td className="border-b border-slate-100 p-2 font-bold uppercase text-slate-800">
-                                  {item.fishName || item.particulars}
-                                </td>
-                                <td className="border-b border-slate-100 p-2 text-right tabular-nums text-slate-600">
-                                  {availableKg.toFixed(2)}
-                                </td>
-                                <td className="border-b border-slate-100 p-2">
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    max={availableKg}
-                                    className={`${paperInputClass} w-full text-right font-black`}
-                                    value={allocation?.products?.[lineKey] ?? ''}
-                                    onChange={(e) => handleProductQtyChange(hId, lineKey, e.target.value)}
-                                  />
-                                  {lineError && (
-                                    <p className="text-[9px] text-red-600 font-bold mt-0.5 text-right">{lineError}</p>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr className="bg-[#F9FAF6] font-black">
-                            <td colSpan={2} className="p-2 text-right uppercase text-[10px] text-[#6A7051]">
-                              Subtotal
-                            </td>
-                            <td className="p-2 text-right tabular-nums text-slate-900">{harvestTotal.toFixed(2)} KG</td>
-                          </tr>
-                        </tfoot>
-                      </table>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-600">
+                              <th className="border-b border-slate-200 p-2 text-left uppercase font-black">Fish Item</th>
+                              <th className="border-b border-slate-200 p-2 text-center uppercase font-black w-28">Available</th>
+                              <th className="border-b border-slate-200 p-2 text-center uppercase font-black w-24">Tapal Boxes</th>
+                              <th className="border-b border-slate-200 p-2 text-center uppercase font-black w-36">Box Weight</th>
+                              <th className="border-b border-slate-200 p-2 text-right uppercase font-black w-28">Total Wt (KG)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lines.map(({ item, lineKey }) => {
+                              const availableKg = getProductRemaining(h, item);
+                              const lineEstKg = getLineEstimatedKg(item);
+                              const itemBoxes = parseInt(item.boxCount ?? item.noOfBoxes ?? item.boxes, 10) || 0;
+                              const availableBoxes = (lineEstKg > 0 && itemBoxes > 0)
+                                ? Math.round(itemBoxes * (availableKg / lineEstKg))
+                                : (itemBoxes || 0);
+
+                              const prodData = allocation?.products?.[lineKey] || {};
+                              const lineError = validationErrors[`${hId}:${lineKey}`];
+
+                              return (
+                                <tr key={lineKey} className="hover:bg-slate-50/50">
+                                  <td className="border-b border-slate-100 p-2 font-bold uppercase text-slate-800">
+                                    <div>{item.fishName || item.particulars}</div>
+                                    {item.count && (
+                                      <span className="inline-block mt-0.5 px-1.5 py-0.2 bg-amber-50 text-amber-800 font-black text-[9px] rounded-xs border border-amber-200">
+                                        COUNT: {item.count}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="border-b border-slate-100 p-2 text-center tabular-nums text-slate-600">
+                                    <span className="font-bold text-slate-800">{availableBoxes > 0 ? `${availableBoxes} Box` : ''}</span>
+                                    <span className="text-[10px] text-slate-400 block">({availableKg.toFixed(2)} KG)</span>
+                                  </td>
+                                  <td className="border-b border-slate-100 p-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      placeholder="Boxes"
+                                      className={`${paperInputClass} w-full text-center font-black`}
+                                      value={prodData.boxes ?? ''}
+                                      onChange={(e) => handleProductFieldChange(hId, lineKey, 'boxes', e.target.value)}
+                                    />
+                                  </td>
+                                  <td className="border-b border-slate-100 p-2">
+                                    <input
+                                      type="text"
+                                      list="tapal-box-weight-presets"
+                                      placeholder="Full Box / 25 kg"
+                                      className={`${paperInputClass} w-full text-center font-medium`}
+                                      value={prodData.boxWeight ?? ''}
+                                      onChange={(e) => handleProductFieldChange(hId, lineKey, 'boxWeight', e.target.value)}
+                                    />
+                                  </td>
+                                  <td className="border-b border-slate-100 p-2">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max={availableKg}
+                                      placeholder="Total KG"
+                                      className={`${paperInputClass} w-full text-right font-black`}
+                                      value={prodData.totalWeight ?? ''}
+                                      onChange={(e) => handleProductFieldChange(hId, lineKey, 'totalWeight', e.target.value)}
+                                    />
+                                    {lineError && (
+                                      <p className="text-[9px] text-red-600 font-bold mt-0.5 text-right">{lineError}</p>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-[#F9FAF6] font-black">
+                              <td colSpan={2} className="p-2 text-right uppercase text-[10px] text-[#6A7051]">
+                                Subtotal
+                              </td>
+                              <td className="p-2 text-center tabular-nums text-slate-900">
+                                {harvestTotalBoxes > 0 ? `${harvestTotalBoxes} Boxes` : '—'}
+                              </td>
+                              <td className="p-2 text-center text-slate-400 text-[10px]"></td>
+                              <td className="p-2 text-right tabular-nums text-slate-900">{harvestTotalKg.toFixed(2)} KG</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
                       {harvestError && (
                         <p className="text-[10px] text-red-600 font-bold px-4 py-2 bg-red-50">{harvestError}</p>
                       )}
@@ -513,9 +638,15 @@ const CreateTapalFromHarvest = () => {
                 })}
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-between items-center bg-[#F9FAF6] p-4">
-                <span className="text-xs font-black uppercase tracking-wider text-[#6A7051]">Consolidated Total Weight</span>
-                <span className="text-lg font-black text-slate-800">{totalAllocatedWeight.toFixed(2)} KG</span>
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap justify-between items-center bg-[#F9FAF6] p-4 gap-3">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-[#6A7051] block">Consolidated Load Summary</span>
+                  <span className="text-[11px] text-slate-600 font-bold">{totalAllocatedBoxes} Total Boxes</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Total Weight</span>
+                  <span className="text-lg font-black text-slate-800">{totalAllocatedWeight.toFixed(2)} KG</span>
+                </div>
               </div>
             </div>
           )}
@@ -599,19 +730,23 @@ const CreateTapalFromHarvest = () => {
                     <thead>
                       <tr className="bg-slate-100 text-slate-600">
                         <th className="border border-slate-200 p-1.5 text-left uppercase">Fish Item</th>
-                        <th className="border border-slate-200 p-1.5 text-right uppercase">Est. Weight</th>
                         <th className="border border-slate-200 p-1.5 text-center uppercase">Boxes</th>
+                        <th className="border border-slate-200 p-1.5 text-center uppercase">Box Wt</th>
+                        <th className="border border-slate-200 p-1.5 text-right uppercase">Est. Weight</th>
                       </tr>
                     </thead>
                     <tbody>
                       {consolidatedProducts.map((p, i) => (
                         <tr key={i} className="hover:bg-white transition-colors">
                           <td className="border border-slate-200 p-1.5 font-bold uppercase text-slate-800">{p.fishName}</td>
+                          <td className="border border-slate-200 p-1.5 text-center text-slate-800 font-black">
+                            {p.boxCount ? p.boxCount : '—'}
+                          </td>
+                          <td className="border border-slate-200 p-1.5 text-center text-slate-600 font-medium">
+                            {p.boxWeight || '—'}
+                          </td>
                           <td className="border border-slate-200 p-1.5 text-right font-black text-slate-900">
                             {p.estimatedQty.toFixed(2)} KG
-                          </td>
-                          <td className="border border-slate-200 p-1.5 text-center text-slate-600 font-bold">
-                            {p.boxCount ? Math.round(p.boxCount) : '—'}
                           </td>
                         </tr>
                       ))}

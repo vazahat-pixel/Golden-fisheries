@@ -84,12 +84,18 @@ class HarvestService extends BaseService {
     return activeRate;
   }
 
-  _mergeIntoProductMap(productMap, item, qty, activeRate) {
-    // Key by fish name so PRAWNS / SEABASS stay separate even if productId was duplicated on harvest slip
-    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}`;
+  _mergeIntoProductMap(productMap, item, qty, activeRate, customBoxQty = null, customWeightPerBox = null) {
+    // Key by fish name and count so distinct count rows (e.g. Count 89.6 vs 88.4) remain distinct
+    const countPart = item.count ? `:${String(item.count).trim()}` : '';
+    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}${countPart}`;
     const boxRatio = (item.estimatedQty || 0) > 0 ? qty / item.estimatedQty : 0;
-    const scaledBoxes = (item.boxCount || 0) * boxRatio;
+    const scaledBoxes = customBoxQty != null && customBoxQty !== ''
+      ? (parseFloat(customBoxQty) || 0)
+      : (item.boxCount || 0) * boxRatio;
     const lineTotal = qty * activeRate;
+    const effectiveWeightPerBox = customWeightPerBox != null && customWeightPerBox !== ''
+      ? customWeightPerBox
+      : (item.weightPerBox || null);
 
     if (!productMap[key]) {
       productMap[key] = {
@@ -100,7 +106,7 @@ class HarvestService extends BaseService {
         numericQty: 0,
         boxQty: 0,
         rate: activeRate,
-        weightPerBox: item.weightPerBox || null,
+        weightPerBox: effectiveWeightPerBox,
         qualityType: item.qualityType || 'Mix',
         totalAmount: 0,
       };
@@ -109,6 +115,9 @@ class HarvestService extends BaseService {
     productMap[key].numericQty += qty;
     productMap[key].boxQty += scaledBoxes;
     productMap[key].totalAmount += lineTotal;
+    if (effectiveWeightPerBox) {
+      productMap[key].weightPerBox = effectiveWeightPerBox;
+    }
   }
 
   /**
@@ -192,8 +201,11 @@ class HarvestService extends BaseService {
               );
             }
 
+            const explicitBoxQty = prodAlloc.boxCount != null ? prodAlloc.boxCount : (prodAlloc.boxes != null ? prodAlloc.boxes : prodAlloc.noOfBoxes);
+            const explicitWeightPerBox = prodAlloc.weightPerBox != null ? prodAlloc.weightPerBox : (prodAlloc.boxWeight != null ? prodAlloc.boxWeight : null);
+
             const activeRate = await this._resolveItemRate(item, session);
-            this._mergeIntoProductMap(productMap, item, qty, activeRate);
+            this._mergeIntoProductMap(productMap, item, qty, activeRate, explicitBoxQty, explicitWeightPerBox);
             item.usedQty = (item.usedQty || 0) + qty;
             allocatedQty += qty;
           }
@@ -260,6 +272,8 @@ class HarvestService extends BaseService {
         };
       });
 
+      const totalBoxes = tapalProducts.reduce((sum, p) => sum + (p.boxQty || 0), 0);
+
       // 4. Resolve Buyer and Create Tapal document
       let buyerName = 'UNASSIGNED BUYER';
       const buyerPhoneRaw = logistics.buyerPhone;
@@ -294,7 +308,16 @@ class HarvestService extends BaseService {
         numericQty: totalQty,
         amount: `₹${totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
         numericAmount: totalAmount,
+        totalBoxes: totalBoxes || 0,
         status: logistics.assignedTo ? 'ASSIGNED' : 'CREATED',
+        assignedTo: logistics.assignedTo || null,
+        driver: 'Unassigned',
+        vehicleNumber: logistics.vehicleNumber || null,
+        destination: logistics.destination || null,
+        logisticsNotes: logistics.logisticsNotes || null,
+        createdBy: creatorUser?.phone || String(creatorUser?._id || creatorUser?.id || 'erp-system'),
+        products: tapalProducts
+      });
         assignedTo: logistics.assignedTo || null,
         driver: 'Unassigned',
         vehicleNumber: logistics.vehicleNumber || null,

@@ -82,6 +82,10 @@ const tapalSchema = new mongoose.Schema(
     numericAmount: {
       type: Number,
     },
+    totalBoxes: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       required: true,
