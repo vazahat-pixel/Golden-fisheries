@@ -283,7 +283,7 @@ class HarvestService extends BaseService {
         };
       });
 
-      const totalBoxes = tapalProducts.reduce((sum, p) => sum + (p.boxQty || 0), 0);
+      totalBoxes = tapalProducts.reduce((sum, p) => sum + (p.boxQty || 0), 0);
 
       // 4. Resolve Buyer and Create Tapal document
       let buyerName = 'UNASSIGNED BUYER';
