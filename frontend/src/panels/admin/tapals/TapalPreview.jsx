@@ -6,12 +6,27 @@ import { toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+function parseBoxWeightNumber(boxWeightVal) {
+  if (boxWeightVal == null || boxWeightVal === '') return 0;
+  if (typeof boxWeightVal === 'number' && Number.isFinite(boxWeightVal)) return boxWeightVal;
+  const str = String(boxWeightVal).trim();
+  const direct = parseFloat(str);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const match = str.match(/(\d+(?:\.\d+)?)/);
+  if (match) {
+    const n = parseFloat(match[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  if (/full/i.test(str)) return 25;
+  return 0;
+}
+
 const TapalPreview = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { tapals, fetchTapals } = useAdminStore();
   const [tapal, setTapal] = useState(null);
-  const [showKgs, setShowKgs] = useState(false);
+  const [showKgs, setShowKgs] = useState(true);
   const printAreaRef = useRef(null);
 
   useEffect(() => {
@@ -56,15 +71,15 @@ const TapalPreview = () => {
     0
   );
   const computedTotalBoxWeight = realItems.reduce(
-    (sum, item) => sum + (parseFloat(item.boxWeight ?? item.weightPerBox) || 0),
+    (sum, item) => sum + parseBoxWeightNumber(item.boxWeight ?? item.weightPerBox),
     0
   );
   const computedTotalWeightKg = realItems.reduce(
     (sum, item) => {
       const boxes = parseFloat(item.noOfBoxes ?? item.boxes ?? item.boxQty) || 0;
-      const bWt = parseFloat(item.boxWeight ?? item.weightPerBox) || 0;
+      const bWt = parseBoxWeightNumber(item.boxWeight ?? item.weightPerBox);
       const direct = parseFloat(item.totalWeight ?? item.numericQty ?? item.qty) || 0;
-      return sum + (boxes > 0 && bWt > 0 ? boxes * bWt : direct);
+      return sum + (direct > 0 ? direct : (boxes > 0 && bWt > 0 ? boxes * bWt : 0));
     },
     0
   );
@@ -295,9 +310,13 @@ const TapalPreview = () => {
                   </thead>
                   <tbody>
                     {displayItems.map((item, index) => {
-                      const boxes = item.noOfBoxes || item.boxes || item.boxQty || '';
-                      const boxWt = item.boxWeight || item.weightPerBox || '';
-                      const rowTotalKg = item.totalWeight ? parseFloat(item.totalWeight).toFixed(2) : (boxes && boxWt ? (parseFloat(boxes) * parseFloat(boxWt)).toFixed(2) : '');
+                      const boxes = item.noOfBoxes ?? item.boxes ?? item.boxQty ?? '';
+                      const rawBoxWt = item.boxWeight ?? item.weightPerBox ?? '';
+                      const numBoxWt = parseBoxWeightNumber(rawBoxWt);
+                      const directKg = parseFloat(item.totalWeight ?? item.numericQty ?? item.qty) || 0;
+                      const rowTotalKg = directKg > 0
+                        ? directKg.toFixed(2)
+                        : (boxes && numBoxWt > 0 ? (parseFloat(boxes) * numBoxWt).toFixed(2) : '');
 
                       return (
                         <tr key={item.id || index} className="border-b border-black h-[22px]">
@@ -318,7 +337,7 @@ const TapalPreview = () => {
                           </td>
                           {showKgs && (
                             <td className="border-r border-black">
-                              {boxWt ? `${boxWt}` : ''}
+                              {rawBoxWt ? `${rawBoxWt}` : ''}
                             </td>
                           )}
                           {showKgs && (

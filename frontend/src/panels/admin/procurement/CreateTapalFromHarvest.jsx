@@ -104,6 +104,37 @@ function normalizePhone10(phone) {
   return digits.length >= 10 ? digits.slice(-10) : digits;
 }
 
+export function resolveBoxWeightKg(boxWeightVal, defaultItemWeight = null) {
+  if (boxWeightVal == null || boxWeightVal === '') {
+    return Number(defaultItemWeight) > 0 ? Number(defaultItemWeight) : 0;
+  }
+  if (typeof boxWeightVal === 'number' && Number.isFinite(boxWeightVal) && boxWeightVal > 0) {
+    return boxWeightVal;
+  }
+  const str = String(boxWeightVal).trim();
+  const direct = parseFloat(str);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  // Extract number from string like "Full Box / 25 kg", "25kg", "Full Box (25)"
+  const numMatch = str.match(/(\d+(?:\.\d+)?)/);
+  if (numMatch) {
+    const parsed = parseFloat(numMatch[1]);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+
+  // If text says "Full Box" or "Full" and we have default item weight
+  if (defaultItemWeight && Number(defaultItemWeight) > 0) {
+    return Number(defaultItemWeight);
+  }
+
+  // Standard Full Box in seafood trade
+  if (/full/i.test(str)) {
+    return 25;
+  }
+
+  return 0;
+}
+
 const CreateTapalFromHarvest = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -235,7 +266,10 @@ const CreateTapalFromHarvest = () => {
       if (field === 'boxes' || field === 'boxWeight') {
         const b = parseFloat(field === 'boxes' ? val : updated.boxes) || 0;
         const bwStr = field === 'boxWeight' ? val : updated.boxWeight;
-        const bwNum = parseFloat(bwStr);
+        const h = eligible.find((x) => String(x._id || x.id) === hId);
+        const lineObj = h ? getHarvestProductLines(h).find(l => l.lineKey === lineKey) : null;
+        const fallbackWt = lineObj?.item?.weightPerBox || (lineObj?.item ? (getLineEstimatedKg(lineObj.item) / (parseInt(lineObj.item.boxCount || lineObj.item.boxes, 10) || 1)) : 25);
+        const bwNum = resolveBoxWeightKg(bwStr, fallbackWt);
         if (b > 0 && Number.isFinite(bwNum) && bwNum > 0) {
           updated.totalWeight = String(Number((b * bwNum).toFixed(2)));
         }
@@ -262,16 +296,22 @@ const CreateTapalFromHarvest = () => {
 
       getHarvestProductLines(h).forEach(({ item, lineKey }) => {
         const prodData = allocation?.products?.[lineKey];
-        const qty = typeof prodData === 'object' ? (parseFloat(prodData.totalWeight) || 0) : (parseFloat(prodData) || 0);
         const boxes = typeof prodData === 'object' ? (parseInt(prodData.boxes, 10) || 0) : 0;
         const boxWeight = typeof prodData === 'object' ? (prodData.boxWeight || '') : '';
+        const fallbackWt = item.weightPerBox || (getLineEstimatedKg(item) / (parseInt(item.boxCount || item.boxes, 10) || 1)) || 25;
+        const bwNum = resolveBoxWeightKg(boxWeight, fallbackWt);
+        const qty = typeof prodData === 'object'
+          ? (parseFloat(prodData.totalWeight) || (boxes > 0 && bwNum > 0 ? Number((boxes * bwNum).toFixed(2)) : 0))
+          : (parseFloat(prodData) || 0);
+
         const count = item.count ? String(item.count).trim() : '';
 
         const name = (item.fishName || item.particulars || '').toUpperCase();
         if (!name || (qty <= 0 && boxes <= 0)) return;
 
         const countLabel = count ? ` (COUNT ${count})` : '';
-        const manifestKey = `${name}${countLabel}`;
+        const bwKey = boxWeight ? `:${boxWeight.trim().toUpperCase()}` : '';
+        const manifestKey = `${name}${countLabel}${bwKey}`;
 
         if (!productsMap[manifestKey]) {
           productsMap[manifestKey] = {
@@ -279,7 +319,7 @@ const CreateTapalFromHarvest = () => {
             count: count,
             estimatedQty: 0,
             boxCount: 0,
-            boxWeight: boxWeight,
+            boxWeight: boxWeight || (bwNum > 0 ? `${bwNum} KG` : '—'),
           };
         }
         productsMap[manifestKey].estimatedQty += qty;
@@ -355,11 +395,16 @@ const CreateTapalFromHarvest = () => {
       const products = getHarvestProductLines(h || {})
         .map(({ item, lineKey }) => {
           const prodData = allocation?.products?.[lineKey];
-          const allocatedQty = typeof prodData === 'object' ? (parseFloat(prodData.totalWeight) || 0) : (parseFloat(prodData) || 0);
           const boxes = typeof prodData === 'object' ? (parseInt(prodData.boxes, 10) || 0) : 0;
           const boxWeight = typeof prodData === 'object' ? (prodData.boxWeight || '') : '';
+          const fallbackWt = item.weightPerBox || (getLineEstimatedKg(item) / (parseInt(item.boxCount || item.boxes, 10) || 1)) || 25;
+          const bwNum = resolveBoxWeightKg(boxWeight, fallbackWt);
+          let allocatedQty = typeof prodData === 'object'
+            ? (parseFloat(prodData.totalWeight) || (boxes > 0 && bwNum > 0 ? Number((boxes * bwNum).toFixed(2)) : 0))
+            : (parseFloat(prodData) || 0);
 
           if (allocatedQty <= 0 && boxes <= 0) return null;
+          const finalBoxWeight = boxWeight || (bwNum > 0 ? `${bwNum} kg` : 'Full Box');
           return {
             lineItemId: item._id || undefined,
             productId: item.productId?._id || item.productId,
@@ -368,8 +413,8 @@ const CreateTapalFromHarvest = () => {
             boxCount: boxes,
             boxes: boxes,
             noOfBoxes: boxes,
-            boxWeight: boxWeight,
-            weightPerBox: boxWeight,
+            boxWeight: finalBoxWeight,
+            weightPerBox: finalBoxWeight,
             allocatedQty,
             totalWeight: allocatedQty,
           };
@@ -385,7 +430,7 @@ const CreateTapalFromHarvest = () => {
 
     setSubmitting(true);
     try {
-      await tapalService.createFromHarvest(null, {
+      const res = await tapalService.createFromHarvest(null, {
         allocations,
         destination,
         vehicleNumber,
@@ -394,8 +439,15 @@ const CreateTapalFromHarvest = () => {
         buyerPhone: normalizePhone10(selectedBuyer.phone),
       });
 
-      toast.success('Tapal created — build a trip and assign driver from Logistics → Assign Driver');
-      navigate('/admin/tapals');
+      const newTapal = res?.data?.tapal || res?.tapal;
+      const newTapalId = newTapal?._id || newTapal?.id;
+
+      toast.success('Tapal created successfully!');
+      if (newTapalId) {
+        navigate(`/admin/tapals/${newTapalId}/preview`);
+      } else {
+        navigate('/admin/tapals');
+      }
     } catch (err) {
       toast.error(err?.message || err?.data?.message || 'Failed to create tapal');
     } finally {
@@ -408,6 +460,7 @@ const CreateTapalFromHarvest = () => {
       {/* Preset options for box weight */}
       <datalist id="tapal-box-weight-presets">
         <option value="Full Box" />
+        <option value="Full Box / 25 kg" />
         <option value="Loose Box" />
         <option value="20 kg" />
         <option value="25 kg" />

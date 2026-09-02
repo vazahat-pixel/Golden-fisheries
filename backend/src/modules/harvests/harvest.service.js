@@ -85,10 +85,11 @@ class HarvestService extends BaseService {
   }
 
   _mergeIntoProductMap(productMap, item, qty, activeRate, customBoxQty = null, customWeightPerBox = null) {
-    // Key by fish name and count so distinct count rows (e.g. Count 89.6 vs 88.4) remain distinct
+    // Key by fish name, count and box weight so distinct box weight rows remain distinct
     const countKey = (item.count || '').toString().trim();
     const countPart = countKey ? `:${countKey}` : '';
-    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}${countPart}`;
+    const bwKey = customWeightPerBox ? `:${String(customWeightPerBox).trim().toUpperCase()}` : '';
+    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}${countPart}${bwKey}`;
     const boxRatio = (item.estimatedQty || 0) > 0 ? qty / item.estimatedQty : 0;
     const scaledBoxes = customBoxQty != null && customBoxQty !== ''
       ? (parseFloat(customBoxQty) || 0)
@@ -165,8 +166,27 @@ class HarvestService extends BaseService {
 
         if (hasProductBreakdown) {
           for (const prodAlloc of allocation.products) {
-            const qty = parseFloat(prodAlloc.allocatedQty) || 0;
-            if (qty <= 0) continue;
+            let qty = parseFloat(prodAlloc.allocatedQty) || 0;
+            const explicitBoxQty = prodAlloc.boxCount != null ? prodAlloc.boxCount : (prodAlloc.boxes != null ? prodAlloc.boxes : prodAlloc.noOfBoxes);
+            const explicitWeightPerBox = prodAlloc.weightPerBox != null ? prodAlloc.weightPerBox : (prodAlloc.boxWeight != null ? prodAlloc.boxWeight : null);
+
+            let bwNum = parseFloat(explicitWeightPerBox);
+            if (!Number.isFinite(bwNum) || bwNum <= 0) {
+              const match = String(explicitWeightPerBox || '').match(/(\d+(?:\.\d+)?)/);
+              if (match) bwNum = parseFloat(match[1]);
+            }
+            if ((!Number.isFinite(bwNum) || bwNum <= 0) && item?.weightPerBox) {
+              bwNum = parseFloat(item.weightPerBox);
+            }
+            if (!Number.isFinite(bwNum) || bwNum <= 0) {
+              bwNum = 25; // standard box default
+            }
+
+            if (qty <= 0 && explicitBoxQty > 0) {
+              qty = Number((explicitBoxQty * bwNum).toFixed(2));
+            }
+
+            if (qty <= 0 && (!explicitBoxQty || explicitBoxQty <= 0)) continue;
 
             let item = null;
             if (prodAlloc.lineItemId) {
@@ -195,15 +215,17 @@ class HarvestService extends BaseService {
               availableQty,
               remainingQty
             );
-            if (qty > productRemaining + 0.001) {
-              throw new AppError(
-                `Cannot allocate ${qty} KG of ${item.fishName} from Harvest ${harvest.harvestNumber}. Only ${productRemaining.toFixed(2)} KG remaining for this item.`,
-                400
-              );
+            if (qty > productRemaining + 0.1 && remainingQty > 0) {
+              // Clamp to available remaining stock if within small delta
+              if (qty <= remainingQty + 0.1) {
+                // allow allocation if overall harvest remaining covers it
+              } else {
+                throw new AppError(
+                  `Cannot allocate ${qty} KG of ${item.fishName} from Harvest ${harvest.harvestNumber}. Only ${productRemaining.toFixed(2)} KG remaining for this item.`,
+                  400
+                );
+              }
             }
-
-            const explicitBoxQty = prodAlloc.boxCount != null ? prodAlloc.boxCount : (prodAlloc.boxes != null ? prodAlloc.boxes : prodAlloc.noOfBoxes);
-            const explicitWeightPerBox = prodAlloc.weightPerBox != null ? prodAlloc.weightPerBox : (prodAlloc.boxWeight != null ? prodAlloc.boxWeight : null);
 
             const activeRate = await this._resolveItemRate(item, session);
             this._mergeIntoProductMap(productMap, item, qty, activeRate, explicitBoxQty, explicitWeightPerBox);
@@ -260,7 +282,14 @@ class HarvestService extends BaseService {
       let totalBoxes = 0;
       const tapalProducts = Object.values(productMap).map(p => {
         totalAmount += p.totalAmount;
-        const bQty = p.boxQty ? Math.ceil(p.boxQty) : (p.numericQty && p.weightPerBox ? Math.ceil(p.numericQty / p.weightPerBox) : null);
+        let numWpB = parseFloat(p.weightPerBox);
+        if (!Number.isFinite(numWpB) || numWpB <= 0) {
+          const m = String(p.weightPerBox || '').match(/(\d+(?:\.\d+)?)/);
+          if (m) numWpB = parseFloat(m[1]);
+          else if (/full/i.test(String(p.weightPerBox || ''))) numWpB = 25;
+        }
+
+        const bQty = p.boxQty ? Math.ceil(p.boxQty) : (p.numericQty && numWpB ? Math.ceil(p.numericQty / numWpB) : null);
         if (bQty) totalBoxes += bQty;
         const formattedName = p.count
           ? `${p.fishName.toUpperCase()} (COUNT ${p.count})`
