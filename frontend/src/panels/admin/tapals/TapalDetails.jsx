@@ -4,6 +4,16 @@ import { useAdminStore } from '../../../store/adminStore';
 import { ArrowLeft, FileText, CheckCircle, Truck, Package } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+function getSerialCode(index) {
+  let code = '';
+  let n = index;
+  while (n >= 0) {
+    code = String.fromCharCode(65 + (n % 26)) + code;
+    n = Math.floor(n / 26) - 1;
+  }
+  return code;
+}
+
 const TapalDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -73,21 +83,18 @@ const TapalDetails = () => {
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Count</th>
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Boxes</th>
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Box Wt</th>
-                  <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-right">Total Wt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-card-border text-xs">
                 {(tapal.products || tapal.items).map((item, idx) => {
                   const bw = item.boxWeight || item.weightPerBox;
-                  const totalKg = item.totalWeight || item.numericQty || (item.qty ? parseFloat(item.qty) : null);
                   return (
                     <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-3 text-center font-bold">{idx + 1}</td>
+                      <td className="py-3 px-3 text-center font-bold">{getSerialCode(idx)}</td>
                       <td className="py-3 px-3 font-black uppercase">{item.particulars || item.name}</td>
                       <td className="py-3 px-3 text-center font-bold">{item.count || '-'}</td>
                       <td className="py-3 px-3 text-center font-bold">{item.noOfBoxes || item.boxes || item.boxQty || '-'}</td>
                       <td className="py-3 px-3 text-center font-medium">{bw ? `${bw}` : '-'}</td>
-                      <td className="py-3 px-3 text-right font-black">{totalKg ? `${parseFloat(totalKg).toFixed(2)} KG` : '-'}</td>
                     </tr>
                   );
                 })}

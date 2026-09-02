@@ -21,6 +21,16 @@ function parseBoxWeightNumber(boxWeightVal) {
   return 0;
 }
 
+function getSerialCode(index) {
+  let code = '';
+  let n = index;
+  while (n >= 0) {
+    code = String.fromCharCode(65 + (n % 26)) + code;
+    n = Math.floor(n / 26) - 1;
+  }
+  return code;
+}
+
 const TapalPreview = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -147,9 +157,9 @@ const TapalPreview = () => {
   const deductionsNotes = !rawDeductionsNotes || /NOT\s+DEDUCTED/i.test(rawDeductionsNotes) ? '' : rawDeductionsNotes;
 
   const totalBoxesCount = tapal.totalBoxes || tapal.totalNoOfBoxes || computedTotalBoxes || 0;
-  const inWords = showKgs
-    ? (tapal.numericQty ? `${tapal.numericQty} KILOGRAMS ONLY` : computedTotalWeightKg > 0 ? `${computedTotalWeightKg.toFixed(2)} KILOGRAMS ONLY` : `${totalBoxesCount} BOXES ONLY`)
-    : (totalBoxesCount > 0 ? `${totalBoxesCount} BOXES ONLY` : tapal.inWords || '');
+  const inWords = totalBoxesCount > 0
+    ? `${totalBoxesCount} BOXES ONLY`
+    : (tapal.inWords || (tapal.numericQty ? `${tapal.numericQty} KILOGRAMS ONLY` : ''));
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-500 font-sans print:p-0 print:m-0">
@@ -171,15 +181,6 @@ const TapalPreview = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <label className="flex items-center gap-2 cursor-pointer select-none bg-white border border-card-border px-3 py-2 text-xs font-bold text-brand-olive rounded-sm hover:bg-slate-50 transition-all shadow-sm">
-            <input
-              type="checkbox"
-              checked={showKgs}
-              onChange={(e) => setShowKgs(e.target.checked)}
-              className="rounded text-brand-olive focus:ring-accent-olive h-3.5 w-3.5 cursor-pointer"
-            />
-            <span className="uppercase text-[11px] font-black tracking-wider">Include Weight (KG)</span>
-          </label>
           <button
             onClick={handlePrint}
             className="flex-1 sm:flex-none border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
@@ -303,25 +304,19 @@ const TapalPreview = () => {
                       <th className="py-1 px-1 border-r border-black w-[70px]">Hsn Code</th>
                       <th className="py-1 px-1 border-r border-black text-left pl-1">Particulars</th>
                       <th className="py-1 px-1 border-r border-black w-[60px]">Count</th>
-                      <th className={`py-1 px-1 ${showKgs ? 'border-r border-black w-[60px]' : 'w-[80px]'} leading-tight`}>NO OF<br/>BOXES</th>
-                      {showKgs && <th className="py-1 px-1 border-r border-black w-[70px]">Box Wt (KG)</th>}
-                      {showKgs && <th className="py-1 px-1 w-[80px]">Total Wt (KG)</th>}
+                      <th className="py-1 px-1 border-r border-black w-[80px] leading-tight">NO OF<br/>BOXES</th>
+                      <th className="py-1 px-1 w-[80px]">Box Wt</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayItems.map((item, index) => {
                       const boxes = item.noOfBoxes ?? item.boxes ?? item.boxQty ?? '';
                       const rawBoxWt = item.boxWeight ?? item.weightPerBox ?? '';
-                      const numBoxWt = parseBoxWeightNumber(rawBoxWt);
-                      const directKg = parseFloat(item.totalWeight ?? item.numericQty ?? item.qty) || 0;
-                      const rowTotalKg = directKg > 0
-                        ? directKg.toFixed(2)
-                        : (boxes && numBoxWt > 0 ? (parseFloat(boxes) * numBoxWt).toFixed(2) : '');
 
                       return (
                         <tr key={item.id || index} className="border-b border-black h-[22px]">
-                          <td className="border-r border-black">
-                            {index + 1}
+                          <td className="border-r border-black font-bold">
+                            {getSerialCode(index)}
                           </td>
                           <td className="border-r border-black font-mono text-[10px]">
                             {item.hsnCode || item.hsn || ''}
@@ -332,19 +327,12 @@ const TapalPreview = () => {
                           <td className="border-r border-black font-bold">
                             {item.count || ''}
                           </td>
-                          <td className={showKgs ? 'border-r border-black font-bold' : 'font-bold'}>
+                          <td className="border-r border-black font-bold">
                             {boxes}
                           </td>
-                          {showKgs && (
-                            <td className="border-r border-black">
-                              {rawBoxWt ? `${rawBoxWt}` : ''}
-                            </td>
-                          )}
-                          {showKgs && (
-                            <td className="text-right pr-1">
-                              {rowTotalKg}
-                            </td>
-                          )}
+                          <td className="font-medium">
+                            {rawBoxWt ? `${rawBoxWt}` : ''}
+                          </td>
                         </tr>
                       );
                     })}
@@ -353,9 +341,8 @@ const TapalPreview = () => {
                     <tr className="border-b border-black font-bold h-[22px]">
                       <td colSpan="3" className="border-r border-black text-right pr-2 uppercase text-[10px]">Total</td>
                       <td className="border-r border-black text-center">{computedTotalCount > 0 ? computedTotalCount : ''}</td>
-                      <td className={showKgs ? 'border-r border-black text-center' : 'text-center'}>{totalBoxesCount || '0'}</td>
-                      {showKgs && <td className="border-r border-black text-center">{computedTotalBoxWeight > 0 ? parseFloat(computedTotalBoxWeight.toFixed(2)) : ''}</td>}
-                      {showKgs && <td className="text-right pr-1">{computedTotalWeightKg > 0 ? computedTotalWeightKg.toFixed(2) : (tapal.numericQty || '0')}</td>}
+                      <td className="border-r border-black text-center">{totalBoxesCount || '0'}</td>
+                      <td className="text-center">{computedTotalBoxWeight > 0 ? parseFloat(computedTotalBoxWeight.toFixed(2)) : ''}</td>
                     </tr>
                   </tbody>
                 </table>
