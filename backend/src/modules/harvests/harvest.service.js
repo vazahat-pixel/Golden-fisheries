@@ -84,12 +84,16 @@ class HarvestService extends BaseService {
     return activeRate;
   }
 
-  _mergeIntoProductMap(productMap, item, qty, activeRate, customBoxQty = null, customWeightPerBox = null) {
-    // Key by fish name, count and box weight so distinct box weight rows remain distinct
+  _mergeIntoProductMap(productMap, item, qty, activeRate, customBoxQty = null, customWeightPerBox = null, customSticker = null) {
+    // Key by fish name, count, sticker and box weight so distinct rows remain distinct
     const countKey = (item.count || '').toString().trim();
     const countPart = countKey ? `:${countKey}` : '';
+    const stickerVal = (customSticker != null && customSticker !== '')
+      ? String(customSticker).trim()
+      : (item.sticker || '').toString().trim();
+    const stickerPart = stickerVal ? `:${stickerVal.toUpperCase()}` : '';
     const bwKey = customWeightPerBox ? `:${String(customWeightPerBox).trim().toUpperCase()}` : '';
-    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}${countPart}${bwKey}`;
+    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}${countPart}${stickerPart}${bwKey}`;
     const boxRatio = (item.estimatedQty || 0) > 0 ? qty / item.estimatedQty : 0;
     const scaledBoxes = customBoxQty != null && customBoxQty !== ''
       ? (parseFloat(customBoxQty) || 0)
@@ -104,6 +108,7 @@ class HarvestService extends BaseService {
         productId: item.productId,
         fishName: item.fishName,
         hsnCode: item.hsnCode,
+        sticker: stickerVal,
         count: countKey,
         numericQty: 0,
         boxQty: 0,
@@ -119,6 +124,9 @@ class HarvestService extends BaseService {
     productMap[key].totalAmount += lineTotal;
     if (effectiveWeightPerBox) {
       productMap[key].weightPerBox = effectiveWeightPerBox;
+    }
+    if (stickerVal && !productMap[key].sticker) {
+      productMap[key].sticker = stickerVal;
     }
   }
 
@@ -166,6 +174,27 @@ class HarvestService extends BaseService {
 
         if (hasProductBreakdown) {
           for (const prodAlloc of allocation.products) {
+            let item = null;
+            if (prodAlloc.lineItemId) {
+              item = harvest.products.find(
+                (p) => String(p._id) === String(prodAlloc.lineItemId)
+              );
+            }
+            if (!item) {
+              item = harvest.products.find(
+                (p) =>
+                  (prodAlloc.productId && String(p.productId) === String(prodAlloc.productId)) ||
+                  (prodAlloc.fishName &&
+                    p.fishName?.toUpperCase() === String(prodAlloc.fishName).toUpperCase())
+              );
+            }
+            if (!item) {
+              throw new AppError(
+                `Product not found on Harvest ${harvest.harvestNumber}`,
+                400
+              );
+            }
+
             let qty = parseFloat(prodAlloc.allocatedQty) || 0;
             const explicitBoxQty = prodAlloc.boxCount != null ? prodAlloc.boxCount : (prodAlloc.boxes != null ? prodAlloc.boxes : prodAlloc.noOfBoxes);
             const explicitWeightPerBox = prodAlloc.weightPerBox != null ? prodAlloc.weightPerBox : (prodAlloc.boxWeight != null ? prodAlloc.boxWeight : null);
@@ -188,27 +217,6 @@ class HarvestService extends BaseService {
 
             if (qty <= 0 && (!explicitBoxQty || explicitBoxQty <= 0)) continue;
 
-            let item = null;
-            if (prodAlloc.lineItemId) {
-              item = harvest.products.find(
-                (p) => String(p._id) === String(prodAlloc.lineItemId)
-              );
-            }
-            if (!item) {
-              item = harvest.products.find(
-                (p) =>
-                  (prodAlloc.productId && String(p.productId) === String(prodAlloc.productId)) ||
-                  (prodAlloc.fishName &&
-                    p.fishName?.toUpperCase() === String(prodAlloc.fishName).toUpperCase())
-              );
-            }
-            if (!item) {
-              throw new AppError(
-                `Product not found on Harvest ${harvest.harvestNumber}`,
-                400
-              );
-            }
-
             const productRemaining = this._productRemaining(
               harvest,
               item,
@@ -228,7 +236,15 @@ class HarvestService extends BaseService {
             }
 
             const activeRate = await this._resolveItemRate(item, session);
-            this._mergeIntoProductMap(productMap, item, qty, activeRate, explicitBoxQty, explicitWeightPerBox);
+            this._mergeIntoProductMap(
+              productMap,
+              item,
+              qty,
+              activeRate,
+              explicitBoxQty,
+              explicitWeightPerBox,
+              prodAlloc.sticker != null ? prodAlloc.sticker : item.sticker
+            );
             item.usedQty = (item.usedQty || 0) + qty;
             allocatedQty += qty;
           }
@@ -267,7 +283,7 @@ class HarvestService extends BaseService {
           for (const item of harvest.products) {
             const activeRate = await this._resolveItemRate(item, session);
             const scaledQty = (item.estimatedQty || 0) * scaleFactor;
-            this._mergeIntoProductMap(productMap, item, scaledQty, activeRate);
+            this._mergeIntoProductMap(productMap, item, scaledQty, activeRate, null, null, item.sticker);
             item.usedQty = (item.usedQty || 0) + scaledQty;
           }
         }
@@ -298,6 +314,7 @@ class HarvestService extends BaseService {
           name: formattedName,
           particulars: formattedName,
           hsnCode: p.hsnCode,
+          sticker: p.sticker || '',
           count: p.count || '',
           qty: `${p.numericQty.toFixed(2)} KG`,
           numericQty: p.numericQty,

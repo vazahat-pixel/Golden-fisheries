@@ -5,13 +5,7 @@ import { ArrowLeft, FileText, CheckCircle, Truck, Package } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 function getSerialCode(index) {
-  let code = '';
-  let n = index;
-  while (n >= 0) {
-    code = String.fromCharCode(65 + (n % 26)) + code;
-    n = Math.floor(n / 26) - 1;
-  }
-  return code;
+  return String(index + 1);
 }
 
 const TapalDetails = () => {
@@ -51,7 +45,7 @@ const TapalDetails = () => {
             Party Details
           </h3>
           <div className="space-y-3 text-sm">
-            <p><span className="font-bold text-text-muted w-24 inline-block">Buyer:</span> <span className="font-black uppercase">{tapal.buyerName || tapal.party || tapal.partyName || 'N/A'}</span></p>
+            <p><span className="font-bold text-text-muted w-24 inline-block">Buyer:</span> <span className="font-black uppercase">{tapal.buyerName || tapal.party || tapal.partyName || 'UNASSIGNED BUYER'}</span></p>
             <p><span className="font-bold text-text-muted w-24 inline-block">Source Slip:</span> <span className="font-bold">{tapal.sourceSlipNo || 'N/A'}</span></p>
             <p><span className="font-bold text-text-muted w-24 inline-block">Date:</span> <span className="font-bold">{new Date(tapal.createdAt || tapal.date).toLocaleDateString()}</span></p>
           </div>
@@ -80,6 +74,7 @@ const TapalDetails = () => {
                 <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive w-12 text-center">No</th>
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">Particulars</th>
+                  <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Sticker</th>
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Count</th>
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Boxes</th>
                   <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Box Wt</th>
@@ -92,6 +87,7 @@ const TapalDetails = () => {
                     <tr key={idx} className="hover:bg-slate-50/50">
                       <td className="py-3 px-3 text-center font-bold">{getSerialCode(idx)}</td>
                       <td className="py-3 px-3 font-black uppercase">{item.particulars || item.name}</td>
+                      <td className="py-3 px-3 text-center font-bold uppercase">{item.sticker || '-'}</td>
                       <td className="py-3 px-3 text-center font-bold">{item.count || '-'}</td>
                       <td className="py-3 px-3 text-center font-bold">{item.noOfBoxes || item.boxes || item.boxQty || '-'}</td>
                       <td className="py-3 px-3 text-center font-medium">{bw ? `${bw}` : '-'}</td>

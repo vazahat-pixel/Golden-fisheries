@@ -501,6 +501,7 @@ const CreateTapalWizard = () => {
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">#</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">HSN</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">Particulars</th>
+                    <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Sticker</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Count</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Boxes</th>
                     <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-right">Weight</th>
@@ -512,11 +513,12 @@ const CreateTapalWizard = () => {
                       <td className="py-2.5 px-3 font-bold text-text-muted">{i+1}</td>
                       <td className="py-2.5 px-3 font-mono text-xs">{item.hsnCode || 'N/A'}</td>
                       <td className="py-2.5 px-3 font-black uppercase text-brand-olive">{item.particulars}</td>
+                      <td className="py-2.5 px-3 text-center font-bold uppercase">{item.sticker || '-'}</td>
                       <td className="py-2.5 px-3 text-center font-bold">{item.count || '-'}</td>
                       <td className="py-2.5 px-3 text-center font-black">{item.noOfBoxes || 0}</td>
                       <td className="py-2.5 px-3 text-right font-black">{parseFloat(item.totalWeight || 0).toFixed(2)} kg</td>
                     </tr>
-                  )) || <tr><td colSpan="6" className="py-4 text-center italic text-text-muted">No items</td></tr>}
+                  )) || <tr><td colSpan="7" className="py-4 text-center italic text-text-muted">No items</td></tr>}
                 </tbody>
               </table>
             </div>

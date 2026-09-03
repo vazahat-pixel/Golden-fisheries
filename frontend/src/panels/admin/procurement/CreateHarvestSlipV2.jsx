@@ -116,8 +116,8 @@ const CreateHarvestSlipV2 = () => {
 
   // Table items
   const [items, setItems] = useState([
-    { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' },
-    { id: '2', hsnCode: '03028400', particulars: 'SEABASS', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }
+    { id: '1', hsnCode: '03069500', particulars: 'PRAWNS', sticker: '', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' },
+    { id: '2', hsnCode: '03028400', particulars: 'SEABASS', sticker: '', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }
   ]);
 
   // Bottom notes & settings
@@ -156,6 +156,7 @@ const CreateHarvestSlipV2 = () => {
               id: item.id || String(idx + 1),
               hsnCode: item.hsnCode || '',
               particulars: item.particulars || '',
+              sticker: item.sticker || '',
               count: item.count || '',
               noOfBoxes: item.noOfBoxes || '',
               boxWeight: item.boxWeight || '',
@@ -193,7 +194,7 @@ const CreateHarvestSlipV2 = () => {
 
   const addItemRow = () => {
     const newId = String(items.length + 1);
-    setItems([...items, { id: newId, hsnCode: '', particulars: '', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }]);
+    setItems([...items, { id: newId, hsnCode: '', particulars: '', sticker: '', count: '', noOfBoxes: '', boxWeight: '', totalWeight: '' }]);
   };
 
   const removeItemRow = (id) => {
@@ -404,8 +405,9 @@ const CreateHarvestSlipV2 = () => {
               <thead>
                 <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
                   <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-12 text-center">Sl No</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-36">HSN Code</th>
-                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-48">Particulars</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-32">HSN Code</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-40">Particulars</th>
+                  <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-28">Sticker</th>
                   <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Count</th>
                   <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Boxes</th>
                   <th className="py-2.5 px-3 text-[10px] font-black uppercase text-brand-olive w-24">Box Wt (kg)</th>
@@ -446,6 +448,17 @@ const CreateHarvestSlipV2 = () => {
                         <option value="CRABS" />
                         <option value="MACKEREL" />
                       </datalist>
+                    </td>
+
+                    {/* Sticker */}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="text" 
+                        value={item.sticker || ''} 
+                        onChange={e => handleItemChange(item.id, 'sticker', e.target.value)}
+                        placeholder="Sticker"
+                        className="w-full bg-[#F5F5EC]/20 border border-card-border px-3 py-2 text-xs focus:ring-1 focus:ring-accent-olive outline-none"
+                      />
                     </td>
 
                     {/* Count */}

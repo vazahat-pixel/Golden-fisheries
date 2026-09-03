@@ -25,13 +25,7 @@ function parseBoxWeightNumber(boxWeightVal) {
 }
 
 function getSerialCode(index) {
-  let code = '';
-  let n = index;
-  while (n >= 0) {
-    code = String.fromCharCode(65 + (n % 26)) + code;
-    n = Math.floor(n / 26) - 1;
-  }
-  return code;
+  return String(index + 1);
 }
 
 const TapalDetail = () => {
@@ -152,6 +146,7 @@ const TapalDetail = () => {
       id: `empty-${displayItems.length}`,
       hsnCode: '',
       particulars: '',
+      sticker: '',
       count: '',
       noOfBoxes: '',
       boxWeight: '',
@@ -172,29 +167,53 @@ const TapalDetail = () => {
     ? `${totalBoxesCount} BOXES ONLY`
     : (tapal.inWords || (tapal.numericQty ? `${tapal.numericQty} KILOGRAMS ONLY` : ''));
 
+  const handlePrint = () => window.print();
+
   return (
-    <div className="space-y-4">
-      <div className="no-print flex justify-between items-center">
-        <button type="button" onClick={() => navigate('/admin/tapals')} className="flex items-center gap-1 text-sm">
-          <ArrowLeft size={16} /> Back
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(`/admin/tapals/${tapal._id || tapal.id}/preview`)}
-            className="flex items-center gap-1 text-xs font-bold uppercase border px-3 py-2 bg-white hover:bg-slate-50 transition-all text-text-secondary"
+    <div className="space-y-6 pb-12 animate-in fade-in duration-500 font-sans print:p-0 print:m-0">
+      {/* Action Buttons - Hidden in Print */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-card-border pb-5 print:hidden">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/admin/tapals')} 
+            className="text-text-muted hover:text-[#6A7051] transition-all p-1"
           >
-            <Printer size={14} /> Print Tapal
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-wider text-brand-olive uppercase flex items-center gap-3">
+              Tapal Print Preview
+            </h1>
+            <p className="text-text-secondary text-sm mt-1">Print or download the official Tapal dispatch bill (without rates/prices).</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={handlePrint}
+            className="flex-1 sm:flex-none border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+          >
+            <Printer size={14} /> Print
           </button>
         </div>
       </div>
-      <div className="no-print mb-6">
-        <AssignDriverPanel tapal={tapal} onAssigned={loadTapal} />
-      </div>
 
-      <div className="print-root flex justify-center items-center py-4 bg-slate-100/50">
+      {/* Linked slip notification */}
+      {tapal.sourceSlipNo && (
+        <div className="bg-purple-50 border border-purple-200 p-3 flex items-center justify-between print:hidden">
+          <span className="text-xs text-purple-800 font-bold uppercase tracking-wider">
+            🔗 Linked to procurement Harvest Slip No: #{tapal.sourceSlipNo}
+          </span>
+          <span className="text-[10px] px-2 py-0.5 bg-purple-200 text-purple-800 font-black uppercase rounded-sm">
+            Status: {tapal.status || 'Active'}
+          </span>
+        </div>
+      )}
+
+      {/* Outer Paper Sheet Container */}
+      <div className="flex justify-center items-center py-4 bg-slate-100/50 print:bg-transparent print:p-0">
         <div 
-          className="w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl border border-black/10 font-arial text-black"
+          className="print-root w-[210mm] bg-white pt-[5mm] px-[5mm] shadow-xl print:shadow-none print:border-none print:p-0 print:w-full font-arial"
           style={{ fontFamily: 'Arial, sans-serif' }}
         >
           {/* Main Border */}
@@ -285,9 +304,10 @@ const TapalDetail = () => {
                       <th className="py-1 px-1 border-r border-black w-[40px]">Sl No</th>
                       <th className="py-1 px-1 border-r border-black w-[70px]">Hsn Code</th>
                       <th className="py-1 px-1 border-r border-black text-left pl-1">Particulars</th>
-                      <th className="py-1 px-1 border-r border-black w-[60px]">Count</th>
-                      <th className="py-1 px-1 border-r border-black w-[80px] leading-tight">NO OF<br/>BOXES</th>
-                      <th className="py-1 px-1 w-[80px]">Box Wt</th>
+                      <th className="py-1 px-1 border-r border-black w-[60px]">Sticker</th>
+                      <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
+                      <th className="py-1 px-1 border-r border-black w-[70px] leading-tight">NO OF<br/>BOXES</th>
+                      <th className="py-1 px-1 w-[70px]">Box Wt</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -306,6 +326,9 @@ const TapalDetail = () => {
                           <td className="border-r border-black text-left pl-1">
                             {item.particulars || item.name || ''}
                           </td>
+                          <td className="border-r border-black font-bold uppercase">
+                            {item.sticker || ''}
+                          </td>
                           <td className="border-r border-black font-bold">
                             {item.count || ''}
                           </td>
@@ -321,7 +344,7 @@ const TapalDetail = () => {
 
                     {/* Totals Row */}
                     <tr className="border-b border-black font-bold h-[22px]">
-                      <td colSpan="3" className="border-r border-black text-right pr-2 uppercase text-[10px]">Total</td>
+                      <td colSpan="4" className="border-r border-black text-right pr-2 uppercase text-[10px]">Total</td>
                       <td className="border-r border-black text-center">{computedTotalCount > 0 ? computedTotalCount : ''}</td>
                       <td className="border-r border-black text-center">{totalBoxesCount || '0'}</td>
                       <td className="text-center">{computedTotalBoxWeight > 0 ? parseFloat(computedTotalBoxWeight.toFixed(2)) : ''}</td>

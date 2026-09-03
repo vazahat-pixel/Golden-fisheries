@@ -4,6 +4,7 @@ import { formatSequentialDocNo } from '../../services/sequence.service.js';
 const tapalLineItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   particulars: { type: String, trim: true },
+  sticker: { type: String, trim: true, default: '' },
   hsnCode: { type: String, trim: true },
   count: { type: String, trim: true },
   qty: { type: String }, // e.g. "300 KG" — total weight display string

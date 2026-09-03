@@ -308,6 +308,7 @@ const HarvestSlipPreview = () => {
                       <th className="py-1 px-1 border-r border-black w-[40px]">Sl No</th>
                       <th className="py-1 px-1 border-r border-black w-[70px]">Hsn Code</th>
                       <th className="py-1 px-1 border-r border-black">Particulars</th>
+                      <th className="py-1 px-1 border-r border-black w-[50px]">Sticker</th>
                       <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
                       <th className="py-1 px-1 border-r border-black w-[60px] leading-tight">NO OF<br/>BOXES</th>
                       <th className="py-1 px-1 border-r border-black w-[70px]">Box Weight</th>
@@ -339,6 +340,9 @@ const HarvestSlipPreview = () => {
                           <td className="border-r border-black text-left pl-1">
                             {item.particulars || ''}
                           </td>
+                          <td className="border-r border-black font-semibold">
+                            {item.sticker || ''}
+                          </td>
                           <td className="border-r border-black">
                             {item.count || ''}
                           </td>
@@ -363,7 +367,7 @@ const HarvestSlipPreview = () => {
 
                     {/* Totals Row */}
                     <tr className="border-b border-black font-bold h-[22px]">
-                      <td colSpan="4" className="border-r border-black"></td>
+                      <td colSpan="5" className="border-r border-black"></td>
                       <td className="border-r border-black text-center">{slip.totalBoxes || '0'}</td>
                       <td className="border-r border-black"></td>
                       <td className={isInvoice ? 'border-r border-black text-center' : 'text-right pr-1'}>{slip.totalWeight ? parseFloat(slip.totalWeight).toFixed(2) : '0'}</td>

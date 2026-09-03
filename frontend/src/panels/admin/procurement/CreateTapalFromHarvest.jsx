@@ -305,18 +305,21 @@ const CreateTapalFromHarvest = () => {
           : (parseFloat(prodData) || 0);
 
         const count = item.count ? String(item.count).trim() : '';
+        const sticker = item.sticker ? String(item.sticker).trim() : '';
 
         const name = (item.fishName || item.particulars || '').toUpperCase();
         if (!name || (qty <= 0 && boxes <= 0)) return;
 
         const countLabel = count ? ` (COUNT ${count})` : '';
+        const stickerLabel = sticker ? ` [${sticker}]` : '';
         const bwKey = boxWeight ? `:${boxWeight.trim().toUpperCase()}` : '';
-        const manifestKey = `${name}${countLabel}${bwKey}`;
+        const manifestKey = `${name}${countLabel}${stickerLabel}${bwKey}`;
 
         if (!productsMap[manifestKey]) {
           productsMap[manifestKey] = {
-            fishName: `${name}${countLabel}`,
+            fishName: `${name}${countLabel}${stickerLabel}`,
             count: count,
+            sticker: sticker,
             estimatedQty: 0,
             boxCount: 0,
             boxWeight: boxWeight || (bwNum > 0 ? `${bwNum} KG` : '—'),
@@ -409,6 +412,7 @@ const CreateTapalFromHarvest = () => {
             lineItemId: item._id || undefined,
             productId: item.productId?._id || item.productId,
             fishName: item.fishName || item.particulars,
+            sticker: item.sticker || '',
             count: item.count || '',
             boxCount: boxes,
             boxes: boxes,
@@ -620,11 +624,18 @@ const CreateTapalFromHarvest = () => {
                                 <tr key={lineKey} className="hover:bg-slate-50/50">
                                   <td className="border-b border-slate-100 p-2 font-bold uppercase text-slate-800">
                                     <div>{item.fishName || item.particulars}</div>
-                                    {item.count && (
-                                      <span className="inline-block mt-0.5 px-1.5 py-0.2 bg-amber-50 text-amber-800 font-black text-[9px] rounded-xs border border-amber-200">
-                                        COUNT: {item.count}
-                                      </span>
-                                    )}
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                      {item.count && (
+                                        <span className="inline-block px-1.5 py-0.2 bg-amber-50 text-amber-800 font-black text-[9px] rounded-xs border border-amber-200">
+                                          COUNT: {item.count}
+                                        </span>
+                                      )}
+                                      {item.sticker && (
+                                        <span className="inline-block px-1.5 py-0.2 bg-blue-50 text-blue-800 font-black text-[9px] rounded-xs border border-blue-200">
+                                          STICKER: {item.sticker}
+                                        </span>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="border-b border-slate-100 p-2 text-center tabular-nums text-slate-600">
                                     <span className="font-bold text-slate-800">{availableBoxes > 0 ? `${availableBoxes} Box` : ''}</span>

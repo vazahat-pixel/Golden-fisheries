@@ -22,13 +22,7 @@ function parseBoxWeightNumber(boxWeightVal) {
 }
 
 function getSerialCode(index) {
-  let code = '';
-  let n = index;
-  while (n >= 0) {
-    code = String.fromCharCode(65 + (n % 26)) + code;
-    n = Math.floor(n / 26) - 1;
-  }
-  return code;
+  return String(index + 1);
 }
 
 const TapalPreview = () => {
@@ -100,6 +94,7 @@ const TapalPreview = () => {
       id: `empty-${displayItems.length}`,
       hsnCode: '',
       particulars: '',
+      sticker: '',
       count: '',
       noOfBoxes: '',
       boxWeight: '',
@@ -303,9 +298,10 @@ const TapalPreview = () => {
                       <th className="py-1 px-1 border-r border-black w-[40px]">Sl No</th>
                       <th className="py-1 px-1 border-r border-black w-[70px]">Hsn Code</th>
                       <th className="py-1 px-1 border-r border-black text-left pl-1">Particulars</th>
-                      <th className="py-1 px-1 border-r border-black w-[60px]">Count</th>
-                      <th className="py-1 px-1 border-r border-black w-[80px] leading-tight">NO OF<br/>BOXES</th>
-                      <th className="py-1 px-1 w-[80px]">Box Wt</th>
+                      <th className="py-1 px-1 border-r border-black w-[60px]">Sticker</th>
+                      <th className="py-1 px-1 border-r border-black w-[50px]">Count</th>
+                      <th className="py-1 px-1 border-r border-black w-[70px] leading-tight">NO OF<br/>BOXES</th>
+                      <th className="py-1 px-1 w-[70px]">Box Wt</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -324,6 +320,9 @@ const TapalPreview = () => {
                           <td className="border-r border-black text-left pl-1">
                             {item.particulars || item.name || ''}
                           </td>
+                          <td className="border-r border-black font-bold uppercase">
+                            {item.sticker || ''}
+                          </td>
                           <td className="border-r border-black font-bold">
                             {item.count || ''}
                           </td>
@@ -339,7 +338,7 @@ const TapalPreview = () => {
 
                     {/* Totals Row */}
                     <tr className="border-b border-black font-bold h-[22px]">
-                      <td colSpan="3" className="border-r border-black text-right pr-2 uppercase text-[10px]">Total</td>
+                      <td colSpan="4" className="border-r border-black text-right pr-2 uppercase text-[10px]">Total</td>
                       <td className="border-r border-black text-center">{computedTotalCount > 0 ? computedTotalCount : ''}</td>
                       <td className="border-r border-black text-center">{totalBoxesCount || '0'}</td>
                       <td className="text-center">{computedTotalBoxWeight > 0 ? parseFloat(computedTotalBoxWeight.toFixed(2)) : ''}</td>

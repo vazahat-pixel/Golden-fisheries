@@ -16,6 +16,11 @@ const harvestItemSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Fish name cache is required']
   },
+  sticker: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   estimatedQty: {
     type: Number,
     required: [true, 'Estimated quantity in KG is required'],

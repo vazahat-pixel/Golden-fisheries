@@ -177,6 +177,7 @@ const HarvestSlipDetail = () => {
                     <th className="py-2.5 px-3 w-12 text-center">Sl No</th>
                     <th className="py-2.5 px-3">HSN Code</th>
                     <th className="py-2.5 px-3">Particulars</th>
+                    <th className="py-2.5 px-3 text-center">Sticker</th>
                     <th className="py-2.5 px-3 text-center">Count</th>
                     <th className="py-2.5 px-3 text-center">No of Boxes</th>
                     <th className="py-2.5 px-3 text-right">Box Wt</th>
@@ -189,6 +190,7 @@ const HarvestSlipDetail = () => {
                       <td className="py-3 px-3 text-center font-bold text-text-muted">{idx + 1}</td>
                       <td className="py-3 px-3 font-semibold tracking-wider">{item.hsnCode || 'N/A'}</td>
                       <td className="py-3 px-3 font-extrabold text-brand-olive uppercase">{item.particulars}</td>
+                      <td className="py-3 px-3 text-center font-bold">{item.sticker || '—'}</td>
                       <td className="py-3 px-3 text-center font-bold">{item.count || 'N/A'}</td>
                       <td className="py-3 px-3 text-center font-extrabold text-brand-olive">{item.noOfBoxes || 0}</td>
                       <td className="py-3 px-3 text-right font-medium">{item.boxWeight ? (Number.isFinite(parseFloat(item.boxWeight)) && !isNaN(Number(item.boxWeight)) ? `${item.boxWeight} kg` : `${item.boxWeight}`) : 'N/A'}</td>
@@ -197,7 +199,7 @@ const HarvestSlipDetail = () => {
                   ))}
                   {/* Totals row */}
                   <tr className="bg-[#F5F5EC]/20 border-t border-card-border font-black text-brand-olive">
-                    <td colSpan="4" className="py-3 px-3 text-center uppercase tracking-widest text-[10px]">TOTAL</td>
+                    <td colSpan="5" className="py-3 px-3 text-center uppercase tracking-widest text-[10px]">TOTAL</td>
                     <td className="py-3 px-3 text-center text-xs">{slip.totalBoxes || 0}</td>
                     <td className="py-3 px-3"></td>
                     <td className="py-3 px-3 text-right pr-4 text-xs">{parseFloat(slip.totalWeight || 0).toFixed(2)} kg</td>

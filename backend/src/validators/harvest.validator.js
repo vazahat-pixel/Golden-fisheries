@@ -38,6 +38,7 @@ export const harvestValidators = {
         fishName: Joi.string().required().messages({
           'any.required': 'Fish display name is required'
         }),
+        sticker: Joi.string().allow('', null),
         estimatedQty: Joi.number().required().min(0.1).messages({
           'any.required': 'Estimated quantity is required',
           'number.min': 'Estimated quantity must be greater than zero'
@@ -68,6 +69,7 @@ export const harvestValidators = {
       Joi.object({
         productId: Joi.string().required().pattern(/^[0-9a-fA-F]{24}$/),
         fishName: Joi.string().required(),
+        sticker: Joi.string().allow('', null),
         estimatedQty: Joi.number().required().min(0.1),
         rate: Joi.number().min(0).allow(null),
         boxCount: Joi.number().integer().min(1).allow(null),
