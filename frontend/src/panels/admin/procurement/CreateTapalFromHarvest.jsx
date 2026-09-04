@@ -7,7 +7,9 @@ import { PaperFormFrame, PaperFieldRow, paperInputClass } from '../../../compone
 import { toast } from 'react-hot-toast';
 import { BuyerFormModal } from '../buyers/BuyerFormModal';
 import { unwrapBuyers } from '../../../utils/buyerHelpers';
-import { ArrowLeft, Check, Plus, Trash2, Sprout, AlertCircle, ShoppingCart, Weight, ClipboardCheck, Package } from 'lucide-react';
+import { ArrowLeft, Check, Plus, Trash2, Sprout, AlertCircle, ShoppingCart, Weight, ClipboardCheck, Package, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { StickerHeadEditor } from '../../../components/tapal/StickerHeadEditor';
+import { DEFAULT_STICKER_HEAD } from '../../../constants/stickerHead';
 
 const CONVERTIBLE_STATUS = ['CONFIRMED', 'PARTIALLY_CONVERTED', 'OPEN', 'PARTIAL_USED'];
 
@@ -151,6 +153,8 @@ const CreateTapalFromHarvest = () => {
   const [logisticsNotes, setLogisticsNotes] = useState('');
   const [buyerId, setBuyerId] = useState('');
   const [buyers, setBuyers] = useState([]);
+  const [stickerHead, setStickerHead] = useState({ ...DEFAULT_STICKER_HEAD });
+  const [showStickerHeadSection, setShowStickerHeadSection] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -441,6 +445,7 @@ const CreateTapalFromHarvest = () => {
         logisticsNotes,
         buyerId: selectedBuyer._id || selectedBuyer.id,
         buyerPhone: normalizePhone10(selectedBuyer.phone),
+        stickerHead,
       });
 
       const newTapal = res?.data?.tapal || res?.tapal;
@@ -783,6 +788,41 @@ const CreateTapalFromHarvest = () => {
                 placeholder="Special loading or route notes"
               />
             </PaperFieldRow>
+
+            {/* Sticker Head Customization Section */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowStickerHeadSection((prev) => !prev)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowStickerHeadSection((prev) => !prev); }}
+                className="flex items-center justify-between cursor-pointer p-2.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all select-none"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText size={14} className="text-[#6A7051]" />
+                  <span className="text-[11px] font-black uppercase text-slate-800 tracking-wider">
+                    Sticker / Print Header
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#6A7051]">
+                  <span>{stickerHead.companyName}</span>
+                  {showStickerHeadSection ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </div>
+              </div>
+
+              {showStickerHeadSection && (
+                <div className="p-3 bg-white border-x border-b border-slate-200 space-y-3">
+                  <p className="text-[10px] text-slate-500">
+                    Customize the company name, branch location, and dispatch title that prints on this Tapal sticker.
+                  </p>
+                  <StickerHeadEditor
+                    values={stickerHead}
+                    onChange={setStickerHead}
+                    compact
+                  />
+                </div>
+              )}
+            </div>
 
             {consolidatedProducts.length > 0 && (
               <div className="mt-6">

@@ -373,6 +373,7 @@ class HarvestService extends BaseService {
         vehicleNumber: logistics.vehicleNumber || null,
         destination: logistics.destination || null,
         logisticsNotes: logistics.logisticsNotes || null,
+        stickerHead: logistics.stickerHead || undefined,
         createdBy: creatorUser?.phone || String(creatorUser?._id || creatorUser?.id || 'erp-system'),
         products: tapalProducts
       });

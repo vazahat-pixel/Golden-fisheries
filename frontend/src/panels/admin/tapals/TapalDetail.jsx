@@ -8,6 +8,7 @@ import { TripSettlementPaymentForm } from '../shared/TripSettlementPayment';
 import { useAdminStore } from '../../../store/adminStore';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { DEFAULT_STICKER_HEAD } from '../../../constants/stickerHead';
 
 function parseBoxWeightNumber(boxWeightVal) {
   if (boxWeightVal == null || boxWeightVal === '') return 0;
@@ -169,6 +170,14 @@ const TapalDetail = () => {
 
   const handlePrint = () => window.print();
 
+  const effectiveHead = {
+    companyName: tapal.stickerHead?.companyName || DEFAULT_STICKER_HEAD.companyName,
+    subtitle: tapal.stickerHead?.subtitle ?? DEFAULT_STICKER_HEAD.subtitle,
+    location: tapal.stickerHead?.location ?? DEFAULT_STICKER_HEAD.location,
+    phone: tapal.stickerHead?.phone ?? DEFAULT_STICKER_HEAD.phone,
+    title: tapal.stickerHead?.title ?? DEFAULT_STICKER_HEAD.title,
+  };
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-500 font-sans print:p-0 print:m-0">
       {/* Action Buttons - Hidden in Print */}
@@ -222,19 +231,25 @@ const TapalDetail = () => {
               {/* Header Box */}
               <div className="text-center pb-1 border-b border-black">
                 <h1 className="text-2xl font-bold tracking-wide text-[#1e3a8a] mt-1 mb-0 pb-0">
-                  M. K. FISHERIES
+                  {effectiveHead.companyName}
                 </h1>
-                <h2 className="text-sm font-bold text-[#1e3a8a] mt-0">
-                  WHOLE SALE FISH MERCHANTS
-                </h2>
-                <p className="text-xs font-semibold text-[#1e3a8a] mt-0">
-                  KARWAR & MANGALORE (KARNATAKA)
-                </p>
-                <p className="text-[10px] font-semibold text-[#1e3a8a] mt-0 mb-1">
-                  Mob : 9019411439, 9663655558
-                </p>
+                {effectiveHead.subtitle && (
+                  <h2 className="text-sm font-bold text-[#1e3a8a] mt-0">
+                    {effectiveHead.subtitle}
+                  </h2>
+                )}
+                {effectiveHead.location && (
+                  <p className="text-xs font-semibold text-[#1e3a8a] mt-0">
+                    {effectiveHead.location}
+                  </p>
+                )}
+                {effectiveHead.phone && (
+                  <p className="text-[10px] font-semibold text-[#1e3a8a] mt-0 mb-1">
+                    {effectiveHead.phone}
+                  </p>
+                )}
                 <div className="border-t border-black w-full text-center py-1">
-                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">★ TAPAL / LOGISTICS DISPATCH ★</h3>
+                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">{effectiveHead.title}</h3>
                 </div>
               </div>
 
@@ -388,8 +403,8 @@ const TapalDetail = () => {
                   <div className="w-32 border-b border-black/30 border-dashed mb-1"></div>
                 </div>
                 <div className="w-1/3 flex flex-col justify-between pt-1 pb-2">
-                  <div className="text-[10px] pl-2">
-                     For : M.K. FISHERIES
+                  <div className="text-[10px] pl-2 font-bold uppercase">
+                     For : {effectiveHead.companyName || 'M.K. FISHERIES'}
                   </div>
                   <div className="text-[10px] pl-2 flex justify-center mt-12 w-full">
                      Authorised Signatory

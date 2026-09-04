@@ -1,10 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAdminStore } from '../../../store/adminStore';
-import { ArrowLeft, Printer, Download, Share2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Share2, CheckCircle, Edit3 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { Modal } from '../../../design-system';
+import { tapalService } from '../../../services/tapalService';
+import { StickerHeadEditor } from '../../../components/tapal/StickerHeadEditor';
+import { DEFAULT_STICKER_HEAD } from '../../../constants/stickerHead';
 
 function parseBoxWeightNumber(boxWeightVal) {
   if (boxWeightVal == null || boxWeightVal === '') return 0;
@@ -30,7 +34,10 @@ const TapalPreview = () => {
   const navigate = useNavigate();
   const { tapals, fetchTapals } = useAdminStore();
   const [tapal, setTapal] = useState(null);
-  const [showKgs, setShowKgs] = useState(true);
+  const [showKgs, setShowKgs] = useState(false);
+  const [isEditHeadModalOpen, setIsEditHeadModalOpen] = useState(false);
+  const [editHeadDraft, setEditHeadDraft] = useState(null);
+  const [savingHead, setSavingHead] = useState(false);
   const printAreaRef = useRef(null);
 
   useEffect(() => {
@@ -156,6 +163,40 @@ const TapalPreview = () => {
     ? `${totalBoxesCount} BOXES ONLY`
     : (tapal.inWords || (tapal.numericQty ? `${tapal.numericQty} KILOGRAMS ONLY` : ''));
 
+  const effectiveHead = {
+    companyName: tapal.stickerHead?.companyName || DEFAULT_STICKER_HEAD.companyName,
+    subtitle: tapal.stickerHead?.subtitle ?? DEFAULT_STICKER_HEAD.subtitle,
+    location: tapal.stickerHead?.location ?? DEFAULT_STICKER_HEAD.location,
+    phone: tapal.stickerHead?.phone ?? DEFAULT_STICKER_HEAD.phone,
+    title: tapal.stickerHead?.title ?? DEFAULT_STICKER_HEAD.title,
+  };
+
+  const handleOpenEditHead = () => {
+    setEditHeadDraft({ ...effectiveHead });
+    setIsEditHeadModalOpen(true);
+  };
+
+  const handleSaveHead = async () => {
+    if (!editHeadDraft?.companyName?.trim()) {
+      toast.error('Company Name is required');
+      return;
+    }
+    setSavingHead(true);
+    try {
+      const tapalId = tapal._id || tapal.id;
+      if (tapalId) {
+        await tapalService.update(tapalId, { stickerHead: editHeadDraft });
+      }
+      setTapal(prev => ({ ...prev, stickerHead: editHeadDraft }));
+      setIsEditHeadModalOpen(false);
+      toast.success('Sticker header updated successfully!');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update header');
+    } finally {
+      setSavingHead(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-500 font-sans print:p-0 print:m-0">
       {/* Action Buttons - Hidden in Print */}
@@ -176,6 +217,13 @@ const TapalPreview = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleOpenEditHead}
+            className="flex-1 sm:flex-none border border-[#6A7051] bg-[#F9FAF6] text-[#6A7051] px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-[#6A7051] hover:text-white transition-all flex items-center justify-center gap-2 shadow-sm"
+          >
+            <Edit3 size={14} /> Edit Header
+          </button>
           <button
             onClick={handlePrint}
             className="flex-1 sm:flex-none border border-card-border bg-white text-text-secondary px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
@@ -214,21 +262,35 @@ const TapalPreview = () => {
           <div className="border border-black flex flex-col justify-between">
             <div>
               {/* Header Box */}
-              <div className="text-center pb-1 border-b border-black">
+              <div className="text-center pb-1 border-b border-black relative group">
+                <button
+                  type="button"
+                  onClick={handleOpenEditHead}
+                  className="no-print absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold uppercase rounded flex items-center gap-1 shadow-sm"
+                  title="Click to edit sticker head"
+                >
+                  <Edit3 size={11} /> Edit Head
+                </button>
                 <h1 className="text-2xl font-bold tracking-wide text-[#1e3a8a] mt-1 mb-0 pb-0">
-                  M. K. FISHERIES
+                  {effectiveHead.companyName}
                 </h1>
-                <h2 className="text-sm font-bold text-[#1e3a8a] mt-0">
-                  WHOLE SALE FISH MERCHANTS
-                </h2>
-                <p className="text-xs font-semibold text-[#1e3a8a] mt-0">
-                  KARWAR & MANGALORE (KARNATAKA)
-                </p>
-                <p className="text-[10px] font-semibold text-[#1e3a8a] mt-0 mb-1">
-                  Mob : 9019411439, 9663655558
-                </p>
+                {effectiveHead.subtitle && (
+                  <h2 className="text-sm font-bold text-[#1e3a8a] mt-0">
+                    {effectiveHead.subtitle}
+                  </h2>
+                )}
+                {effectiveHead.location && (
+                  <p className="text-xs font-semibold text-[#1e3a8a] mt-0">
+                    {effectiveHead.location}
+                  </p>
+                )}
+                {effectiveHead.phone && (
+                  <p className="text-[10px] font-semibold text-[#1e3a8a] mt-0 mb-1">
+                    {effectiveHead.phone}
+                  </p>
+                )}
                 <div className="border-t border-black w-full text-center py-1">
-                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">★ TAPAL / LOGISTICS DISPATCH ★</h3>
+                   <h3 className="text-sm font-bold text-[#1e3a8a] tracking-wide">{effectiveHead.title}</h3>
                 </div>
               </div>
 
@@ -382,8 +444,8 @@ const TapalPreview = () => {
                   <div className="w-32 border-b border-black/30 border-dashed mb-1"></div>
                 </div>
                 <div className="w-1/3 flex flex-col justify-between pt-1 pb-2">
-                  <div className="text-[10px] pl-2">
-                     For : M.K. FISHERIES
+                  <div className="text-[10px] pl-2 font-bold uppercase">
+                     For : {effectiveHead.companyName || 'M.K. FISHERIES'}
                   </div>
                   <div className="text-[10px] pl-2 flex justify-center mt-12 w-full">
                      Authorised Signatory
@@ -398,6 +460,43 @@ const TapalPreview = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Sticker Head Modal */}
+      <Modal
+        isOpen={isEditHeadModalOpen}
+        onClose={() => setIsEditHeadModalOpen(false)}
+        title="Edit Tapal Sticker Head"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-secondary">
+            Update the company branding, branch location, and contact numbers printed on this tapal dispatch bill.
+          </p>
+          {editHeadDraft && (
+            <StickerHeadEditor
+              values={editHeadDraft}
+              onChange={setEditHeadDraft}
+            />
+          )}
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setIsEditHeadModalOpen(false)}
+              className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-bold uppercase tracking-wider hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={savingHead}
+              onClick={handleSaveHead}
+              className="px-5 py-2 bg-[#6A7051] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#5F6846] disabled:opacity-50"
+            >
+              {savingHead ? 'Saving…' : 'Save Header'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

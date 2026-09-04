@@ -101,6 +101,7 @@ export const harvestController = {
       logisticsNotes,
       vehicleNumber,
       driverName,
+      stickerHead,
     } = req.body || {};
     const logistics = {
       buyerPhone,
@@ -110,6 +111,7 @@ export const harvestController = {
       logisticsNotes,
       vehicleNumber,
       driverName,
+      stickerHead,
     };
     const tapal = await harvestService.convertToTapal(
       req.params.id,

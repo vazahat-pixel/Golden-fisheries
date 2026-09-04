@@ -4,11 +4,13 @@ import { useAdminStore } from '../../../store/adminStore';
 import { 
   Layers, ArrowLeft, ArrowRight, Check, Truck, User, 
   Package, Calendar, FileCheck, MapPin, Info, ChevronRight,
-  AlertCircle, CheckCircle, Sprout
+  AlertCircle, CheckCircle, Sprout, ChevronDown, ChevronUp, FileText
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../../design-system';
 import { masterService } from '../../../services/masterService';
+import { StickerHeadEditor } from '../../../components/tapal/StickerHeadEditor';
+import { DEFAULT_STICKER_HEAD } from '../../../constants/stickerHead';
 
 const STEPS = [
   { id: 1, label: 'Source Load',    icon: Sprout },
@@ -44,6 +46,8 @@ const CreateTapalWizard = () => {
   const [assignedBuyerId, setAssignedBuyerId] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [notes, setNotes] = useState('');
+  const [stickerHead, setStickerHead] = useState({ ...DEFAULT_STICKER_HEAD });
+  const [showStickerHeadSection, setShowStickerHeadSection] = useState(false);
 
   const [isBuyerModalOpen, setIsBuyerModalOpen] = useState(false);
   const [newBuyerName, setNewBuyerName] = useState('');
@@ -181,6 +185,7 @@ const CreateTapalWizard = () => {
           vehicleNumber: vehicleNo.trim() || undefined,
           destination: deliveryLocation.trim() || undefined,
           logisticsNotes: notes.trim() || undefined,
+          stickerHead,
         },
         selectedSlip?.items
       );
@@ -454,6 +459,40 @@ const CreateTapalWizard = () => {
               </div>
             </div>
           )}
+
+          {/* Sticker Head Customization Section */}
+          <div className="border border-card-border overflow-hidden">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setShowStickerHeadSection((prev) => !prev)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowStickerHeadSection((prev) => !prev); }}
+              className="flex items-center justify-between cursor-pointer p-3 bg-[#F5F5EC]/50 border-b border-card-border hover:bg-[#F5F5EC] transition-all select-none"
+            >
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-brand-olive" />
+                <span className="text-xs font-black uppercase text-brand-olive tracking-wider">
+                  Tapal Sticker Head (Letterhead)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-brand-olive">
+                <span>{stickerHead.companyName}</span>
+                {showStickerHeadSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+
+            {showStickerHeadSection && (
+              <div className="p-4 bg-white space-y-3">
+                <p className="text-xs text-text-muted">
+                  Customize the company name, branch location, and dispatch title printed on this Tapal sticker.
+                </p>
+                <StickerHeadEditor
+                  values={stickerHead}
+                  onChange={setStickerHead}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -487,6 +526,17 @@ const CreateTapalWizard = () => {
                 <p><span className="font-bold text-text-muted w-28 inline-block">Vehicle:</span> <span className="font-black">{vehicleNo || '—'}</span></p>
                 <p><span className="font-bold text-text-muted w-28 inline-block">Driver:</span> <span className="font-black uppercase">{driverName || '—'}</span></p>
                 {deliveryLocation && <p><span className="font-bold text-text-muted w-28 inline-block">Delivery To:</span> <span className="font-bold">{deliveryLocation}</span></p>}
+              </div>
+            </div>
+
+            {/* Sticker Head Summary */}
+            <div className="space-y-2 border-t border-card-border pt-3 md:col-span-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-text-muted border-b border-card-border pb-1">Sticker / Letterhead Details</h3>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                <p><span className="font-bold text-text-muted">Company:</span> <span className="font-black text-[#1e3a8a]">{stickerHead.companyName}</span></p>
+                <p><span className="font-bold text-text-muted">Location:</span> <span className="font-black">{stickerHead.location}</span></p>
+                <p><span className="font-bold text-text-muted">Contact:</span> <span className="font-black">{stickerHead.phone}</span></p>
+                <p><span className="font-bold text-text-muted">Title:</span> <span className="font-black text-[#1e3a8a]">{stickerHead.title}</span></p>
               </div>
             </div>
           </div>

@@ -152,6 +152,13 @@ const tapalSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    stickerHead: {
+      companyName: { type: String, trim: true, default: null },
+      subtitle: { type: String, trim: true, default: null },
+      location: { type: String, trim: true, default: null },
+      phone: { type: String, trim: true, default: null },
+      title: { type: String, trim: true, default: null },
+    },
     createdBy: {
       type: String,
       required: true

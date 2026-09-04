@@ -31,6 +31,7 @@ export const tapalController = {
       logisticsNotes,
       vehicleNumber,
       driverName,
+      stickerHead,
     } = req.body;
 
     const logistics = {
@@ -41,6 +42,7 @@ export const tapalController = {
       logisticsNotes,
       vehicleNumber,
       driverName,
+      stickerHead,
     };
 
     if (assignedTo && !logistics.assignedTo) {
