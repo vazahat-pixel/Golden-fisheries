@@ -86,6 +86,7 @@ function buildDefaultProductAllocations(h) {
       boxes: remainingBoxes > 0 ? String(remainingBoxes) : '',
       boxWeight: boxWeight,
       totalWeight: remainingKg > 0 ? remainingKg.toFixed(2) : '',
+      sticker: item.sticker ? String(item.sticker).trim() : '',
     };
   });
   return products;
@@ -313,7 +314,9 @@ const CreateTapalFromHarvest = () => {
           : (parseFloat(prodData) || 0);
 
         const count = item.count ? String(item.count).trim() : '';
-        const sticker = item.sticker ? String(item.sticker).trim() : '';
+        // Use manual sticker from prodData if available, fallback to harvest item sticker
+        const manualSticker = typeof prodData === 'object' && prodData.sticker != null ? String(prodData.sticker).trim() : '';
+        const sticker = manualSticker || (item.sticker ? String(item.sticker).trim() : '');
 
         const name = (item.fishName || item.particulars || '').toUpperCase();
         if (!name || (qty <= 0 && boxes <= 0)) return;
@@ -420,7 +423,7 @@ const CreateTapalFromHarvest = () => {
             lineItemId: item._id || undefined,
             productId: item.productId?._id || item.productId,
             fishName: item.fishName || item.particulars,
-            sticker: item.sticker || '',
+            sticker: (typeof prodData === 'object' && prodData.sticker != null && prodData.sticker !== '') ? prodData.sticker : (item.sticker || ''),
             count: item.count || '',
             boxCount: boxes,
             boxes: boxes,
@@ -612,6 +615,7 @@ const CreateTapalFromHarvest = () => {
                             <tr className="bg-slate-50 text-slate-600">
                               <th className="border-b border-slate-200 p-2 text-left uppercase font-black">Fish Item</th>
                               <th className="border-b border-slate-200 p-2 text-center uppercase font-black w-28">Available</th>
+                              <th className="border-b border-slate-200 p-2 text-center uppercase font-black w-28">Sticker</th>
                               <th className="border-b border-slate-200 p-2 text-center uppercase font-black w-24">Tapal Boxes</th>
                               <th className="border-b border-slate-200 p-2 text-center uppercase font-black w-36">Box Weight</th>
                               <th className="border-b border-slate-200 p-2 text-right uppercase font-black w-28">Total Wt (KG)</th>
@@ -649,6 +653,15 @@ const CreateTapalFromHarvest = () => {
                                   <td className="border-b border-slate-100 p-2 text-center tabular-nums text-slate-600">
                                     <span className="font-bold text-slate-800">{availableBoxes > 0 ? `${availableBoxes} Box` : ''}</span>
                                     <span className="text-[10px] text-slate-400 block">({availableKg.toFixed(2)} KG)</span>
+                                  </td>
+                                  <td className="border-b border-slate-100 p-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Sticker"
+                                      className={`${paperInputClass} w-full text-center font-bold uppercase`}
+                                      value={prodData.sticker ?? ''}
+                                      onChange={(e) => handleProductFieldChange(hId, lineKey, 'sticker', e.target.value)}
+                                    />
                                   </td>
                                   <td className="border-b border-slate-100 p-2">
                                     <input
@@ -691,7 +704,7 @@ const CreateTapalFromHarvest = () => {
                           </tbody>
                           <tfoot>
                             <tr className="bg-[#F9FAF6] font-black">
-                              <td colSpan={2} className="p-2 text-right uppercase text-[10px] text-[#6A7051]">
+                              <td colSpan={3} className="p-2 text-right uppercase text-[10px] text-[#6A7051]">
                                 Subtotal
                               </td>
                               <td className="p-2 text-center tabular-nums text-slate-900">
@@ -838,6 +851,7 @@ const CreateTapalFromHarvest = () => {
                     <thead>
                       <tr className="bg-slate-100 text-slate-600">
                         <th className="border border-slate-200 p-1.5 text-left uppercase">Fish Item</th>
+                        <th className="border border-slate-200 p-1.5 text-center uppercase">Sticker</th>
                         <th className="border border-slate-200 p-1.5 text-center uppercase">Boxes</th>
                         <th className="border border-slate-200 p-1.5 text-center uppercase">Box Wt</th>
                         <th className="border border-slate-200 p-1.5 text-right uppercase">Est. Weight</th>
@@ -847,6 +861,7 @@ const CreateTapalFromHarvest = () => {
                       {consolidatedProducts.map((p, i) => (
                         <tr key={i} className="hover:bg-white transition-colors">
                           <td className="border border-slate-200 p-1.5 font-bold uppercase text-slate-800">{p.fishName}</td>
+                          <td className="border border-slate-200 p-1.5 text-center font-bold uppercase text-blue-700">{p.sticker || '—'}</td>
                           <td className="border border-slate-200 p-1.5 text-center text-slate-800 font-black">
                             {p.boxCount ? p.boxCount : '—'}
                           </td>

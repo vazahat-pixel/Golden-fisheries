@@ -100,6 +100,15 @@ const BuyerIncomingTapals = () => {
                   <p className="text-[10px] fa-muted">
                     {t.numericQty ? `${t.numericQty} KG` : t.qty || '—'}
                   </p>
+                  {(t.products || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(t.products || []).map((p, idx) => (
+                        <span key={idx} className="inline-block px-1.5 py-0.5 bg-[var(--fa-surface-elevated)] text-[9px] font-bold uppercase rounded border border-[var(--fa-border)]">
+                          {p.name || p.particulars}{p.sticker ? ` [${p.sticker}]` : ''} · {p.boxQty || p.noOfBoxes || 0} box
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <span className="text-[9px] font-bold text-[var(--fa-accent)] uppercase">{t.status}</span>
               </div>

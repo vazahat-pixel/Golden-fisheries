@@ -57,6 +57,7 @@ const TapalList = () => {
             <tr>
               <th className="p-2 text-left">TP No</th>
               <th className="p-2 text-left">Party</th>
+              <th className="p-2 text-left">Stickers</th>
               <th className="p-2 text-left">Destination</th>
               <th className="p-2 text-left">Status</th>
               <th className="p-2 text-left">Vehicle</th>
@@ -65,7 +66,7 @@ const TapalList = () => {
           <tbody>
             {tapals.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-gray-500">
+                <td colSpan={6} className="p-6 text-center text-gray-500">
                   No tapals. Create from harvest after purchase invoice.
                 </td>
               </tr>
@@ -78,6 +79,16 @@ const TapalList = () => {
               >
                 <td className="p-2 font-mono">{t.tpNo || t.tapalNumber}</td>
                 <td className="p-2">{t.partyName}</td>
+                <td className="p-2">
+                  <div className="flex flex-wrap gap-1">
+                    {(t.products || []).filter(p => p.sticker).map((p, idx) => (
+                      <span key={idx} className="inline-block px-1.5 py-0.5 bg-blue-50 text-blue-800 font-bold text-[9px] uppercase border border-blue-200 rounded-sm">
+                        {p.sticker}
+                      </span>
+                    ))}
+                    {!(t.products || []).some(p => p.sticker) && <span className="text-gray-400 text-xs">—</span>}
+                  </div>
+                </td>
                 <td className="p-2">{t.destination || t.unloadingPoint}</td>
                 <td className="p-2">{t.status}</td>
                 <td className="p-2">{t.vehicleNumber || '—'}</td>
