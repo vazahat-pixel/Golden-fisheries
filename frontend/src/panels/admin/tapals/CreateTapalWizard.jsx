@@ -48,6 +48,7 @@ const CreateTapalWizard = () => {
   const [notes, setNotes] = useState('');
   const [stickerHead, setStickerHead] = useState({ ...DEFAULT_STICKER_HEAD });
   const [showStickerHeadSection, setShowStickerHeadSection] = useState(false);
+  const [editableItems, setEditableItems] = useState([]);
 
   const [isBuyerModalOpen, setIsBuyerModalOpen] = useState(false);
   const [newBuyerName, setNewBuyerName] = useState('');
@@ -132,11 +133,22 @@ const CreateTapalWizard = () => {
         if (found.vehicleNo) setVehicleNo(found.vehicleNo);
         if (found.driverName) setDriverName(found.driverName);
         if (found.graderName) setGraderName(found.graderName);
+        // Initialize editable items with sticker field
+        setEditableItems((found.items || []).map(item => ({ ...item, sticker: item.sticker || '' })));
       }
     } else {
       setSelectedSlip(null);
+      setEditableItems([]);
     }
   }, [selectedSlipId, harvestSlips]);
+
+  const handleItemStickerChange = (index, value) => {
+    setEditableItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], sticker: value };
+      return updated;
+    });
+  };
 
   const eligibleSlips = harvestSlips.filter(s =>
     ['Farmer Approved', 'Approved', 'Draft', 'Sent to Farmer', 'Pending Approval'].includes(s.status)
@@ -187,7 +199,7 @@ const CreateTapalWizard = () => {
           logisticsNotes: notes.trim() || undefined,
           stickerHead,
         },
-        selectedSlip?.items
+        editableItems.length > 0 ? editableItems : selectedSlip?.items
       );
       await updateHarvestStatusAsync(selectedSlipId, 'Tapal Created');
       sessionStorage.removeItem('current_tapal_source_slip');
@@ -318,20 +330,30 @@ const CreateTapalWizard = () => {
                       <tr className="bg-[#F5F5EC]/50 border-b border-card-border">
                         <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive w-10 text-center">#</th>
                         <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive">Particulars</th>
+                        <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center w-28">Sticker</th>
                         <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-center">Boxes</th>
                         <th className="py-2 px-3 text-[10px] font-black uppercase text-brand-olive text-right">Total Weight</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-card-border">
-                      {selectedSlip.items?.map((item, i) => (
+                      {editableItems.length > 0 ? editableItems.map((item, i) => (
                         <tr key={i} className="hover:bg-slate-50/40">
                           <td className="py-2.5 px-3 text-center text-text-muted font-bold">{i+1}</td>
                           <td className="py-2.5 px-3 font-black uppercase text-brand-olive">{item.particulars}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            <input
+                              type="text"
+                              value={item.sticker || ''}
+                              onChange={e => handleItemStickerChange(i, e.target.value)}
+                              placeholder="Sticker"
+                              className="bg-white border border-card-border px-2 py-1.5 text-xs text-center font-bold uppercase focus:ring-1 focus:ring-brand-olive outline-none w-full"
+                            />
+                          </td>
                           <td className="py-2.5 px-3 text-center font-bold">{item.noOfBoxes || 0}</td>
                           <td className="py-2.5 px-3 text-right font-black">{parseFloat(item.totalWeight || 0).toFixed(2)} kg</td>
                         </tr>
-                      )) || (
-                        <tr><td colSpan="4" className="py-4 text-center text-text-muted italic">No items data</td></tr>
+                      )) : (
+                        <tr><td colSpan="5" className="py-4 text-center text-text-muted italic">No items data</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -558,12 +580,20 @@ const CreateTapalWizard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-card-border">
-                  {selectedSlip?.items?.map((item, i) => (
+                  {(editableItems.length > 0 ? editableItems : selectedSlip?.items)?.map((item, i) => (
                     <tr key={i} className="hover:bg-slate-50/40">
                       <td className="py-2.5 px-3 font-bold text-text-muted">{i+1}</td>
                       <td className="py-2.5 px-3 font-mono text-xs">{item.hsnCode || 'N/A'}</td>
                       <td className="py-2.5 px-3 font-black uppercase text-brand-olive">{item.particulars}</td>
-                      <td className="py-2.5 px-3 text-center font-bold uppercase">{item.sticker || '-'}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        <input
+                          type="text"
+                          value={item.sticker || ''}
+                          onChange={e => handleItemStickerChange(i, e.target.value)}
+                          placeholder="Sticker"
+                          className="bg-white border border-card-border px-2 py-1.5 text-xs text-center font-bold uppercase focus:ring-1 focus:ring-brand-olive outline-none w-full"
+                        />
+                      </td>
                       <td className="py-2.5 px-3 text-center font-bold">{item.count || '-'}</td>
                       <td className="py-2.5 px-3 text-center font-black">{item.noOfBoxes || 0}</td>
                       <td className="py-2.5 px-3 text-right font-black">{parseFloat(item.totalWeight || 0).toFixed(2)} kg</td>
