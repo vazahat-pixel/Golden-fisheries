@@ -496,6 +496,7 @@ const CreateHarvestSlipV2 = () => {
                       <datalist id="box-weight-presets">
                         <option value="Full Box" />
                         <option value="Half Box" />
+                        <option value="Loose Box" />
                         <option value="20 kg" />
                         <option value="25 kg" />
                         <option value="30 kg" />

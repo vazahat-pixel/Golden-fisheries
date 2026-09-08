@@ -93,7 +93,9 @@ class HarvestService extends BaseService {
       : (item.sticker || '').toString().trim();
     const stickerPart = stickerVal ? `:${stickerVal.toUpperCase()}` : '';
     const bwKey = customWeightPerBox ? `:${String(customWeightPerBox).trim().toUpperCase()}` : '';
-    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}${countPart}${stickerPart}${bwKey}`;
+    const hsnPart = (item.hsnCode || '').toString().trim();
+    const hsnKey = hsnPart ? `:${hsnPart}` : '';
+    const key = `${String(item.productId)}:${(item.fishName || '').toUpperCase()}${hsnKey}${countPart}${stickerPart}${bwKey}`;
     const boxRatio = (item.estimatedQty || 0) > 0 ? qty / item.estimatedQty : 0;
     const scaledBoxes = customBoxQty != null && customBoxQty !== ''
       ? (parseFloat(customBoxQty) || 0)

@@ -76,11 +76,15 @@ function buildDefaultProductAllocations(h) {
     const remainingBoxes = (lineEstKg > 0 && itemBoxes > 0)
       ? Math.max(1, Math.round(itemBoxes * (remainingKg / lineEstKg)))
       : (itemBoxes > 0 ? itemBoxes : '');
-    const boxWeight = item.weightPerBox != null ? String(item.weightPerBox) : (item.boxWeight || 'Full Box');
+    let boxWeight = item.weightPerBox != null ? String(item.weightPerBox) : (item.boxWeight || '');
+    if (!boxWeight) {
+      const isLoose = (itemBoxes === 1 && (index > 0 || (lineEstKg > 0 && lineEstKg < 24) || /loose/i.test(item.fishName || item.particulars || '')));
+      boxWeight = isLoose ? 'Loose Box' : 'Full Box';
+    }
 
     products[lineKey] = {
       boxes: remainingBoxes > 0 ? String(remainingBoxes) : '',
-      boxWeight: boxWeight || 'Full Box',
+      boxWeight: boxWeight,
       totalWeight: remainingKg > 0 ? remainingKg.toFixed(2) : '',
     };
   });
